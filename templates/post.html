@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} - 我的博客{% endblock %}
+
+{% block content %}
+<div class="container">
+    <article class="post-full">
+        <header class="post-header">
+            <h1>{{ post.title }}</h1>
+            <div class="post-meta">
+                <time datetime="{{ post.created_at }}">发布于 {{ post.created_at }}</time>
+                {% if post.updated_at != post.created_at %}
+                    <span class="updated">· 更新于 {{ post.updated_at }}</span>
+                {% endif %}
+            </div>
+        </header>
+        <div class="post-content">
+            {{ post.content_html|safe }}
+        </div>
+    </article>
+    <div class="post-navigation">
+        <a href="{{ url_for('index') }}" class="back-link">← 返回首页</a>
+    </div>
+</div>
+{% endblock %}
