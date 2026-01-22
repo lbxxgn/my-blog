@@ -5,6 +5,11 @@ const previewDiv = document.getElementById('preview');
 if (contentTextarea && previewDiv) {
     // Simple Markdown to HTML converter
     function parseMarkdown(text) {
+        // First, escape HTML tags to prevent XSS
+        text = text.replace(/&/g, '&amp;')
+                   .replace(/</g, '&lt;')
+                   .replace(/>/g, '&gt;');
+
         let html = text
             // Headers
             .replace(/^### (.*$)/gim, '<h3>$1</h3>')
