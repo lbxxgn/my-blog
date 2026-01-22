@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from functools import wraps
 import markdown2
 import os
@@ -175,7 +176,7 @@ def upload_image():
 
     # Generate unique filename with timestamp
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"{timestamp}_{file.filename}"
+    filename = f"{timestamp}_{secure_filename(file.filename)}"
     filepath = UPLOAD_FOLDER / filename
 
     file.save(str(filepath))
