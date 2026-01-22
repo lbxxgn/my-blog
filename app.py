@@ -98,7 +98,7 @@ def logout():
 def admin_dashboard():
     """Admin dashboard - list all posts including drafts"""
     posts = get_all_posts(include_drafts=True)
-    return render_template('admin.html', posts=posts)
+    return render_template('admin/dashboard.html', posts=posts)
 
 
 @app.route('/admin/new', methods=['GET', 'POST'])
@@ -112,13 +112,13 @@ def new_post():
 
         if not title or not content:
             flash('标题和内容不能为空', 'error')
-            return render_template('edit_post.html', post=None)
+            return render_template('admin/editor.html', post=None)
 
         post_id = create_post(title, content, is_published)
         flash('文章创建成功', 'success')
         return redirect(url_for('view_post', post_id=post_id))
 
-    return render_template('edit_post.html', post=None)
+    return render_template('admin/editor.html', post=None)
 
 
 @app.route('/admin/edit/<int:post_id>', methods=['GET', 'POST'])
@@ -137,13 +137,13 @@ def edit_post(post_id):
 
         if not title or not content:
             flash('标题和内容不能为空', 'error')
-            return render_template('edit_post.html', post=post)
+            return render_template('admin/editor.html', post=post)
 
         update_post(post_id, title, content, is_published)
         flash('文章更新成功', 'success')
         return redirect(url_for('view_post', post_id=post_id))
 
-    return render_template('edit_post.html', post=post)
+    return render_template('admin/editor.html', post=post)
 
 
 @app.route('/admin/delete/<int:post_id>', methods=['POST'])
