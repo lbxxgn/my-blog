@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}
+{% if post %}编辑文章 - {{ post.title }}{% else %}新建文章{% endif %} - 我的博客
+{% endblock %}
+
+{% block content %}
+<div class="container admin-editor">
+    <h2>{% if post %}编辑文章{% else %}新建文章{% endif %}</h2>
+
+    <form method="POST" class="editor-form">
+        <div class="form-group">
+            <label for="title">标题</label>
+            <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" required>
+        </div>
+
+        <div class="editor-toolbar">
+            <button type="button" class="btn btn-sm" onclick="insertMarkdown('**', '**')">粗体</button>
+            <button type="button" class="btn btn-sm" onclick="insertMarkdown('*', '*')">斜体</button>
+            <button type="button" class="btn btn-sm" onclick="insertMarkdown('# ', '')">标题</button>
+            <button type="button" class="btn btn-sm" onclick="insertMarkdown('[', '](url)')">链接</button>
+            <button type="button" class="btn btn-sm" onclick="insertMarkdown('`', '`')">代码</button>
+            <label class="btn btn-sm btn-upload">
+                上传图片
+                <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+            </label>
+        </div>
+
+        <div class="editor-container">
+            <div class="editor-pane">
+                <label for="content">内容 (Markdown)</label>
+                <textarea id="content" name="content" rows="20" required>{% if post %}{{ post.content }}{% endif %}</textarea>
+            </div>
+
+            <div class="preview-pane">
+                <label>预览</label>
+                <div id="preview" class="markdown-preview"></div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <label class="checkbox-label">
+                <input type="checkbox" name="is_published" {% if post and post.is_published %}checked{% endif %}>
+                立即发布
+            </label>
+            <button type="submit" class="btn btn-primary">保存</button>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn">取消</a>
+        </div>
+    </form>
+</div>
+
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+{% endblock %}
