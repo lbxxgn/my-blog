@@ -44,7 +44,12 @@ header {
     padding: 1.25rem 0;
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1000;
+    will-change: transform;
+}
+
+header.header-hidden {
+    transform: translateY(-100%);
 }
 
 nav {
