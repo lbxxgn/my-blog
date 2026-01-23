@@ -108,7 +108,7 @@ def new_post():
     if request.method == 'POST':
         title = request.form.get('title')
         content = request.form.get('content')
-        is_published = request.form.get('is_published') == '1'
+        is_published = request.form.get('is_published') is not None
 
         if not title or not content:
             flash('标题和内容不能为空', 'error')
@@ -133,7 +133,7 @@ def edit_post(post_id):
     if request.method == 'POST':
         title = request.form.get('title')
         content = request.form.get('content')
-        is_published = request.form.get('is_published') == '1'
+        is_published = request.form.get('is_published') is not None
 
         if not title or not content:
             flash('标题和内容不能为空', 'error')
