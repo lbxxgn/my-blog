@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
@@ -165,25 +165,27 @@ def delete_post_route(post_id):
 def upload_image():
     """Handle image upload"""
     if 'file' not in request.files:
-        return {'error': '没有文件上传'}, 400
+        return jsonify({'success': False, 'error': '没有文件上传'}), 400
 
     file = request.files['file']
     if file.filename == '':
-        return {'error': '未选择文件'}, 400
+        return jsonify({'success': False, 'error': '未选择文件'}), 400
 
     if not allowed_file(file.filename):
-        return {'error': '不支持的文件类型'}, 400
+        return jsonify({'success': False, 'error': '不支持的文件类型'}), 400
 
     # Generate unique filename with timestamp
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f"{timestamp}_{secure_filename(file.filename)}"
     filepath = UPLOAD_FOLDER / filename
 
-    file.save(str(filepath))
-
-    # Return URL to uploaded image
-    url = url_for('static', filename=f'uploads/{filename}')
-    return {'url': url}, 200
+    try:
+        file.save(str(filepath))
+        # Return URL to uploaded image
+        url = url_for('static', filename=f'uploads/{filename}')
+        return jsonify({'success': True, 'url': url})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def create_admin_user():
