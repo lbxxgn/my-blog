@@ -378,8 +378,37 @@ def view_category(category_id):
         flash('分类不存在', 'error')
         return redirect(url_for('index'))
 
-    posts = get_posts_by_category(category_id, include_drafts=False)
-    return render_template('index.html', posts=posts, category=category)
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    posts_data = get_all_posts(include_drafts=False, page=page, per_page=per_page, category_id=category_id)
+
+    # Calculate pagination info
+    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+
+    # Calculate page range to display
+    page_start = max(1, posts_data['page'] - 2)
+    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+    page_range = list(range(page_start, page_end))
+    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+
+    # Get all categories for the filter bar
+    categories = get_all_categories()
+
+    return render_template('index.html',
+                         posts=posts_data['posts'],
+                         category=category,
+                         categories=categories,
+                         pagination=posts_data,
+                         start_item=start_item,
+                         end_item=end_item,
+                         page_range=page_range,
+                         show_ellipsis=show_ellipsis)
 
 
 def create_admin_user():

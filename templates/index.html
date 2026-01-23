@@ -43,26 +43,26 @@
         {% if pagination.total_pages > 1 %}
         <div class="pagination" style="margin-top: 3rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
             {% if pagination.page > 1 %}
-            <a href="{{ url_for('index', page=1) }}" class="btn btn-sm">首页</a>
-            <a href="{{ url_for('index', page=pagination.page-1) }}" class="btn btn-sm">上一页</a>
+            <a href="{% if category %}{{ url_for('view_category', category_id=category.id, page=1) }}{% else %}{{ url_for('index', page=1) }}{% endif %}" class="btn btn-sm">首页</a>
+            <a href="{% if category %}{{ url_for('view_category', category_id=category.id, page=pagination.page-1) }}{% else %}{{ url_for('index', page=pagination.page-1) }}{% endif %}" class="btn btn-sm">上一页</a>
             {% endif %}
 
             {% for p in page_range %}
                 {% if p == pagination.page %}
                 <span style="padding: 0.5rem 1rem; background: var(--primary-color); color: white; border-radius: 6px; font-weight: 500;">{{ p }}</span>
                 {% else %}
-                <a href="{{ url_for('index', page=p) }}" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-color);">{{ p }}</a>
+                <a href="{% if category %}{{ url_for('view_category', category_id=category.id, page=p) }}{% else %}{{ url_for('index', page=p) }}{% endif %}" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-color);">{{ p }}</a>
                 {% endif %}
             {% endfor %}
 
             {% if show_ellipsis %}
             <span style="color: #999;">...</span>
-            <a href="{{ url_for('index', page=pagination.total_pages) }}" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
+            <a href="{% if category %}{{ url_for('view_category', category_id=category.id, page=pagination.total_pages) }}{% else %}{{ url_for('index', page=pagination.total_pages) }}{% endif %}" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
             {% endif %}
 
             {% if pagination.page < pagination.total_pages %}
-            <a href="{{ url_for('index', page=pagination.page+1) }}" class="btn btn-sm">下一页</a>
-            <a href="{{ url_for('index', page=pagination.total_pages) }}" class="btn btn-sm">末页</a>
+            <a href="{% if category %}{{ url_for('view_category', category_id=category.id, page=pagination.page+1) }}{% else %}{{ url_for('index', page=pagination.page+1) }}{% endif %}" class="btn btn-sm">下一页</a>
+            <a href="{% if category %}{{ url_for('view_category', category_id=category.id, page=pagination.total_pages) }}{% else %}{{ url_for('index', page=pagination.total_pages) }}{% endif %}" class="btn btn-sm">末页</a>
             {% endif %}
         </div>
         {% endif %}
