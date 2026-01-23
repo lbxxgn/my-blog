@@ -18,6 +18,15 @@ def init_db(db_path=None):
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
 
+    # Create categories table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     # Create posts table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS posts (
@@ -25,8 +34,10 @@ def init_db(db_path=None):
             title TEXT NOT NULL,
             content TEXT NOT NULL,
             is_published BOOLEAN DEFAULT 0,
+            category_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (category_id) REFERENCES categories(id)
         )
     ''')
 
@@ -42,26 +53,26 @@ def init_db(db_path=None):
     conn.commit()
     conn.close()
 
-def create_post(title, content, is_published=False):
+def create_post(title, content, is_published=False, category_id=None):
     """Create a new post"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        'INSERT INTO posts (title, content, is_published) VALUES (?, ?, ?)',
-        (title, content, is_published)
+        'INSERT INTO posts (title, content, is_published, category_id) VALUES (?, ?, ?, ?)',
+        (title, content, is_published, category_id)
     )
     conn.commit()
     post_id = cursor.lastrowid
     conn.close()
     return post_id
 
-def update_post(post_id, title, content, is_published):
+def update_post(post_id, title, content, is_published, category_id=None):
     """Update an existing post"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        'UPDATE posts SET title = ?, content = ?, is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        (title, content, is_published, post_id)
+        'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        (title, content, is_published, category_id, post_id)
     )
     conn.commit()
     conn.close()
@@ -80,19 +91,35 @@ def get_all_posts(include_drafts=False):
     cursor = conn.cursor()
 
     if include_drafts:
-        cursor.execute('SELECT * FROM posts ORDER BY created_at DESC')
+        cursor.execute('''
+            SELECT posts.*, categories.name as category_name, categories.id as category_id
+            FROM posts
+            LEFT JOIN categories ON posts.category_id = categories.id
+            ORDER BY posts.created_at DESC
+        ''')
     else:
-        cursor.execute('SELECT * FROM posts WHERE is_published = 1 ORDER BY created_at DESC')
+        cursor.execute('''
+            SELECT posts.*, categories.name as category_name, categories.id as category_id
+            FROM posts
+            LEFT JOIN categories ON posts.category_id = categories.id
+            WHERE posts.is_published = 1
+            ORDER BY posts.created_at DESC
+        ''')
 
     posts = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return posts
 
 def get_post_by_id(post_id):
-    """Get a single post by ID"""
+    """Get a single post by ID with category information"""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM posts WHERE id = ?', (post_id,))
+    cursor.execute('''
+        SELECT posts.*, categories.name as category_name, categories.id as category_id
+        FROM posts
+        LEFT JOIN categories ON posts.category_id = categories.id
+        WHERE posts.id = ?
+    ''', (post_id,))
     post = cursor.fetchone()
     conn.close()
     return dict(post) if post else None
@@ -121,3 +148,78 @@ def get_user_by_username(username):
     user = cursor.fetchone()
     conn.close()
     return dict(user) if user else None
+
+def create_category(name):
+    """Create a new category"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'INSERT INTO categories (name) VALUES (?)',
+            (name,)
+        )
+        conn.commit()
+        category_id = cursor.lastrowid
+    except sqlite3.IntegrityError:
+        category_id = None
+    conn.close()
+    return category_id
+
+def get_all_categories():
+    """Get all categories"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM categories ORDER BY name')
+    categories = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return categories
+
+def get_category_by_id(category_id):
+    """Get a category by ID"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM categories WHERE id = ?', (category_id,))
+    category = cursor.fetchone()
+    conn.close()
+    return dict(category) if category else None
+
+def update_category(category_id, name):
+    """Update a category"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'UPDATE categories SET name = ? WHERE id = ?',
+            (name, category_id)
+        )
+        conn.commit()
+        success = True
+    except sqlite3.IntegrityError:
+        success = False
+    conn.close()
+    return success
+
+def delete_category(category_id):
+    """Delete a category"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # First, unassign all posts from this category
+    cursor.execute('UPDATE posts SET category_id = NULL WHERE category_id = ?', (category_id,))
+    # Then delete the category
+    cursor.execute('DELETE FROM categories WHERE id = ?', (category_id,))
+    conn.commit()
+    conn.close()
+
+def get_posts_by_category(category_id, include_drafts=False):
+    """Get all posts in a category"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if include_drafts:
+        cursor.execute('SELECT * FROM posts WHERE category_id = ? ORDER BY created_at DESC', (category_id,))
+    else:
+        cursor.execute('SELECT * FROM posts WHERE category_id = ? AND is_published = 1 ORDER BY created_at DESC', (category_id,))
+
+    posts = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return posts

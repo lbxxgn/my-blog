@@ -6,7 +6,10 @@
 <div class="container admin-dashboard">
     <div class="dashboard-header">
         <h2>文章管理</h2>
-        <a href="{{ url_for('new_post') }}" class="btn btn-primary">新建文章</a>
+        <div class="header-actions">
+            <a href="{{ url_for('category_list') }}" class="btn">分类管理</a>
+            <a href="{{ url_for('new_post') }}" class="btn btn-primary">新建文章</a>
+        </div>
     </div>
 
     {% if posts %}

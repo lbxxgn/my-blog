@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}分类管理 - 我的博客{% endblock %}
+
+{% block content %}
+<div class="container admin-categories">
+    <div class="dashboard-header">
+        <h2>分类管理</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+    </div>
+
+    <div class="category-form">
+        <h3>创建新分类</h3>
+        <form method="POST" action="{{ url_for('new_category') }}">
+            <div class="form-group">
+                <label for="name">分类名称</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <button type="submit" class="btn btn-primary">创建分类</button>
+        </form>
+    </div>
+
+    {% if categories %}
+    <div class="categories-list">
+        <h3>现有分类</h3>
+        <table class="categories-table">
+            <thead>
+                <tr>
+                    <th>分类名称</th>
+                    <th>文章数量</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in categories %}
+                <tr>
+                    <td><strong>{{ category.name }}</strong></td>
+                    <td>-</td>
+                    <td>{{ category.created_at }}</td>
+                    <td class="actions">
+                        <form method="POST" action="{{ url_for('delete_category_route', category_id=category.id) }}"
+                              class="delete-form" onsubmit="return confirm('确定删除这个分类？删除后文章将不再属于该分类。');">
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>还没有创建任何分类。</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
