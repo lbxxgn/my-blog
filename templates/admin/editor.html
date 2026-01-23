@@ -62,9 +62,9 @@
 
         <div class="form-actions">
             <input type="checkbox" name="is_published" id="is_published" {% if post and post.is_published %}checked{% endif %} style="display: none;">
-            <button type="button" id="publishToggle" class="btn {% if post and post.is_published %}btn-success{% else %}btn-outline{% endif %}" onclick="togglePublish()">
-                {% if post and post.is_published %}已发布{% else %}立即发布{% endif %}
-            </button>
+            {% if not post or not post.is_published %}
+            <button type="button" id="publishToggle" class="btn btn-outline" onclick="togglePublish()">立即发布</button>
+            {% endif %}
             <button type="submit" class="btn btn-primary">保存</button>
             <a href="{{ url_for('admin_dashboard') }}" class="btn">取消</a>
         </div>
@@ -99,38 +99,13 @@ function togglePreviewPanel() {
 
 function togglePublish() {
     const checkbox = document.getElementById('is_published');
-    const button = document.getElementById('publishToggle');
+    const form = document.querySelector('.editor-form');
 
-    checkbox.checked = !checkbox.checked;
+    // 设置为已发布状态
+    checkbox.checked = true;
 
-    if (checkbox.checked) {
-        button.textContent = '已发布';
-        button.classList.remove('btn-outline');
-        button.classList.add('btn-success');
-    } else {
-        button.textContent = '立即发布';
-        button.classList.remove('btn-success');
-        button.classList.add('btn-outline');
-    }
+    // 提交表单
+    form.submit();
 }
-
-// Initialize publish button state on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const checkbox = document.getElementById('is_published');
-    const button = document.getElementById('publishToggle');
-
-    if (checkbox && button) {
-        // Sync button text/visual with actual checkbox state
-        if (checkbox.checked) {
-            button.textContent = '已发布';
-            button.classList.remove('btn-outline');
-            button.classList.add('btn-success');
-        } else {
-            button.textContent = '立即发布';
-            button.classList.remove('btn-success');
-            button.classList.add('btn-outline');
-        }
-    }
-});
 </script>
 {% endblock %}

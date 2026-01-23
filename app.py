@@ -124,7 +124,10 @@ def new_post():
             return render_template('admin/editor.html', post=None, categories=categories)
 
         post_id = create_post(title, content, is_published, category_id)
-        flash('文章创建成功', 'success')
+        if is_published:
+            flash('文章发布成功', 'success')
+        else:
+            flash('草稿保存成功', 'success')
         return redirect(url_for('view_post', post_id=post_id))
 
     categories = get_all_categories()
@@ -143,7 +146,11 @@ def edit_post(post_id):
     if request.method == 'POST':
         title = request.form.get('title')
         content = request.form.get('content')
-        is_published = request.form.get('is_published') is not None
+        # 如果文章已经发布，保持发布状态；否则根据表单决定
+        if post['is_published']:
+            is_published = True
+        else:
+            is_published = request.form.get('is_published') is not None
         category_id = request.form.get('category_id')
         if category_id == '':
             category_id = None
