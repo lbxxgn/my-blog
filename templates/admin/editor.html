@@ -84,11 +84,11 @@ function togglePreviewPanel() {
     isPreviewVisible = !isPreviewVisible;
 
     if (isPreviewVisible) {
-        previewPane.classList.add('visible');
+        previewPane.classList.remove('hidden');
         icon.textContent = '◀';
         text.textContent = '隐藏预览';
     } else {
-        previewPane.classList.remove('visible');
+        previewPane.classList.add('hidden');
         icon.textContent = '▶';
         text.textContent = '显示预览';
     }
