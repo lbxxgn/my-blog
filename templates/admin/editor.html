@@ -86,12 +86,12 @@ function togglePreviewPanel() {
 
     if (isPreviewVisible) {
         previewPane.classList.remove('hidden');
-        editorContainer.style.gridTemplateColumns = '1fr 350px';
+        editorContainer.classList.add('preview-visible');
         icon.textContent = '◀';
         text.textContent = '隐藏预览';
     } else {
         previewPane.classList.add('hidden');
-        editorContainer.style.gridTemplateColumns = '1fr';
+        editorContainer.classList.remove('preview-visible');
         icon.textContent = '▶';
         text.textContent = '显示预览';
     }
@@ -113,5 +113,24 @@ function togglePublish() {
         button.classList.add('btn-outline');
     }
 }
+
+// Initialize publish button state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const checkbox = document.getElementById('is_published');
+    const button = document.getElementById('publishToggle');
+
+    if (checkbox && button) {
+        // Sync button text/visual with actual checkbox state
+        if (checkbox.checked) {
+            button.textContent = '已发布';
+            button.classList.remove('btn-outline');
+            button.classList.add('btn-success');
+        } else {
+            button.textContent = '立即发布';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline');
+        }
+    }
+});
 </script>
 {% endblock %}
