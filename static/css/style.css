@@ -495,15 +495,11 @@ main {
 .preview-pane {
     position: relative;
     transition: all 0.3s ease;
+    display: flex;
 }
 
 .preview-pane.hidden {
-    display: none;
-}
-
-.preview-pane:not(.hidden) {
-    display: flex;
-    animation: slideIn 0.3s ease;
+    display: none !important;
 }
 
 @keyframes slideIn {
@@ -515,6 +511,10 @@ main {
         opacity: 1;
         transform: translateX(0);
     }
+}
+
+.preview-pane:not(.hidden) .markdown-preview {
+    animation: slideIn 0.3s ease;
 }
 
 .markdown-preview {
