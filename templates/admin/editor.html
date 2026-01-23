@@ -51,7 +51,7 @@
                 <textarea id="content" name="content" rows="20" required>{% if post %}{{ post.content }}{% endif %}</textarea>
             </div>
 
-            <div class="preview-pane" id="previewPane">
+            <div class="preview-pane hidden" id="previewPane">
                 <div class="preview-header">
                     <label>预览</label>
                     <button type="button" class="btn-close" onclick="togglePreviewPanel()" title="关闭预览">✕</button>
@@ -73,22 +73,25 @@
 
 <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
 <script>
-let isPreviewVisible = true;
+let isPreviewVisible = false;
 
 function togglePreviewPanel() {
     const previewPane = document.getElementById('previewPane');
     const toggleBtn = document.getElementById('togglePreview');
     const icon = toggleBtn.querySelector('.icon');
     const text = toggleBtn.querySelector('.text');
+    const editorContainer = document.querySelector('.editor-container');
 
     isPreviewVisible = !isPreviewVisible;
 
     if (isPreviewVisible) {
         previewPane.classList.remove('hidden');
+        editorContainer.style.gridTemplateColumns = '1fr 350px';
         icon.textContent = '◀';
         text.textContent = '隐藏预览';
     } else {
         previewPane.classList.add('hidden');
+        editorContainer.style.gridTemplateColumns = '1fr';
         icon.textContent = '▶';
         text.textContent = '显示预览';
     }
