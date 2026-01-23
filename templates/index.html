@@ -38,6 +38,34 @@
                 </a>
             {% endfor %}
         </div>
+
+        <!-- Pagination -->
+        {% if pagination.total_pages > 1 %}
+        <div class="pagination" style="margin-top: 3rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            {% if pagination.page > 1 %}
+            <a href="{{ url_for('index', page=1) }}" class="btn btn-sm">首页</a>
+            <a href="{{ url_for('index', page=pagination.page-1) }}" class="btn btn-sm">上一页</a>
+            {% endif %}
+
+            {% for p in range(max(1, pagination.page - 2), min(pagination.total_pages + 1, pagination.page + 3)) %}
+                {% if p == pagination.page %}
+                <span style="padding: 0.5rem 1rem; background: var(--primary-color); color: white; border-radius: 6px; font-weight: 500;">{{ p }}</span>
+                {% else %}
+                <a href="{{ url_for('index', page=p) }}" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-color);">{{ p }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.total_pages > pagination.page + 2 %}
+            <span style="color: #999;">...</span>
+            <a href="{{ url_for('index', page=pagination.total_pages) }}" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
+            {% endif %}
+
+            {% if pagination.page < pagination.total_pages %}
+            <a href="{{ url_for('index', page=pagination.page+1) }}" class="btn btn-sm">下一页</a>
+            <a href="{{ url_for('index', page=pagination.total_pages) }}" class="btn btn-sm">末页</a>
+            {% endif %}
+        </div>
+        {% endif %}
     {% else %}
         <div class="empty-state">
             <p>还没有发布任何文章。</p>

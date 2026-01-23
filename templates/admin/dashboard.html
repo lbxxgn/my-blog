@@ -13,15 +13,26 @@
     </div>
 
     {% if posts %}
-        <div class="filter-bar" style="margin-bottom: 1rem; padding: 1rem; background: var(--code-bg); border-radius: 8px;">
-            <label for="categoryFilter" style="font-weight: 500; margin-right: 0.5rem;">筛选分类：</label>
-            <select id="categoryFilter" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem;">
-                <option value="">全部分类</option>
-                <option value="none">未分类</option>
-                {% for category in categories %}
-                    <option value="{{ category.id }}">{{ category.name }}</option>
-                {% endfor %}
-            </select>
+        <div class="filter-bar" style="margin-bottom: 1rem; padding: 1rem; background: var(--code-bg); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <label for="categoryFilter" style="font-weight: 500;">筛选分类：</label>
+                <select id="categoryFilter" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem;">
+                    <option value="">全部分类</option>
+                    <option value="none">未分类</option>
+                    {% for category in categories %}
+                        <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <label for="perPageSelect" style="font-weight: 500; font-size: 0.9rem;">每页条数：</label>
+                <select id="perPageSelect" onchange="changePerPage()" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem;">
+                    <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10</option>
+                    <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20</option>
+                    <option value="40" {% if pagination.per_page == 40 %}selected{% endif %}>40</option>
+                    <option value="80" {% if pagination.per_page == 80 %}selected{% endif %}>80</option>
+                </select>
+            </div>
         </div>
 
         <div id="batchActionsBar" class="batch-actions-bar" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; align-items: center; gap: 1rem;">
@@ -71,6 +82,43 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <!-- Pagination -->
+        {% if pagination.total_pages > 1 %}
+        <div class="pagination-bar" style="margin-top: 1.5rem; padding: 1rem; background: var(--code-bg); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div style="color: #666; font-size: 0.9rem;">
+                显示第 <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> 到
+                <strong>{{ min(pagination.page * pagination.per_page, pagination.total) }}</strong> 条，
+                共 <strong>{{ pagination.total }}</strong> 条
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                {% if pagination.page > 1 %}
+                <a href="{{ url_for('admin_dashboard', page=1, per_page=pagination.per_page) }}" class="btn btn-sm">首页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.page-1, per_page=pagination.per_page) }}" class="btn btn-sm">上一页</a>
+                {% endif %}
+
+                <span style="display: flex; gap: 0.25rem; align-items: center;">
+                    {% for p in range(max(1, pagination.page - 2), min(pagination.total_pages + 1, pagination.page + 3)) %}
+                        {% if p == pagination.page %}
+                        <span style="padding: 0.5rem 0.75rem; background: var(--primary-color); color: white; border-radius: 4px; font-weight: 500;">{{ p }}</span>
+                        {% else %}
+                        <a href="{{ url_for('admin_dashboard', page=p, per_page=pagination.per_page) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ p }}</a>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if pagination.total_pages > pagination.page + 2 %}
+                    <span style="color: #999;">...</span>
+                    <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
+                    {% endif %}
+                </span>
+
+                {% if pagination.page < pagination.total_pages %}
+                <a href="{{ url_for('admin_dashboard', page=pagination.page+1, per_page=pagination.per_page) }}" class="btn btn-sm">下一页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page) }}" class="btn btn-sm">末页</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     {% else %}
         <div class="empty-state">
             <p>还没有任何文章。<a href="{{ url_for('new_post') }}">创建第一篇</a></p>
@@ -230,6 +278,14 @@ function toggleSelectAll() {
     });
 
     updateBatchActions();
+}
+
+function changePerPage() {
+    const perPage = document.getElementById('perPageSelect').value;
+    const url = new URL(window.location);
+    url.searchParams.set('per_page', perPage);
+    url.searchParams.set('page', '1'); // Reset to first page
+    window.location = url.toString();
 }
 
 function updateBatchActions() {

@@ -85,18 +85,30 @@ def delete_post(post_id):
     conn.commit()
     conn.close()
 
-def get_all_posts(include_drafts=False):
-    """Get all posts, optionally including drafts"""
+def get_all_posts(include_drafts=False, page=1, per_page=20):
+    """Get all posts with pagination, optionally including drafts"""
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Count total posts
+    if include_drafts:
+        cursor.execute('SELECT COUNT(*) as count FROM posts')
+    else:
+        cursor.execute('SELECT COUNT(*) as count FROM posts WHERE is_published = 1')
+    total_count = cursor.fetchone()['count']
+
+    # Calculate offset
+    offset = (page - 1) * per_page
+
+    # Get posts for current page
     if include_drafts:
         cursor.execute('''
             SELECT posts.*, categories.name as category_name, categories.id as category_id
             FROM posts
             LEFT JOIN categories ON posts.category_id = categories.id
             ORDER BY posts.created_at DESC
-        ''')
+            LIMIT ? OFFSET ?
+        ''', (per_page, offset))
     else:
         cursor.execute('''
             SELECT posts.*, categories.name as category_name, categories.id as category_id
@@ -104,11 +116,19 @@ def get_all_posts(include_drafts=False):
             LEFT JOIN categories ON posts.category_id = categories.id
             WHERE posts.is_published = 1
             ORDER BY posts.created_at DESC
-        ''')
+            LIMIT ? OFFSET ?
+        ''', (per_page, offset))
 
     posts = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    return posts
+
+    return {
+        'posts': posts,
+        'total': total_count,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total_count + per_page - 1) // per_page
+    }
 
 def get_post_by_id(post_id):
     """Get a single post by ID with category information"""

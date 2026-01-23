@@ -43,9 +43,20 @@ def allowed_file(filename):
 @app.route('/')
 def index():
     """Home page - list all published posts"""
-    posts = get_all_posts(include_drafts=False)
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    posts_data = get_all_posts(include_drafts=False, page=page, per_page=per_page)
     categories = get_all_categories()
-    return render_template('index.html', posts=posts, categories=categories)
+
+    return render_template('index.html',
+                         posts=posts_data['posts'],
+                         categories=categories,
+                         pagination=posts_data)
 
 
 @app.route('/post/<int:post_id>')
@@ -139,9 +150,20 @@ def change_password():
 @login_required
 def admin_dashboard():
     """Admin dashboard - list all posts including drafts"""
-    posts = get_all_posts(include_drafts=True)
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    posts_data = get_all_posts(include_drafts=True, page=page, per_page=per_page)
     categories = get_all_categories()
-    return render_template('admin/dashboard.html', posts=posts, categories=categories)
+
+    return render_template('admin/dashboard.html',
+                         posts=posts_data['posts'],
+                         categories=categories,
+                         pagination=posts_data)
 
 
 @app.route('/admin/new', methods=['GET', 'POST'])
