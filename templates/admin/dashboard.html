@@ -87,8 +87,8 @@
         {% if pagination.total_pages > 1 %}
         <div class="pagination-bar" style="margin-top: 1.5rem; padding: 1rem; background: var(--code-bg); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <div style="color: #666; font-size: 0.9rem;">
-                显示第 <strong>{{ (pagination.page - 1) * pagination.per_page + 1 }}</strong> 到
-                <strong>{{ min(pagination.page * pagination.per_page, pagination.total) }}</strong> 条，
+                显示第 <strong>{{ start_item }}</strong> 到
+                <strong>{{ end_item }}</strong> 条，
                 共 <strong>{{ pagination.total }}</strong> 条
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">

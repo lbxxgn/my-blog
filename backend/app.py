@@ -53,10 +53,16 @@ def index():
     posts_data = get_all_posts(include_drafts=False, page=page, per_page=per_page)
     categories = get_all_categories()
 
+    # Calculate pagination info
+    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+
     return render_template('index.html',
                          posts=posts_data['posts'],
                          categories=categories,
-                         pagination=posts_data)
+                         pagination=posts_data,
+                         start_item=start_item,
+                         end_item=end_item)
 
 
 @app.route('/post/<int:post_id>')
@@ -160,10 +166,16 @@ def admin_dashboard():
     posts_data = get_all_posts(include_drafts=True, page=page, per_page=per_page)
     categories = get_all_categories()
 
+    # Calculate pagination info
+    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+
     return render_template('admin/dashboard.html',
                          posts=posts_data['posts'],
                          categories=categories,
-                         pagination=posts_data)
+                         pagination=posts_data,
+                         start_item=start_item,
+                         end_item=end_item)
 
 
 @app.route('/admin/new', methods=['GET', 'POST'])
