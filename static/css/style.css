@@ -64,7 +64,7 @@ nav {
 nav h1 a {
     color: var(--text-color);
     text-decoration: none;
-    font-size: 1.75rem;
+    font-size: 2rem;
     font-weight: 700;
     letter-spacing: -0.5px;
 }
@@ -358,7 +358,8 @@ main {
 
 /* Admin Dashboard */
 .admin-dashboard {
-    max-width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .dashboard-header {
@@ -640,4 +641,10 @@ footer {
     border: 1px solid var(--border-color);
     border-radius: 6px;
     font-size: 1rem;
+}
+
+.admin-categories,
+.admin-editor {
+    max-width: 1200px;
+    margin: 0 auto;
 }
