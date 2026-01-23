@@ -10,7 +10,7 @@ from pathlib import Path
 from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR
 from models import (
     get_db_connection, init_db, get_all_posts, get_post_by_id,
-    create_post, update_post, delete_post, get_user_by_username, create_user,
+    create_post, update_post, delete_post, get_user_by_username, create_user, update_user_password,
     get_all_categories, create_category, update_category, delete_category,
     get_category_by_id, get_posts_by_category
 )
@@ -97,6 +97,42 @@ def logout():
     session.clear()
     flash('已退出登录', 'info')
     return redirect(url_for('index'))
+
+
+@app.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    """Change password"""
+    if request.method == 'POST':
+        current_password = request.form.get('current_password')
+        new_password = request.form.get('new_password')
+        confirm_password = request.form.get('confirm_password')
+
+        if not current_password or not new_password or not confirm_password:
+            flash('请填写所有字段', 'error')
+            return render_template('change_password.html')
+
+        if new_password != confirm_password:
+            flash('新密码和确认密码不匹配', 'error')
+            return render_template('change_password.html')
+
+        if len(new_password) < 6:
+            flash('新密码长度至少为6位', 'error')
+            return render_template('change_password.html')
+
+        # Verify current password
+        user = get_user_by_username(session['username'])
+        if not check_password_hash(user['password_hash'], current_password):
+            flash('当前密码错误', 'error')
+            return render_template('change_password.html')
+
+        # Update password
+        new_password_hash = generate_password_hash(new_password)
+        update_user_password(user['id'], new_password_hash)
+        flash('密码修改成功', 'success')
+        return redirect(url_for('admin_dashboard'))
+
+    return render_template('change_password.html')
 
 
 @app.route('/admin')

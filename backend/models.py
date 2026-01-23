@@ -149,6 +149,14 @@ def get_user_by_username(username):
     conn.close()
     return dict(user) if user else None
 
+def update_user_password(user_id, new_password_hash):
+    """Update user password"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
+    conn.commit()
+    conn.close()
+
 def create_category(name):
     """Create a new category"""
     conn = get_db_connection()
