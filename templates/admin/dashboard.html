@@ -13,7 +13,7 @@
     </div>
 
     {% if posts %}
-        <div class="filter-bar" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--code-bg); border-radius: 8px;">
+        <div class="filter-bar" style="margin-bottom: 1rem; padding: 1rem; background: var(--code-bg); border-radius: 8px;">
             <label for="categoryFilter" style="font-weight: 500; margin-right: 0.5rem;">筛选分类：</label>
             <select id="categoryFilter" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem;">
                 <option value="">全部分类</option>
@@ -24,9 +24,16 @@
             </select>
         </div>
 
+        <div id="batchActionsBar" class="batch-actions-bar" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; align-items: center; gap: 1rem;">
+            <span style="font-weight: 500;">已选择 <strong id="selectedCount">0</strong> 篇文章</span>
+            <button type="button" class="btn btn-sm btn-primary" onclick="showBatchCategoryModal()">批量设置分类</button>
+            <button type="button" class="btn btn-sm" onclick="clearSelection()">取消选择</button>
+        </div>
+
         <table class="posts-table">
             <thead>
                 <tr>
+                    <th style="width: 50px;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                     <th>标题</th>
                     <th>分类</th>
                     <th>状态</th>
@@ -36,7 +43,8 @@
             </thead>
             <tbody>
                 {% for post in posts %}
-                    <tr data-category-id="{% if post.category_id %}{{ post.category_id }}{% else %}none{% endif %}">
+                    <tr data-category-id="{% if post.category_id %}{{ post.category_id }}{% else %}none{% endif %}" data-post-id="{{ post.id }}">
+                        <td><input type="checkbox" class="post-checkbox" value="{{ post.id }}" onchange="updateBatchActions()"></td>
                         <td><a href="{{ url_for('view_post', post_id=post.id) }}">{{ post.title }}</a></td>
                         <td>
                             {% if post.category_name %}
@@ -70,7 +78,82 @@
     {% endif %}
 </div>
 
+<!-- Batch Category Modal -->
+<div id="batchCategoryModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>批量设置分类</h3>
+            <button type="button" class="btn-close" onclick="closeBatchCategoryModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <form id="batchCategoryForm">
+                <div class="form-group">
+                    <label for="batchCategorySelect">选择分类</label>
+                    <select id="batchCategorySelect" name="category_id" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;">
+                        <option value="">移除分类（设为未分类）</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">确认设置</button>
+                    <button type="button" class="btn" onclick="closeBatchCategoryModal()" style="flex: 1;">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.batch-actions-bar {
+    display: flex;
+}
+</style>
+
 <script>
+let selectedPosts = new Set();
+
 document.addEventListener('DOMContentLoaded', function() {
     const categoryFilter = document.getElementById('categoryFilter');
     const tableRows = document.querySelectorAll('.posts-table tbody tr');
@@ -88,6 +171,108 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Batch category form
+    document.getElementById('batchCategoryForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const categoryId = document.getElementById('batchCategorySelect').value;
+        const postIds = Array.from(selectedPosts);
+
+        if (postIds.length === 0) {
+            alert('请先选择文章');
+            return;
+        }
+
+        // Send to backend
+        fetch('/admin/batch-update-category', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                post_ids: postIds,
+                category_id: categoryId === '' ? null : parseInt(categoryId)
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('操作失败：' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('操作失败：' + error);
+        });
+    });
 });
+
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.post-checkbox');
+
+    checkboxes.forEach(checkbox => {
+        const postId = parseInt(checkbox.value);
+        const row = checkbox.closest('tr');
+
+        // Only toggle visible rows
+        if (row.style.display !== 'none') {
+            checkbox.checked = selectAllCheckbox.checked;
+            if (checkbox.checked) {
+                selectedPosts.add(postId);
+            } else {
+                selectedPosts.delete(postId);
+            }
+        }
+    });
+
+    updateBatchActions();
+}
+
+function updateBatchActions() {
+    const checkboxes = document.querySelectorAll('.post-checkbox:checked');
+    selectedPosts.clear();
+
+    checkboxes.forEach(checkbox => {
+        selectedPosts.add(parseInt(checkbox.value));
+    });
+
+    const batchActionsBar = document.getElementById('batchActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+
+    if (selectedPosts.size > 0) {
+        batchActionsBar.style.display = 'flex';
+        selectedCount.textContent = selectedPosts.size;
+    } else {
+        batchActionsBar.style.display = 'none';
+    }
+}
+
+function clearSelection() {
+    const checkboxes = document.querySelectorAll('.post-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+
+    document.getElementById('selectAll').checked = false;
+    selectedPosts.clear();
+    updateBatchActions();
+}
+
+function showBatchCategoryModal() {
+    if (selectedPosts.size === 0) {
+        alert('请先选择文章');
+        return;
+    }
+
+    document.getElementById('batchCategoryModal').style.display = 'flex';
+}
+
+function closeBatchCategoryModal() {
+    document.getElementById('batchCategoryModal').style.display = 'none';
+}
 </script>
 {% endblock %}

@@ -224,6 +224,40 @@ def delete_post_route(post_id):
     return redirect(url_for('admin_dashboard'))
 
 
+@app.route('/admin/batch-update-category', methods=['POST'])
+@login_required
+def batch_update_category():
+    """Batch update category for multiple posts"""
+    try:
+        data = request.get_json()
+        post_ids = data.get('post_ids', [])
+        category_id = data.get('category_id')
+
+        if not post_ids:
+            return jsonify({'success': False, 'message': '未选择任何文章'}), 400
+
+        # Update category for each post
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        for post_id in post_ids:
+            cursor.execute(
+                'UPDATE posts SET category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                (category_id, post_id)
+            )
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': f'成功更新 {len(post_ids)} 篇文章的分类'
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def upload_image():
