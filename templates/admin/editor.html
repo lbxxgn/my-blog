@@ -41,12 +41,21 @@
 
         <div class="editor-container">
             <div class="editor-pane">
-                <label for="content">内容 (Markdown)</label>
+                <div class="editor-header">
+                    <label for="content">内容 (Markdown)</label>
+                    <button type="button" id="togglePreview" class="btn-toggle" onclick="togglePreviewPanel()" title="切换预览面板">
+                        <span class="icon">▶</span>
+                        <span class="text">显示预览</span>
+                    </button>
+                </div>
                 <textarea id="content" name="content" rows="20" required>{% if post %}{{ post.content }}{% endif %}</textarea>
             </div>
 
-            <div class="preview-pane">
-                <label>预览</label>
+            <div class="preview-pane hidden" id="previewPane">
+                <div class="preview-header">
+                    <label>预览</label>
+                    <button type="button" class="btn-close" onclick="togglePreviewPanel()" title="关闭预览">✕</button>
+                </div>
                 <div id="preview" class="markdown-preview"></div>
             </div>
         </div>
@@ -64,6 +73,27 @@
 
 <script src="{{ url_for('static', filename='js/editor.js') }}"></script>
 <script>
+let isPreviewVisible = false;
+
+function togglePreviewPanel() {
+    const previewPane = document.getElementById('previewPane');
+    const toggleBtn = document.getElementById('togglePreview');
+    const icon = toggleBtn.querySelector('.icon');
+    const text = toggleBtn.querySelector('.text');
+
+    isPreviewVisible = !isPreviewVisible;
+
+    if (isPreviewVisible) {
+        previewPane.classList.add('visible');
+        icon.textContent = '◀';
+        text.textContent = '隐藏预览';
+    } else {
+        previewPane.classList.remove('visible');
+        icon.textContent = '▶';
+        text.textContent = '显示预览';
+    }
+}
+
 function togglePublish() {
     const checkbox = document.getElementById('is_published');
     const button = document.getElementById('publishToggle');

@@ -443,9 +443,10 @@ main {
 
 .editor-container {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 350px;
     gap: 1.5rem;
     margin-bottom: 1.5rem;
+    position: relative;
 }
 
 .editor-pane,
@@ -455,8 +456,16 @@ main {
     gap: 0.5rem;
 }
 
-.editor-pane label,
-.preview-pane label {
+.editor-header,
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.editor-header label,
+.preview-header label {
     font-weight: 600;
     font-size: 0.9rem;
     color: #555;
@@ -474,12 +483,38 @@ main {
     line-height: 1.6;
     font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
     background-color: #fafafa;
+    min-height: 500px;
 }
 
 .editor-pane textarea:focus {
     outline: none;
     border-color: var(--primary-color);
     background-color: white;
+}
+
+.preview-pane {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.preview-pane.hidden {
+    display: none;
+}
+
+.preview-pane:not(.hidden) {
+    display: flex;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .markdown-preview {
@@ -489,8 +524,39 @@ main {
     border-radius: 8px;
     background-color: white;
     overflow-y: auto;
-    min-height: 400px;
+    min-height: 500px;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Toggle and Close Buttons */
+.btn-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.btn-toggle:hover {
+    background-color: var(--code-bg);
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: #999;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+}
+
+.btn-close:hover {
+    color: var(--error-color);
 }
 
 .form-actions {
@@ -571,6 +637,19 @@ footer {
     .btn {
         width: 100%;
         text-align: center;
+    }
+
+    /* Editor Mobile Styles */
+    .editor-container {
+        grid-template-columns: 1fr;
+    }
+
+    .preview-pane {
+        display: none !important;
+    }
+
+    .btn-toggle {
+        display: none;
     }
 }
 
