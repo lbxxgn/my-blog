@@ -85,39 +85,44 @@ def delete_post(post_id):
     conn.commit()
     conn.close()
 
-def get_all_posts(include_drafts=False, page=1, per_page=20):
-    """Get all posts with pagination, optionally including drafts"""
+def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None):
+    """Get all posts with pagination, optionally including drafts and filtering by category"""
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Build WHERE clause
+    where_conditions = []
+    params = []
+
+    if not include_drafts:
+        where_conditions.append('posts.is_published = 1')
+
+    if category_id == 'none':
+        where_conditions.append('posts.category_id IS NULL')
+    elif category_id is not None:
+        where_conditions.append('posts.category_id = ?')
+        params.append(category_id)
+
+    where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
+
     # Count total posts
-    if include_drafts:
-        cursor.execute('SELECT COUNT(*) as count FROM posts')
-    else:
-        cursor.execute('SELECT COUNT(*) as count FROM posts WHERE is_published = 1')
+    count_query = f'SELECT COUNT(*) as count FROM posts LEFT JOIN categories ON posts.category_id = categories.id WHERE {where_clause}'
+    cursor.execute(count_query, params)
     total_count = cursor.fetchone()['count']
 
     # Calculate offset
     offset = (page - 1) * per_page
 
     # Get posts for current page
-    if include_drafts:
-        cursor.execute('''
-            SELECT posts.*, categories.name as category_name, categories.id as category_id
-            FROM posts
-            LEFT JOIN categories ON posts.category_id = categories.id
-            ORDER BY posts.created_at DESC
-            LIMIT ? OFFSET ?
-        ''', (per_page, offset))
-    else:
-        cursor.execute('''
-            SELECT posts.*, categories.name as category_name, categories.id as category_id
-            FROM posts
-            LEFT JOIN categories ON posts.category_id = categories.id
-            WHERE posts.is_published = 1
-            ORDER BY posts.created_at DESC
-            LIMIT ? OFFSET ?
-        ''', (per_page, offset))
+    query = f'''
+        SELECT posts.*, categories.name as category_name, categories.id as category_id
+        FROM posts
+        LEFT JOIN categories ON posts.category_id = categories.id
+        WHERE {where_clause}
+        ORDER BY posts.created_at DESC
+        LIMIT ? OFFSET ?
+    '''
+    cursor.execute(query, params + [per_page, offset])
 
     posts = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -127,7 +132,7 @@ def get_all_posts(include_drafts=False, page=1, per_page=20):
         'total': total_count,
         'page': page,
         'per_page': per_page,
-        'total_pages': (total_count + per_page - 1) // per_page
+        'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
     }
 
 def get_post_by_id(post_id):

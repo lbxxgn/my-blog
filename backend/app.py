@@ -166,12 +166,13 @@ def admin_dashboard():
     """Admin dashboard - list all posts including drafts"""
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
+    category_id = request.args.get('category_id')
 
     # Validate per_page
     if per_page not in [10, 20, 40, 80]:
         per_page = 20
 
-    posts_data = get_all_posts(include_drafts=True, page=page, per_page=per_page)
+    posts_data = get_all_posts(include_drafts=True, page=page, per_page=per_page, category_id=category_id)
     categories = get_all_categories()
 
     # Calculate pagination info
@@ -191,7 +192,8 @@ def admin_dashboard():
                          start_item=start_item,
                          end_item=end_item,
                          page_range=page_range,
-                         show_ellipsis=show_ellipsis)
+                         show_ellipsis=show_ellipsis,
+                         current_category_id=category_id)
 
 
 @app.route('/admin/new', methods=['GET', 'POST'])

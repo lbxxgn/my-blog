@@ -16,11 +16,11 @@
         <div class="filter-bar" style="margin-bottom: 1rem; padding: 1rem; background: var(--code-bg); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <label for="categoryFilter" style="font-weight: 500;">筛选分类：</label>
-                <select id="categoryFilter" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem;">
-                    <option value="">全部分类</option>
-                    <option value="none">未分类</option>
+                <select id="categoryFilter" onchange="filterByCategory()" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem;">
+                    <option value="" {% if not current_category_id %}selected{% endif %}>全部分类</option>
+                    <option value="none" {% if current_category_id == 'none' %}selected{% endif %}>未分类</option>
                     {% for category in categories %}
-                        <option value="{{ category.id }}">{{ category.name }}</option>
+                        <option value="{{ category.id }}" {% if current_category_id == category.id|string %}selected{% endif %}>{{ category.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -54,7 +54,7 @@
             </thead>
             <tbody>
                 {% for post in posts %}
-                    <tr data-category-id="{% if post.category_id %}{{ post.category_id }}{% else %}none{% endif %}" data-post-id="{{ post.id }}">
+                    <tr data-post-id="{{ post.id }}">
                         <td><input type="checkbox" class="post-checkbox" value="{{ post.id }}" onchange="updateBatchActions()"></td>
                         <td><a href="{{ url_for('view_post', post_id=post.id) }}">{{ post.title }}</a></td>
                         <td>
@@ -93,8 +93,8 @@
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
                 {% if pagination.page > 1 %}
-                <a href="{{ url_for('admin_dashboard', page=1, per_page=pagination.per_page) }}" class="btn btn-sm">首页</a>
-                <a href="{{ url_for('admin_dashboard', page=pagination.page-1, per_page=pagination.per_page) }}" class="btn btn-sm">上一页</a>
+                <a href="{{ url_for('admin_dashboard', page=1, per_page=pagination.per_page, category_id=current_category_id) }}" class="btn btn-sm">首页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.page-1, per_page=pagination.per_page, category_id=current_category_id) }}" class="btn btn-sm">上一页</a>
                 {% endif %}
 
                 <span style="display: flex; gap: 0.25rem; align-items: center;">
@@ -102,19 +102,19 @@
                         {% if p == pagination.page %}
                         <span style="padding: 0.5rem 0.75rem; background: var(--primary-color); color: white; border-radius: 4px; font-weight: 500;">{{ p }}</span>
                         {% else %}
-                        <a href="{{ url_for('admin_dashboard', page=p, per_page=pagination.per_page) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ p }}</a>
+                        <a href="{{ url_for('admin_dashboard', page=p, per_page=pagination.per_page, category_id=current_category_id) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ p }}</a>
                         {% endif %}
                     {% endfor %}
 
                     {% if show_ellipsis %}
                     <span style="color: #999;">...</span>
-                    <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
+                    <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
                     {% endif %}
                 </span>
 
                 {% if pagination.page < pagination.total_pages %}
-                <a href="{{ url_for('admin_dashboard', page=pagination.page+1, per_page=pagination.per_page) }}" class="btn btn-sm">下一页</a>
-                <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page) }}" class="btn btn-sm">末页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.page+1, per_page=pagination.per_page, category_id=current_category_id) }}" class="btn btn-sm">下一页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id) }}" class="btn btn-sm">末页</a>
                 {% endif %}
             </div>
         </div>
@@ -203,23 +203,6 @@
 let selectedPosts = new Set();
 
 document.addEventListener('DOMContentLoaded', function() {
-    const categoryFilter = document.getElementById('categoryFilter');
-    const tableRows = document.querySelectorAll('.posts-table tbody tr');
-
-    categoryFilter.addEventListener('change', function() {
-        const selectedCategory = this.value;
-
-        tableRows.forEach(row => {
-            const rowCategory = row.getAttribute('data-category-id');
-
-            if (selectedCategory === '' || rowCategory === selectedCategory) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-    });
-
     // Batch category form
     document.getElementById('batchCategoryForm').addEventListener('submit', function(e) {
         e.preventDefault();
@@ -258,6 +241,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+function filterByCategory() {
+    const categoryFilter = document.getElementById('categoryFilter');
+    const selectedCategory = categoryFilter.value;
+
+    // Build URL with parameters
+    const url = new URL(window.location);
+    if (selectedCategory === '') {
+        url.searchParams.delete('category_id');
+    } else {
+        url.searchParams.set('category_id', selectedCategory);
+    }
+    url.searchParams.set('page', '1'); // Reset to first page when changing category
+    url.searchParams.set('per_page', document.getElementById('perPageSelect').value);
+
+    window.location = url.toString();
+}
+
 function toggleSelectAll() {
     const selectAllCheckbox = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.post-checkbox');
@@ -282,9 +282,17 @@ function toggleSelectAll() {
 
 function changePerPage() {
     const perPage = document.getElementById('perPageSelect').value;
+    const categoryFilter = document.getElementById('categoryFilter');
     const url = new URL(window.location);
     url.searchParams.set('per_page', perPage);
     url.searchParams.set('page', '1'); // Reset to first page
+
+    // Keep category filter
+    const selectedCategory = categoryFilter.value;
+    if (selectedCategory !== '') {
+        url.searchParams.set('category_id', selectedCategory);
+    }
+
     window.location = url.toString();
 }
 
