@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH
+from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR
 from models import (
     get_db_connection, init_db, get_all_posts, get_post_by_id,
     create_post, update_post, delete_post, get_user_by_username, create_user,
@@ -15,7 +15,10 @@ from models import (
     get_category_by_id, get_posts_by_category
 )
 
-app = Flask(__name__)
+# Flask app with templates and static in parent directory
+app = Flask(__name__,
+            template_folder=str(BASE_DIR / 'templates'),
+            static_folder=str(BASE_DIR / 'static'))
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
