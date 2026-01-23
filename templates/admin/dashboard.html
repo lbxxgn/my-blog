@@ -13,10 +13,22 @@
     </div>
 
     {% if posts %}
+        <div class="filter-bar" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--code-bg); border-radius: 8px;">
+            <label for="categoryFilter" style="font-weight: 500; margin-right: 0.5rem;">筛选分类：</label>
+            <select id="categoryFilter" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem;">
+                <option value="">全部分类</option>
+                <option value="none">未分类</option>
+                {% for category in categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
         <table class="posts-table">
             <thead>
                 <tr>
                     <th>标题</th>
+                    <th>分类</th>
                     <th>状态</th>
                     <th>创建时间</th>
                     <th>操作</th>
@@ -24,8 +36,15 @@
             </thead>
             <tbody>
                 {% for post in posts %}
-                    <tr>
+                    <tr data-category-id="{% if post.category_id %}{{ post.category_id }}{% else %}none{% endif %}">
                         <td><a href="{{ url_for('view_post', post_id=post.id) }}">{{ post.title }}</a></td>
+                        <td>
+                            {% if post.category_name %}
+                                <span class="post-category">{{ post.category_name }}</span>
+                            {% else %}
+                                <span style="color: #999;">未分类</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if post.is_published %}
                                 <span class="status published">已发布</span>
@@ -50,4 +69,25 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryFilter = document.getElementById('categoryFilter');
+    const tableRows = document.querySelectorAll('.posts-table tbody tr');
+
+    categoryFilter.addEventListener('change', function() {
+        const selectedCategory = this.value;
+
+        tableRows.forEach(row => {
+            const rowCategory = row.getAttribute('data-category-id');
+
+            if (selectedCategory === '' || rowCategory === selectedCategory) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

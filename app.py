@@ -101,7 +101,8 @@ def logout():
 def admin_dashboard():
     """Admin dashboard - list all posts including drafts"""
     posts = get_all_posts(include_drafts=True)
-    return render_template('admin/dashboard.html', posts=posts)
+    categories = get_all_categories()
+    return render_template('admin/dashboard.html', posts=posts, categories=categories)
 
 
 @app.route('/admin/new', methods=['GET', 'POST'])
