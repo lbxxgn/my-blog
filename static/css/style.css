@@ -51,6 +51,9 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
 }
 
 nav h1 a {
@@ -483,6 +486,10 @@ footer {
 /* Responsive Design */
 @media (max-width: 768px) {
     .container {
+        padding: 0 20px;
+    }
+
+    nav {
         padding: 0 20px;
     }
 
