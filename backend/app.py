@@ -57,12 +57,20 @@ def index():
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
     end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
 
+    # Calculate page range to display
+    page_start = max(1, posts_data['page'] - 2)
+    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+    page_range = list(range(page_start, page_end))
+    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+
     return render_template('index.html',
                          posts=posts_data['posts'],
                          categories=categories,
                          pagination=posts_data,
                          start_item=start_item,
-                         end_item=end_item)
+                         end_item=end_item,
+                         page_range=page_range,
+                         show_ellipsis=show_ellipsis)
 
 
 @app.route('/post/<int:post_id>')
@@ -170,12 +178,20 @@ def admin_dashboard():
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
     end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
 
+    # Calculate page range to display
+    page_start = max(1, posts_data['page'] - 2)
+    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+    page_range = list(range(page_start, page_end))
+    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+
     return render_template('admin/dashboard.html',
                          posts=posts_data['posts'],
                          categories=categories,
                          pagination=posts_data,
                          start_item=start_item,
-                         end_item=end_item)
+                         end_item=end_item,
+                         page_range=page_range,
+                         show_ellipsis=show_ellipsis)
 
 
 @app.route('/admin/new', methods=['GET', 'POST'])

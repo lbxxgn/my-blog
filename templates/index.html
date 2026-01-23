@@ -47,7 +47,7 @@
             <a href="{{ url_for('index', page=pagination.page-1) }}" class="btn btn-sm">上一页</a>
             {% endif %}
 
-            {% for p in range(max(1, pagination.page - 2), min(pagination.total_pages + 1, pagination.page + 3)) %}
+            {% for p in page_range %}
                 {% if p == pagination.page %}
                 <span style="padding: 0.5rem 1rem; background: var(--primary-color); color: white; border-radius: 6px; font-weight: 500;">{{ p }}</span>
                 {% else %}
@@ -55,7 +55,7 @@
                 {% endif %}
             {% endfor %}
 
-            {% if pagination.total_pages > pagination.page + 2 %}
+            {% if show_ellipsis %}
             <span style="color: #999;">...</span>
             <a href="{{ url_for('index', page=pagination.total_pages) }}" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
             {% endif %}

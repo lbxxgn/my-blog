@@ -98,7 +98,7 @@
                 {% endif %}
 
                 <span style="display: flex; gap: 0.25rem; align-items: center;">
-                    {% for p in range(max(1, pagination.page - 2), min(pagination.total_pages + 1, pagination.page + 3)) %}
+                    {% for p in page_range %}
                         {% if p == pagination.page %}
                         <span style="padding: 0.5rem 0.75rem; background: var(--primary-color); color: white; border-radius: 4px; font-weight: 500;">{{ p }}</span>
                         {% else %}
@@ -106,7 +106,7 @@
                         {% endif %}
                     {% endfor %}
 
-                    {% if pagination.total_pages > pagination.page + 2 %}
+                    {% if show_ellipsis %}
                     <span style="color: #999;">...</span>
                     <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
                     {% endif %}
