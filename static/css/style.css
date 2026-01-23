@@ -136,30 +136,34 @@ main {
     margin-top: 1rem;
 }
 
+.post-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
 .post-card {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 2rem;
     background-color: var(--bg-color);
     box-shadow: 0 1px 3px var(--card-shadow);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.post-card:hover {
+.post-card-link:hover .post-card {
     box-shadow: 0 4px 12px var(--card-shadow-hover);
+    transform: translateY(-2px);
 }
 
 .post-card h2 {
     margin-bottom: 0.75rem;
     font-size: 1.75rem;
     font-weight: 700;
-}
-
-.post-card h2 a {
     color: var(--text-color);
-    text-decoration: none;
 }
 
-.post-card h2 a:hover {
+.post-card-link:hover .post-card h2 {
     color: var(--primary-color);
 }
 
@@ -171,17 +175,7 @@ main {
 
 .post-excerpt {
     color: #555;
-    margin-bottom: 1rem;
-}
-
-.read-more {
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 500;
-}
-
-.read-more:hover {
-    text-decoration: underline;
+    margin-bottom: 0;
 }
 
 /* Single Post */

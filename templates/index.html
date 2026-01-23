@@ -21,20 +21,21 @@
     {% if posts %}
         <div class="posts-list">
             {% for post in posts %}
-                <article class="post-card">
-                    <h2><a href="{{ url_for('view_post', post_id=post.id) }}">{{ post.title }}</a></h2>
-                    <div class="post-meta">
-                        {% if post.category_name %}
-                        <span class="post-category">{{ post.category_name }}</span>
-                        <span>·</span>
-                        {% endif %}
-                        <time datetime="{{ post.created_at }}">{{ post.created_at }}</time>
-                    </div>
-                    <div class="post-excerpt">
-                        {{ post.content[:200] }}...
-                    </div>
-                    <a href="{{ url_for('view_post', post_id=post.id) }}" class="read-more">阅读全文</a>
-                </article>
+                <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
+                    <article class="post-card">
+                        <h2>{{ post.title }}</h2>
+                        <div class="post-meta">
+                            {% if post.category_name %}
+                            <span class="post-category">{{ post.category_name }}</span>
+                            <span>·</span>
+                            {% endif %}
+                            <time datetime="{{ post.created_at }}">{{ post.created_at }}</time>
+                        </div>
+                        <div class="post-excerpt">
+                            {{ post.content[:200] }}...
+                        </div>
+                    </article>
+                </a>
             {% endfor %}
         </div>
     {% else %}
