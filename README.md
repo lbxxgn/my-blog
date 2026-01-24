@@ -1,153 +1,299 @@
 # Simple Personal Blog System
 
-A minimal, clean personal blog system built with Flask and SQLite. Perfect for personal daily notes and musings.
+一个简洁、优雅的个人博客系统，基于 Flask 和 SQLite 构建。适合记录日常随笔和个人思考。
 
-## Features
+## ✨ 功能特性
 
-- ✅ Clean, minimalist design optimized for reading
-- ✅ Markdown support for writing posts
-- ✅ Image upload functionality
-- ✅ Responsive design (PC and mobile)
-- ✅ Authentication-protected admin interface
-- ✅ Draft and published states
-- ✅ Easy deployment with single command
+### 核心功能
+- ✅ 简洁优雅的设计，专注于阅读体验
+- ✅ Markdown 格式支持，写作更方便
+- ✅ 图片上传功能，支持拖拽上传
+- ✅ 响应式设计，完美适配 PC 和移动端
+- ✅ 身份验证的管理后台
+- ✅ 草稿和发布状态管理
+- ✅ 一键发布功能
 
-## Tech Stack
+### 增强功能
+- ✅ 文章分类管理
+- ✅ 批量设置分类
+- ✅ 后端分页（10/20/40/80 条可选）
+- ✅ 分类筛选（前端+后端）
+- ✅ 修改密码功能
+- ✅ 网易博客数据导入
+- ✅ 智能头部（自动隐藏/显示）
+- ✅ 实时预览编辑器
 
-- **Backend**: Python Flask 3.x
-- **Database**: SQLite
-- **Frontend**: Jinja2 templates, plain CSS/JS
-- **Markdown**: markdown2 library
+## 🛠 技术栈
 
-## Quick Start
+- **后端**: Python Flask 3.x
+- **数据库**: SQLite
+- **前端**: Jinja2 模板, 纯 CSS/JS
+- **Markdown**: markdown2 库
+- **部署**: 简单的单命令启动
 
-### 1. Install Dependencies
+## 🚀 快速开始
+
+### 1. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Run the Application
+### 2. 启动应用
 
 ```bash
-python app.py
+python backend/app.py
 ```
 
-First run will prompt you to create an admin user.
+首次运行会自动：
+- 创建数据库表
+- 创建默认管理员账号（admin/admin123）
 
-### 3. Access the Blog
+### 3. 访问博客
 
-- Blog: http://localhost:5000
-- Admin: http://localhost:5000/admin
-- Login: http://localhost:5000/login
+- 博客首页: http://localhost:5000
+- 管理后台: http://localhost:5000/admin
+- 登录页面: http://localhost:5000/login
 
-## Directory Structure
+**默认账号:**
+- 用户名: `admin`
+- 密码: `admin123`
+
+⚠️ **重要**: 首次登录后请立即修改密码！
+
+## 📁 项目结构
 
 ```
 simple-blog/
-├── app.py                 # Main Flask application
-├── models.py              # Database models
-├── config.py              # Configuration
-├── requirements.txt       # Python dependencies
-├── static/
+├── backend/              # 后端代码
+│   ├── app.py           # Flask 应用主文件
+│   ├── models.py        # 数据库模型
+│   ├── config.py        # 配置文件
+│   └── import_blog.py   # 网易博客导入工具
+├── db/                  # 数据库文件
+│   ├── posts.db         # SQLite 数据库（自动创建）
+│   └── .gitkeep         # 保持目录被 git 跟踪
+├── static/              # 静态资源
 │   ├── css/
-│   │   └── style.css      # Stylesheets
+│   │   └── style.css    # 样式表
 │   ├── js/
-│   │   └── editor.js      # Editor JavaScript
-│   └── uploads/           # Uploaded images
-├── templates/
-│   ├── base.html          # Base template
-│   ├── index.html         # Homepage
-│   ├── post.html          # Single post view
-│   ├── login.html         # Login page
-│   └── admin/
-│       ├── dashboard.html # Admin dashboard
-│       └── editor.html    # Post editor
-└── posts.db               # SQLite database (auto-created)
+│   │   ├── main.js      # 主要 JavaScript
+│   │   └── editor.js    # 编辑器 JavaScript
+│   └── uploads/         # 上传的图片
+├── templates/           # HTML 模板
+│   ├── base.html        # 基础模板
+│   ├── index.html       # 首页
+│   ├── post.html        # 文章详情页
+│   ├── login.html       # 登录页
+│   ├── change_password.html  # 修改密码页
+│   └── admin/           # 管理后台模板
+│       ├── dashboard.html    # 文章管理
+│       ├── editor.html       # 文章编辑器
+│       └── categories.html   # 分类管理
+├── requirements.txt     # Python 依赖
+└── README.md           # 项目文档
 ```
 
-## Usage
+## 📝 使用指南
 
-### Creating a Post
+### 创建文章
 
-1. Login at `/login`
-2. Go to `/admin` and click "新建文章"
-3. Enter title and content in Markdown
-4. Upload images using the "上传图片" button
-5. Check "立即发布" to publish, or leave unchecked for draft
-6. Click "保存"
+1. 登录后台（`/login`）
+2. 点击"管理"进入后台
+3. 点击"新建文章"按钮
+4. 输入标题和内容（支持 Markdown）
+5. 可选：选择分类
+6. 点击"立即发布"直接发布，或"保存"存为草稿
 
-### Editing a Post
+### 编辑文章
 
-1. Go to `/admin`
-2. Click "编辑" next to the post
-3. Make changes and save
+1. 在文章管理页点击"编辑"
+2. 修改内容后点击"保存"
+3. 已发布的文章会保持发布状态
 
-### Markdown Syntax
+### 批量设置分类
+
+1. 在文章管理页勾选多篇文章
+2. 点击"批量设置分类"
+3. 选择目标分类
+4. 确认完成批量更新
+
+### 修改密码
+
+1. 登录后点击顶部导航"修改密码"
+2. 输入当前密码和新密码
+3. 确认修改
+
+### 导入网易博客
+
+如果有网易博客的 XML 导出文件：
+
+```bash
+python backend/import_blog.py
+```
+
+会自动导入所有文章、分类和发布状态。
+
+## 📖 Markdown 语法
 
 ```markdown
-# Heading 1
-## Heading 2
+# 一级标题
+## 二级标题
 
-**Bold text**
-*Italic text*
+**粗体文本**
+*斜体文本*
 
-`inline code`
+`行内代码`
 
-[Link text](url)
+[链接文字](url)
 
-![Image description](/static/uploads/image.jpg)
+![图片描述](/static/uploads/image.jpg)
+
+---
+
+- 列表项 1
+- 列表项 2
+
+1. 有序列表 1
+2. 有序列表 2
 ```
 
-## Deployment
+## ⚙️ 配置说明
 
-### Local Development
+编辑 `backend/config.py` 可自定义：
+
+- `SECRET_KEY`: Flask 密钥（生产环境请修改）
+- `DATABASE_URL`: 数据库路径
+- `UPLOAD_FOLDER`: 图片上传目录
+- `MAX_CONTENT_LENGTH`: 最大上传大小（默认 5MB）
+- `ALLOWED_EXTENSIONS`: 允许的图片类型（png, jpg, jpeg, gif, webp）
+
+### 环境变量配置
+
+可通过环境变量覆盖配置：
 
 ```bash
-python app.py
+export SECRET_KEY="your-secret-key"
+export ADMIN_USERNAME="your-username"
+export ADMIN_PASSWORD="your-password"
 ```
 
-Runs on http://0.0.0.0:5000
+## 🌐 部署
 
-### Production Deployment
-
-For production deployment:
-
-1. Set a secure SECRET_KEY environment variable
-2. Consider using a production WSGI server (Gunicorn)
+### 本地开发
 
 ```bash
+python backend/app.py
+```
+
+访问: http://localhost:5000
+
+### 生产部署
+
+推荐使用 Gunicorn + nginx：
+
+```bash
+# 安装 gunicorn
 pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
+
+# 启动服务
+gunicorn -w 4 -b 0.0.0.0:5000 backend.app:app
 ```
 
-3. Use a reverse proxy (nginx) for SSL termination
+**nginx 配置示例:**
 
-## Configuration
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
 
-Edit `config.py` to customize:
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
 
-- `SECRET_KEY`: Flask secret key
-- `DATABASE_URL`: SQLite database path
-- `UPLOAD_FOLDER`: Image upload directory
-- `MAX_CONTENT_LENGTH`: Max upload size (default: 5MB)
-- `ALLOWED_EXTENSIONS`: Allowed image types
+    location /static {
+        alias /path/to/simple-blog/static;
+    }
+}
+```
 
-## Backup
+## 💾 备份
 
-To backup your blog:
-
-1. Copy `posts.db` file
-2. Copy `static/uploads/` directory
+备份博客数据：
 
 ```bash
-tar czf blog-backup-$(date +%Y%m%d).tar.gz posts.db static/uploads/
+# 备份数据库和上传文件
+tar czf blog-backup-$(date +%Y%m%d).tar.gz db/posts.db static/uploads/
+
+# 或使用 git
+git add .
+git commit -m "backup"
+git push
 ```
 
-## License
+## 🔧 常见问题
 
-MIT
+### 忘记密码？
 
-## Author
+使用环境变量设置新密码：
 
-Created with love for personal blogging.
+```bash
+export ADMIN_USERNAME="admin"
+export ADMIN_PASSWORD="new_password"
+python backend/app.py
+```
+
+### 数据库出错？
+
+删除数据库文件重新初始化：
+
+```bash
+rm db/posts.db
+python backend/app.py
+```
+
+### 图片上传失败？
+
+检查 `static/uploads` 目录权限：
+
+```bash
+chmod 755 static/uploads
+```
+
+## 📊 功能截图
+
+- 干净简洁的首页设计
+- 响应式文章列表
+- 实时预览编辑器
+- 便捷的管理后台
+- 分类管理界面
+- 批量操作功能
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📄 License
+
+MIT License
+
+## 👨‍💻 作者
+
+Created with ❤️ for personal blogging
+
+**GitHub**: https://github.com/lbxxgn/my-blog
+
+---
+
+## 更新日志
+
+### v1.0.0 (2025-01-24)
+- ✨ 初始版本发布
+- ✅ 基础博客功能
+- ✅ 分类管理
+- ✅ 批量操作
+- ✅ 分页功能
+- ✅ 网易博客导入
+- ✅ 响应式设计
