@@ -45,6 +45,47 @@
 
     <div class="copy-toast">链接已复制</div>
 
+    <!-- Comments Section -->
+    <section class="comments-section">
+        <h3>评论 ({{ comments|length }})</h3>
+
+        {% if comments %}
+        <div class="comments-list">
+            {% for comment in comments %}
+            <div class="comment">
+                <div class="comment-header">
+                    <strong>{{ comment.author_name }}</strong>
+                    <span class="comment-date">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                <div class="comment-content">
+                    {{ comment.content }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="no-comments">暂无评论，快来抢沙发吧！</p>
+        {% endif %}
+
+        <!-- Comment Form -->
+        <form class="comment-form" action="{{ url_for('add_comment', post_id=post.id) }}" method="post">
+            <h4>发表评论</h4>
+            <div class="form-group">
+                <label for="author_name">姓名 *</label>
+                <input type="text" name="author_name" id="author_name" required maxlength="50">
+            </div>
+            <div class="form-group">
+                <label for="author_email">邮箱（可选，不会公开）</label>
+                <input type="email" name="author_email" id="author_email" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label for="content">评论内容 *</label>
+                <textarea name="content" id="content" rows="5" required maxlength="1000"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">提交评论</button>
+        </form>
+    </section>
+
     <div class="post-navigation">
         <a href="{{ url_for('index') }}" class="back-link">← 返回首页</a>
     </div>

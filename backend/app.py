@@ -15,7 +15,9 @@ from models import (
     get_category_by_id, get_posts_by_category,
     create_tag, get_all_tags, get_tag_by_id, update_tag, delete_tag,
     get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag,
-    search_posts
+    search_posts,
+    create_comment, get_comments_by_post, get_all_comments,
+    update_comment_visibility, delete_comment
 )
 
 # Flask app with templates and static in parent directory
@@ -93,7 +95,10 @@ def view_post(post_id):
     # Get tags for the post
     post['tags'] = get_post_tags(post_id)
 
-    return render_template('post.html', post=post)
+    # Get comments for the post
+    comments = get_comments_by_post(post_id)
+
+    return render_template('post.html', post=post, comments=comments)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -604,6 +609,70 @@ def search():
                          end_item=end_item,
                          page_range=page_range,
                          show_ellipsis=show_ellipsis)
+
+
+# Comment Routes
+@app.route('/post/<int:post_id>/comment', methods=['POST'])
+def add_comment(post_id):
+    """Add a comment to a post"""
+    post = get_post_by_id(post_id)
+    if post is None:
+        flash('文章不存在', 'error')
+        return redirect(url_for('index'))
+
+    author_name = request.form.get('author_name', '').strip()
+    author_email = request.form.get('author_email', '').strip()
+    content = request.form.get('content', '').strip()
+
+    if not author_name or not content:
+        flash('姓名和评论内容不能为空', 'error')
+        return redirect(url_for('view_post', post_id=post_id))
+
+    if len(author_name) > 50:
+        flash('姓名过长', 'error')
+        return redirect(url_for('view_post', post_id=post_id))
+
+    if len(content) > 1000:
+        flash('评论内容过长', 'error')
+        return redirect(url_for('view_post', post_id=post_id))
+
+    create_comment(post_id, author_name, author_email, content)
+    flash('评论提交成功', 'success')
+    return redirect(url_for('view_post', post_id=post_id))
+
+@app.route('/admin/comments')
+@login_required
+def comment_list():
+    """List all comments"""
+    comments = get_all_comments(include_hidden=True)
+    return render_template('admin/comments.html', comments=comments)
+
+@app.route('/admin/comments/<int:comment_id>/toggle', methods=['POST'])
+@login_required
+def toggle_comment(comment_id):
+    """Toggle comment visibility"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT is_visible FROM comments WHERE id = ?', (comment_id,))
+    result = cursor.fetchone()
+    conn.close()
+
+    if result:
+        new_visibility = not result['is_visible']
+        update_comment_visibility(comment_id, new_visibility)
+        flash('评论状态已更新', 'success')
+    else:
+        flash('评论不存在', 'error')
+
+    return redirect(url_for('comment_list'))
+
+@app.route('/admin/comments/<int:comment_id>/delete', methods=['POST'])
+@login_required
+def delete_comment_route(comment_id):
+    """Delete a comment"""
+    delete_comment(comment_id)
+    flash('评论已删除', 'success')
+    return redirect(url_for('comment_list'))
 
 
 def create_admin_user():

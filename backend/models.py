@@ -70,6 +70,20 @@ def init_db(db_path=None):
         )
     ''')
 
+    # Create comments table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            author_name TEXT NOT NULL,
+            author_email TEXT,
+            content TEXT NOT NULL,
+            is_visible BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+        )
+    ''')
+
     # Create indexes to improve query performance
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_created_at ON posts(created_at DESC)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_published_created ON posts(is_published, created_at DESC)')
@@ -525,3 +539,82 @@ def search_posts(query, include_drafts=False, page=1, per_page=20):
         'per_page': per_page,
         'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
     }
+
+def create_comment(post_id, author_name, author_email, content):
+    """Create a new comment"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO comments (post_id, author_name, author_email, content) VALUES (?, ?, ?, ?)',
+        (post_id, author_name, author_email, content)
+    )
+    conn.commit()
+    comment_id = cursor.lastrowid
+    conn.close()
+    return comment_id
+
+def get_comments_by_post(post_id, include_hidden=False):
+    """Get all comments for a post"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if include_hidden:
+        cursor.execute('''
+            SELECT * FROM comments
+            WHERE post_id = ?
+            ORDER BY created_at DESC
+        ''', (post_id,))
+    else:
+        cursor.execute('''
+            SELECT * FROM comments
+            WHERE post_id = ? AND is_visible = 1
+            ORDER BY created_at DESC
+        ''', (post_id,))
+
+    comments = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return comments
+
+def get_all_comments(include_hidden=False):
+    """Get all comments"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if include_hidden:
+        cursor.execute('''
+            SELECT comments.*, posts.title as post_title, posts.id as post_id
+            FROM comments
+            JOIN posts ON comments.post_id = posts.id
+            ORDER BY comments.created_at DESC
+        ''')
+    else:
+        cursor.execute('''
+            SELECT comments.*, posts.title as post_title, posts.id as post_id
+            FROM comments
+            JOIN posts ON comments.post_id = posts.id
+            WHERE comments.is_visible = 1
+            ORDER BY comments.created_at DESC
+        ''')
+
+    comments = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return comments
+
+def update_comment_visibility(comment_id, is_visible):
+    """Update comment visibility"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        'UPDATE comments SET is_visible = ? WHERE id = ?',
+        (is_visible, comment_id)
+    )
+    conn.commit()
+    conn.close()
+
+def delete_comment(comment_id):
+    """Delete a comment"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM comments WHERE id = ?', (comment_id,))
+    conn.commit()
+    conn.close()

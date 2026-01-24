@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}评论管理 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="admin-categories">
+    <div class="dashboard-header">
+        <h2>评论管理</h2>
+    </div>
+
+    {% if comments %}
+    <table class="categories-table">
+        <thead>
+            <tr>
+                <th>作者</th>
+                <th>内容</th>
+                <th>文章</th>
+                <th>时间</th>
+                <th>状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for comment in comments %}
+            <tr>
+                <td>{{ comment.author_name }}</td>
+                <td>{{ comment.content[:100] }}{% if comment.content|length > 100 %}...{% endif %}</td>
+                <td>
+                    <a href="{{ url_for('view_post', post_id=comment.post_id) }}" target="_blank">
+                        {{ comment.post_title }}
+                    </a>
+                </td>
+                <td>{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    {% if comment.is_visible %}
+                    <span class="status published">可见</span>
+                    {% else %}
+                    <span class="status draft">隐藏</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="actions">
+                        <form action="{{ url_for('toggle_comment', comment_id=comment.id) }}" method="post" class="delete-form">
+                            <button type="submit" class="btn btn-sm">
+                                {% if comment.is_visible %}隐藏{% else %}显示{% endif %}
+                            </button>
+                        </form>
+                        <form action="{{ url_for('delete_comment_route', comment_id=comment.id) }}" method="post" class="delete-form">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定删除此评论吗？')">删除</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>暂无评论</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
