@@ -3,11 +3,18 @@ from pathlib import Path
 from config import DATABASE_URL
 
 def get_db_connection(db_path=None):
-    """Create a database connection"""
+    """Create a database connection with better error handling"""
     if db_path is None:
         db_path = DATABASE_URL.replace('sqlite:///', '')
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(
+        db_path,
+        timeout=20.0,  # Increase timeout to 20 seconds
+        check_same_thread=False  # Allow access from multiple threads
+    )
     conn.row_factory = sqlite3.Row
+    # Enable WAL mode for better concurrent access
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA synchronous=NORMAL')
     return conn
 
 def init_db(db_path=None):
@@ -410,12 +417,27 @@ def set_post_tags(post_id, tag_names):
         if not tag_name.strip():
             continue
 
-        # Get or create tag
-        tag = get_tag_by_name(tag_name.strip())
-        if not tag:
-            tag_id = create_tag(tag_name.strip())
+        name = tag_name.strip()
+
+        # Check if tag exists (inline query to avoid nested connection)
+        cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
+        result = cursor.fetchone()
+
+        if result:
+            tag_id = result[0]
         else:
-            tag_id = tag['id']
+            # Create tag inline (insert into tags table)
+            try:
+                cursor.execute('INSERT INTO tags (name) VALUES (?)', (name,))
+                tag_id = cursor.lastrowid
+            except sqlite3.IntegrityError:
+                # Tag was created by another process, get it again
+                cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
+                result = cursor.fetchone()
+                if result:
+                    tag_id = result[0]
+                else:
+                    tag_id = None
 
         if tag_id:
             cursor.execute(
@@ -491,13 +513,14 @@ def get_posts_by_tag(tag_id, include_drafts=False, page=1, per_page=20):
     }
 
 def search_posts(query, include_drafts=False, page=1, per_page=20):
-    """Search posts using FTS5"""
+    """Search posts using LIKE for better Chinese support"""
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Build WHERE clause
-    where_conditions = ['posts_fts MATCH ?']
-    params = [query]
+    # Build WHERE clause with LIKE for better Chinese text search
+    search_pattern = f'%{query}%'
+    where_conditions = ['(posts.title LIKE ? OR posts.content LIKE ?)']
+    params = [search_pattern, search_pattern]
 
     if not include_drafts:
         where_conditions.append('posts.is_published = 1')
@@ -507,8 +530,8 @@ def search_posts(query, include_drafts=False, page=1, per_page=20):
     # Count total results
     count_query = f'''
         SELECT COUNT(*) as count
-        FROM posts_fts
-        JOIN posts ON posts_fts.rowid = posts.id
+        FROM posts
+        LEFT JOIN categories ON posts.category_id = categories.id
         WHERE {where_clause}
     '''
     cursor.execute(count_query, params)
@@ -520,8 +543,7 @@ def search_posts(query, include_drafts=False, page=1, per_page=20):
     # Get results for current page
     search_query = f'''
         SELECT posts.*, categories.name as category_name, categories.id as category_id
-        FROM posts_fts
-        JOIN posts ON posts_fts.rowid = posts.id
+        FROM posts
         LEFT JOIN categories ON posts.category_id = categories.id
         WHERE {where_clause}
         ORDER BY posts.created_at DESC
