@@ -50,6 +50,11 @@ def init_db(db_path=None):
         )
     ''')
 
+    # Create indexes to improve query performance
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_created_at ON posts(created_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_published_created ON posts(is_published, created_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_category_id ON posts(category_id)')
+
     conn.commit()
     conn.close()
 
