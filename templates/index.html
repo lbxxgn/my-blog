@@ -29,7 +29,7 @@
                             <span class="post-category">{{ post.category_name }}</span>
                             <span>·</span>
                             {% endif %}
-                            <time datetime="{{ post.created_at }}">{{ post.created_at.strftime('%Y-%m-%d') }}</time>
+                            <time datetime="{{ post.created_at }}">{{ post.created_at[:10] }}</time>
                         </div>
                         <div class="post-excerpt">
                             {{ post.content[:200] }}...
