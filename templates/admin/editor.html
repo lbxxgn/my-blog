@@ -9,6 +9,7 @@
     <h2>{% if post %}编辑文章{% else %}新建文章{% endif %}</h2>
 
     <form method="POST" class="editor-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-group">
             <label for="title">标题</label>
             <input type="text" id="title" name="title" value="{% if post %}{{ post.title }}{% endif %}" required>

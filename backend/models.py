@@ -106,29 +106,8 @@ def init_db(db_path=None):
         )
     ''')
 
-    # Create triggers to keep FTS index in sync
-    cursor.execute('''
-        CREATE TRIGGER IF NOT EXISTS posts_ai AFTER INSERT ON posts BEGIN
-            INSERT INTO posts_fts(rowid, title, content)
-            VALUES (new.id, new.title, new.content);
-        END
-    ''')
-
-    cursor.execute('''
-        CREATE TRIGGER IF NOT EXISTS posts_ad AFTER DELETE ON posts BEGIN
-            INSERT INTO posts_fts(posts_fts, rowid, title, content)
-            VALUES ('delete', old.id, old.title, old.content);
-        END
-    ''')
-
-    cursor.execute('''
-        CREATE TRIGGER IF NOT EXISTS posts_au AFTER UPDATE ON posts BEGIN
-            INSERT INTO posts_fts(posts_fts, rowid, title, content)
-            VALUES ('delete', old.id, old.title, old.content);
-            INSERT INTO posts_fts(rowid, title, content)
-            VALUES (new.id, new.title, new.content);
-        END
-    ''')
+    # Note: FTS triggers have been removed to prevent SQL logic errors.
+    # FTS index is now maintained manually in CRUD operations.
 
     conn.commit()
     conn.close()
@@ -141,8 +120,13 @@ def create_post(title, content, is_published=False, category_id=None):
         'INSERT INTO posts (title, content, is_published, category_id) VALUES (?, ?, ?, ?)',
         (title, content, is_published, category_id)
     )
-    conn.commit()
     post_id = cursor.lastrowid
+
+    # Manually update FTS (triggers are disabled)
+    cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
+                  (post_id, title, content))
+
+    conn.commit()
     conn.close()
     return post_id
 
@@ -154,6 +138,12 @@ def update_post(post_id, title, content, is_published, category_id=None):
         'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         (title, content, is_published, category_id, post_id)
     )
+
+    # Manually update FTS (triggers are disabled)
+    cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+    cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
+                  (post_id, title, content))
+
     conn.commit()
     conn.close()
     return True
@@ -163,6 +153,10 @@ def delete_post(post_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM posts WHERE id = ?', (post_id,))
+
+    # Manually delete from FTS (triggers are disabled)
+    cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+
     conn.commit()
     conn.close()
 
@@ -646,29 +640,34 @@ def update_post_with_tags(post_id, title, content, is_published, category_id=Non
     """Update post and its tags in a single transaction"""
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     try:
         # Update post
         cursor.execute(
             'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
             (title, content, is_published, category_id, post_id)
         )
-        
+
+        # Manually update FTS (triggers are disabled)
+        cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+        cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
+                      (post_id, title, content))
+
         # Delete existing tag associations
         cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (post_id,))
-        
+
         # Add new tag associations if provided
         if tag_names:
             for tag_name in tag_names:
                 if not tag_name.strip():
                     continue
-                
+
                 name = tag_name.strip()
-                
+
                 # Check if tag exists
                 cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
                 result = cursor.fetchone()
-                
+
                 if result:
                     tag_id = result[0]
                 else:
@@ -684,13 +683,13 @@ def update_post_with_tags(post_id, title, content, is_published, category_id=Non
                             tag_id = result[0]
                         else:
                             tag_id = None
-                
+
                 if tag_id:
                     cursor.execute(
                         'INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)',
                         (post_id, tag_id)
                     )
-        
+
         conn.commit()
         return True
     except Exception as e:

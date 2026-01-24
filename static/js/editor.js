@@ -63,12 +63,19 @@ if (imageUpload) {
         const file = e.target.files[0];
         if (!file) return;
 
+        // Get CSRF token from meta tag
+        const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
+
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('csrf_token', csrfToken);
 
         try {
             const response = await fetch('/admin/upload', {
                 method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                },
                 body: formData
             });
 

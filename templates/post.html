@@ -69,6 +69,7 @@
 
         <!-- Comment Form -->
         <form class="comment-form" action="{{ url_for('add_comment', post_id=post.id) }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <h4>发表评论</h4>
             <div class="form-group">
                 <label for="author_name">姓名 *</label>

@@ -11,6 +11,7 @@
     <div class="category-form">
         <h3>创建新标签</h3>
         <form action="{{ url_for('new_tag') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
                 <label for="name">标签名称</label>
                 <input type="text" name="name" id="name" required>
@@ -37,6 +38,7 @@
                 <td>{{ tag.created_at }}</td>
                 <td>
                     <form action="{{ url_for('delete_tag_route', tag_id=tag.id) }}" method="post" class="delete-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定删除此标签吗？')">删除</button>
                     </form>
                 </td>

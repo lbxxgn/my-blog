@@ -4,11 +4,16 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 import markdown2
 import os
+import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
 
 from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG
+from flask_wtf.csrf import CSRFProtect
+
+# Import logging module
+from logger import setup_logging, log_login, log_operation, log_error, log_sql
 from models import (
     get_db_connection, init_db, get_all_posts, get_post_by_id,
     create_post, update_post, delete_post, update_post_with_tags, get_user_by_username, create_user, update_user_password,
@@ -27,6 +32,18 @@ app = Flask(__name__,
             static_folder=str(BASE_DIR / 'static'))
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+# CSRF protection
+csrf = CSRFProtect(app)
+
+# Session security settings
+from config import SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE
+app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
+app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
+app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
+
+# Setup logging system
+setup_logging(app)
 
 
 def login_required(f):
@@ -111,6 +128,8 @@ def login():
 
         if not username or not password:
             flash('请输入用户名和密码', 'error')
+            # 记录失败尝试
+            log_login(username or 'Unknown', success=False, error_msg='字段为空')
             return render_template('login.html')
 
         user = get_user_by_username(username)
@@ -119,12 +138,17 @@ def login():
             session['username'] = user['username']
             flash(f'欢迎回来，{user["username"]}！', 'success')
 
+            # 记录成功登录
+            log_login(username, success=True)
+
             next_page = request.args.get('next')
             if next_page:
                 return redirect(next_page)
             return redirect(url_for('admin_dashboard'))
         else:
             flash('用户名或密码错误', 'error')
+            # 记录失败登录
+            log_login(username, success=False, error_msg='密码错误或用户不存在')
 
     return render_template('login.html')
 
@@ -154,8 +178,24 @@ def change_password():
             flash('新密码和确认密码不匹配', 'error')
             return render_template('change_password.html')
 
-        if len(new_password) < 6:
-            flash('新密码长度至少为6位', 'error')
+        # Strengthened password requirements
+        if len(new_password) < 10:
+            flash('新密码长度至少为10位', 'error')
+            return render_template('change_password.html')
+
+        # Check for at least one uppercase letter
+        if not re.search(r'[A-Z]', new_password):
+            flash('密码必须包含至少一个大写字母', 'error')
+            return render_template('change_password.html')
+
+        # Check for at least one lowercase letter
+        if not re.search(r'[a-z]', new_password):
+            flash('密码必须包含至少一个小写字母', 'error')
+            return render_template('change_password.html')
+
+        # Check for at least one digit
+        if not re.search(r'\d', new_password):
+            flash('密码必须包含至少一个数字', 'error')
             return render_template('change_password.html')
 
         # Verify current password
@@ -305,11 +345,18 @@ def delete_post_route(post_id):
 @login_required
 def batch_update_category():
     """Batch update category for multiple posts"""
+    user_id = session.get('user_id')
+    username = session.get('username', 'Unknown')
+
     conn = None
     try:
         data = request.get_json()
         post_ids = data.get('post_ids', [])
         category_id = data.get('category_id')
+
+        # 记录操作开始
+        log_operation(user_id, username, '批量更新分类',
+                    f'文章ID: {post_ids}, 目标分类: {category_id}')
 
         if not post_ids:
             return jsonify({'success': False, 'message': '未选择任何文章'}), 400
@@ -317,22 +364,66 @@ def batch_update_category():
         # Convert empty string to None for uncategorized
         if category_id == '' or category_id == 'none':
             category_id = None
+        elif category_id is not None:
+            category_id = int(category_id)
 
-        # Update category for each post
+        # 记录 SQL 操作
+        log_sql('batch_update_category', f'UPDATE posts SET category_id = {category_id}',
+                 f'post_ids={post_ids}')
+
+        # Update category for each post with manual FTS update
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        updated_count = 0
+        errors = []
+
         for post_id in post_ids:
-            cursor.execute(
-                'UPDATE posts SET category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                (category_id, post_id)
-            )
+            try:
+                # Get post data for FTS update
+                cursor.execute('SELECT title, content FROM posts WHERE id = ?', (post_id,))
+                post_data = cursor.fetchone()
+
+                if post_data:
+                    # 记录每个文章的更新
+                    log_sql('update_post', f'UPDATE posts SET category_id = {category_id} WHERE id = {post_id}')
+
+                    # Update post
+                    cursor.execute(
+                        'UPDATE posts SET category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                        (category_id, post_id)
+                    )
+
+                    # Manually update FTS
+                    log_sql('update_fts', f'DELETE FROM posts_fts WHERE rowid = {post_id}')
+                    cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+
+                    log_sql('insert_fts', f'INSERT INTO posts_fts(rowid, title, content) VALUES ({post_id}, ...)')
+                    cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
+                                  (post_id, post_data[0], post_data[1]))
+
+                    updated_count += 1
+            except Exception as e:
+                error_msg = f"文章 {post_id} 更新失败: {str(e)}"
+                errors.append(error_msg)
+                # 记录错误
+                log_error(e, context=f'批量更新分类 - 文章 {post_id}', user_id=user_id)
 
         conn.commit()
 
+        # 记录操作结果
+        if errors:
+            result_msg = f'部分成功: {updated_count}/{len(post_ids)} 篇文章更新成功'
+            if updated_count == 0:
+                result_msg = f'更新失败: {errors[0]}'
+        else:
+            result_msg = f'成功更新 {updated_count} 篇文章的分类'
+
+        log_operation(user_id, username, '批量更新分类', result_msg)
+
         return jsonify({
-            'success': True,
-            'message': f'成功更新 {len(post_ids)} 篇文章的分类'
+            'success': updated_count > 0,
+            'message': result_msg
         })
 
     except sqlite3.Error as e:
@@ -342,6 +433,85 @@ def batch_update_category():
     except Exception as e:
         if conn:
             conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route('/admin/batch-delete', methods=['POST'])
+@login_required
+def batch_delete():
+    """Batch delete multiple posts"""
+    user_id = session.get('user_id')
+    username = session.get('username', 'Unknown')
+
+    conn = None
+    try:
+        data = request.get_json()
+        post_ids = data.get('post_ids', [])
+
+        # 记录操作开始
+        log_operation(user_id, username, '批量删除文章',
+                    f'文章ID: {post_ids}')
+
+        if not post_ids:
+            return jsonify({'success': False, 'message': '未选择任何文章'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        deleted_count = 0
+        errors = []
+
+        for post_id in post_ids:
+            try:
+                # Check if post exists
+                cursor.execute('SELECT id FROM posts WHERE id = ?', (post_id,))
+                if not cursor.fetchone():
+                    errors.append(f"文章 {post_id} 不存在")
+                    continue
+
+                # Delete post (CASCADE will handle comments and post_tags)
+                log_sql('delete_post', f'DELETE FROM posts WHERE id = {post_id}')
+                cursor.execute('DELETE FROM posts WHERE id = ?', (post_id,))
+
+                # Manually delete from FTS
+                log_sql('delete_fts', f'DELETE FROM posts_fts WHERE rowid = {post_id}')
+                cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+
+                deleted_count += 1
+            except Exception as e:
+                error_msg = f"文章 {post_id} 删除失败: {str(e)}"
+                errors.append(error_msg)
+                log_error(e, context=f'批量删除 - 文章 {post_id}', user_id=user_id)
+
+        conn.commit()
+
+        # 记录操作结果
+        if errors:
+            result_msg = f'部分成功: {deleted_count}/{len(post_ids)} 篇文章删除成功'
+            if deleted_count == 0:
+                result_msg = f'删除失败: {errors[0]}'
+        else:
+            result_msg = f'成功删除 {deleted_count} 篇文章'
+
+        log_operation(user_id, username, '批量删除文章', result_msg)
+
+        return jsonify({
+            'success': deleted_count > 0,
+            'message': result_msg
+        })
+
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback()
+        log_error(e, context='批量删除文章', user_id=user_id)
+        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        log_error(e, context='批量删除文章', user_id=user_id)
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         if conn:
@@ -709,6 +879,38 @@ def create_admin_user():
             print("Failed to create admin user")
     else:
         print(f"Admin user already exists: {username}")
+
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    log_error(error, context='404 Not Found')
+    return render_template('error.html', status_code=404), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    log_error(error, context='500 Internal Server Error')
+    return render_template('error.html', status_code=500, error=str(error)), 500
+
+
+@app.errorhandler(sqlite3.Error)
+def database_error(error):
+    """Handle database errors"""
+    log_error(error, context='Database Error')
+    app.logger.error(f"Database error: {error}")
+
+    # Return JSON for AJAX requests
+    if request.path.startswith('/api/') or request.is_json:
+        return jsonify({
+            'success': False,
+            'message': f'数据库错误: {str(error)}'
+        }), 500
+
+    # Return error page for regular requests
+    return render_template('error.html', status_code=500, error=str(error)), 500
 
 
 @app.cli.command()

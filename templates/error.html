@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}错误 - {{ status_code }}{% endblock %}
+
+{% block content %}
+<div class="container error-page">
+    <div class="error-container">
+        <h1 class="error-code">{{ status_code }}</h1>
+        <h2 class="error-title">
+            {% if status_code == 404 %}
+                页面未找到
+            {% elif status_code == 500 %}
+                服务器错误
+            {% else %}
+                发生错误
+            {% endif %}
+        </h2>
+        <p class="error-message">
+            {% if status_code == 404 %}
+                抱歉，您访问的页面不存在。
+            {% elif status_code == 500 %}
+                抱歉，服务器遇到了问题。我们已记录此错误，请稍后重试。
+            {% else %}
+            抱歉，发生了错误。请稍后重试。
+            {% endif %}
+        </p>
+        {% if error %}
+        <p class="error-debug">错误详情: {{ error }}</p>
+        {% endif %}
+        <div class="error-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">返回首页</a>
+            <a href="javascript:history.back()" class="btn">返回上一页</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-page {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.error-container {
+    text-align: center;
+    max-width: 600px;
+    padding: 3rem 2rem;
+}
+
+.error-code {
+    font-size: 6rem;
+    font-weight: bold;
+    color: #ddd;
+    margin: 0;
+    line-height: 1;
+}
+
+.error-title {
+    font-size: 2rem;
+    margin: 1rem 0;
+    color: var(--text-color);
+}
+
+.error-message {
+    font-size: 1.1rem;
+    color: #666;
+    margin: 2rem 0;
+}
+
+.error-debug {
+    background: #f5f5f5;
+    padding: 1rem;
+    border-radius: 4px;
+    font-family: monospace;
+    text-align: left;
+    font-size: 0.9rem;
+    color: #d32f2f;
+    margin: 1rem 0;
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+</style>
+{% endblock %}
