@@ -439,4 +439,6 @@ def init():
 if __name__ == '__main__':
     init_db()
     create_admin_user()
-    app.run(debug=DEBUG, host='0.0.0.0')
+    # macOS ControlCenter often uses port 5000, so we use 5001
+    port = int(os.environ.get('PORT', 5001))
+    app.run(debug=DEBUG, host='0.0.0.0', port=port)
