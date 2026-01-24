@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}搜索：{{ query }} - {{ config['BLOG_NAME'] }}{% endblock %}
+
+{% block content %}
+<main class="container">
+    <div class="search-header">
+        <h2>搜索结果</h2>
+        {% if query %}
+        <p class="search-query">关键词：<strong>{{ query }}</strong></p>
+        {% endif %}
+    </div>
+
+    {% if posts is none %}
+    <div class="search-form">
+        <form action="{{ url_for('search') }}" method="get">
+            <input type="text" name="q" placeholder="输入搜索关键词..." class="search-input">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
+    </div>
+    {% elif posts %}
+    <div class="search-info">
+        找到 {{ pagination.total }} 个结果
+    </div>
+
+    <div class="posts-list">
+        {% for post in posts %}
+        <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
+            <article class="post-card">
+                <h2>{{ post.title }}</h2>
+                <div class="post-meta">
+                    <span>{{ post.created_at.strftime('%Y-%m-%d') }}</span>
+                    {% if post.category_name %}
+                    <span>· {{ post.category_name }}</span>
+                    {% endif %}
+                </div>
+                <p class="post-excerpt">{{ post.content[:200] }}...</p>
+            </article>
+        </a>
+        {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination">
+        {% if pagination.page > 1 %}
+        <a href="{{ url_for('search', q=query, page=pagination.page-1, per_page=pagination.per_page) }}" class="btn">上一页</a>
+        {% endif %}
+
+        <span class="pagination-info">
+            {{ start_item }}-{{ end_item }} / 共 {{ pagination.total }} 篇
+        </span>
+
+        {% if pagination.page < pagination.total_pages %}
+        <a href="{{ url_for('search', q=query, page=pagination.page+1, per_page=pagination.per_page) }}" class="btn">下一页</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <p>未找到相关文章</p>
+        <a href="{{ url_for('index') }}">返回首页</a>
+    </div>
+    {% endif %}
+</main>
+{% endblock %}

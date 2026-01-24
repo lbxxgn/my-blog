@@ -14,6 +14,12 @@
             <ul class="nav-links">
                 <li><a href="{{ url_for('index') }}">首页</a></li>
                 <li>
+                    <form action="{{ url_for('search') }}" method="get" class="search-form-nav">
+                        <input type="text" name="q" placeholder="搜索文章..." class="search-input-nav" value="{{ request.args.get('q', '') }}">
+                        <button type="submit" class="search-btn">🔍</button>
+                    </form>
+                </li>
+                <li>
                     <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
                         <span class="theme-toggle-icon">🌙</span>
                         <span class="theme-toggle-text">暗色</span>
@@ -49,6 +55,7 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

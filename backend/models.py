@@ -75,6 +75,40 @@ def init_db(db_path=None):
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_published_created ON posts(is_published, created_at DESC)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_category_id ON posts(category_id)')
 
+    # Create FTS5 virtual table for full-text search
+    cursor.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(
+            title,
+            content,
+            content='posts',
+            content_rowid='rowid'
+        )
+    ''')
+
+    # Create triggers to keep FTS index in sync
+    cursor.execute('''
+        CREATE TRIGGER IF NOT EXISTS posts_ai AFTER INSERT ON posts BEGIN
+            INSERT INTO posts_fts(rowid, title, content)
+            VALUES (new.id, new.title, new.content);
+        END
+    ''')
+
+    cursor.execute('''
+        CREATE TRIGGER IF NOT EXISTS posts_ad AFTER DELETE ON posts BEGIN
+            INSERT INTO posts_fts(posts_fts, rowid, title, content)
+            VALUES ('delete', old.id, old.title, old.content);
+        END
+    ''')
+
+    cursor.execute('''
+        CREATE TRIGGER IF NOT EXISTS posts_au AFTER UPDATE ON posts BEGIN
+            INSERT INTO posts_fts(posts_fts, rowid, title, content)
+            VALUES ('delete', old.id, old.title, old.content);
+            INSERT INTO posts_fts(rowid, title, content)
+            VALUES (new.id, new.title, new.content);
+        END
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -430,6 +464,56 @@ def get_posts_by_tag(tag_id, include_drafts=False, page=1, per_page=20):
         LIMIT ? OFFSET ?
     '''
     cursor.execute(query, params + [per_page, offset])
+
+    posts = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return {
+        'posts': posts,
+        'total': total_count,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
+    }
+
+def search_posts(query, include_drafts=False, page=1, per_page=20):
+    """Search posts using FTS5"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Build WHERE clause
+    where_conditions = ['posts_fts MATCH ?']
+    params = [query]
+
+    if not include_drafts:
+        where_conditions.append('posts.is_published = 1')
+
+    where_clause = ' AND '.join(where_conditions)
+
+    # Count total results
+    count_query = f'''
+        SELECT COUNT(*) as count
+        FROM posts_fts
+        JOIN posts ON posts_fts.rowid = posts.id
+        WHERE {where_clause}
+    '''
+    cursor.execute(count_query, params)
+    total_count = cursor.fetchone()['count']
+
+    # Calculate offset
+    offset = (page - 1) * per_page
+
+    # Get results for current page
+    search_query = f'''
+        SELECT posts.*, categories.name as category_name, categories.id as category_id
+        FROM posts_fts
+        JOIN posts ON posts_fts.rowid = posts.id
+        LEFT JOIN categories ON posts.category_id = categories.id
+        WHERE {where_clause}
+        ORDER BY posts.created_at DESC
+        LIMIT ? OFFSET ?
+    '''
+    cursor.execute(search_query, params + [per_page, offset])
 
     posts = [dict(row) for row in cursor.fetchall()]
     conn.close()

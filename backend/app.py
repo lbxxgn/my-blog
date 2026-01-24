@@ -14,7 +14,8 @@ from models import (
     get_all_categories, create_category, update_category, delete_category,
     get_category_by_id, get_posts_by_category,
     create_tag, get_all_tags, get_tag_by_id, update_tag, delete_tag,
-    get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag
+    get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag,
+    search_posts
 )
 
 # Flask app with templates and static in parent directory
@@ -562,6 +563,42 @@ def view_tag(tag_id):
                          tag=tag,
                          posts=posts_data['posts'],
                          tags=tags,
+                         pagination=posts_data,
+                         start_item=start_item,
+                         end_item=end_item,
+                         page_range=page_range,
+                         show_ellipsis=show_ellipsis)
+
+
+@app.route('/search')
+def search():
+    """Search posts"""
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    if not query:
+        return render_template('search.html', query='', posts=None, pagination=None)
+
+    posts_data = search_posts(query, include_drafts=False, page=page, per_page=per_page)
+
+    # Calculate pagination info
+    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+
+    # Calculate page range to display
+    page_start = max(1, posts_data['page'] - 2)
+    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+    page_range = list(range(page_start, page_end))
+    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+
+    return render_template('search.html',
+                         query=query,
+                         posts=posts_data['posts'],
                          pagination=posts_data,
                          start_item=start_item,
                          end_item=end_item,
