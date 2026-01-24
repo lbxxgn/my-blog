@@ -698,3 +698,27 @@ def update_post_with_tags(post_id, title, content, is_published, category_id=Non
         raise e
     finally:
         conn.close()
+
+def rebuild_fts_index():
+    """Manually rebuild the full-text search index"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Clear existing FTS data
+        cursor.execute('DELETE FROM posts_fts')
+        
+        # Repopulate FTS index
+        cursor.execute('''
+            INSERT INTO posts_fts(rowid, title, content)
+            SELECT id, title, content FROM posts
+        ''')
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Error rebuilding FTS index: {e}")
+        return False
+    finally:
+        conn.close()
