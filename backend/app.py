@@ -381,6 +381,48 @@ def generate_qrcode():
     return jsonify({'qrcode': f'data:image/png;base64,{img_str}'})
 
 
+@app.route('/api/posts')
+def api_get_posts():
+    """API endpoint for paginated posts"""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    category_id = request.args.get('category_id')
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    posts_data = get_all_posts(include_drafts=False, page=page, per_page=per_page, category_id=category_id)
+
+    # Render posts as HTML
+    posts_html = ''
+    for post in posts_data['posts']:
+        posts_html += f'''
+        <a href="/post/{post['id']}" class="post-card-link">
+            <article class="post-card">
+                <h2>{post['title']}</h2>
+                <div class="post-meta">
+                    <span>{post['created_at']}</span>
+        '''
+
+        if post['category_name']:
+            posts_html += f'''
+                    <span>· {post['category_name']}</span>
+        '''
+
+        posts_html += f'''
+                </div>
+                <p class="post-excerpt">{post['content'][:200]}...</p>
+            </article>
+        </a>
+        '''
+
+    return jsonify({
+        'posts_html': posts_html,
+        'has_more': posts_data['page'] < posts_data['total_pages']
+    })
+
+
 # Category Management Routes
 @app.route('/admin/categories')
 @login_required

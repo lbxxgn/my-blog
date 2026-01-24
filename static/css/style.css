@@ -996,3 +996,20 @@ img.loaded {
     background-color: var(--primary-color);
     color: white;
 }
+
+/* Load More Button */
+.load-more-container {
+    text-align: center;
+    margin: 2rem 0;
+    padding: 2rem 0;
+}
+
+#load-more {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+}
+
+#load-more:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
