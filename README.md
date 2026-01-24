@@ -13,22 +13,49 @@
 - ✅ 草稿和发布状态管理
 - ✅ 一键发布功能
 
-### 增强功能
+### 内容管理
 - ✅ 文章分类管理
+- ✅ 标签系统（多标签支持）
 - ✅ 批量设置分类
+- ✅ 批量删除文章
 - ✅ 后端分页（10/20/40/80 条可选）
 - ✅ 分类筛选（前端+后端）
+- ✅ 标签筛选
 - ✅ 修改密码功能
 - ✅ 网易博客数据导入
 - ✅ 智能头部（自动隐藏/显示）
 - ✅ 实时预览编辑器
 
+### 用户互动
+- ✅ 评论系统（支持评论管理）
+- ✅ 文章分享（微博、微信二维码、复制链接）
+
+### 用户体验
+- ✅ 暗黑模式（支持主题切换）
+- ✅ 图片懒加载
+- ✅ 骨架屏加载动画
+- ✅ AJAX 分页（加载更多按钮）
+
+### 搜索与安全
+- ✅ FTS5 全文搜索
+- ✅ CSRF 保护
+- ✅ 密码强度验证
+- ✅ Session 安全配置
+
+### 开发与运维
+- ✅ 完整日志系统（login.log, operation.log, error.log, sql.log）
+- ✅ 友好错误页面
+- ✅ 数据库索引优化
+- ✅ 数据库备份工具
+
 ## 🛠 技术栈
 
-- **后端**: Python Flask 3.x
-- **数据库**: SQLite
+- **后端**: Python Flask 3.0.0
+- **数据库**: SQLite (FTS5 全文搜索)
 - **前端**: Jinja2 模板, 纯 CSS/JS
 - **Markdown**: markdown2 库
+- **安全**: Flask-WTF (CSRF 保护)
+- **其他**: qrcode (微信分享二维码)
 - **部署**: 简单的单命令启动
 
 ## 🚀 快速开始
@@ -42,7 +69,8 @@ pip install -r requirements.txt
 ### 2. 启动应用
 
 ```bash
-python backend/app.py
+cd backend
+python app.py
 ```
 
 首次运行会自动：
@@ -51,9 +79,9 @@ python backend/app.py
 
 ### 3. 访问博客
 
-- 博客首页: http://localhost:5000
-- 管理后台: http://localhost:5000/admin
-- 登录页面: http://localhost:5000/login
+- 博客首页: http://localhost:5001
+- 管理后台: http://localhost:5001/admin
+- 登录页面: http://localhost:5001/login
 
 **默认账号:**
 - 用户名: `admin`
@@ -69,10 +97,16 @@ simple-blog/
 │   ├── app.py           # Flask 应用主文件
 │   ├── models.py        # 数据库模型
 │   ├── config.py        # 配置文件
+│   ├── logger.py        # 日志系统
 │   └── import_blog.py   # 网易博客导入工具
 ├── db/                  # 数据库文件
 │   ├── posts.db         # SQLite 数据库（自动创建）
 │   └── .gitkeep         # 保持目录被 git 跟踪
+├── logs/                # 日志目录
+│   ├── login.log        # 登录日志
+│   ├── operation.log    # 操作日志
+│   ├── error.log        # 错误日志
+│   └── sql.log          # SQL 操作日志
 ├── static/              # 静态资源
 │   ├── css/
 │   │   └── style.css    # 样式表
@@ -86,6 +120,7 @@ simple-blog/
 │   ├── post.html        # 文章详情页
 │   ├── login.html       # 登录页
 │   ├── change_password.html  # 修改密码页
+│   ├── error.html       # 错误页面
 │   └── admin/           # 管理后台模板
 │       ├── dashboard.html    # 文章管理
 │       ├── editor.html       # 文章编辑器
@@ -102,7 +137,7 @@ simple-blog/
 2. 点击"管理"进入后台
 3. 点击"新建文章"按钮
 4. 输入标题和内容（支持 Markdown）
-5. 可选：选择分类
+5. 可选：选择分类、添加标签
 6. 点击"立即发布"直接发布，或"保存"存为草稿
 
 ### 编辑文章
@@ -111,12 +146,23 @@ simple-blog/
 2. 修改内容后点击"保存"
 3. 已发布的文章会保持发布状态
 
-### 批量设置分类
+### 批量操作
 
 1. 在文章管理页勾选多篇文章
-2. 点击"批量设置分类"
-3. 选择目标分类
-4. 确认完成批量更新
+2. 点击"批量设置分类"或"批量删除"
+3. 批量删除需要二次确认
+
+### 标签管理
+
+1. 编辑文章时可以添加多个标签
+2. 在首页点击标签可以筛选相关文章
+3. 标签以多对多关系关联文章
+
+### 评论管理
+
+1. 游客可以在文章页发表评论
+2. 管理员可以隐藏/显示评论
+3. 支持删除不当评论
 
 ### 修改密码
 
@@ -168,6 +214,17 @@ python backend/import_blog.py
 - `MAX_CONTENT_LENGTH`: 最大上传大小（默认 5MB）
 - `ALLOWED_EXTENSIONS`: 允许的图片类型（png, jpg, jpeg, gif, webp）
 
+### 日志系统
+
+系统会自动记录以下日志（存储在 `logs/` 目录）：
+
+- `login.log` - 登录成功/失败记录
+- `operation.log` - 用户操作记录
+- `error.log` - 错误信息和堆栈跟踪
+- `sql.log` - SQL 操作记录
+
+日志文件按天轮转，保留 30 天。
+
 ### 环境变量配置
 
 可通过环境变量覆盖配置：
@@ -183,10 +240,13 @@ export ADMIN_PASSWORD="your-password"
 ### 本地开发
 
 ```bash
-python backend/app.py
+cd backend
+python app.py
 ```
 
-访问: http://localhost:5000
+访问: http://localhost:5001
+
+**注意**: macOS 系统默认使用端口 5000（ControlCenter），因此本应用使用端口 5001。可以通过环境变量 `PORT` 修改端口。
 
 ### 生产部署
 
@@ -197,7 +257,7 @@ python backend/app.py
 pip install gunicorn
 
 # 启动服务
-gunicorn -w 4 -b 0.0.0.0:5000 backend.app:app
+gunicorn -w 4 -b 0.0.0.0:5001 backend.app:app
 ```
 
 **nginx 配置示例:**
@@ -208,7 +268,7 @@ server {
     server_name your-domain.com;
 
     location / {
-        proxy_pass http://127.0.0.1:5000;
+        proxy_pass http://127.0.0.1:5001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -289,11 +349,29 @@ Created with ❤️ for personal blogging
 
 ## 更新日志
 
-### v1.0.0 (2025-01-24)
+### v1.2.0 (2025-01-24)
+- ✨ 新增标签系统（多标签支持）
+- ✨ 新增评论系统
+- ✨ 新增文章分享功能（微博、微信、复制链接）
+- ✨ 新增暗黑模式
+- ✨ 新增图片懒加载和骨架屏动画
+- ✨ 新增 AJAX 分页（加载更多按钮）
+- ✨ 新增 FTS5 全文搜索
+- ✨ 新增批量删除功能
+- ✨ 新增日志系统（4种日志类型）
+- ✨ 新增友好错误页面
+- ✨ 新增 CSRF 保护
+- ✨ 优化数据库索引
+- ✨ 修复 FTS 触发器冲突问题
+
+### v1.1.0 (2025-01-23)
+- ✅ 批量设置分类功能
+- ✅ 分类筛选功能
+- ✅ 后端分页优化
+- ✅ 网易博客导入功能
+
+### v1.0.0 (2025-01-22)
 - ✨ 初始版本发布
 - ✅ 基础博客功能
-- ✅ 分类管理
-- ✅ 批量操作
-- ✅ 分页功能
-- ✅ 网易博客导入
+- ✅ 文章 CRUD 操作
 - ✅ 响应式设计

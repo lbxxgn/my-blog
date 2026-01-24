@@ -4,15 +4,26 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 import markdown2
 import os
+import re
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 
 from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG
+from flask_wtf.csrf import CSRFProtect
+
+# Import logging module
+from logger import setup_logging, log_login, log_operation, log_error, log_sql
 from models import (
     get_db_connection, init_db, get_all_posts, get_post_by_id,
-    create_post, update_post, delete_post, get_user_by_username, create_user, update_user_password,
+    create_post, update_post, delete_post, update_post_with_tags, get_user_by_username, create_user, update_user_password,
     get_all_categories, create_category, update_category, delete_category,
-    get_category_by_id, get_posts_by_category
+    get_category_by_id, get_posts_by_category,
+    create_tag, get_all_tags, get_tag_by_id, update_tag, delete_tag,
+    get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag,
+    search_posts,
+    create_comment, get_comments_by_post, get_all_comments,
+    update_comment_visibility, delete_comment
 )
 
 # Flask app with templates and static in parent directory
@@ -21,6 +32,18 @@ app = Flask(__name__,
             static_folder=str(BASE_DIR / 'static'))
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+# CSRF protection
+csrf = CSRFProtect(app)
+
+# Session security settings
+from config import SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE
+app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
+app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
+app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
+
+# Setup logging system
+setup_logging(app)
 
 
 def login_required(f):
@@ -86,7 +109,14 @@ def view_post(post_id):
         post['content'],
         extras=['fenced-code-blocks', 'tables']
     )
-    return render_template('post.html', post=post)
+
+    # Get tags for the post
+    post['tags'] = get_post_tags(post_id)
+
+    # Get comments for the post
+    comments = get_comments_by_post(post_id)
+
+    return render_template('post.html', post=post, comments=comments)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -98,6 +128,8 @@ def login():
 
         if not username or not password:
             flash('请输入用户名和密码', 'error')
+            # 记录失败尝试
+            log_login(username or 'Unknown', success=False, error_msg='字段为空')
             return render_template('login.html')
 
         user = get_user_by_username(username)
@@ -106,12 +138,17 @@ def login():
             session['username'] = user['username']
             flash(f'欢迎回来，{user["username"]}！', 'success')
 
+            # 记录成功登录
+            log_login(username, success=True)
+
             next_page = request.args.get('next')
             if next_page:
                 return redirect(next_page)
             return redirect(url_for('admin_dashboard'))
         else:
             flash('用户名或密码错误', 'error')
+            # 记录失败登录
+            log_login(username, success=False, error_msg='密码错误或用户不存在')
 
     return render_template('login.html')
 
@@ -141,8 +178,24 @@ def change_password():
             flash('新密码和确认密码不匹配', 'error')
             return render_template('change_password.html')
 
-        if len(new_password) < 6:
-            flash('新密码长度至少为6位', 'error')
+        # Strengthened password requirements
+        if len(new_password) < 10:
+            flash('新密码长度至少为10位', 'error')
+            return render_template('change_password.html')
+
+        # Check for at least one uppercase letter
+        if not re.search(r'[A-Z]', new_password):
+            flash('密码必须包含至少一个大写字母', 'error')
+            return render_template('change_password.html')
+
+        # Check for at least one lowercase letter
+        if not re.search(r'[a-z]', new_password):
+            flash('密码必须包含至少一个小写字母', 'error')
+            return render_template('change_password.html')
+
+        # Check for at least one digit
+        if not re.search(r'\d', new_password):
+            flash('密码必须包含至少一个数字', 'error')
             return render_template('change_password.html')
 
         # Verify current password
@@ -215,7 +268,14 @@ def new_post():
             categories = get_all_categories()
             return render_template('admin/editor.html', post=None, categories=categories)
 
+        # Create post first
         post_id = create_post(title, content, is_published, category_id)
+
+        # Handle tags (in separate connection but after commit)
+        tag_names = request.form.get('tags', '').split(',')
+        if tag_names and tag_names[0]:  # Only if tags provided
+            set_post_tags(post_id, tag_names)
+
         if is_published:
             flash('文章发布成功', 'success')
         else:
@@ -254,7 +314,12 @@ def edit_post(post_id):
             categories = get_all_categories()
             return render_template('admin/editor.html', post=post, categories=categories)
 
-        update_post(post_id, title, content, is_published, category_id)
+        # Handle tags
+        tag_names = request.form.get('tags', '').split(',')
+
+        # Update post and tags in a single transaction
+        update_post_with_tags(post_id, title, content, is_published, category_id, tag_names)
+
         flash('文章更新成功', 'success')
         return redirect(url_for('view_post', post_id=post_id))
 
@@ -280,34 +345,177 @@ def delete_post_route(post_id):
 @login_required
 def batch_update_category():
     """Batch update category for multiple posts"""
+    user_id = session.get('user_id')
+    username = session.get('username', 'Unknown')
+
+    conn = None
     try:
         data = request.get_json()
         post_ids = data.get('post_ids', [])
         category_id = data.get('category_id')
 
+        # 记录操作开始
+        log_operation(user_id, username, '批量更新分类',
+                    f'文章ID: {post_ids}, 目标分类: {category_id}')
+
         if not post_ids:
             return jsonify({'success': False, 'message': '未选择任何文章'}), 400
 
-        # Update category for each post
+        # Convert empty string to None for uncategorized
+        if category_id == '' or category_id == 'none':
+            category_id = None
+        elif category_id is not None:
+            category_id = int(category_id)
+
+        # 记录 SQL 操作
+        log_sql('batch_update_category', f'UPDATE posts SET category_id = {category_id}',
+                 f'post_ids={post_ids}')
+
+        # Update category for each post with manual FTS update
         conn = get_db_connection()
         cursor = conn.cursor()
 
+        updated_count = 0
+        errors = []
+
         for post_id in post_ids:
-            cursor.execute(
-                'UPDATE posts SET category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                (category_id, post_id)
-            )
+            try:
+                # Get post data for FTS update
+                cursor.execute('SELECT title, content FROM posts WHERE id = ?', (post_id,))
+                post_data = cursor.fetchone()
+
+                if post_data:
+                    # 记录每个文章的更新
+                    log_sql('update_post', f'UPDATE posts SET category_id = {category_id} WHERE id = {post_id}')
+
+                    # Update post
+                    cursor.execute(
+                        'UPDATE posts SET category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                        (category_id, post_id)
+                    )
+
+                    # Manually update FTS
+                    log_sql('update_fts', f'DELETE FROM posts_fts WHERE rowid = {post_id}')
+                    cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+
+                    log_sql('insert_fts', f'INSERT INTO posts_fts(rowid, title, content) VALUES ({post_id}, ...)')
+                    cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
+                                  (post_id, post_data[0], post_data[1]))
+
+                    updated_count += 1
+            except Exception as e:
+                error_msg = f"文章 {post_id} 更新失败: {str(e)}"
+                errors.append(error_msg)
+                # 记录错误
+                log_error(e, context=f'批量更新分类 - 文章 {post_id}', user_id=user_id)
 
         conn.commit()
-        conn.close()
+
+        # 记录操作结果
+        if errors:
+            result_msg = f'部分成功: {updated_count}/{len(post_ids)} 篇文章更新成功'
+            if updated_count == 0:
+                result_msg = f'更新失败: {errors[0]}'
+        else:
+            result_msg = f'成功更新 {updated_count} 篇文章的分类'
+
+        log_operation(user_id, username, '批量更新分类', result_msg)
 
         return jsonify({
-            'success': True,
-            'message': f'成功更新 {len(post_ids)} 篇文章的分类'
+            'success': updated_count > 0,
+            'message': result_msg
         })
 
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
     except Exception as e:
+        if conn:
+            conn.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route('/admin/batch-delete', methods=['POST'])
+@login_required
+def batch_delete():
+    """Batch delete multiple posts"""
+    user_id = session.get('user_id')
+    username = session.get('username', 'Unknown')
+
+    conn = None
+    try:
+        data = request.get_json()
+        post_ids = data.get('post_ids', [])
+
+        # 记录操作开始
+        log_operation(user_id, username, '批量删除文章',
+                    f'文章ID: {post_ids}')
+
+        if not post_ids:
+            return jsonify({'success': False, 'message': '未选择任何文章'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        deleted_count = 0
+        errors = []
+
+        for post_id in post_ids:
+            try:
+                # Check if post exists
+                cursor.execute('SELECT id FROM posts WHERE id = ?', (post_id,))
+                if not cursor.fetchone():
+                    errors.append(f"文章 {post_id} 不存在")
+                    continue
+
+                # Delete post (CASCADE will handle comments and post_tags)
+                log_sql('delete_post', f'DELETE FROM posts WHERE id = {post_id}')
+                cursor.execute('DELETE FROM posts WHERE id = ?', (post_id,))
+
+                # Manually delete from FTS
+                log_sql('delete_fts', f'DELETE FROM posts_fts WHERE rowid = {post_id}')
+                cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+
+                deleted_count += 1
+            except Exception as e:
+                error_msg = f"文章 {post_id} 删除失败: {str(e)}"
+                errors.append(error_msg)
+                log_error(e, context=f'批量删除 - 文章 {post_id}', user_id=user_id)
+
+        conn.commit()
+
+        # 记录操作结果
+        if errors:
+            result_msg = f'部分成功: {deleted_count}/{len(post_ids)} 篇文章删除成功'
+            if deleted_count == 0:
+                result_msg = f'删除失败: {errors[0]}'
+        else:
+            result_msg = f'成功删除 {deleted_count} 篇文章'
+
+        log_operation(user_id, username, '批量删除文章', result_msg)
+
+        return jsonify({
+            'success': deleted_count > 0,
+            'message': result_msg
+        })
+
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback()
+        log_error(e, context='批量删除文章', user_id=user_id)
+        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        log_error(e, context='批量删除文章', user_id=user_id)
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/admin/upload', methods=['POST'])
@@ -336,6 +544,78 @@ def upload_image():
         return jsonify({'success': True, 'url': url})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/share/qrcode')
+def generate_qrcode():
+    """Generate QR code for WeChat sharing"""
+    import qrcode
+    from io import BytesIO
+    import base64
+
+    url = request.args.get('url', url_for('index', _external=True))
+
+    # Generate QR code
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+
+    # Create image
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # Convert to base64
+    buffer = BytesIO()
+    img.save(buffer)
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+
+    return jsonify({'qrcode': f'data:image/png;base64,{img_str}'})
+
+
+@app.route('/api/posts')
+def api_get_posts():
+    """API endpoint for paginated posts"""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    category_id = request.args.get('category_id')
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    posts_data = get_all_posts(include_drafts=False, page=page, per_page=per_page, category_id=category_id)
+
+    # Render posts as HTML
+    posts_html = ''
+    for post in posts_data['posts']:
+        posts_html += f'''
+        <a href="/post/{post['id']}" class="post-card-link">
+            <article class="post-card">
+                <h2>{post['title']}</h2>
+                <div class="post-meta">
+        '''
+
+        if post['category_name']:
+            posts_html += f'''
+                    <span class="post-category">{post['category_name']}</span>
+                    <span>·</span>
+        '''
+
+        # Format date properly
+        created_at = str(post['created_at'])[:10] if post['created_at'] else ''
+        posts_html += f'''
+                    <time datetime="{created_at}">{created_at}</time>
+                </div>
+                <div class="post-excerpt">
+                    {post['content'][:200]}...
+                </div>
+            </article>
+        </a>
+        '''
+
+    return jsonify({
+        'posts_html': posts_html,
+        'has_more': posts_data['page'] < posts_data['total_pages']
+    })
 
 
 # Category Management Routes
@@ -411,6 +691,179 @@ def view_category(category_id):
                          show_ellipsis=show_ellipsis)
 
 
+# Tag Management Routes
+@app.route('/admin/tags')
+@login_required
+def tag_list():
+    """List all tags"""
+    tags = get_all_tags()
+    return render_template('admin/tags.html', tags=tags)
+
+@app.route('/admin/tags/new', methods=['POST'])
+@login_required
+def new_tag():
+    """Create a new tag"""
+    name = request.form.get('name')
+    if not name:
+        flash('标签名称不能为空', 'error')
+        return redirect(url_for('tag_list'))
+
+    tag_id = create_tag(name)
+    if tag_id:
+        flash('标签创建成功', 'success')
+    else:
+        flash('标签名称已存在', 'error')
+    return redirect(url_for('tag_list'))
+
+@app.route('/admin/tags/<int:tag_id>/delete', methods=['POST'])
+@login_required
+def delete_tag_route(tag_id):
+    """Delete a tag"""
+    delete_tag(tag_id)
+    flash('标签已删除', 'success')
+    return redirect(url_for('tag_list'))
+
+@app.route('/tag/<int:tag_id>')
+def view_tag(tag_id):
+    """View all posts with a tag"""
+    tag = get_tag_by_id(tag_id)
+    if not tag:
+        flash('标签不存在', 'error')
+        return redirect(url_for('index'))
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    posts_data = get_posts_by_tag(tag_id, include_drafts=False, page=page, per_page=per_page)
+
+    # Calculate pagination info
+    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+
+    # Calculate page range to display
+    page_start = max(1, posts_data['page'] - 2)
+    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+    page_range = list(range(page_start, page_end))
+    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+
+    # Get all tags for the filter bar
+    tags = get_all_tags()
+
+    return render_template('tag_posts.html',
+                         tag=tag,
+                         posts=posts_data['posts'],
+                         tags=tags,
+                         pagination=posts_data,
+                         start_item=start_item,
+                         end_item=end_item,
+                         page_range=page_range,
+                         show_ellipsis=show_ellipsis)
+
+
+@app.route('/search')
+def search():
+    """Search posts"""
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    if not query:
+        return render_template('search.html', query='', posts=None, pagination=None)
+
+    posts_data = search_posts(query, include_drafts=False, page=page, per_page=per_page)
+
+    # Calculate pagination info
+    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+
+    # Calculate page range to display
+    page_start = max(1, posts_data['page'] - 2)
+    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+    page_range = list(range(page_start, page_end))
+    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+
+    return render_template('search.html',
+                         query=query,
+                         posts=posts_data['posts'],
+                         pagination=posts_data,
+                         start_item=start_item,
+                         end_item=end_item,
+                         page_range=page_range,
+                         show_ellipsis=show_ellipsis)
+
+
+# Comment Routes
+@app.route('/post/<int:post_id>/comment', methods=['POST'])
+def add_comment(post_id):
+    """Add a comment to a post"""
+    post = get_post_by_id(post_id)
+    if post is None:
+        flash('文章不存在', 'error')
+        return redirect(url_for('index'))
+
+    author_name = request.form.get('author_name', '').strip()
+    author_email = request.form.get('author_email', '').strip()
+    content = request.form.get('content', '').strip()
+
+    if not author_name or not content:
+        flash('姓名和评论内容不能为空', 'error')
+        return redirect(url_for('view_post', post_id=post_id))
+
+    if len(author_name) > 50:
+        flash('姓名过长', 'error')
+        return redirect(url_for('view_post', post_id=post_id))
+
+    if len(content) > 1000:
+        flash('评论内容过长', 'error')
+        return redirect(url_for('view_post', post_id=post_id))
+
+    create_comment(post_id, author_name, author_email, content)
+    flash('评论提交成功', 'success')
+    return redirect(url_for('view_post', post_id=post_id))
+
+@app.route('/admin/comments')
+@login_required
+def comment_list():
+    """List all comments"""
+    comments = get_all_comments(include_hidden=True)
+    return render_template('admin/comments.html', comments=comments)
+
+@app.route('/admin/comments/<int:comment_id>/toggle', methods=['POST'])
+@login_required
+def toggle_comment(comment_id):
+    """Toggle comment visibility"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT is_visible FROM comments WHERE id = ?', (comment_id,))
+    result = cursor.fetchone()
+    conn.close()
+
+    if result:
+        new_visibility = not result['is_visible']
+        update_comment_visibility(comment_id, new_visibility)
+        flash('评论状态已更新', 'success')
+    else:
+        flash('评论不存在', 'error')
+
+    return redirect(url_for('comment_list'))
+
+@app.route('/admin/comments/<int:comment_id>/delete', methods=['POST'])
+@login_required
+def delete_comment_route(comment_id):
+    """Delete a comment"""
+    delete_comment(comment_id)
+    flash('评论已删除', 'success')
+    return redirect(url_for('comment_list'))
+
+
 def create_admin_user():
     """Create default admin user if not exists"""
     username = os.environ.get('ADMIN_USERNAME', 'admin')
@@ -426,6 +879,38 @@ def create_admin_user():
             print("Failed to create admin user")
     else:
         print(f"Admin user already exists: {username}")
+
+
+# Error handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    log_error(error, context='404 Not Found')
+    return render_template('error.html', status_code=404), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    log_error(error, context='500 Internal Server Error')
+    return render_template('error.html', status_code=500, error=str(error)), 500
+
+
+@app.errorhandler(sqlite3.Error)
+def database_error(error):
+    """Handle database errors"""
+    log_error(error, context='Database Error')
+    app.logger.error(f"Database error: {error}")
+
+    # Return JSON for AJAX requests
+    if request.path.startswith('/api/') or request.is_json:
+        return jsonify({
+            'success': False,
+            'message': f'数据库错误: {str(error)}'
+        }), 500
+
+    # Return error page for regular requests
+    return render_template('error.html', status_code=500, error=str(error)), 500
 
 
 @app.cli.command()

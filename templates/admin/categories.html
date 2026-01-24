@@ -12,6 +12,7 @@
     <div class="category-form">
         <h3>创建新分类</h3>
         <form method="POST" action="{{ url_for('new_category') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
                 <label for="name">分类名称</label>
                 <input type="text" id="name" name="name" required>
@@ -41,6 +42,7 @@
                     <td class="actions">
                         <form method="POST" action="{{ url_for('delete_category_route', category_id=category.id) }}"
                               class="delete-form" onsubmit="return confirm('确定删除这个分类？删除后文章将不再属于该分类。');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <button type="submit" class="btn btn-sm btn-danger">删除</button>
                         </form>
                     </td>
