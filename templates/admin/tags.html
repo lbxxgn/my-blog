@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}标签管理 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="admin-categories">
+    <div class="dashboard-header">
+        <h2>标签管理</h2>
+    </div>
+
+    <div class="category-form">
+        <h3>创建新标签</h3>
+        <form action="{{ url_for('new_tag') }}" method="post">
+            <div class="form-group">
+                <label for="name">标签名称</label>
+                <input type="text" name="name" id="name" required>
+            </div>
+            <button type="submit" class="btn btn-primary">创建</button>
+        </form>
+    </div>
+
+    {% if tags %}
+    <table class="categories-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tag in tags %}
+            <tr>
+                <td>{{ tag.id }}</td>
+                <td>{{ tag.name }}</td>
+                <td>{{ tag.created_at }}</td>
+                <td>
+                    <form action="{{ url_for('delete_tag_route', tag_id=tag.id) }}" method="post" class="delete-form">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定删除此标签吗？')">删除</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>暂无标签</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -12,7 +12,9 @@ from models import (
     get_db_connection, init_db, get_all_posts, get_post_by_id,
     create_post, update_post, delete_post, get_user_by_username, create_user, update_user_password,
     get_all_categories, create_category, update_category, delete_category,
-    get_category_by_id, get_posts_by_category
+    get_category_by_id, get_posts_by_category,
+    create_tag, get_all_tags, get_tag_by_id, update_tag, delete_tag,
+    get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag
 )
 
 # Flask app with templates and static in parent directory
@@ -86,6 +88,10 @@ def view_post(post_id):
         post['content'],
         extras=['fenced-code-blocks', 'tables']
     )
+
+    # Get tags for the post
+    post['tags'] = get_post_tags(post_id)
+
     return render_template('post.html', post=post)
 
 
@@ -216,6 +222,12 @@ def new_post():
             return render_template('admin/editor.html', post=None, categories=categories)
 
         post_id = create_post(title, content, is_published, category_id)
+
+        # Handle tags
+        tag_names = request.form.get('tags', '').split(',')
+        if tag_names:
+            set_post_tags(post_id, tag_names)
+
         if is_published:
             flash('文章发布成功', 'success')
         else:
@@ -255,6 +267,12 @@ def edit_post(post_id):
             return render_template('admin/editor.html', post=post, categories=categories)
 
         update_post(post_id, title, content, is_published, category_id)
+
+        # Handle tags
+        tag_names = request.form.get('tags', '').split(',')
+        if tag_names:
+            set_post_tags(post_id, tag_names)
+
         flash('文章更新成功', 'success')
         return redirect(url_for('view_post', post_id=post_id))
 
@@ -429,6 +447,79 @@ def view_category(category_id):
                          posts=posts_data['posts'],
                          category=category,
                          categories=categories,
+                         pagination=posts_data,
+                         start_item=start_item,
+                         end_item=end_item,
+                         page_range=page_range,
+                         show_ellipsis=show_ellipsis)
+
+
+# Tag Management Routes
+@app.route('/admin/tags')
+@login_required
+def tag_list():
+    """List all tags"""
+    tags = get_all_tags()
+    return render_template('admin/tags.html', tags=tags)
+
+@app.route('/admin/tags/new', methods=['POST'])
+@login_required
+def new_tag():
+    """Create a new tag"""
+    name = request.form.get('name')
+    if not name:
+        flash('标签名称不能为空', 'error')
+        return redirect(url_for('tag_list'))
+
+    tag_id = create_tag(name)
+    if tag_id:
+        flash('标签创建成功', 'success')
+    else:
+        flash('标签名称已存在', 'error')
+    return redirect(url_for('tag_list'))
+
+@app.route('/admin/tags/<int:tag_id>/delete', methods=['POST'])
+@login_required
+def delete_tag_route(tag_id):
+    """Delete a tag"""
+    delete_tag(tag_id)
+    flash('标签已删除', 'success')
+    return redirect(url_for('tag_list'))
+
+@app.route('/tag/<int:tag_id>')
+def view_tag(tag_id):
+    """View all posts with a tag"""
+    tag = get_tag_by_id(tag_id)
+    if not tag:
+        flash('标签不存在', 'error')
+        return redirect(url_for('index'))
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    posts_data = get_posts_by_tag(tag_id, include_drafts=False, page=page, per_page=per_page)
+
+    # Calculate pagination info
+    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+
+    # Calculate page range to display
+    page_start = max(1, posts_data['page'] - 2)
+    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+    page_range = list(range(page_start, page_end))
+    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+
+    # Get all tags for the filter bar
+    tags = get_all_tags()
+
+    return render_template('tag_posts.html',
+                         tag=tag,
+                         posts=posts_data['posts'],
+                         tags=tags,
                          pagination=posts_data,
                          start_item=start_item,
                          end_item=end_item,

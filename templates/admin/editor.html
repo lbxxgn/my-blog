@@ -27,6 +27,12 @@
             </select>
         </div>
 
+        <div class="form-group">
+            <label for="tags">标签（用逗号分隔）</label>
+            <input type="text" name="tags" id="tags" value="{% if post and post.tags %}{{ post.tags|map(attribute='name')|join(', ') }}{% endif %}" placeholder="例如: Python, Flask, Web">
+            <small style="color: #666;">多个标签用逗号分隔</small>
+        </div>
+
         <div class="editor-toolbar">
             <button type="button" class="btn btn-sm" onclick="insertMarkdown('**', '**')">粗体</button>
             <button type="button" class="btn btn-sm" onclick="insertMarkdown('*', '*')">斜体</button>
