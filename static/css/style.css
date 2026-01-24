@@ -184,8 +184,8 @@ main {
 
 /* Post List */
 .posts-list {
-    display: grid;
-    gap: 2.5rem;
+    display: flex;
+    flex-direction: column;
     margin-top: 1rem;
 }
 
@@ -193,6 +193,11 @@ main {
     text-decoration: none;
     color: inherit;
     display: block;
+    margin-bottom: 2.5rem;
+}
+
+.post-card-link:last-child {
+    margin-bottom: 0;
 }
 
 .post-card {
@@ -661,6 +666,10 @@ footer {
 
     .post-card {
         padding: 1.5rem;
+    }
+
+    .post-card-link {
+        margin-bottom: 2rem;
     }
 
     .post-card h2 {
@@ -1149,4 +1158,31 @@ img.loaded {
 
 .comment-form textarea {
     min-height: 120px;
+}
+
+/* Ensure post cards never overlap */
+#posts-container .post-card-link {
+    position: relative;
+    z-index: 1;
+}
+
+#posts-container .post-card-link:hover {
+    z-index: 2;
+}
+
+/* Prevent content from overflowing post cards */
+.post-card {
+    overflow: hidden;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.post-excerpt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ensure gap is preserved when loading new content */
+#posts-container > .post-card-link ~ .post-card-link {
+    margin-top: 0;
 }
