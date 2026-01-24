@@ -248,6 +248,47 @@ python app.py
 
 **注意**: macOS 系统默认使用端口 5000（ControlCenter），因此本应用使用端口 5001。可以通过环境变量 `PORT` 修改端口。
 
+### 远程服务器部署
+
+**方法 1：使用启动脚本（推荐）**
+
+```bash
+# 1. 克隆项目
+git clone <your-repo-url>
+cd simple-blog
+
+# 2. 安装依赖
+pip3 install -r requirements.txt
+
+# 3. 使用启动脚本运行
+chmod +x start.sh
+./start.sh
+```
+
+**方法 2：直接运行**
+
+```bash
+# 1. 进入 backend 目录
+cd backend
+
+# 2. 设置环境变量
+export FLASK_APP=app.py
+export FLASK_ENV=production
+export PYTHONPATH=$(pwd):$PYTHONPATH
+
+# 3. 启动应用
+python3 app.py
+```
+
+**访问地址**: `http://your-server-ip:5001`
+
+**防火墙配置**：确保开放 5001 端口
+```bash
+# 阿里云 ECS 需要在安全组中开放 5001 端口
+# 或者使用 iptables
+sudo iptables -A INPUT -p tcp --dport 5001 -j ACCEPT
+```
+
 ### 生产部署
 
 推荐使用 Gunicorn + nginx：
