@@ -2,6 +2,10 @@
 
 {% block title %}{{ post.title }} - 我的博客{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/share.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <article class="post-full">
@@ -9,8 +13,36 @@
             {{ post.content_html|safe }}
         </div>
     </article>
+
+    <!-- Share Buttons -->
+    <div class="share-buttons">
+        <a href="https://service.weibo.com/share/share.php?url={{ request.url_external }}&title={{ post.title }}"
+           class="share-btn weibo"
+           target="_blank"
+           rel="noopener">
+            分享到微博
+        </a>
+        <button class="share-btn wechat">分享到微信</button>
+        <button class="share-btn copy">复制链接</button>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div class="modal-overlay">
+        <div class="modal-content">
+            <h3>微信扫码分享</h3>
+            <img src="" alt="QR Code" class="qrcode-img">
+            <button class="btn btn-sm modal-close">关闭</button>
+        </div>
+    </div>
+
+    <div class="copy-toast">链接已复制</div>
+
     <div class="post-navigation">
         <a href="{{ url_for('index') }}" class="back-link">← 返回首页</a>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/share.js') }}"></script>
 {% endblock %}

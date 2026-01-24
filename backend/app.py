@@ -338,6 +338,31 @@ def upload_image():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/share/qrcode')
+def generate_qrcode():
+    """Generate QR code for WeChat sharing"""
+    import qrcode
+    from io import BytesIO
+    import base64
+
+    url = request.args.get('url', url_for('index', _external=True))
+
+    # Generate QR code
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+
+    # Create image
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    # Convert to base64
+    buffer = BytesIO()
+    img.save(buffer, format='PNG')
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+
+    return jsonify({'qrcode': f'data:image/png;base64,{img_str}'})
+
+
 # Category Management Routes
 @app.route('/admin/categories')
 @login_required
