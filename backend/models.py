@@ -106,7 +106,7 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None):
     where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
 
     # Count total posts
-    count_query = f'SELECT COUNT(*) as count FROM posts LEFT JOIN categories ON posts.category_id = categories.id WHERE {where_clause}'
+    count_query = 'SELECT COUNT(*) as count FROM posts LEFT JOIN categories ON posts.category_id = categories.id WHERE ' + where_clause
     cursor.execute(count_query, params)
     total_count = cursor.fetchone()['count']
 
@@ -114,11 +114,11 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None):
     offset = (page - 1) * per_page
 
     # Get posts for current page
-    query = f'''
+    query = '''
         SELECT posts.*, categories.name as category_name, categories.id as category_id
         FROM posts
         LEFT JOIN categories ON posts.category_id = categories.id
-        WHERE {where_clause}
+        WHERE ''' + where_clause + '''
         ORDER BY posts.created_at DESC
         LIMIT ? OFFSET ?
     '''

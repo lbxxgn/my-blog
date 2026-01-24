@@ -14,3 +14,6 @@ UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB
+
+# Debug mode (set via environment variable)
+DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')

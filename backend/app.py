@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR
+from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG
 from models import (
     get_db_connection, init_db, get_all_posts, get_post_by_id,
     create_post, update_post, delete_post, get_user_by_username, create_user, update_user_password,
@@ -439,4 +439,4 @@ def init():
 if __name__ == '__main__':
     init_db()
     create_admin_user()
-    app.run(debug=True)
+    app.run(debug=DEBUG, host='0.0.0.0')
