@@ -156,6 +156,7 @@ def update_post(post_id, title, content, is_published, category_id=None):
     )
     conn.commit()
     conn.close()
+    return True
 
 def delete_post(post_id):
     """Delete a post"""
@@ -640,3 +641,60 @@ def delete_comment(comment_id):
     cursor.execute('DELETE FROM comments WHERE id = ?', (comment_id,))
     conn.commit()
     conn.close()
+
+def update_post_with_tags(post_id, title, content, is_published, category_id=None, tag_names=None):
+    """Update post and its tags in a single transaction"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Update post
+        cursor.execute(
+            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (title, content, is_published, category_id, post_id)
+        )
+        
+        # Delete existing tag associations
+        cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (post_id,))
+        
+        # Add new tag associations if provided
+        if tag_names:
+            for tag_name in tag_names:
+                if not tag_name.strip():
+                    continue
+                
+                name = tag_name.strip()
+                
+                # Check if tag exists
+                cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
+                result = cursor.fetchone()
+                
+                if result:
+                    tag_id = result[0]
+                else:
+                    # Create tag inline
+                    try:
+                        cursor.execute('INSERT INTO tags (name) VALUES (?)', (name,))
+                        tag_id = cursor.lastrowid
+                    except sqlite3.IntegrityError:
+                        # Tag was created, get it again
+                        cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
+                        result = cursor.fetchone()
+                        if result:
+                            tag_id = result[0]
+                        else:
+                            tag_id = None
+                
+                if tag_id:
+                    cursor.execute(
+                        'INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)',
+                        (post_id, tag_id)
+                    )
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()

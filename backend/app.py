@@ -4,13 +4,14 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 import markdown2
 import os
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 
 from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG
 from models import (
     get_db_connection, init_db, get_all_posts, get_post_by_id,
-    create_post, update_post, delete_post, get_user_by_username, create_user, update_user_password,
+    create_post, update_post, delete_post, update_post_with_tags, get_user_by_username, create_user, update_user_password,
     get_all_categories, create_category, update_category, delete_category,
     get_category_by_id, get_posts_by_category,
     create_tag, get_all_tags, get_tag_by_id, update_tag, delete_tag,
@@ -227,11 +228,12 @@ def new_post():
             categories = get_all_categories()
             return render_template('admin/editor.html', post=None, categories=categories)
 
+        # Create post first
         post_id = create_post(title, content, is_published, category_id)
 
-        # Handle tags
+        # Handle tags (in separate connection but after commit)
         tag_names = request.form.get('tags', '').split(',')
-        if tag_names:
+        if tag_names and tag_names[0]:  # Only if tags provided
             set_post_tags(post_id, tag_names)
 
         if is_published:
@@ -272,12 +274,11 @@ def edit_post(post_id):
             categories = get_all_categories()
             return render_template('admin/editor.html', post=post, categories=categories)
 
-        update_post(post_id, title, content, is_published, category_id)
-
         # Handle tags
         tag_names = request.form.get('tags', '').split(',')
-        if tag_names:
-            set_post_tags(post_id, tag_names)
+
+        # Update post and tags in a single transaction
+        update_post_with_tags(post_id, title, content, is_published, category_id, tag_names)
 
         flash('文章更新成功', 'success')
         return redirect(url_for('view_post', post_id=post_id))
@@ -304,6 +305,7 @@ def delete_post_route(post_id):
 @login_required
 def batch_update_category():
     """Batch update category for multiple posts"""
+    conn = None
     try:
         data = request.get_json()
         post_ids = data.get('post_ids', [])
@@ -311,6 +313,10 @@ def batch_update_category():
 
         if not post_ids:
             return jsonify({'success': False, 'message': '未选择任何文章'}), 400
+
+        # Convert empty string to None for uncategorized
+        if category_id == '' or category_id == 'none':
+            category_id = None
 
         # Update category for each post
         conn = get_db_connection()
@@ -323,15 +329,23 @@ def batch_update_category():
             )
 
         conn.commit()
-        conn.close()
 
         return jsonify({
             'success': True,
             'message': f'成功更新 {len(post_ids)} 篇文章的分类'
         })
 
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
     except Exception as e:
+        if conn:
+            conn.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.route('/admin/upload', methods=['POST'])
@@ -408,17 +422,22 @@ def api_get_posts():
             <article class="post-card">
                 <h2>{post['title']}</h2>
                 <div class="post-meta">
-                    <span>{post['created_at']}</span>
         '''
 
         if post['category_name']:
             posts_html += f'''
-                    <span>· {post['category_name']}</span>
+                    <span class="post-category">{post['category_name']}</span>
+                    <span>·</span>
         '''
 
+        # Format date properly
+        created_at = str(post['created_at'])[:10] if post['created_at'] else ''
         posts_html += f'''
+                    <time datetime="{created_at}">{created_at}</time>
                 </div>
-                <p class="post-excerpt">{post['content'][:200]}...</p>
+                <div class="post-excerpt">
+                    {post['content'][:200]}...
+                </div>
             </article>
         </a>
         '''
