@@ -4,8 +4,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const images = document.querySelectorAll('.post-content img');
 
     images.forEach(function(img, index) {
-        // 跳过表情符号和极小图片（可能是图标）
-        if (img.naturalWidth < 100 || img.naturalHeight < 100) {
+        // 确保图片已加载
+        if (!img.complete) {
+            return;
+        }
+
+        // 跳过极小图片（可能是图标）
+        if (img.naturalWidth && img.naturalWidth < 50) {
             return;
         }
 
@@ -14,35 +19,28 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // 创建包装链接（如果还没有）
-        if (!img.parentElement || img.parentElement.tagName !== 'A') {
-            const link = document.createElement('a');
-            link.href = img.src;
-            link.setAttribute('data-lightbox', 'post-images');
-            link.setAttribute('data-title', img.alt || `图片 ${index + 1}`);
-            link.setAttribute('data-alt', img.alt || '');
-
-            // 将图片包装在链接中
-            img.parentNode.insertBefore(link, img);
-            link.appendChild(img);
-
-            // 设置链接样式
-            link.style.display = 'inline-block';
-            link.style.position = 'relative';
-            link.style.lineHeight = '0';
+        // 检查是否已经被包装
+        if (img.parentElement && img.parentElement.tagName === 'A') {
+            // 已经包装过了，跳过
+            return;
         }
-    });
 
-    // 移动端优化：点击图片直接打开灯箱
-    if ('ontouchstart' in window) {
-        const imageLinks = document.querySelectorAll('.post-content a[data-lightbox]');
-        imageLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
-                // 让Lightbox处理
-                return true;
-            });
-        });
-    }
+        // 创建包装链接
+        const link = document.createElement('a');
+        link.href = img.src;
+        link.setAttribute('data-lightbox', 'post-images');
+        link.setAttribute('data-title', img.alt || `图片 ${index + 1}`);
+        link.setAttribute('data-alt', img.alt || '');
+
+        // 设置链接样式以保持图片正常显示
+        link.style.display = 'inline-block';
+        link.style.position = 'relative';
+        link.style.lineHeight = '0';
+
+        // 将图片包装在链接中
+        img.parentNode.insertBefore(link, img);
+        link.appendChild(img);
+    });
 
     console.log('Image lightbox initialized for', images.length, 'images');
 });

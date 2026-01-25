@@ -2286,3 +2286,21 @@ img.loaded {
         font-size: 30px;
     }
 }
+
+/* 图片链接样式（用于灯箱功能） */
+.post-content a[href$=".jpg"],
+.post-content a[href$=".jpeg"],
+.post-content a[href$=".png"],
+.post-content a[href$=".gif"],
+.post-content a[href$=".webp"],
+.post-content a[href*="/uploads/"] {
+    border-bottom: none;
+    text-decoration: none;
+}
+
+.post-content a img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1.5rem 0;
+}
