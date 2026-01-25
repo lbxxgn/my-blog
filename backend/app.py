@@ -3,6 +3,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
 import markdown2
+import bleach
 import os
 import re
 import sqlite3
@@ -10,6 +11,8 @@ from pathlib import Path
 
 from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG
 from flask_wtf.csrf import CSRFProtect
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Import logging module
 from logger import setup_logging, log_login, log_operation, log_error, log_sql
@@ -35,6 +38,15 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # CSRF protection
 csrf = CSRFProtect(app)
+
+# Rate limiting to prevent brute force attacks
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
 
 # Session security settings
 from config import SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE
@@ -153,6 +165,20 @@ def view_post(post_id):
         extras=['fenced-code-blocks', 'tables']
     )
 
+    # Sanitize HTML to prevent XSS attacks
+    post['content_html'] = bleach.clean(
+        post['content_html'],
+        tags=['p', 'a', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote',
+              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'br', 'hr', 'table', 'thead', 'tbody',
+              'tr', 'th', 'td', 'img', 'div', 'span'],
+        attributes={
+            'a': ['href', 'title', 'rel'],
+            'img': ['src', 'alt', 'title', 'width', 'height'],
+            '*': ['class']
+        },
+        protocols={'a': ['http', 'https', 'mailto']}
+    )
+
     # Get tags for the post
     post['tags'] = get_post_tags(post_id)
 
@@ -202,6 +228,7 @@ def api_posts_cursor():
 
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def login():
     """Login page"""
     if request.method == 'POST':

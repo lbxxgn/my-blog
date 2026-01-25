@@ -167,6 +167,16 @@ def init_db(db_path=None):
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_published_created ON posts(is_published, created_at DESC)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_category_id ON posts(category_id)')
 
+    # Tags index
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name)')
+
+    # Post-Tags association indexes
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_tags_tag ON post_tags(tag_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_tags_post ON post_tags(post_id)')
+
+    # Comments index
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id)')
+
     # Create FTS5 virtual table for full-text search
     cursor.execute('''
         CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(
