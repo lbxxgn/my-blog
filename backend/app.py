@@ -688,7 +688,7 @@ def generate_qrcode():
     img.save(buffer)
     img_str = base64.b64encode(buffer.getvalue()).decode()
 
-    return jsonify({'qrcode': f'data:image/png;base64,{img_str}'}')
+    return jsonify({'qrcode': f"data:image/png;base64,{img_str}"})
 
 
 # Category Management Routes
