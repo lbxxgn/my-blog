@@ -970,7 +970,7 @@ def export_markdown():
         from export import export_all_posts_to_markdown
         count, path = export_all_posts_to_markdown()
         flash(f'成功导出 {count} 篇文章到 {path}', 'success')
-        log_operation(f'Exported {count} posts to markdown')
+        log_operation(session.get('user_id'), session.get('username'), f'导出 {count} 篇文章为 Markdown')
     except Exception as e:
         flash(f'导出失败: {str(e)}', 'error')
         log_error(e, context='Export to markdown')
@@ -986,7 +986,7 @@ def export_json():
         from export import export_to_json
         count, path = export_to_json()
         flash(f'成功导出 {count} 篇文章到 {path}', 'success')
-        log_operation(f'Exported {count} posts to JSON')
+        log_operation(session.get('user_id'), session.get('username'), f'导出 {count} 篇文章为 JSON')
     except Exception as e:
         flash(f'导出失败: {str(e)}', 'error')
         log_error(e, context='Export to JSON')
@@ -1035,7 +1035,7 @@ def new_user():
 
         if user_id:
             flash(f'用户 {username} 创建成功', 'success')
-            log_operation(f'Created user {username} with role {role}')
+            log_operation(session.get('user_id'), session.get('username'), f'创建用户 {username}，角色 {role}')
             return redirect(url_for('user_list'))
         else:
             flash('创建用户失败', 'error')
@@ -1069,7 +1069,7 @@ def edit_user(user_id):
         if update_user(user_id, username=username, display_name=display_name,
                       bio=bio, role=role, is_active=is_active):
             flash('用户信息更新成功', 'success')
-            log_operation(f'Updated user {username}')
+            log_operation(session.get('user_id'), session.get('username'), f'更新用户 {username}')
             return redirect(url_for('user_list'))
         else:
             flash('更新失败', 'error')
@@ -1093,7 +1093,7 @@ def delete_user_route(user_id):
 
     delete_user(user_id)
     flash(f'用户 {user["username"]} 已删除', 'success')
-    log_operation(f'Deleted user {user["username"]}')
+    log_operation(session.get('user_id'), session.get('username'), f'删除用户 {user["username"]}')
     return redirect(url_for('user_list'))
 
 
