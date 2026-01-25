@@ -39,9 +39,9 @@ def export_all_posts_to_markdown(output_dir='exports'):
         GROUP BY p.id
         ORDER BY p.created_at DESC
     ''')
-    
-    posts = cursor.fetchall()
-    
+
+    posts = [dict(row) for row in cursor.fetchall()]
+
     exported_count = 0
     for post in posts:
         # Create markdown content
