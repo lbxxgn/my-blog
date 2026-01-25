@@ -72,57 +72,57 @@
 
 ## 🚀 快速开始
 
-### 方式一：使用启动脚本（推荐）
+### 方式一：使用 .env 文件（推荐）
 
 ```bash
-# 1. 设置管理员密码（必须）
+# 1. 复制环境变量模板
+cp .env.example .env
+
+# 2. 编辑 .env 文件，修改管理员密码
+vim .env  # 或使用其他编辑器
+
+# 3. 运行启动脚本（会自动加载 .env 文件）
+./start.sh
+```
+
+### 方式二：使用环境变量
+
+```bash
+# 设置管理员密码
 export ADMIN_PASSWORD="YourSecurePassword123!"
 
-# 2. 运行启动脚本
+# 运行启动脚本
 ./start.sh
 ```
 
 启动脚本会自动：
 - ✅ 检查Python版本和依赖
+- ✅ 加载 .env 文件（如果存在）
 - ✅ 验证环境变量配置
 - ✅ 创建必要目录（logs, uploads等）
 - ✅ 初始化数据库
 - ✅ 启动应用
 
-### 方式二：手动启动
-
-#### 1. 安装依赖
+### 手动启动
 
 ```bash
+# 1. 安装依赖
 pip3 install -r requirements.txt
-```
 
-#### 2. 设置环境变量
+# 2. 加载环境变量（如果有 .env 文件）
+export $(cat .env | grep -v '^#' | grep -v '^$' | xargs)
 
-```bash
-export ADMIN_USERNAME="admin"
-export ADMIN_PASSWORD="YourSecurePassword123!"  # 至少12位，包含大小写字母和数字
-export DEBUG="False"                             # 生产环境设为False
-```
-
-#### 3. 启动应用
-
-```bash
+# 3. 启动应用
 python3 backend/app.py
 ```
 
-首次运行会自动：
-- 创建数据库表结构
-- 创建全文搜索索引
-- 初始化管理员账号（使用环境变量中的凭据）
-
-### 3. 访问博客
+### 访问博客
 
 - 博客首页: http://localhost:5001/
 - 管理后台: http://localhost:5001/admin
 - 登录页面: http://localhost:5001/login
 
-**登录凭据**: 使用环境变量中设置的用户名和密码
+**登录凭据**: 使用 .env 文件或环境变量中设置的用户名和密码
 
 ---
 

@@ -18,6 +18,13 @@ NC='\033[0m' # No Color
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
+# 加载 .env 文件（如果存在）
+if [ -f .env ]; then
+    echo -e "${BLUE}加载环境变量配置...${NC}"
+    export $(cat .env | grep -v '^#' | grep -v '^$' | xargs)
+    echo -e "  ${GREEN}✓${NC} 已加载 .env 文件"
+fi
+
 echo -e "${BLUE}======================================${NC}"
 echo -e "${BLUE}  Simple Blog 启动脚本${NC}"
 echo -e "${BLUE}======================================${NC}"
