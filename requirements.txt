@@ -3,3 +3,5 @@ Flask-WTF>=1.2,<2.0
 markdown2>=2.4,<3.0
 Werkzeug>=3.0,<4.0
 qrcode>=7.4,<8.0
+# EasyMDE - Powerful Markdown Editor
+easymde>=2.18.0
