@@ -35,15 +35,98 @@
         </div>
 
         <div class="editor-toolbar">
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('**', '**')">粗体</button>
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('*', '*')">斜体</button>
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('# ', '')">标题</button>
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('[', '](url)')">链接</button>
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('`', '`')">代码</button>
-            <label class="btn btn-sm btn-upload">
-                上传图片
-                <input type="file" id="imageUpload" accept="image/*" style="display: none;">
-            </label>
+            <div class="toolbar-group">
+                <button type="button" class="toolbar-btn" data-action="bold" title="粗体 (Ctrl+B)">
+                    <span class="toolbar-icon">𝗯</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="italic" title="斜体 (Ctrl+I)">
+                    <span class="toolbar-icon">𝗿</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="strikethrough" title="删除线">
+                    <span class="toolbar-icon">⟡</span>
+                </button>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+                <button type="button" class="toolbar-btn" data-action="h1" title="一级标题">
+                    <span class="toolbar-icon">H1</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="h2" title="二级标题">
+                    <span class="toolbar-icon">H2</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="h3" title="三级标题">
+                    <span class="toolbar-icon">H3</span>
+                </button>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+                <button type="button" class="toolbar-btn" data-action="ul" title="无序列表">
+                    <span class="toolbar-icon">≣</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="ol" title="有序列表">
+                    <span class="toolbar-icon">≟</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="quote" title="引用">
+                    <span class="toolbar-icon">❝</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="code" title="行内代码">
+                    <span class="toolbar-icon">{ }"</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="codeblock" title="代码块">
+                    <span class="toolbar-icon">⎘</span>
+                </button>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+                <button type="button" class="toolbar-btn" data-action="link" title="链接">
+                    <span class="toolbar-icon">🔗</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="image" title="图片">
+                    <span class="toolbar-icon">🖼</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="hr" title="分割线">
+                    <span class="toolbar-icon">─</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="table" title="表格">
+                    <span class="toolbar-icon">▦</span>
+                </button>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+                <button type="button" class="toolbar-btn" data-action="undo" title="撤销 (Ctrl+Z)">
+                    <span class="toolbar-icon">↶</span>
+                </button>
+                <button type="button" class="toolbar-btn" data-action="redo" title="重做 (Ctrl+Y)">
+                    <span class="toolbar-icon">↷</span>
+                </button>
+            </div>
+
+            <div class="toolbar-divider"></div>
+
+            <div class="toolbar-group">
+                <label class="toolbar-btn btn-upload" title="上传图片">
+                    <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                    <span class="toolbar-icon">📤</span>
+                </label>
+                <button type="button" class="toolbar-btn" data-action="fullscreen" title="全屏模式 (F11)">
+                    <span class="toolbar-icon">⛶</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="editor-statusbar">
+            <span class="word-count">字数: <strong id="wordCount">0</strong></span>
+            <span class="char-count">字符: <strong id="charCount">0</strong></span>
+            <span class="line-count">行数: <strong id="lineCount">0</strong></span>
+            <span class="save-status" id="saveStatus"></span>
         </div>
 
         <div class="editor-container">
@@ -78,7 +161,7 @@
     </form>
 </div>
 
-<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/editor.js') }}?v=3.0"></script>
 <script>
 let isPreviewVisible = false;
 

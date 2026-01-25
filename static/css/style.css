@@ -1282,6 +1282,125 @@ footer {
     margin: 0 auto;
 }
 
+/* Editor Toolbar */
+.editor-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    padding: 0.75rem;
+    background-color: var(--code-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.toolbar-group {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.toolbar-divider {
+    width: 1px;
+    height: 28px;
+    background-color: var(--border-color);
+    margin: 0 0.25rem;
+}
+
+.toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 0.625rem;
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.toolbar-btn:hover {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.toolbar-btn:active {
+    transform: translateY(0);
+}
+
+.toolbar-icon {
+    font-size: 1rem;
+    line-height: 1;
+    font-weight: 500;
+}
+
+/* Editor Status Bar */
+.editor-statusbar {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    background-color: var(--code-bg);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.editor-statusbar strong {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.save-status {
+    margin-left: auto;
+}
+
+.save-status.saving {
+    color: var(--warning-color);
+}
+
+.save-status.saved {
+    color: var(--success-color);
+}
+
+.save-status.error {
+    color: var(--error-color);
+}
+
+/* Fullscreen Mode */
+.admin-editor.fullscreen-mode {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    background-color: var(--bg-color);
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.admin-editor.fullscreen-mode .editor-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    margin-bottom: 1rem;
+}
+
+.admin-editor.fullscreen-mode .editor-container {
+    height: calc(100vh - 200px);
+}
+
+.admin-editor.fullscreen-mode .editor-pane textarea {
+    min-height: 100%;
+}
+
 /* Editor Toolbar Buttons */
 .editor-toolbar .btn {
     padding: 0.5rem 0.75rem;
