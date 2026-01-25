@@ -193,13 +193,13 @@ def init_db(db_path=None):
     conn.commit()
     conn.close()
 
-def create_post(title, content, is_published=False, category_id=None):
+def create_post(title, content, is_published=False, category_id=None, author_id=None):
     """Create a new post"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        'INSERT INTO posts (title, content, is_published, category_id) VALUES (?, ?, ?, ?)',
-        (title, content, is_published, category_id)
+        'INSERT INTO posts (title, content, is_published, category_id, author_id) VALUES (?, ?, ?, ?, ?)',
+        (title, content, is_published, category_id, author_id)
     )
     post_id = cursor.lastrowid
 
@@ -271,9 +271,15 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None):
 
     # Get posts for current page
     query = '''
-        SELECT posts.*, categories.name as category_name, categories.id as category_id
+        SELECT posts.*,
+               categories.name as category_name,
+               categories.id as category_id,
+               users.id as author_id,
+               users.username as author_username,
+               users.display_name as author_display_name
         FROM posts
         LEFT JOIN categories ON posts.category_id = categories.id
+        LEFT JOIN users ON posts.author_id = users.id
         WHERE ''' + where_clause + '''
         ORDER BY posts.created_at DESC
         LIMIT ? OFFSET ?
@@ -328,9 +334,15 @@ def get_all_posts_cursor(cursor_time=None, per_page=20, include_drafts=False, ca
 
     # Get posts
     query = '''
-        SELECT posts.*, categories.name as category_name, categories.id as category_id
+        SELECT posts.*,
+               categories.name as category_name,
+               categories.id as category_id,
+               users.id as author_id,
+               users.username as author_username,
+               users.display_name as author_display_name
         FROM posts
         LEFT JOIN categories ON posts.category_id = categories.id
+        LEFT JOIN users ON posts.author_id = users.id
         WHERE ''' + where_clause + '''
         ORDER BY posts.created_at DESC
         LIMIT ?
@@ -357,13 +369,21 @@ def get_all_posts_cursor(cursor_time=None, per_page=20, include_drafts=False, ca
     }
 
 def get_post_by_id(post_id):
-    """Get a single post by ID with category information"""
+    """Get a single post by ID with category and author information"""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT posts.*, categories.name as category_name, categories.id as category_id
+        SELECT posts.*,
+               categories.name as category_name,
+               categories.id as category_id,
+               users.id as author_id,
+               users.username as author_username,
+               users.display_name as author_display_name,
+               users.avatar_url as author_avatar_url,
+               users.bio as author_bio
         FROM posts
         LEFT JOIN categories ON posts.category_id = categories.id
+        LEFT JOIN users ON posts.author_id = users.id
         WHERE posts.id = ?
     ''', (post_id,))
     post = cursor.fetchone()
@@ -868,3 +888,138 @@ def rebuild_fts_index():
         return False
     finally:
         conn.close()
+
+
+# ==================== 用户管理函数 ====================
+
+def get_user_by_id(user_id):
+    """根据ID获取用户"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    return dict(user) if user else None
+
+
+def get_all_users():
+    """获取所有用户列表（包含文章数统计）"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT users.*,
+               (SELECT COUNT(*) FROM posts WHERE posts.author_id = users.id) as post_count
+        FROM users
+        ORDER BY users.created_at DESC
+    ''')
+    users = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return users
+
+
+def create_user(username, password_hash, role='author', display_name=None, bio=None):
+    """创建新用户（扩展版，支持角色和显示名称）"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute('''
+                INSERT INTO users (username, password_hash, role, display_name, bio)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (username, password_hash, role, display_name, bio))
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            return None
+
+
+def update_user(user_id, username=None, display_name=None, bio=None, role=None, is_active=None):
+    """更新用户信息"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+
+        updates = []
+        params = []
+
+        if username is not None:
+            updates.append('username = ?')
+            params.append(username)
+        if display_name is not None:
+            updates.append('display_name = ?')
+            params.append(display_name)
+        if bio is not None:
+            updates.append('bio = ?')
+            params.append(bio)
+        if role is not None:
+            updates.append('role = ?')
+            params.append(role)
+        if is_active is not None:
+            updates.append('is_active = ?')
+            params.append(is_active)
+
+        if updates:
+            updates.append('updated_at = CURRENT_TIMESTAMP')
+            params.append(user_id)
+
+            query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
+            cursor.execute(query, params)
+            return cursor.rowcount > 0
+        return False
+
+
+def delete_user(user_id):
+    """删除用户（将其文章设为无作者）"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        # 先将该用户的文章设为无作者
+        cursor.execute('UPDATE posts SET author_id = NULL WHERE author_id = ?', (user_id,))
+        # 删除用户
+        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+
+
+def get_posts_by_author(author_id, include_drafts=False, page=1, per_page=20):
+    """获取指定作者的文章"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # 构建WHERE条件
+    where_conditions = ['posts.author_id = ?']
+    params = [author_id]
+
+    if not include_drafts:
+        where_conditions.append('posts.is_published = 1')
+
+    where_clause = ' AND '.join(where_conditions)
+
+    # 统计总数
+    count_query = f'''
+        SELECT COUNT(*) as count
+        FROM posts
+        WHERE {where_clause}
+    '''
+    cursor.execute(count_query, params)
+    total_count = cursor.fetchone()['count']
+
+    # 分页查询
+    offset = (page - 1) * per_page
+    query = f'''
+        SELECT posts.*,
+               categories.name as category_name,
+               categories.id as category_id
+        FROM posts
+        LEFT JOIN categories ON posts.category_id = categories.id
+        WHERE {where_clause}
+        ORDER BY posts.created_at DESC
+        LIMIT ? OFFSET ?
+    '''
+    cursor.execute(query, params + [per_page, offset])
+
+    posts = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return {
+        'posts': posts,
+        'total': total_count,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
+    }
+

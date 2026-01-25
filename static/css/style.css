@@ -2146,3 +2146,143 @@ img.loaded {
 #posts-container > .post-card-link ~ .post-card-link {
     margin-top: 0;
 }
+
+/* ==================== 代码复制按钮样式 ==================== */
+.post-content pre {
+    position: relative;
+    padding-top: 2.5em; /* 为复制按钮留出空间 */
+}
+
+.code-copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.875rem;
+    background-color: var(--code-bg, #f6f8fa);
+    border: 1px solid var(--code-border, #e1e4e8);
+    border-radius: 6px;
+    color: var(--text-color, #24292e);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    opacity: 0;
+    transform: translateY(-4px);
+    z-index: 10;
+}
+
+.code-copy-btn:hover {
+    background-color: var(--primary-color, #10b981);
+    border-color: var(--primary-color, #10b981);
+    color: white;
+    transform: translateY(0);
+}
+
+.code-copy-btn.visible {
+    opacity: 1;
+}
+
+/* 代码块悬停时显示复制按钮 */
+.post-content pre:hover .code-copy-btn {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 复制成功提示 */
+.code-copy-toast {
+    position: fixed;
+    top: 5rem;
+    right: 2rem;
+    background-color: var(--success-color, #10b981);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    z-index: 3000;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.code-copy-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* 暗色主题适配 */
+.dark-theme .code-copy-btn {
+    background-color: var(--code-bg, #1e1e1e);
+    border-color: var(--code-border, #3e3e3e);
+}
+
+.dark-theme .code-copy-btn:hover {
+    background-color: var(--primary-color, #10b981);
+    border-color: var(--primary-color, #10b981);
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .post-content pre {
+        padding-top: 2.5em;
+    }
+
+    .code-copy-btn {
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.75rem;
+        /* 移动端始终显示按钮 */
+        opacity: 1;
+    }
+
+    .code-copy-toast {
+        right: 1rem;
+        left: 1rem;
+        top: 4rem;
+    }
+}
+
+/* ==================== Lightbox 图片灯箱样式 ==================== */
+.lightbox .lb-image {
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* 暗色主题 Lightbox 适配 */
+.dark-theme .lightbox .lb-outerContainer {
+    background-color: var(--bg-color, #1e1e1e);
+    border-radius: 8px;
+}
+
+.dark-theme .lightbox .lb-dataContainer {
+    background-color: var(--bg-color, #1e1e1e);
+    color: var(--text-color, #e0e0e0);
+}
+
+.dark-theme .lightbox .lb-details {
+    color: var(--text-color, #e0e0e0);
+}
+
+.dark-theme .lightbox .lb-caption {
+    color: var(--text-color, #e0e0e0);
+}
+
+/* 移动端 Lightbox 优化 */
+@media (max-width: 768px) {
+    .lightbox .lb-image {
+        max-width: 95vw;
+        max-height: 80vh;
+    }
+
+    .lightbox .lb-close {
+        top: 15px;
+        right: 15px;
+        font-size: 30px;
+    }
+}

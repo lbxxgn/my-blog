@@ -18,15 +18,22 @@ from flask_limiter.util import get_remote_address
 from logger import setup_logging, log_login, log_operation, log_error, log_sql
 from models import (
     get_db_connection, init_db, get_all_posts, get_all_posts_cursor, get_post_by_id,
-    create_post, update_post, delete_post, update_post_with_tags, get_user_by_username, create_user, update_user_password,
+    create_post, update_post, delete_post, update_post_with_tags,
+    get_user_by_username, get_user_by_id, create_user, update_user, delete_user, get_all_users,
     get_all_categories, create_category, update_category, delete_category,
-    get_category_by_id, get_posts_by_category,
+    get_category_by_id, get_posts_by_category, get_posts_by_author,
     create_tag, get_all_tags, get_popular_tags, get_tag_by_id, update_tag, delete_tag,
     get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag,
     search_posts,
     create_comment, get_comments_by_post, get_all_comments,
     update_comment_visibility, delete_comment,
     get_db_context, paginate_query_cursor
+)
+
+# Import auth decorators
+from auth_decorators import (
+    login_required, role_required, admin_required, editor_required,
+    can_edit_post, can_delete_post, can_manage_users, get_current_user
 )
 
 # Flask app with templates and static in parent directory
@@ -245,6 +252,7 @@ def login():
         if user and check_password_hash(user['password_hash'], password):
             session['user_id'] = user['id']
             session['username'] = user['username']
+            session['role'] = user.get('role', 'author')  # 存储角色信息
             flash(f'欢迎回来，{user["username"]}！', 'success')
 
             # 记录成功登录
@@ -377,8 +385,11 @@ def new_post():
             categories = get_all_categories()
             return render_template('admin/editor.html', post=None, categories=categories)
 
+        # 获取当前用户ID作为作者
+        author_id = session.get('user_id')
+
         # Create post first
-        post_id = create_post(title, content, is_published, category_id)
+        post_id = create_post(title, content, is_published, category_id, author_id)
 
         # Handle tags (in separate connection but after commit)
         tag_names = request.form.get('tags', '').split(',')
@@ -981,6 +992,145 @@ def export_json():
         log_error(e, context='Export to JSON')
 
     return redirect(url_for('export_page'))
+
+
+# ==================== 用户管理路由 ====================
+
+@app.route('/admin/users')
+@can_manage_users
+def user_list():
+    """用户列表页面"""
+    users = get_all_users()
+    return render_template('admin/users.html', users=users)
+
+
+@app.route('/admin/users/new', methods=['GET', 'POST'])
+@can_manage_users
+def new_user():
+    """创建新用户"""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role', 'author')
+        display_name = request.form.get('display_name')
+        bio = request.form.get('bio')
+
+        # 验证
+        if not username or not password:
+            flash('用户名和密码不能为空', 'error')
+            return render_template('admin/user_form.html', user=None)
+
+        if len(password) < 10:
+            flash('密码长度至少为10位', 'error')
+            return render_template('admin/user_form.html', user=None)
+
+        # 检查用户名是否已存在
+        if get_user_by_username(username):
+            flash('用户名已存在', 'error')
+            return render_template('admin/user_form.html', user=None)
+
+        # 创建用户
+        password_hash = generate_password_hash(password)
+        user_id = create_user(username, password_hash, role, display_name, bio)
+
+        if user_id:
+            flash(f'用户 {username} 创建成功', 'success')
+            log_operation(f'Created user {username} with role {role}')
+            return redirect(url_for('user_list'))
+        else:
+            flash('创建用户失败', 'error')
+
+    return render_template('admin/user_form.html', user=None)
+
+
+@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@can_manage_users
+def edit_user(user_id):
+    """编辑用户"""
+    user = get_user_by_id(user_id)
+    if not user:
+        flash('用户不存在', 'error')
+        return redirect(url_for('user_list'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        role = request.form.get('role', 'author')
+        display_name = request.form.get('display_name')
+        bio = request.form.get('bio')
+        is_active = request.form.get('is_active') == '1'
+
+        # 检查用户名是否被其他用户占用
+        existing_user = get_user_by_username(username)
+        if existing_user and existing_user['id'] != user_id:
+            flash('用户名已被使用', 'error')
+            return render_template('admin/user_form.html', user=user)
+
+        # 更新用户
+        if update_user(user_id, username=username, display_name=display_name,
+                      bio=bio, role=role, is_active=is_active):
+            flash('用户信息更新成功', 'success')
+            log_operation(f'Updated user {username}')
+            return redirect(url_for('user_list'))
+        else:
+            flash('更新失败', 'error')
+
+    return render_template('admin/user_form.html', user=user)
+
+
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@can_manage_users
+def delete_user_route(user_id):
+    """删除用户"""
+    # 不允许删除自己
+    if user_id == session.get('user_id'):
+        flash('不能删除自己的账号', 'error')
+        return redirect(url_for('user_list'))
+
+    user = get_user_by_id(user_id)
+    if not user:
+        flash('用户不存在', 'error')
+        return redirect(url_for('user_list'))
+
+    delete_user(user_id)
+    flash(f'用户 {user["username"]} 已删除', 'success')
+    log_operation(f'Deleted user {user["username"]}')
+    return redirect(url_for('user_list'))
+
+
+@app.route('/author/<int:author_id>')
+def view_author(author_id):
+    """查看作者页面"""
+    author = get_user_by_id(author_id)
+    if not author:
+        flash('作者不存在', 'error')
+        return redirect(url_for('index'))
+
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    posts_data = get_posts_by_author(author_id, include_drafts=False,
+                                     page=page, per_page=per_page)
+
+    # 计算分页信息
+    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+
+    page_start = max(1, posts_data['page'] - 2)
+    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+    page_range = list(range(page_start, page_end))
+    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+
+    return render_template('author.html',
+                         author=author,
+                         posts=posts_data['posts'],
+                         pagination=posts_data,
+                         start_item=start_item,
+                         end_item=end_item,
+                         page_range=page_range,
+                         show_ellipsis=show_ellipsis)
 
 
 # Error handlers
