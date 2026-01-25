@@ -45,6 +45,47 @@ app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
 # Setup logging system
 setup_logging(app)
 
+# Timezone handling
+from datetime import datetime, timedelta, timezone
+import pytz
+
+# Define China timezone (UTC+8)
+CHINA_TZ = pytz.timezone('Asia/Shanghai')
+
+def utc_to_local(utc_datetime_str):
+    """Convert UTC datetime string to China timezone (UTC+8)"""
+    if not utc_datetime_str:
+        return ''
+
+    try:
+        # Parse the datetime string
+        if isinstance(utc_datetime_str, str):
+            # Handle SQLite datetime format
+            utc_datetime = datetime.fromisoformat(utc_datetime_str.replace(' ', 'T'))
+            if utc_datetime.tzinfo is None:
+                # Assume UTC if no timezone info
+                utc_datetime = utc_datetime.replace(tzinfo=timezone.utc)
+        else:
+            utc_datetime = utc_datetime_str
+
+        # Convert to China timezone
+        local_datetime = utc_datetime.astimezone(CHINA_TZ)
+
+        # Format as string
+        return local_datetime.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception as e:
+        # If conversion fails, return original string
+        return utc_datetime_str
+
+# Register custom filter for Jinja2
+app.jinja_env.globals.update(utc_to_local=utc_to_local)
+
+# Custom datetime filter that displays time in China timezone
+@app.template_filter('localtime')
+def localtime_filter(value):
+    """Jinja2 filter to convert UTC to local time"""
+    return utc_to_local(value)
+
 
 def login_required(f):
     """Decorator to require login for certain routes"""
