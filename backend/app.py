@@ -181,9 +181,9 @@ def view_post(post_id):
         attributes={
             'a': ['href', 'title', 'rel'],
             'img': ['src', 'alt', 'title', 'width', 'height'],
-            '*': ['class']
+            '*': ['class', 'style']
         },
-        protocols={'a': ['http', 'https', 'mailto']}
+        strip_comments=False
     )
 
     # Get tags for the post
