@@ -147,9 +147,10 @@ nav h1 a {
     width: 30px;
     height: 24px;
     background: transparent;
-    border: none;
+    border: 1px solid var(--text-color);
     cursor: pointer;
-    padding: 0;
+    padding: 5px;
+    border-radius: 4px;
     z-index: 1001;
 }
 
