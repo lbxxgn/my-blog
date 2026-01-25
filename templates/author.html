@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}{{ author.display_name or author.username }} - 作者页面{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- 作者信息卡片 -->
+    <div class="author-card" style="background: var(--code-bg, #f6f8fa); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+        <div style="display: flex; align-items: center; gap: 1.5rem;">
+            {% if author.avatar_url %}
+            <img src="{{ author.avatar_url }}" alt="{{ author.display_name or author.username }}"
+                 style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
+            {% else %}
+            <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--primary-color, #10b981);
+                        display: flex; align-items: center; justify-content: center; font-size: 2rem;">
+                👤
+            </div>
+            {% endif %}
+
+            <div>
+                <h1 style="margin: 0 0 0.5rem 0;">{{ author.display_name or author.username }}</h1>
+                {% if author.bio %}
+                <p style="color: var(--text-secondary, #666); margin: 0;">{{ author.bio }}</p>
+                {% endif %}
+                {% if author.role %}
+                <p style="color: var(--text-secondary, #999); margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+                    {% if author.role == 'admin' %}管理员{% elif author.role == 'editor' %}编辑{% else %}作者{% endif %} · 共 {{ pagination.total }} 篇文章
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 文章列表 -->
+    <h2 style="margin-bottom: 1rem;">文章列表</h2>
+
+    {% if posts %}
+    <div class="posts-list">
+        {% for post in posts %}
+        <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
+            <article class="post-card">
+                <h2>{{ post.title }}</h2>
+                <div class="post-meta">
+                    {% if post.category_name %}
+                    <span class="post-category">{{ post.category_name }}</span>
+                    <span>·</span>
+                    {% endif %}
+                    <time datetime="{{ post.created_at }}">{{ (post.created_at|localtime)[:10] }}</time>
+                </div>
+                <div class="post-excerpt">
+                    {{ post.content[:200] }}...
+                </div>
+            </article>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- 分页 -->
+    {% if pagination.total_pages > 1 %}
+    <div class="pagination">
+        {% if pagination.page > 1 %}
+        <a href="{{ url_for('view_author', author_id=author.id, page=1) }}" class="btn btn-sm">首页</a>
+        <a href="{{ url_for('view_author', author_id=author.id, page=pagination.page-1) }}" class="btn btn-sm">上一页</a>
+        {% endif %}
+
+        {% for page_num in page_range %}
+        {% if page_num == pagination.page %}
+        <span class="btn btn-sm btn-primary">{{ page_num }}</span>
+        {% elif page_num > 0 and page_num <= pagination.total_pages %}
+        <a href="{{ url_for('view_author', author_id=author.id, page=page_num) }}" class="btn btn-sm">{{ page_num }}</a>
+        {% endif %}
+        {% endfor %}
+
+        {% if show_ellipsis and pagination.page + 2 < pagination.total_pages %}
+        <span>...</span>
+        {% endif %}
+
+        {% if pagination.page < pagination.total_pages %}
+        <a href="{{ url_for('view_author', author_id=author.id, page=pagination.page+1) }}" class="btn btn-sm">下一页</a>
+        <a href="{{ url_for('view_author', author_id=author.id, page=pagination.total_pages) }}" class="btn btn-sm">末页</a>
+        {% endif %}
+
+        <span>
+            第 {{ pagination.page }} / {{ pagination.total_pages }} 页
+            (共 {{ pagination.total }} 篇，第 {{ start_item }}-{{ end_item }} 篇)
+        </span>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <p>该作者还没有发布任何文章。</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

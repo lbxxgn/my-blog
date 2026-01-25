@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - 我的博客{% endblock %}
+
+{% block content %}
+<div class="container admin-dashboard">
+    <div class="dashboard-header">
+        <h2>用户管理</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+            <a href="{{ url_for('new_user') }}" class="btn btn-primary">新建用户</a>
+        </div>
+    </div>
+
+    {% if users %}
+    <table class="posts-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>用户名</th>
+                <th>显示名称</th>
+                <th>角色</th>
+                <th>文章数</th>
+                <th>状态</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ user.display_name or '-' }}</td>
+                <td>
+                    {% if user.role == 'admin' %}
+                    <span class="role-badge role-admin">管理员</span>
+                    {% elif user.role == 'editor' %}
+                    <span class="role-badge role-editor">编辑</span>
+                    {% else %}
+                    <span class="role-badge role-author">作者</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.post_count }}</td>
+                <td>
+                    {% if user.is_active %}
+                    <span class="status published">活跃</span>
+                    {% else %}
+                    <span class="status draft">禁用</span>
+                    {% endif %}
+                </td>
+                <td>{{ (user.created_at|localtime)[:10] if user.created_at else '-' }}</td>
+                <td class="actions">
+                    <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm">编辑</a>
+                    {% if user.id != session.get('user_id') %}
+                    <form method="POST" action="{{ url_for('delete_user_route', user_id=user.id) }}"
+                          class="delete-form"
+                          onsubmit="return confirm('确定删除用户 {{ user.username }}？该用户的文章将变为无作者状态。');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>还没有任何用户。</p>
+        <a href="{{ url_for('new_user') }}" class="btn btn-primary">创建第一个用户</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.role-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.role-admin {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.role-editor {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.role-author {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.dark-theme .role-admin {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.dark-theme .role-editor {
+    background: #1e3a8a;
+    color: #bfdbfe;
+}
+
+.dark-theme .role-author {
+    background: #064e3b;
+    color: #d1fae5;
+}
+</style>
+{% endblock %}
