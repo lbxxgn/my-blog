@@ -31,38 +31,6 @@ header {
 {% block content %}
 <div class="container">
     <article class="post-full">
-        <!-- 文章标题和作者信息 -->
-        <header class="post-header" style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color, #e1e4e8);">
-            <h1 style="margin: 0 0 1rem 0;">{{ post.title }}</h1>
-
-            <div class="post-meta" style="display: flex; align-items: center; gap: 1rem; color: var(--text-secondary, #666); font-size: 0.95rem;">
-                {% if post.author_display_name or post.author_username %}
-                <div class="author-info" style="display: flex; align-items: center; gap: 0.5rem;">
-                    {% if post.author_avatar_url %}
-                    <img src="{{ post.author_avatar_url }}" alt="{{ post.author_display_name or post.author_username }}"
-                         style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
-                    {% else %}
-                    <span style="font-size: 1.5rem;">👤</span>
-                    {% endif %}
-                    <a href="{{ url_for('view_author', author_id=post.author_id) }}"
-                       style="color: inherit; text-decoration: none; font-weight: 500;">
-                        {{ post.author_display_name or post.author_username }}
-                    </a>
-                </div>
-                <span>·</span>
-                {% endif %}
-
-                {% if post.category_name %}
-                <span class="post-category" style="background: var(--code-bg, #f6f8fa); padding: 0.25rem 0.75rem; border-radius: 4px;">
-                    {{ post.category_name }}
-                </span>
-                <span>·</span>
-                {% endif %}
-
-                <time datetime="{{ post.created_at }}">{{ post.created_at|localtime }}</time>
-            </div>
-        </header>
-
         <div class="post-content">
             {{ post.content_html|safe }}
         </div>
