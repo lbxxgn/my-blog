@@ -6,6 +6,12 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/share.css') }}">
 <!-- Custom Lightbox CSS -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/lightbox.css') }}">
+<style>
+/* 文章页面不固定导航栏，提供更好的阅读体验 */
+header {
+    position: relative !important;
+}
+</style>
 {% endblock %}
 
 {% block content %}
