@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}数据导出 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="container admin-dashboard">
+    <div class="dashboard-header">
+        <h2>数据导出</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+        </div>
+    </div>
+
+    <div class="export-section">
+        <h3>导出选项</h3>
+        <p class="text-secondary">选择导出格式，导出的文件将保存在服务器的 <code>exports/</code> 目录中。</p>
+
+        <div class="export-options">
+            <!-- Markdown Export -->
+            <div class="export-option-card">
+                <div class="export-icon">📝</div>
+                <div class="export-info">
+                    <h4>Markdown 格式</h4>
+                    <p>将每篇文章导出为独立的 Markdown 文件，包含完整的元数据（标题、日期、分类、标签）</p>
+                    <ul class="export-features">
+                        <li>✓ 便于版本控制</li>
+                        <li>✓ 支持静态站点生成器</li>
+                        <li>✓ 人类可读格式</li>
+                        <li>✓ 包含完整文章内容</li>
+                    </ul>
+                </div>
+                <div class="export-action">
+                    <a href="{{ url_for('export_markdown') }}" class="btn btn-primary" onclick="return confirm('确定要导出所有文章为 Markdown 格式吗？')">
+                        导出 Markdown
+                    </a>
+                </div>
+            </div>
+
+            <!-- JSON Export -->
+            <div class="export-option-card">
+                <div class="export-icon">📦</div>
+                <div class="export-info">
+                    <h4>JSON 格式</h4>
+                    <p>将所有文章导出为一个 JSON 文件，包含完整的数据库结构和内容</p>
+                    <ul class="export-features">
+                        <li>✓ 完整的数据备份</li>
+                        <li>✓ 易于程序处理</li>
+                        <li>✓ 支持数据迁移</li>
+                        <li>✓ 包含所有元数据</li>
+                    </ul>
+                </div>
+                <div class="export-action">
+                    <a href="{{ url_for('export_json') }}" class="btn btn-primary" onclick="return confirm('确定要导出所有文章为 JSON 格式吗？')">
+                        导出 JSON
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Info -->
+        <div class="export-info-box">
+            <h4>📌 导出说明</h4>
+            <ul>
+                <li>导出的文件保存在服务器 <code>exports/</code> 目录中</li>
+                <li>每次导出都会创建新的文件，不会覆盖之前的导出</li>
+                <li>Markdown 文件命名格式：<code>ID_Title.md</code></li>
+                <li>JSON 文件包含时间戳：<code>blog_export_YYYYMMDD_HHMMSS.json</code></li>
+                <li>请定期下载导出文件到本地进行备份</li>
+            </ul>
+        </div>
+
+        <!-- Manual Export Command -->
+        <div class="export-info-box">
+            <h4>💻 命令行导出</h4>
+            <p>你也可以通过命令行直接导出：</p>
+            <pre><code>cd /Users/gn/simple-blog
+python3 backend/export.py</code></pre>
+        </div>
+    </div>
+</div>
+
+<style>
+.export-section {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.export-section h3 {
+    margin-bottom: 1rem;
+    color: var(--heading-color);
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+}
+
+.export-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.export-option-card {
+    display: flex;
+    gap: 1.5rem;
+    padding: 2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background-color: var(--bg-color);
+    transition: all 0.3s ease;
+}
+
+.export-option-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(26, 188, 156, 0.1);
+    transform: translateY(-2px);
+}
+
+.export-icon {
+    font-size: 3rem;
+    flex-shrink: 0;
+}
+
+.export-info {
+    flex: 1;
+}
+
+.export-info h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--heading-color);
+}
+
+.export-info p {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.export-features {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.export-features li {
+    color: var(--text-secondary);
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.export-action {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.export-info-box {
+    padding: 1.5rem;
+    background-color: var(--code-bg);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.export-info-box h4 {
+    margin: 0 0 1rem 0;
+    color: var(--heading-color);
+}
+
+.export-info-box ul {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.export-info-box li {
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.export-info-box code {
+    background-color: rgba(26, 188, 156, 0.1);
+    color: var(--primary-color);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+}
+
+.export-info-box pre {
+    background-color: var(--bg-color);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 1rem 0 0 0;
+}
+
+.export-info-box pre code {
+    background-color: transparent;
+    color: var(--text-color);
+    padding: 0;
+}
+
+@media (max-width: 768px) {
+    .export-option-card {
+        flex-direction: column;
+    }
+
+    .export-action {
+        width: 100%;
+    }
+
+    .export-action .btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+</style>
+{% endblock %}

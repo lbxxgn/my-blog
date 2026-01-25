@@ -924,6 +924,46 @@ def create_admin_user():
         print(f"Admin user already exists: {username}")
 
 
+# Export Routes
+@app.route('/admin/export')
+@login_required
+def export_page():
+    """Export page with options"""
+    return render_template('admin/export.html')
+
+
+@app.route('/admin/export/markdown')
+@login_required
+def export_markdown():
+    """Export all posts to markdown files"""
+    try:
+        from export import export_all_posts_to_markdown
+        count, path = export_all_posts_to_markdown()
+        flash(f'成功导出 {count} 篇文章到 {path}', 'success')
+        log_operation(f'Exported {count} posts to markdown')
+    except Exception as e:
+        flash(f'导出失败: {str(e)}', 'error')
+        log_error(e, context='Export to markdown')
+
+    return redirect(url_for('export_page'))
+
+
+@app.route('/admin/export/json')
+@login_required
+def export_json():
+    """Export all posts to JSON"""
+    try:
+        from export import export_to_json
+        count, path = export_to_json()
+        flash(f'成功导出 {count} 篇文章到 {path}', 'success')
+        log_operation(f'Exported {count} posts to JSON')
+    except Exception as e:
+        flash(f'导出失败: {str(e)}', 'error')
+        log_error(e, context='Export to JSON')
+
+    return redirect(url_for('export_page'))
+
+
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
