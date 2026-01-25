@@ -1,3 +1,31 @@
+"""
+Flask博客系统 - 主应用文件
+
+功能:
+    - 文章管理（创建、编辑、删除、发布）
+    - 用户认证与授权（多角色权限系统）
+    - 评论系统
+    - 分类和标签管理
+    - 图片上传（带安全验证）
+    - 全文搜索
+    - API接口（支持游标分页）
+
+安全特性:
+    - CSRF保护（Flask-WTF）
+    - 速率限制（防止暴力破解）
+    - 密码哈希（werkzeug.security）
+    - XSS防护（bleach + markdown2）
+    - SQL注入防护（参数化查询）
+    - 会话安全（HttpOnly, SameSite）
+    - 文件上传验证（类型+尺寸检查）
+
+作者: Simple Blog Team
+版本: 2.0
+"""
+
+# =============================================================================
+# 标准库导入
+# =============================================================================
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -10,79 +38,136 @@ import re
 import sqlite3
 from pathlib import Path
 
-from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION, SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT
+# =============================================================================
+# 项目配置导入
+# =============================================================================
+from config import (SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS,
+                    MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION,
+                    SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT)
+
+# =============================================================================
+# 安全相关导入
+# =============================================================================
+# CSRF保护 - 防止跨站请求伪造攻击
 from flask_wtf.csrf import CSRFProtect
+
+# 速率限制 - 防止暴力破解攻击
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# Import logging module
+# =============================================================================
+# 日志系统导入
+# =============================================================================
 from logger import setup_logging, log_login, log_operation, log_error, log_sql
+
+# =============================================================================
+# 数据模型导入
+# =============================================================================
 from models import (
-    get_db_connection, init_db, get_all_posts, get_all_posts_cursor, get_post_by_id,
+    # 数据库连接
+    get_db_connection, init_db, get_db_context,
+    # 文章相关
+    get_all_posts, get_all_posts_cursor, get_post_by_id,
     create_post, update_post, delete_post, update_post_with_tags,
+    # 用户相关
     get_user_by_username, get_user_by_id, create_user, update_user, delete_user, get_all_users,
+    # 分类相关
     get_all_categories, create_category, update_category, delete_category,
-    get_category_by_id, get_posts_by_category, get_posts_by_author,
+    get_category_by_id, get_posts_by_category,
+    # 标签相关
     create_tag, get_all_tags, get_popular_tags, get_tag_by_id, update_tag, delete_tag,
     get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag,
-    search_posts,
+    # 评论相关
     create_comment, get_comments_by_post, get_all_comments,
     update_comment_visibility, delete_comment,
-    get_db_context, paginate_query_cursor
+    # 搜索和分页
+    search_posts, paginate_query_cursor, get_posts_by_author
 )
 
-# Import auth decorators
+# =============================================================================
+# 权限装饰器导入
+# =============================================================================
 from auth_decorators import (
     login_required, role_required, admin_required, editor_required,
     can_edit_post, can_delete_post, can_manage_users, get_current_user
 )
 
-# Flask app with templates and static in parent directory
+# =============================================================================
+# Flask应用初始化
+# =============================================================================
+# 创建Flask应用实例，设置模板和静态文件目录
 app = Flask(__name__,
             template_folder=str(BASE_DIR / 'templates'),
             static_folder=str(BASE_DIR / 'static'))
-app.config['SECRET_KEY'] = SECRET_KEY
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-# CSRF protection
-csrf = CSRFProtect(app)
+# 基础配置
+app.config['SECRET_KEY'] = SECRET_KEY           # 用于会话加密的密钥
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH  # 限制上传文件大小
 
-# CSRF configuration
+# =============================================================================
+# CSRF保护配置
+# =============================================================================
+csrf = CSRFProtect(app)  # 启用CSRF保护
 app.config['WTF_CSRF_ENABLED'] = WTF_CSRF_ENABLED
 app.config['WTF_CSRF_TIME_LIMIT'] = WTF_CSRF_TIME_LIMIT
 app.config['WTF_CSRF_SSL_STRICT'] = WTF_CSRF_SSL_STRICT
 
-# Rate limiting to prevent brute force attacks
+# =============================================================================
+# 速率限制配置
+# =============================================================================
+# 防止暴力破解攻击，限制每个IP地址的请求频率
 limiter = Limiter(
     app=app,
-    key_func=get_remote_address,
-    default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
-    strategy="fixed-window"
+    key_func=get_remote_address,  # 使用IP地址作为限制依据
+    default_limits=["200 per day", "50 per hour"],  # 每天最多200次，每小时最多50次
+    storage_uri="memory://",  # 使用内存存储（生产环境建议使用Redis）
+    strategy="fixed-window"  # 固定时间窗口策略
 )
 
-# Session security settings
+# =============================================================================
+# 会话安全配置
+# =============================================================================
 from config import SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE
-app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
-app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
-app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
+app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE    # 仅HTTPS传输（生产环境）
+app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY  # 防止JavaScript访问
+app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE   # CSRF防护
 
-# Make site settings available in all templates
+# =============================================================================
+# 模板上下文处理器
+# =============================================================================
 @app.context_processor
 def inject_site_settings():
-    """Inject site settings into all templates"""
+    """
+    将网站设置注入到所有模板中
+    使所有模板都能访问站点名称、描述和作者信息
+    """
     return dict(
         site_name=SITE_NAME,
         site_description=SITE_DESCRIPTION,
         site_author=SITE_AUTHOR
     )
 
-# Helper function: Password strength validation
+# =============================================================================
+# 辅助函数
+# =============================================================================
 def validate_password_strength(password):
     """
     验证密码强度
-    要求: 至少10位，包含大小写字母和数字
-    返回: (is_valid, error_message)
+
+    要求:
+        - 至少10位长度
+        - 包含至少一个大写字母
+        - 包含至少一个小写字母
+        - 包含至少一个数字
+        - 不能是常见弱密码
+
+    Args:
+        password (str): 待验证的密码
+
+    Returns:
+        tuple: (is_valid, error_message)
+            - is_valid (bool): 密码是否有效
+            - error_message (str|None): 错误信息，有效时为None
     """
     if len(password) < 10:
         return False, '密码长度至少为10位'
@@ -103,48 +188,61 @@ def validate_password_strength(password):
 
     return True, None
 
-# Setup logging system
+# =============================================================================
+# 日志系统初始化
+# =============================================================================
 setup_logging(app)
 
-# Timezone handling
+# =============================================================================
+# 时区处理
+# =============================================================================
 from datetime import datetime, timedelta, timezone
 import pytz
 
-# Define China timezone (UTC+8)
+# 定义中国时区（UTC+8）
 CHINA_TZ = pytz.timezone('Asia/Shanghai')
 
 def utc_to_local(utc_datetime_str):
-    """Convert UTC datetime string to China timezone (UTC+8)"""
+    """
+    将UTC时间字符串转换为中国时区（UTC+8）的本地时间
+
+    Args:
+        utc_datetime_str (str|None): UTC时间字符串，格式如 '2024-01-01 12:00:00'
+
+    Returns:
+        str: 本地时间字符串，格式如 '2024-01-01 20:00:00'
+             如果转换失败则返回原字符串
+    """
     if not utc_datetime_str:
         return ''
 
     try:
-        # Parse the datetime string
+        # 解析时间字符串
         if isinstance(utc_datetime_str, str):
-            # Handle SQLite datetime format
+            # 处理SQLite日期时间格式
             utc_datetime = datetime.fromisoformat(utc_datetime_str.replace(' ', 'T'))
             if utc_datetime.tzinfo is None:
-                # Assume UTC if no timezone info
+                # 如果没有时区信息，假设为UTC
                 utc_datetime = utc_datetime.replace(tzinfo=timezone.utc)
         else:
             utc_datetime = utc_datetime_str
 
-        # Convert to China timezone
+        # 转换为中国时区
         local_datetime = utc_datetime.astimezone(CHINA_TZ)
 
-        # Format as string
+        # 格式化为字符串
         return local_datetime.strftime('%Y-%m-%d %H:%M:%S')
     except Exception as e:
-        # If conversion fails, return original string
+        # 如果转换失败，返回原字符串
         return utc_datetime_str
 
-# Register custom filter for Jinja2
+# 注册自定义过滤器到Jinja2
 app.jinja_env.globals.update(utc_to_local=utc_to_local)
 
-# Custom datetime filter that displays time in China timezone
+# 自定义日期时间过滤器，在模板中使用 | localtime
 @app.template_filter('localtime')
 def localtime_filter(value):
-    """Jinja2 filter to convert UTC to local time"""
+    """Jinja2过滤器：将UTC时间转换为本地时间"""
     return utc_to_local(value)
 
 
@@ -703,7 +801,27 @@ def batch_delete():
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def upload_image():
-    """Handle image upload with enhanced security validation"""
+    """
+    处理图片上传，包含多层安全验证
+
+    安全验证流程:
+        1. 文件存在性检查
+        2. 文件扩展名白名单验证
+        3. 文件类型实际内容验证（imghdr）
+        4. 图片尺寸验证（防止DoS）
+        5. 文件大小验证（5MB限制）
+        6. 安全文件名生成（时间戳+随机后缀）
+
+    Returns:
+        JSON响应: {'success': True/False, 'url': '...'} 或 {'error': '...'}
+
+    安全特性:
+        - 防止伪造扩展名攻击
+        - 防止过大图片DoS攻击
+        - 防止路径遍历攻击（secure_filename）
+        - 防止文件名猜测（随机后缀）
+    """
+    # 检查文件是否存在
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': '没有文件上传'}), 400
 
@@ -711,34 +829,35 @@ def upload_image():
     if file.filename == '':
         return jsonify({'success': False, 'error': '未选择文件'}), 400
 
+    # 验证文件扩展名（第一层防护）
     if not allowed_file(file.filename):
         return jsonify({'success': False, 'error': '不支持的文件类型'}), 400
 
-    # 读取文件内容进行验证
+    # 读取文件内容进行深度验证
     file_content = file.read()
-    file.seek(0)  # 重置文件指针
+    file.seek(0)  # 重置文件指针以便后续保存
 
-    # 验证实际文件类型（防止伪造扩展名）
-    try:
-        import imghdr
-        file_type = imghdr.what(None, h=file_content)
-        allowed_types = ['rgb', 'gif', 'pbm', 'pgm', 'ppm', 'tiff', 'rast', 'xbm', 'jpeg', 'bmp', 'png', 'webp']
-        if file_type not in allowed_types:
-            return jsonify({'success': False, 'error': f'无效的图片文件类型: {file_type}'}), 400
-    except Exception as e:
-        return jsonify({'success': False, 'error': '文件类型检测失败'}), 400
-
-    # 验证图片尺寸（防止DoS攻击）
+    # 验证实际文件类型和尺寸（合并第二、三层防护 - 防止伪造扩展名和DoS攻击）
     try:
         from PIL import Image
         import io
+
+        # 使用PIL检测文件类型和验证图片
         img = Image.open(io.BytesIO(file_content))
+        file_type = img.format.lower() if img.format else None
+
+        # 验证文件类型
+        allowed_types = ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
+        if file_type not in allowed_types:
+            return jsonify({'success': False, 'error': f'无效的图片文件类型: {file_type}'}), 400
+
+        # 验证图片尺寸
         width, height = img.size
         max_dimension = 4096
         if width > max_dimension or height > max_dimension:
             return jsonify({'success': False, 'error': f'图片尺寸过大，最大允许{max_dimension}x{max_dimension}'}), 400
 
-        # 验证文件大小（已经在MAX_CONTENT_LENGTH限制，但额外检查）
+        # 验证文件大小（第四层防护 - 5MB限制）
         file_size = len(file_content)
         max_file_size = 5 * 1024 * 1024  # 5MB
         if file_size > max_file_size:
@@ -746,18 +865,19 @@ def upload_image():
     except Exception as e:
         return jsonify({'success': False, 'error': '图片文件损坏或格式错误'}), 400
 
-    # 生成更安全的文件名（使用随机后缀）
+    # 生成安全的文件名（第五层防护 - 防止路径遍历和文件名猜测）
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     secure_name = secure_filename(file.filename)
     ext = secure_name.rsplit('.', 1)[1].lower() if '.' in secure_name else file_type
-    random_suffix = os.urandom(4).hex()
+    random_suffix = os.urandom(4).hex()  # 添加随机后缀防止文件名猜测
     filename = f"{timestamp}_{random_suffix}.{ext}"
     filepath = UPLOAD_FOLDER / filename
 
+    # 保存文件
     try:
         with open(filepath, 'wb') as f:
             f.write(file_content)
-        # Return URL to uploaded image
+        # 返回上传图片的URL
         url = url_for('static', filename=f'uploads/{filename}')
         return jsonify({'success': True, 'url': url})
     except Exception as e:

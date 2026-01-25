@@ -72,32 +72,64 @@
 
 ## 🚀 快速开始
 
-### 1. 安装依赖
+### 方式一：使用启动脚本（推荐）
 
 ```bash
-pip install -r requirements.txt
+# 1. 设置管理员密码（必须）
+export ADMIN_PASSWORD="YourSecurePassword123!"
+
+# 2. 运行启动脚本
+./start.sh
 ```
 
-### 2. 启动应用
+启动脚本会自动：
+- ✅ 检查Python版本和依赖
+- ✅ 验证环境变量配置
+- ✅ 创建必要目录（logs, uploads等）
+- ✅ 初始化数据库
+- ✅ 启动应用
+
+### 方式二：手动启动
+
+#### 1. 安装依赖
 
 ```bash
-cd backend
-python app.py
+pip3 install -r requirements.txt
+```
+
+#### 2. 设置环境变量
+
+```bash
+export ADMIN_USERNAME="admin"
+export ADMIN_PASSWORD="YourSecurePassword123!"  # 至少12位，包含大小写字母和数字
+export DEBUG="False"                             # 生产环境设为False
+```
+
+#### 3. 启动应用
+
+```bash
+python3 backend/app.py
 ```
 
 首次运行会自动：
-- 创建数据库表
-- 创建默认管理员账号（admin/admin123）
+- 创建数据库表结构
+- 创建全文搜索索引
+- 初始化管理员账号（使用环境变量中的凭据）
 
 ### 3. 访问博客
 
-- 博客首页: http://localhost:5001
+- 博客首页: http://localhost:5001/
 - 管理后台: http://localhost:5001/admin
 - 登录页面: http://localhost:5001/login
 
-**默认账号:**
-- 用户名: `admin`
-- 密码: `admin123`
+**登录凭据**: 使用环境变量中设置的用户名和密码
+
+---
+
+## 📖 详细文档
+
+- **[启动指南](STARTUP.md)** - 完整的启动、配置和部署文档
+- **[安全修复报告](SECURITY_FIXES_COMPLETE.md)** - 安全增强详情
 
 ⚠️ **重要**: 首次登录后请立即修改密码！
 
@@ -427,6 +459,35 @@ server {
     }
 }
 ```
+
+## ⚡ 性能优化
+
+系统已实施多项性能优化措施：
+
+### 前端优化
+
+- **图片懒加载**: 使用 Intersection Observer API，提前100px预加载
+- **骨架屏动画**: 多种加载状态，渐进式淡入效果
+- **游标分页**: 比传统 OFFSET 分页更高效，特别适合大数据集
+- **代码分割**: JavaScript 按功能模块分离，减少初始加载
+- **静态资源缓存**: CSS/JS 文件添加版本号，支持浏览器缓存
+
+### 后端优化
+
+- **数据库索引**: 为常用查询字段添加索引
+- **全文搜索**: SQLite FTS5 高性能全文检索
+- **连接池管理**: 使用上下文管理器自动管理数据库连接
+- **速率限制**: 防止暴力破解和 DoS 攻击
+- **会话安全**: HttpOnly + SameSite Cookie 防护
+
+### 已优化的功能
+
+- ✅ 消除重复路由定义
+- ✅ 消除重复导入
+- ✅ XSS 多层防护（后端 bleach + 前端转义）
+- ✅ CSRF 完整保护
+- ✅ Python 3.13+ 兼容性修复
+- ✅ 图片上传五层安全验证
 
 ## 💾 备份
 

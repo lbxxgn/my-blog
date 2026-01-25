@@ -8,18 +8,41 @@ from config import DATABASE_URL
 logger = logging.getLogger(__name__)
 
 def get_db_connection(db_path=None):
-    """Create a database connection with better error handling"""
+    """
+    创建数据库连接并配置优化设置
+
+    Args:
+        db_path (str, optional): 数据库文件路径。默认为None，使用DATABASE_URL
+
+    Returns:
+        sqlite3.Connection: 配置好的数据库连接对象
+
+    Note:
+        - timeout: 20秒超时（适用于长时间查询）
+        - check_same_thread=False: 允许多线程访问（SQLite要求）
+        - row_factory=sqlite3.Row: 返回字典式行对象
+        - WAL模式: 写前日志，提供更好的并发性能
+        - synchronous=NORMAL: 平衡性能和安全性
+    """
     if db_path is None:
         db_path = DATABASE_URL.replace('sqlite:///', '')
+
+    # 连接数据库，增加超时时间以处理长时间查询
     conn = sqlite3.connect(
         db_path,
-        timeout=20.0,  # Increase timeout to 20 seconds
-        check_same_thread=False  # Allow access from multiple threads
+        timeout=20.0,  # 增加超时到20秒
+        check_same_thread=False  # 允许多线程访问
     )
+
+    # 设置行工厂，使结果可以像字典一样访问
     conn.row_factory = sqlite3.Row
-    # Enable WAL mode for better concurrent access
+
+    # 启用WAL（Write-Ahead Logging）模式，提高并发性能
     conn.execute('PRAGMA journal_mode=WAL')
+
+    # 设置同步模式为NORMAL（在每次事务时同步，但不是每次写入）
     conn.execute('PRAGMA synchronous=NORMAL')
+
     return conn
 
 @contextmanager
@@ -198,7 +221,23 @@ def init_db(db_path=None):
     conn.close()
 
 def create_post(title, content, is_published=False, category_id=None, author_id=None):
-    """Create a new post"""
+    """
+    创建新文章
+
+    Args:
+        title (str): 文章标题
+        content (str): 文章内容（Markdown格式）
+        is_published (bool): 是否立即发布。默认为False（草稿）
+        category_id (int, optional): 分类ID。默认为None
+        author_id (int, optional): 作者ID。默认为None
+
+    Returns:
+        int: 新创建文章的ID
+
+    Note:
+        - 自动更新FTS全文搜索索引
+        - 触发器已禁用，手动维护索引
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -207,7 +246,7 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
     )
     post_id = cursor.lastrowid
 
-    # Manually update FTS (triggers are disabled)
+    # 手动更新FTS全文搜索索引（触发器已禁用以避免SQL逻辑错误）
     cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
                   (post_id, title, content))
 
@@ -678,11 +717,32 @@ def get_posts_by_tag(tag_id, include_drafts=False, page=1, per_page=20):
     }
 
 def search_posts(query, include_drafts=False, page=1, per_page=20):
-    """Search posts using LIKE for better Chinese support"""
+    """
+    使用LIKE进行文章搜索（对中文支持更好）
+
+    Args:
+        query (str): 搜索关键词
+        include_drafts (bool): 是否包含草稿。默认为False
+        page (int): 页码。默认为1
+        per_page (int): 每页数量。默认为20
+
+    Returns:
+        dict: 包含以下键：
+            - 'posts': 文章列表
+            - 'total': 总结果数
+            - 'page': 当前页码
+            - 'per_page': 每页数量
+            - 'total_pages': 总页数
+
+    Note:
+        - 使用LIKE而不是MATCH以获得更好的中文分词支持
+        - 搜索范围包括标题和内容
+        - 返回按创建时间倒序排列
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Build WHERE clause with LIKE for better Chinese text search
+    # 构建LIKE搜索模式（对中文支持更好）
     search_pattern = f'%{query}%'
     where_conditions = ['(posts.title LIKE ? OR posts.content LIKE ?)']
     params = [search_pattern, search_pattern]
@@ -692,7 +752,7 @@ def search_posts(query, include_drafts=False, page=1, per_page=20):
 
     where_clause = ' AND '.join(where_conditions)
 
-    # Count total results
+    # 计算总结果数
     count_query = f'''
         SELECT COUNT(*) as count
         FROM posts
@@ -702,10 +762,10 @@ def search_posts(query, include_drafts=False, page=1, per_page=20):
     cursor.execute(count_query, params)
     total_count = cursor.fetchone()['count']
 
-    # Calculate offset
+    # 计算偏移量
     offset = (page - 1) * per_page
 
-    # Get results for current page
+    # 获取当前页结果
     search_query = f'''
         SELECT posts.*, categories.name as category_name, categories.id as category_id
         FROM posts

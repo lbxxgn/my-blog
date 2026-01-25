@@ -1,3 +1,25 @@
+/**
+ * 图片灯箱效果初始化
+ *
+ * 功能说明:
+ *   - 为文章内容中的所有图片添加灯箱效果
+ *   - 点击图片可在灯箱中放大查看
+ *   - 支持图片画廊浏览（左右切换）
+ *   - 自动跳过小尺寸图标
+ *
+ * 实现原理:
+ *   - 遍历所有 .post-content img 元素
+ *   - 将图片包装在 <a> 标签中
+ *   - 添加 data-lightbox 属性
+ *
+ * 注意事项:
+ *   - 需要先加载 Lightbox2 库
+ *   - 跳过宽度 < 50px 的图片（可能是图标）
+ *   - 避免重复包装已有链接的图片
+ *
+ * 依赖: Lightbox2 (https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.4/)
+ */
+
 // Image lightbox functionality
 document.addEventListener('DOMContentLoaded', function() {
     // 为文章内容中的所有图片添加灯箱效果

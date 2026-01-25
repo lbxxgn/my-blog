@@ -1,15 +1,69 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-*.db
-.env
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
 .venv/
 venv/
-# Keep logs directory but ignore log files
+ENV/
+
+# Database (keep db/ directory but ignore database files)
+*.db
+db/*.db
+!db/.gitkeep
+
+# Environment variables
+.env
+.env.local
+
+# Logs - keep directory but ignore log files
 logs/*.log
 logs/*.log.*
-# But track .gitkeep to preserve directory structure
-!.gitkeep
+!logs/.gitkeep
+
+# System files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Exports (user-specific data)
+exports/
+!exports/.gitkeep
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+blog.db
+
+# Keep .gitkeep files
+!.gitkeep

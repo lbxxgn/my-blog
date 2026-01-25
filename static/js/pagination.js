@@ -1,3 +1,22 @@
+/**
+ * 游标分页 - 加载更多功能
+ *
+ * 功能说明:
+ *   - 使用基于时间戳的游标分页（比传统 OFFSET 更高效）
+ *   - 点击"加载更多"按钮动态加载文章
+ *   - 自动初始化新加载图片的懒加载
+ *   - 提供平滑的加载动画效果
+ *
+ * 技术优势:
+ *   - 游标分页对大数据集性能更好
+ *   - 避免传统 OFFSET 的深度分页问题
+ *   - 支持分类筛选
+ *
+ * API 端点: /api/posts?cursor={timestamp}&per_page={count}&category_id={id}
+ *
+ * 依赖: 无（原生 JavaScript + Fetch API）
+ */
+
 // Enhanced Load more functionality with cursor-based pagination
 document.addEventListener('DOMContentLoaded', function() {
     const loadMoreBtn = document.getElementById('load-more');

@@ -1,3 +1,19 @@
+/**
+ * 代码复制功能
+ *
+ * 功能说明:
+ *   - 为文章中的所有代码块添加复制按钮
+ *   - 支持现代浏览器的 Clipboard API
+ *   - 提供回退方案兼容旧浏览器（document.execCommand）
+ *   - 显示复制成功/失败的 Toast 提示
+ *
+ * 兼容性:
+ *   - Chrome 66+, Firefox 63+, Safari 13.1+, Edge 79+
+ *   - 旧浏览器回退到 execCommand 方案
+ *
+ * 依赖: 无（原生 JavaScript）
+ */
+
 // Code copy functionality
 document.addEventListener('DOMContentLoaded', function() {
     const codeBlocks = document.querySelectorAll('.post-content pre > code');
