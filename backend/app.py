@@ -19,7 +19,7 @@ from models import (
     create_post, update_post, delete_post, update_post_with_tags, get_user_by_username, create_user, update_user_password,
     get_all_categories, create_category, update_category, delete_category,
     get_category_by_id, get_posts_by_category,
-    create_tag, get_all_tags, get_tag_by_id, update_tag, delete_tag,
+    create_tag, get_all_tags, get_popular_tags, get_tag_by_id, update_tag, delete_tag,
     get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag,
     search_posts,
     create_comment, get_comments_by_post, get_all_comments,
