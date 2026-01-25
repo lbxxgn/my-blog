@@ -6,7 +6,6 @@ import markdown2
 import os
 import re
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG
@@ -651,54 +650,7 @@ def generate_qrcode():
     img.save(buffer)
     img_str = base64.b64encode(buffer.getvalue()).decode()
 
-    return jsonify({'qrcode': f'data:image/png;base64,{img_str}'})
-
-
-@app.route('/api/posts')
-def api_get_posts():
-    """API endpoint for paginated posts"""
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    category_id = request.args.get('category_id')
-
-    # Validate per_page
-    if per_page not in [10, 20, 40, 80]:
-        per_page = 20
-
-    posts_data = get_all_posts(include_drafts=False, page=page, per_page=per_page, category_id=category_id)
-
-    # Render posts as HTML
-    posts_html = ''
-    for post in posts_data['posts']:
-        posts_html += f'''
-        <a href="/post/{post['id']}" class="post-card-link">
-            <article class="post-card">
-                <h2>{post['title']}</h2>
-                <div class="post-meta">
-        '''
-
-        if post['category_name']:
-            posts_html += f'''
-                    <span class="post-category">{post['category_name']}</span>
-                    <span>·</span>
-        '''
-
-        # Format date properly
-        created_at = str(post['created_at'])[:10] if post['created_at'] else ''
-        posts_html += f'''
-                    <time datetime="{created_at}">{created_at}</time>
-                </div>
-                <div class="post-excerpt">
-                    {post['content'][:200]}...
-                </div>
-            </article>
-        </a>
-        '''
-
-    return jsonify({
-        'posts_html': posts_html,
-        'has_more': posts_data['page'] < posts_data['total_pages']
-    })
+    return jsonify({'qrcode': f'data:image/png;base64,{img_str}'}')
 
 
 # Category Management Routes
