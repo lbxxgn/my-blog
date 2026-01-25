@@ -133,32 +133,151 @@ gunicorn -w 4 -b 0.0.0.0:5001 backend.app:app
 
 ### 使用systemd（Linux）
 
-创建服务文件 `/etc/systemd/system/simple-blog.service`：
+#### 方式一：直接使用 Python 运行
 
+1. **准备环境变量文件**
+```bash
+# 在项目目录创建 .env 文件
+cd /path/to/simple-blog
+cp .env.example .env
+vim .env  # 修改配置
+```
+
+2. **创建服务文件**
+```bash
+sudo vim /etc/systemd/system/simple-blog.service
+```
+
+使用项目提供的服务配置：
 ```ini
 [Unit]
 Description=Simple Blog Flask Application
+Documentation=https://github.com/lbxxgn/my-blog
 After=network.target
 
 [Service]
-User=www-data
-Group=www-data
+Type=simple
+User=root
+Group=root
 WorkingDirectory=/path/to/simple-blog
-Environment="ADMIN_USERNAME=admin"
-Environment="ADMIN_PASSWORD=your_secure_password"
-Environment="DEBUG=False"
-ExecStart=/usr/bin/gunicorn -w 4 -b 0.0.0.0:5001 backend.app:app
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="FLASK_APP=app.py"
+Environment="FLASK_ENV=production"
+Environment="PYTHONPATH=/path/to/simple-blog"
+Environment="PORT=5001"
+
+# 从 .env 文件加载环境变量（重要！）
+EnvironmentFile=-/path/to/simple-blog/.env
+
+ExecStart=/usr/bin/python3 /path/to/simple-blog/backend/app.py
 Restart=always
+RestartSec=10
+
+StandardOutput=append:/path/to/simple-blog/logs/app.log
+StandardError=append:/path/to/simple-blog/logs/error.log
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-启动服务：
+3. **启动和管理服务**
+```bash
+# 重新加载 systemd 配置
+sudo systemctl daemon-reload
+
+# 启动服务
+sudo systemctl start simple-blog
+
+# 设置开机自启
+sudo systemctl enable simple-blog
+
+# 查看服务状态
+sudo systemctl status simple-blog
+
+# 查看日志
+sudo journalctl -u simple-blog -f
+
+# 停止服务
+sudo systemctl stop simple-blog
+
+# 重启服务
+sudo systemctl restart simple-blog
+```
+
+#### 方式二：使用 Gunicorn（推荐生产环境）
+
+1. **安装 Gunicorn**
+```bash
+pip3 install gunicorn
+```
+
+2. **创建服务文件**
+```bash
+sudo vim /etc/systemd/system/simple-blog.service
+```
+
+配置示例：
+```ini
+[Unit]
+Description=Simple Blog (Gunicorn)
+After=network.target
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/path/to/simple-blog
+Environment="PATH=/path/to/simple-blog/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="FLASK_APP=app.py"
+Environment="FLASK_ENV=production"
+
+# 从 .env 文件加载环境变量
+EnvironmentFile=-/path/to/simple-blog/.env
+
+ExecStart=/path/to/simple-blog/venv/bin/gunicorn \
+    -w 4 \
+    -b 0.0.0.0:5001 \
+    --access-logfile /path/to/simple-blog/logs/access.log \
+    --error-logfile /path/to/simple-blog/logs/error.log \
+    backend.app:app
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+3. **启动服务**
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl start simple-blog
 sudo systemctl enable simple-blog
+```
+
+#### 服务管理常用命令
+
+```bash
+# 查看服务状态
+sudo systemctl status simple-blog
+
+# 实时查看日志
+sudo journalctl -u simple-blog -f
+
+# 查看最近 100 条日志
+sudo journalctl -u simple-blog -n 100
+
+# 重启服务
+sudo systemctl restart simple-blog
+
+# 停止服务
+sudo systemctl stop simple-blog
+
+# 禁用服务（开机不启动）
+sudo systemctl disable simple-blog
+
+# 重新加载配置（修改服务文件后）
+sudo systemctl daemon-reload
 ```
 
 ### Nginx反向代理配置

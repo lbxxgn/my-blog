@@ -5,14 +5,26 @@ After=network.target
 
 [Service]
 Type=simple
+# 建议使用专用用户运行（如果使用 root，请保持原样）
 User=root
 Group=root
+
+# 项目目录（根据实际部署路径修改）
 WorkingDirectory=/root/my-blog
+
+# 环境变量
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 Environment="FLASK_APP=app.py"
 Environment="FLASK_ENV=production"
-Environment="PYTHONPATH=/root/my-blog/backend"
+Environment="PYTHONPATH=/root/my-blog"
 Environment="PORT=5001"
+
+# 从 .env 文件加载环境变量
+# 这会读取 .env 文件并设置所有环境变量
+EnvironmentFile=-/root/my-blog/.env
+
+# 如果 .env 文件不在项目根目录，使用绝对路径
+# EnvironmentFile=-/root/my-blog/backend/.env
 
 # 启动命令
 ExecStart=/usr/bin/python3 /root/my-blog/backend/app.py
@@ -30,6 +42,10 @@ StandardError=append:/root/my-blog/logs/error.log
 # 安全设置
 NoNewPrivileges=false
 PrivateTmp=false
+
+# 资源限制（可选）
+# LimitNOFILE=65536
+# MemoryLimit=512M
 
 [Install]
 WantedBy=multi-user.target

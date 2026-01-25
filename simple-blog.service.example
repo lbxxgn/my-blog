@@ -1,0 +1,82 @@
+[Unit]
+Description=Simple Blog Flask Application
+Documentation=https://github.com/lbxxgn/my-blog
+After=network.target
+
+[Service]
+Type=simple
+
+# ============================================
+# 用户配置（根据实际情况修改）
+# ============================================
+# 方式一：使用 root 用户（简单但不够安全）
+User=root
+Group=root
+
+# 方式二：使用专用用户（推荐，更安全）
+# 需要先创建用户：sudo useradd -r -s /bin/false simpleblog
+# User=simpleblog
+# Group=simpleblog
+
+# ============================================
+# 路径配置（修改为实际部署路径）
+# ============================================
+WorkingDirectory=/path/to/simple-blog
+Environment="PYTHONPATH=/path/to/simple-blog"
+
+# ============================================
+# 环境变量配置
+# ============================================
+# 基础配置
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+Environment="FLASK_APP=app.py"
+Environment="FLASK_ENV=production"
+
+# 端口配置（会被 .env 文件中的 PORT 覆盖）
+Environment="PORT=5001"
+
+# ============================================
+# .env 文件配置（重要！）
+# ============================================
+# 从 .env 文件加载所有环境变量
+# "-" 前缀表示文件不存在时不会报错
+EnvironmentFile=-/path/to/simple-blog/.env
+
+# ============================================
+# 启动命令
+# ============================================
+ExecStart=/usr/bin/python3 /path/to/simple-blog/backend/app.py
+
+# ============================================
+# 重启策略
+# ============================================
+Restart=always
+RestartSec=10
+StartLimitInterval=60
+StartLimitBurst=3
+
+# ============================================
+# 日志配置
+# ============================================
+StandardOutput=append:/path/to/simple-blog/logs/app.log
+StandardError=append:/path/to/simple-blog/logs/error.log
+
+# 也可以使用 systemd 日志（journald）
+# StandardOutput=journal
+# StandardError=journal
+
+# ============================================
+# 安全加固（可选）
+# ============================================
+NoNewPrivileges=false
+PrivateTmp=false
+
+# 资源限制（根据需要调整）
+# LimitNOFILE=65536
+# MemoryLimit=512M
+
+# ============================================
+# 安装配置
+# ============================================
+[Install]
+WantedBy=multi-user.target
