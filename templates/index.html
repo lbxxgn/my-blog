@@ -31,6 +31,14 @@
                                     <span class="post-category">{{ post.category_name }}</span>
                                     <span>·</span>
                                     {% endif %}
+                                    {% if post.author_display_name or post.author_username %}
+                                    <span class="post-author">
+                                        <a href="{{ url_for('view_author', author_id=post.author_id) }}" style="color: inherit; text-decoration: none;">
+                                            👤 {{ post.author_display_name or post.author_username }}
+                                        </a>
+                                    </span>
+                                    <span>·</span>
+                                    {% endif %}
                                     <time datetime="{{ post.created_at }}">{{ (post.created_at|localtime)[:10] }}</time>
                                 </div>
                                 <div class="post-excerpt">

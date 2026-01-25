@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
             meta.push(`<span class="post-category">${escapeHtml(post.category_name)}</span>`);
             meta.push('<span>·</span>');
         }
-        meta.push(`<time datetime="${post.created_at}">${escapeHtml((post.created_at||'')[:10])}</time>`);
+        meta.push(`<time datetime="${post.created_at}">${escapeHtml((post.created_at||'').substring(0, 10))}</time>`);
 
         link.innerHTML = `
             <h2>${escapeHtml(post.title)}</h2>
