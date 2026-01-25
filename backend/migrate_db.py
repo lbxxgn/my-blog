@@ -215,11 +215,14 @@ def get_migration_status(conn):
     users_count = cursor.fetchone()[0]
     print(f"用户总数: {users_count}")
 
-    # 检查有多少文章没有作者
-    cursor.execute("SELECT COUNT(*) FROM posts WHERE author_id IS NULL")
-    no_author = cursor.fetchone()[0]
-    if no_author > 0:
-        print(f"⚠️  {no_author} 篇文章没有作者")
+    # 检查有多少文章没有作者（如果字段存在）
+    if check_column_exists(conn, 'posts', 'author_id'):
+        cursor.execute("SELECT COUNT(*) FROM posts WHERE author_id IS NULL")
+        no_author = cursor.fetchone()[0]
+        if no_author > 0:
+            print(f"⚠️  {no_author} 篇文章没有作者")
+    else:
+        print("⚠️  posts 表缺少 author_id 字段（需要迁移）")
 
     print("=" * 50)
 
