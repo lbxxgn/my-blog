@@ -349,10 +349,15 @@ def create_tag(name):
     return tag_id
 
 def get_all_tags():
-    """Get all tags"""
+    """Get all tags with post count"""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM tags ORDER BY name')
+    cursor.execute('''
+        SELECT t.*,
+               (SELECT COUNT(*) FROM post_tags WHERE tag_id = t.id) as post_count
+        FROM tags t
+        ORDER BY name
+    ''')
     tags = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return tags
@@ -365,6 +370,22 @@ def get_tag_by_id(tag_id):
     tag = cursor.fetchone()
     conn.close()
     return dict(tag) if tag else None
+
+def get_popular_tags(limit=10):
+    """Get top tags by post count (hot tags)"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT t.*,
+               (SELECT COUNT(*) FROM post_tags WHERE tag_id = t.id) as post_count
+        FROM tags t
+        WHERE t.id IN (SELECT DISTINCT tag_id FROM post_tags)
+        ORDER BY post_count DESC
+        LIMIT ?
+    ''', (limit,))
+    tags = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return tags
 
 def get_tag_by_name(name):
     """Get a tag by name"""

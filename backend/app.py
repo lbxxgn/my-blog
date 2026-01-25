@@ -75,6 +75,7 @@ def index():
 
     posts_data = get_all_posts(include_drafts=False, page=page, per_page=per_page)
     categories = get_all_categories()
+    popular_tags = get_popular_tags(limit=10)
 
     # Calculate pagination info
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
@@ -89,6 +90,7 @@ def index():
     return render_template('index.html',
                          posts=posts_data['posts'],
                          categories=categories,
+                         popular_tags=popular_tags,
                          pagination=posts_data,
                          start_item=start_item,
                          end_item=end_item,

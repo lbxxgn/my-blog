@@ -5,51 +5,71 @@
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    {% if categories %}
-    <div class="category-filter">
-        <a href="{{ url_for('index') }}" class="category-link {% if not category %}active{% endif %}">全部</a>
-        {% for cat in categories %}
-            <a href="{{ url_for('view_category', category_id=cat.id) }}"
-               class="category-link {% if category and category.id == cat.id %}active{% endif %}">
-                {{ cat.name }}
-            </a>
-        {% endfor %}
+<div class="container main-layout">
+    <div class="content-wrapper">
+        <div class="main-content">
+            {% if categories %}
+            <div class="category-filter">
+                <a href="{{ url_for('index') }}" class="category-link {% if not category %}active{% endif %}">全部</a>
+                {% for cat in categories %}
+                    <a href="{{ url_for('view_category', category_id=cat.id) }}"
+                       class="category-link {% if category and category.id == cat.id %}active{% endif %}">
+                        {{ cat.name }}
+                    </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if posts %}
+                <div id="posts-container" class="posts-list">
+                    {% for post in posts %}
+                        <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
+                            <article class="post-card">
+                                <h2>{{ post.title }}</h2>
+                                <div class="post-meta">
+                                    {% if post.category_name %}
+                                    <span class="post-category">{{ post.category_name }}</span>
+                                    <span>·</span>
+                                    {% endif %}
+                                    <time datetime="{{ post.created_at }}">{{ post.created_at[:10] }}</time>
+                                </div>
+                                <div class="post-excerpt">
+                                    {{ post.content[:200] }}...
+                                </div>
+                            </article>
+                        </a>
+                    {% endfor %}
+                </div>
+
+                {% if pagination.page < pagination.total_pages %}
+                <div class="load-more-container">
+                    <button id="load-more" class="btn btn-primary" data-page="{{ pagination.page + 1 }}" data-category="{{ category.id if category else '' }}">
+                        加载更多
+                    </button>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <p>还没有发布任何文章。</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <aside class="sidebar">
+            {% if popular_tags %}
+            <div class="sidebar-widget">
+                <h3 class="widget-title">🔥 热门标签</h3>
+                <div class="popular-tags">
+                    {% for tag in popular_tags %}
+                    <a href="{{ url_for('view_tag', tag_id=tag.id) }}" class="popular-tag">
+                        #{{ tag.name }}
+                        <span class="tag-count">{{ tag.post_count }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </aside>
     </div>
-    {% endif %}
-
-    {% if posts %}
-        <div id="posts-container" class="posts-list">
-            {% for post in posts %}
-                <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
-                    <article class="post-card">
-                        <h2>{{ post.title }}</h2>
-                        <div class="post-meta">
-                            {% if post.category_name %}
-                            <span class="post-category">{{ post.category_name }}</span>
-                            <span>·</span>
-                            {% endif %}
-                            <time datetime="{{ post.created_at }}">{{ post.created_at[:10] }}</time>
-                        </div>
-                        <div class="post-excerpt">
-                            {{ post.content[:200] }}...
-                        </div>
-                    </article>
-                </a>
-            {% endfor %}
-        </div>
-
-        {% if pagination.page < pagination.total_pages %}
-        <div class="load-more-container">
-            <button id="load-more" class="btn btn-primary" data-page="{{ pagination.page + 1 }}" data-category="{{ category.id if category else '' }}">
-                加载更多
-            </button>
-        </div>
-        {% endif %}
-    {% else %}
-        <div class="empty-state">
-            <p>还没有发布任何文章。</p>
-        </div>
-    {% endif %}
 </div>
 {% endblock %}
