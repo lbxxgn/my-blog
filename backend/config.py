@@ -21,12 +21,18 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 # Environment detection
 IS_PRODUCTION = os.environ.get('FLASK_ENV') == 'production' or not DEBUG
 
-# Session security settings (only enabled in production)
-if IS_PRODUCTION:
+# Session security settings
+# Note: SESSION_COOKIE_SECURE should only be True if using HTTPS
+# Set FORCE_HTTPS environment variable to True if you have HTTPS enabled
+FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'False').lower() in ('true', '1', 'yes')
+
+if IS_PRODUCTION and FORCE_HTTPS:
+    # Production with HTTPS
     SESSION_COOKIE_SECURE = True  # Only send cookies over HTTPS
     SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to cookies
     SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection for cookies
 else:
-    SESSION_COOKIE_SECURE = False
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
+    # Development or Production without HTTPS
+    SESSION_COOKIE_SECURE = False  # Allow cookies over HTTP
+    SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to cookies
+    SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection for cookies
