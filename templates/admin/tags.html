@@ -26,6 +26,7 @@
             <tr>
                 <th>ID</th>
                 <th>名称</th>
+                <th>文章数量</th>
                 <th>创建时间</th>
                 <th>操作</th>
             </tr>
@@ -35,6 +36,9 @@
             <tr>
                 <td>{{ tag.id }}</td>
                 <td>{{ tag.name }}</td>
+                <td>
+                    <span class="badge">{{ tag.post_count or 0 }} 篇</span>
+                </td>
                 <td>{{ tag.created_at }}</td>
                 <td>
                     <form action="{{ url_for('delete_tag_route', tag_id=tag.id) }}" method="post" class="delete-form">

@@ -4,11 +4,15 @@
 {% if post %}编辑文章 - {{ post.title }}{% else %}新建文章{% endif %} - 我的博客
 {% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quill.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container admin-editor">
     <h2>{% if post %}编辑文章{% else %}新建文章{% endif %}</h2>
 
-    <form method="POST" class="editor-form">
+    <form method="POST" class="editor-form" id="editorForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-group">
             <label for="title">标题</label>
@@ -20,10 +24,10 @@
             <select id="category_id" name="category_id">
                 <option value="">无分类</option>
                 {% for category in categories %}
-                    <option value="{{ category.id }}"
-                        {% if post and post.category_id == category.id %}selected{% endif %}>
-                        {{ category.name }}
-                    </option>
+                <option value="{{ category.id }}"
+                    {% if post and post.category_id == category.id %}selected{% endif %}>
+                    {{ category.name }}
+                </option>
                 {% endfor %}
             </select>
         </div>
@@ -34,37 +38,12 @@
             <small style="color: #666;">多个标签用逗号分隔</small>
         </div>
 
-        <div class="editor-toolbar">
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('**', '**')">粗体</button>
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('*', '*')">斜体</button>
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('# ', '')">标题</button>
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('[', '](url)')">链接</button>
-            <button type="button" class="btn btn-sm" onclick="insertMarkdown('`', '`')">代码</button>
-            <label class="btn btn-sm btn-upload">
-                上传图片
-                <input type="file" id="imageUpload" accept="image/*" style="display: none;">
-            </label>
-        </div>
-
-        <div class="editor-container">
-            <div class="editor-pane">
-                <div class="editor-header">
-                    <label for="content">内容 (Markdown)</label>
-                    <button type="button" id="togglePreview" class="btn-toggle" onclick="togglePreviewPanel()" title="切换预览面板">
-                        <span class="icon">▶</span>
-                        <span class="text">显示预览</span>
-                    </button>
-                </div>
-                <textarea id="content" name="content" rows="20" required>{% if post %}{{ post.content }}{% endif %}</textarea>
-            </div>
-
-            <div class="preview-pane hidden" id="previewPane">
-                <div class="preview-header">
-                    <label>预览</label>
-                    <button type="button" class="btn-close" onclick="togglePreviewPanel()" title="关闭预览">✕</button>
-                </div>
-                <div id="preview" class="markdown-preview"></div>
-            </div>
+        <div class="form-group">
+            <label for="content">内容</label>
+            <textarea id="content" name="content" rows="20" required>{% if post %}{{ post.content }}{% endif %}</textarea>
+            <!-- Hidden file input for image upload -->
+            <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+            <div id="saveStatus" class="save-status"></div>
         </div>
 
         <div class="form-actions">
@@ -78,41 +57,12 @@
     </form>
 </div>
 
-<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
-<script>
-let isPreviewVisible = false;
+<!-- Link Quill CSS from CDN -->
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+{% endblock %}
 
-function togglePreviewPanel() {
-    const previewPane = document.getElementById('previewPane');
-    const toggleBtn = document.getElementById('togglePreview');
-    const icon = toggleBtn.querySelector('.icon');
-    const text = toggleBtn.querySelector('.text');
-    const editorContainer = document.querySelector('.editor-container');
-
-    isPreviewVisible = !isPreviewVisible;
-
-    if (isPreviewVisible) {
-        previewPane.classList.remove('hidden');
-        editorContainer.classList.add('preview-visible');
-        icon.textContent = '◀';
-        text.textContent = '隐藏预览';
-    } else {
-        previewPane.classList.add('hidden');
-        editorContainer.classList.remove('preview-visible');
-        icon.textContent = '▶';
-        text.textContent = '显示预览';
-    }
-}
-
-function togglePublish() {
-    const checkbox = document.getElementById('is_published');
-    const form = document.querySelector('.editor-form');
-
-    // 设置为已发布状态
-    checkbox.checked = true;
-
-    // 提交表单
-    form.submit();
-}
-</script>
+{% block scripts %}
+<!-- Load Quill from CDN -->
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script src="{{ url_for('static', filename='js/quill-editor.js') }}?v=1.0"></script>
 {% endblock %}

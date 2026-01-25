@@ -8,6 +8,7 @@
         <h2>文章管理</h2>
         <div class="header-actions">
             <a href="{{ url_for('category_list') }}" class="btn">分类管理</a>
+            <a href="{{ url_for('tag_list') }}" class="btn">标签管理</a>
             <a href="{{ url_for('new_post') }}" class="btn btn-primary">新建文章</a>
         </div>
     </div>
@@ -72,7 +73,7 @@
                                 <span class="status draft">草稿</span>
                             {% endif %}
                         </td>
-                        <td>{{ post.created_at }}</td>
+                        <td>{{ post.created_at|localtime }}</td>
                         <td class="actions">
                             <a href="{{ url_for('edit_post', post_id=post.id) }}" class="btn btn-sm">编辑</a>
                             <form method="POST" action="{{ url_for('delete_post_route', post_id=post.id) }}" class="delete-form" onsubmit="return confirm('确定删除这篇文章？');">

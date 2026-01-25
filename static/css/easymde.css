@@ -1,0 +1,264 @@
+/* EasyMDE Custom Styles - Matching your blog theme */
+
+.EasyMDEContainer {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-color);
+}
+
+/* Editor toolbar */
+.EasyMDEContainer .editor-toolbar {
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--code-bg);
+    border-radius: 8px 8px 0 0;
+    padding: 8px;
+}
+
+.EasyMDEContainer .editor-toolbar button {
+    color: var(--text-color);
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.EasyMDEContainer .editor-toolbar button:hover {
+    background-color: rgba(26, 188, 156, 0.1);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.EasyMDEContainer .editor-toolbar button.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.EasyMDEContainer .editor-toolbar button.separator {
+    background-color: var(--border-color);
+    width: 1px;
+    margin: 4px 8px;
+}
+
+/* Editor area */
+.EasyMDEContainer .CodeMirror {
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0 0 8px 8px;
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--bg-color);
+}
+
+.EasyMDEContainer .CodeMirror-scroll {
+    min-height: 400px;
+}
+
+/* CodeMirror cursor */
+.EasyMDEContainer .CodeMirror-cursor {
+    border-left-color: var(--primary-color);
+}
+
+/* CodeMirror selection */
+.EasyMDEContainer .CodeMirror-selected {
+    background-color: rgba(26, 188, 156, 0.15);
+}
+
+/* CodeMirror gutters (line numbers) */
+.EasyMDEContainer .CodeMirror-gutters {
+    background-color: var(--code-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+.EasyMDEContainer .CodeMirror-linenumber {
+    color: var(--text-secondary);
+    padding: 0 4px 0 4px;
+}
+
+/* Status bar */
+.EasyMDEContainer .editor-statusbar {
+    border-top: 1px solid var(--border-color);
+    border-bottom: none;
+    background-color: var(--code-bg);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    border-radius: 0 0 8px 8px;
+}
+
+.EasyMDEContainer .editor-preview {
+    background-color: var(--bg-color);
+    border-left: 1px solid var(--border-color);
+}
+
+.EasyMDEContainer .editor-preview side {
+    background-color: var(--code-bg);
+}
+
+/* Preview styles */
+.EasyMDEContainer .editor-preview h1,
+.EasyMDEContainer .editor-preview h2,
+.EasyMDEContainer .editor-preview h3,
+.EasyMDEContainer .editor-preview h4,
+.EasyMDEContainer .editor-preview h5,
+.EasyMDEContainer .editor-preview h6 {
+    color: var(--heading-color);
+    font-family: var(--font-heading);
+    font-weight: 600;
+    margin-top: 1.5em;
+    margin-bottom: 0.75em;
+}
+
+.EasyMDEContainer .editor-preview h1 {
+    font-size: 2em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.3em;
+}
+
+.EasyMDEContainer .editor-preview h2 {
+    font-size: 1.5em;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.3em;
+}
+
+.EasyMDEContainer .editor-preview code {
+    background-color: rgba(0, 0, 0, 0.04);
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+}
+
+.EasyMDEContainer .editor-preview pre {
+    background-color: var(--code-bg);
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.EasyMDEContainer .editor-preview blockquote {
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    border-left: 4px solid var(--primary-color);
+    background-color: var(--code-bg);
+    color: var(--text-secondary);
+}
+
+.EasyMDEContainer .editor-preview a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.EasyMDEContainer .editor-preview a:hover {
+    text-decoration: underline;
+}
+
+.EasyMDEContainer .editor-preview table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.EasyMDEContainer .editor-preview table th,
+.EasyMDEContainer .editor-preview table td {
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+}
+
+.EasyMDEContainer .editor-preview table th {
+    background-color: var(--code-bg);
+    font-weight: 600;
+}
+
+.EasyMDEContainer .editor-preview img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1rem 0;
+}
+
+/* Dark mode overrides */
+.dark-theme .EasyMDEContainer {
+    border-color: var(--border-color);
+}
+
+.dark-theme .EasyMDEContainer .editor-toolbar {
+    background-color: #2a2a2a;
+    border-color: var(--border-color);
+}
+
+.dark-theme .EasyMDEContainer .editor-toolbar button {
+    color: var(--text-color);
+}
+
+.dark-theme .EasyMDEContainer .editor-toolbar button:hover {
+    background-color: rgba(26, 201, 156, 0.15);
+}
+
+.dark-theme .EasyMDEContainer .CodeMirror {
+    background-color: #1a1a1a;
+    color: var(--text-color);
+}
+
+.dark-theme .EasyMDEContainer .editor-toolbar button.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.dark-theme .EasyMDEContainer .CodeMirror-gutters {
+    background-color: #2a2a2a;
+}
+
+.dark-theme .EasyMDEContainer .editor-preview {
+    background-color: #1a1a1a;
+}
+
+.dark-theme .EasyMDEContainer .editor-preview side {
+    background-color: #2a2a2a;
+}
+
+.dark-theme .EasyMDEContainer .editor-preview code {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark-theme .EasyMDEContainer .editor-preview pre {
+    background-color: #333333;
+}
+
+.dark-theme .EasyMDEContainer .editor-preview blockquote {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .EasyMDEContainer .editor-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .EasyMDEContainer .editor-toolbar button {
+        padding: 6px;
+    }
+}
+
+/* Fullscreen mode fix - ensure it appears above sticky header */
+.EasyMDEContainer .CodeMirror-fullscreen {
+    z-index: 10001 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    position: fixed !important;
+    height: auto !important;
+}
+
+.EasyMDEContainer .editor-preview-fullscreen {
+    z-index: 10001 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    position: fixed !important;
+    height: auto !important;
+}

@@ -28,10 +28,17 @@
            class="share-btn weibo"
            target="_blank"
            rel="noopener">
-            分享到微博
+            <span class="share-icon">📱</span>
+            <span class="share-text">微博</span>
         </a>
-        <button class="share-btn wechat">分享到微信</button>
-        <button class="share-btn copy">复制链接</button>
+        <button class="share-btn wechat">
+            <span class="share-icon">💬</span>
+            <span class="share-text">微信</span>
+        </button>
+        <button class="share-btn copy">
+            <span class="share-icon">🔗</span>
+            <span class="share-text">复制链接</span>
+        </button>
     </div>
 
     <!-- QR Code Modal -->
@@ -55,7 +62,7 @@
             <div class="comment">
                 <div class="comment-header">
                     <strong>{{ comment.author_name }}</strong>
-                    <span class="comment-date">{{ comment.created_at[:16].replace('T', ' ') }}</span>
+                    <span class="comment-date">{{ (comment.created_at|localtime)[:16] }}</span>
                 </div>
                 <div class="comment-content">
                     {{ comment.content }}

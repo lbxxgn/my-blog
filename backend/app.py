@@ -19,7 +19,7 @@ from models import (
     create_post, update_post, delete_post, update_post_with_tags, get_user_by_username, create_user, update_user_password,
     get_all_categories, create_category, update_category, delete_category,
     get_category_by_id, get_posts_by_category,
-    create_tag, get_all_tags, get_tag_by_id, update_tag, delete_tag,
+    create_tag, get_all_tags, get_popular_tags, get_tag_by_id, update_tag, delete_tag,
     get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag,
     search_posts,
     create_comment, get_comments_by_post, get_all_comments,
@@ -44,6 +44,47 @@ app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
 
 # Setup logging system
 setup_logging(app)
+
+# Timezone handling
+from datetime import datetime, timedelta, timezone
+import pytz
+
+# Define China timezone (UTC+8)
+CHINA_TZ = pytz.timezone('Asia/Shanghai')
+
+def utc_to_local(utc_datetime_str):
+    """Convert UTC datetime string to China timezone (UTC+8)"""
+    if not utc_datetime_str:
+        return ''
+
+    try:
+        # Parse the datetime string
+        if isinstance(utc_datetime_str, str):
+            # Handle SQLite datetime format
+            utc_datetime = datetime.fromisoformat(utc_datetime_str.replace(' ', 'T'))
+            if utc_datetime.tzinfo is None:
+                # Assume UTC if no timezone info
+                utc_datetime = utc_datetime.replace(tzinfo=timezone.utc)
+        else:
+            utc_datetime = utc_datetime_str
+
+        # Convert to China timezone
+        local_datetime = utc_datetime.astimezone(CHINA_TZ)
+
+        # Format as string
+        return local_datetime.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception as e:
+        # If conversion fails, return original string
+        return utc_datetime_str
+
+# Register custom filter for Jinja2
+app.jinja_env.globals.update(utc_to_local=utc_to_local)
+
+# Custom datetime filter that displays time in China timezone
+@app.template_filter('localtime')
+def localtime_filter(value):
+    """Jinja2 filter to convert UTC to local time"""
+    return utc_to_local(value)
 
 
 def login_required(f):
@@ -75,6 +116,7 @@ def index():
 
     posts_data = get_all_posts(include_drafts=False, page=page, per_page=per_page)
     categories = get_all_categories()
+    popular_tags = get_popular_tags(limit=10)
 
     # Calculate pagination info
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
@@ -89,6 +131,7 @@ def index():
     return render_template('index.html',
                          posts=posts_data['posts'],
                          categories=categories,
+                         popular_tags=popular_tags,
                          pagination=posts_data,
                          start_item=start_item,
                          end_item=end_item,
