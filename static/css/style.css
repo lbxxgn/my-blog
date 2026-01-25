@@ -1535,12 +1535,6 @@ img.loaded {
     font-size: 0.95rem;
 }
 
-@media (max-width: 768px) {
-    .search-form-nav {
-        display: none;
-    }
-}
-
 /* Comments */
 .comments-section {
     max-width: var(--content-max-width);
