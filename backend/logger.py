@@ -76,17 +76,23 @@ def setup_logging(app):
 
 
 def log_login(username, success=True, error_msg=None):
-    """记录登录日志"""
+    """记录登录日志（追加模式）"""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     if success:
-        LOGIN_LOG.write_text(f"[{timestamp}] SUCCESS - 用户: {username}\n", encoding='utf-8')
+        log_entry = f"[{timestamp}] SUCCESS - 用户: {username}\n"
     else:
-        LOGIN_LOG.write_text(f"[{timestamp}] FAILED - 用户: {username} - 原因: {error_msg}\n", encoding='utf-8')
+        log_entry = f"[{timestamp}] FAILED - 用户: {username} - 原因: {error_msg}\n"
+
+    try:
+        with open(LOGIN_LOG, 'a', encoding='utf-8') as f:
+            f.write(log_entry)
+    except Exception as e:
+        print(f"Failed to write login log: {e}")
 
 
 def log_operation(user_id, username, action, details=None):
-    """记录操作日志"""
+    """记录操作日志（追加模式）"""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     log_entry = f"[{timestamp}] 用户ID: {user_id} | 用户: {username} | 操作: {action}"
@@ -94,11 +100,15 @@ def log_operation(user_id, username, action, details=None):
         log_entry += f" | 详情: {details}"
     log_entry += "\n"
 
-    OPERATION_LOG.write_text(log_entry, encoding='utf-8')
+    try:
+        with open(OPERATION_LOG, 'a', encoding='utf-8') as f:
+            f.write(log_entry)
+    except Exception as e:
+        print(f"Failed to write operation log: {e}")
 
 
 def log_error(error, context=None, user_id=None):
-    """记录错误日志"""
+    """记录错误日志（追加模式）"""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     error_info = f"[{timestamp}] 错误: {str(error)}\n"
@@ -108,11 +118,15 @@ def log_error(error, context=None, user_id=None):
         error_info += f"用户ID: {user_id}\n"
     error_info += f"堆栈跟踪:\n{traceback.format_exc()}\n"
 
-    ERROR_LOG.write_text(error_info, encoding='utf-8')
+    try:
+        with open(ERROR_LOG, 'a', encoding='utf-8') as f:
+            f.write(error_info)
+    except Exception as e:
+        print(f"Failed to write error log: {e}")
 
 
 def log_sql(operation, sql, params=None, result=None):
-    """记录 SQL 操作日志"""
+    """记录 SQL 操作日志（追加模式）"""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     log_entry = f"[{timestamp}] {operation}: {sql}"
@@ -122,7 +136,11 @@ def log_sql(operation, sql, params=None, result=None):
         log_entry += f" | 结果: {result}"
     log_entry += "\n"
 
-    SQL_LOG.write_text(log_entry, encoding='utf-8')
+    try:
+        with open(SQL_LOG, 'a', encoding='utf-8') as f:
+            f.write(log_entry)
+    except Exception as e:
+        print(f"Failed to write SQL log: {e}")
 
 
 # 日志装饰器

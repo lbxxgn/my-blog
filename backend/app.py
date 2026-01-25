@@ -72,6 +72,32 @@ def inject_site_settings():
         site_author=SITE_AUTHOR
     )
 
+# Helper function: Password strength validation
+def validate_password_strength(password):
+    """
+    验证密码强度
+    要求: 至少10位，包含大小写字母和数字
+    返回: (is_valid, error_message)
+    """
+    if len(password) < 10:
+        return False, '密码长度至少为10位'
+
+    if not re.search(r'[A-Z]', password):
+        return False, '密码必须包含至少一个大写字母'
+
+    if not re.search(r'[a-z]', password):
+        return False, '密码必须包含至少一个小写字母'
+
+    if not re.search(r'\d', password):
+        return False, '密码必须包含至少一个数字'
+
+    # 检查常见弱密码
+    weak_passwords = ['password123', 'Admin123', '1234567890', 'Password123']
+    if password.lower() in [wp.lower() for wp in weak_passwords]:
+        return False, '密码过于常见，请使用更复杂的密码'
+
+    return True, None
+
 # Setup logging system
 setup_logging(app)
 
@@ -272,9 +298,17 @@ def login():
 
         user = get_user_by_username(username)
         if user and check_password_hash(user['password_hash'], password):
+            # 重新生成会话以防止会话固定攻击（Flask 1.0+）
+            try:
+                session.regenerate()
+            except AttributeError:
+                # 如果Flask版本不支持regenerate，清除旧会话
+                session.clear()
+
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['role'] = user.get('role', 'author')  # 存储角色信息
+            session.permanent = False  # 确保会话不是永久的
             flash(f'欢迎回来，{user["username"]}！', 'success')
 
             # 记录成功登录
@@ -664,7 +698,7 @@ def batch_delete():
 @app.route('/admin/upload', methods=['POST'])
 @login_required
 def upload_image():
-    """Handle image upload"""
+    """Handle image upload with enhanced security validation"""
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': '没有文件上传'}), 400
 
@@ -675,18 +709,54 @@ def upload_image():
     if not allowed_file(file.filename):
         return jsonify({'success': False, 'error': '不支持的文件类型'}), 400
 
-    # Generate unique filename with timestamp
+    # 读取文件内容进行验证
+    file_content = file.read()
+    file.seek(0)  # 重置文件指针
+
+    # 验证实际文件类型（防止伪造扩展名）
+    try:
+        import imghdr
+        file_type = imghdr.what(None, h=file_content)
+        allowed_types = ['rgb', 'gif', 'pbm', 'pgm', 'ppm', 'tiff', 'rast', 'xbm', 'jpeg', 'bmp', 'png', 'webp']
+        if file_type not in allowed_types:
+            return jsonify({'success': False, 'error': f'无效的图片文件类型: {file_type}'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': '文件类型检测失败'}), 400
+
+    # 验证图片尺寸（防止DoS攻击）
+    try:
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(file_content))
+        width, height = img.size
+        max_dimension = 4096
+        if width > max_dimension or height > max_dimension:
+            return jsonify({'success': False, 'error': f'图片尺寸过大，最大允许{max_dimension}x{max_dimension}'}), 400
+
+        # 验证文件大小（已经在MAX_CONTENT_LENGTH限制，但额外检查）
+        file_size = len(file_content)
+        max_file_size = 5 * 1024 * 1024  # 5MB
+        if file_size > max_file_size:
+            return jsonify({'success': False, 'error': f'文件大小超过限制（最大{max_file_size//1024//1024}MB）'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': '图片文件损坏或格式错误'}), 400
+
+    # 生成更安全的文件名（使用随机后缀）
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"{timestamp}_{secure_filename(file.filename)}"
+    secure_name = secure_filename(file.filename)
+    ext = secure_name.rsplit('.', 1)[1].lower() if '.' in secure_name else file_type
+    random_suffix = os.urandom(4).hex()
+    filename = f"{timestamp}_{random_suffix}.{ext}"
     filepath = UPLOAD_FOLDER / filename
 
     try:
-        file.save(str(filepath))
+        with open(filepath, 'wb') as f:
+            f.write(file_content)
         # Return URL to uploaded image
         url = url_for('static', filename=f'uploads/{filename}')
         return jsonify({'success': True, 'url': url})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': f'文件保存失败: {str(e)}'}), 500
 
 
 @app.route('/api/share/qrcode')
@@ -1082,8 +1152,10 @@ def new_user():
             flash('用户名和密码不能为空', 'error')
             return render_template('admin/user_form.html', user=None)
 
-        if len(password) < 10:
-            flash('密码长度至少为10位', 'error')
+        # 使用统一的密码强度验证
+        is_valid, error_msg = validate_password_strength(password)
+        if not is_valid:
+            flash(error_msg, 'error')
             return render_template('admin/user_form.html', user=None)
 
         # 检查用户名是否已存在
