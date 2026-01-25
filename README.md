@@ -129,7 +129,27 @@ python3 backend/app.py
 ## 📖 详细文档
 
 - **[启动指南](STARTUP.md)** - 完整的启动、配置和部署文档
+- **[数据库迁移指南](MIGRATION.md)** - 从旧版本升级到多用户系统
 - **[安全修复报告](SECURITY_FIXES_COMPLETE.md)** - 安全增强详情
+
+## 🔄 从旧版本升级
+
+如果你已经部署了旧版本的博客系统，可以使用迁移工具升级到多用户版本：
+
+```bash
+# 1. 备份现有数据库（脚本会自动备份，但建议手动备份）
+cp db/posts.db db/posts_backup_manual.db
+
+# 2. 运行迁移脚本
+python3 backend/migrate_db.py
+
+# 3. 验证功能
+# - 检查文章是否显示作者信息
+# - 测试登录功能
+# - 验证用户管理功能
+```
+
+详细说明请查看 [数据库迁移指南](MIGRATION.md)。
 
 ⚠️ **重要**: 首次登录后请立即修改密码！
 
