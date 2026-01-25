@@ -6,33 +6,50 @@
 }
 
 :root {
+    /* Mirages-inspired color scheme */
     --bg-color: #ffffff;
-    --text-color: #333333;
+    --text-color: #555555;
+    --text-secondary: #777777;
+    --heading-color: #333333;
     --border-color: #e0e0e0;
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
+    --primary-color: #1abc9c;
+    --primary-hover: #16a089;
     --success-color: #10b981;
     --error-color: #ef4444;
     --warning-color: #f59e0b;
-    --code-bg: #f5f5f5;
+    --code-bg: #f6f8fa;
+    --code-border: #e1e4e8;
     --header-bg: #ffffff;
     --header-shadow: rgba(0, 0, 0, 0.08);
     --card-shadow: rgba(0, 0, 0, 0.04);
     --card-shadow-hover: rgba(0, 0, 0, 0.12);
+
+    /* Typography */
+    --font-body: 'Open Sans', "Helvetica Neue", 'Hiragino Sans GB', 'Microsoft Yahei', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    --font-heading: 'Open Sans', "Helvetica Neue", 'Hiragino Sans GB', 'Microsoft Yahei', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'Monaco', 'Menlo', 'Courier New', monospace;
+
+    /* Reading optimized spacing */
+    --content-max-width: 710px;
+    --line-height: 1.7;
+    --paragraph-spacing: 1rem;
 }
 
-/* Dark Theme */
+/* Dark Theme - Mirages inspired */
 .dark-theme {
-    --bg-color: #1a1a1a;
-    --text-color: #e0e0e0;
+    --bg-color: #2c2a2a;
+    --text-color: #cccccc;
+    --text-secondary: #999999;
+    --heading-color: #dddddd;
     --border-color: #404040;
-    --primary-color: #3b82f6;
-    --primary-hover: #2563eb;
+    --primary-color: #1abc9c;
+    --primary-hover: #16a089;
     --success-color: #10b981;
     --error-color: #ef4444;
     --warning-color: #f59e0b;
-    --code-bg: #2d2d2d;
-    --header-bg: #242424;
+    --code-bg: #333333;
+    --code-border: #444444;
+    --header-bg: #242222;
     --header-shadow: rgba(0, 0, 0, 0.3);
     --card-shadow: rgba(0, 0, 0, 0.2);
     --card-shadow-hover: rgba(0, 0, 0, 0.3);
@@ -62,12 +79,16 @@
 
 /* Smooth theme transition */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    line-height: 1.6;
+    /* Mirages-inspired typography for long-form reading */
+    font-family: var(--font-body);
+    font-size: 1rem; /* 16px base size */
+    line-height: var(--line-height);
     color: var(--text-color);
     background-color: var(--bg-color);
     padding: 0;
     transition: background-color 0.3s, color 0.3s;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* Layout */
@@ -238,7 +259,7 @@ main {
 
 /* Single Post */
 .post-full {
-    max-width: 680px;
+    max-width: var(--content-max-width);
     margin: 0 auto;
 }
 
@@ -247,52 +268,219 @@ main {
 }
 
 .post-header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
+    font-size: 2.857em; /* ~40px, Mirages style */
+    margin-bottom: 0.75rem;
+    font-weight: 300;
+    font-family: var(--font-heading);
+    color: var(--heading-color);
+    line-height: 1.2;
 }
 
+/* Post Content - Mirages Inspired Typography */
 .post-content {
-    font-size: 1.125rem;
-    line-height: 1.8;
+    font-size: 1.175rem; /* 18.8px, extra comfortable for long-form reading */
+    line-height: 1.75; /* Increased line height for larger font */
+    color: var(--text-color);
+    text-align: justify; /* Better for longer text blocks */
 }
 
+/* Headings - Mirages style with lighter weights and better spacing */
 .post-content h1,
 .post-content h2,
+.post-content h3,
+.post-content h4,
+.post-content h5,
+.post-content h6 {
+    position: relative;
+    margin-top: 1.8em;
+    margin-bottom: 1rem;
+    font-weight: bold;
+    line-height: 1.4;
+    color: var(--heading-color);
+    font-family: var(--font-heading);
+}
+
+.post-content h3,
+.post-content h4,
+.post-content h5,
+.post-content h6 {
+    letter-spacing: 0;
+}
+
+.post-content h1 {
+    font-size: 2em; /* 32px */
+    line-height: 1.2;
+    font-weight: 300;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.post-content h2 {
+    font-size: 1.65em; /* 26.4px */
+    line-height: 1.225;
+    font-weight: 300;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--border-color);
+}
+
 .post-content h3 {
-    margin-top: 2rem;
-    margin-bottom: 1rem;
+    font-size: 1.45em; /* 23.2px */
+    line-height: 1.43;
 }
 
+.post-content h4 {
+    font-size: 1.25em; /* 20px */
+}
+
+.post-content h5 {
+    font-size: 1em; /* 16px */
+}
+
+.post-content h6 {
+    font-size: 1em;
+    color: var(--text-secondary);
+}
+
+/* Paragraphs - optimized spacing */
 .post-content p {
+    margin-top: 0;
     margin-bottom: 1rem;
+    text-align: justify;
 }
 
+/* Links - Mirages style with underline animation */
+.post-content a {
+    color: var(--primary-color);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(26, 188, 156, 0.3);
+    position: relative;
+    transition: border-bottom-color 0.2s ease;
+}
+
+.post-content a:hover {
+    border-bottom-color: transparent;
+}
+
+.post-content a:after {
+    position: absolute;
+    bottom: -2px;
+    left: 100%;
+    width: 0;
+    border-bottom: 1px solid var(--primary-color);
+    content: "";
+    transition: width 350ms, left 350ms;
+}
+
+.post-content a:hover:after {
+    left: 0;
+    width: 100%;
+}
+
+/* Code blocks - GitHub style inspired */
 .post-content code {
-    background-color: var(--code-bg);
-    padding: 0.2rem 0.4rem;
+    background-color: rgba(0, 0, 0, 0.04);
+    padding: 0.2em 0.4em;
+    margin: 0;
+    font-size: 85%;
     border-radius: 3px;
-    font-family: 'Monaco', 'Menlo', monospace;
-    font-size: 0.9em;
+    font-family: var(--font-mono);
+}
+
+.dark-theme .post-content code {
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .post-content pre {
     background-color: var(--code-bg);
-    padding: 1rem;
-    border-radius: 4px;
-    overflow-x: auto;
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    border-radius: 3px;
+    border: 1px solid var(--code-border);
     margin-bottom: 1rem;
 }
 
 .post-content pre code {
-    background-color: transparent;
     padding: 0;
+    background: transparent;
+    font-size: 100%;
 }
 
+/* Images */
 .post-content img {
     max-width: 100%;
     height: auto;
     border-radius: 4px;
+    margin: 1.5rem 0;
+    display: block;
+}
+
+/* Blockquotes */
+.post-content blockquote {
     margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    border-left: 4px solid var(--primary-color);
+    background-color: var(--code-bg);
+    color: var(--text-secondary);
+}
+
+.dark-theme .post-content blockquote {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Lists */
+.post-content ul,
+.post-content ol {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    padding-left: 2em;
+}
+
+.post-content li {
+    margin-bottom: 0.5rem;
+}
+
+/* Horizontal rule */
+.post-content hr {
+    overflow: hidden;
+    margin: 2rem 0;
+    padding: 0;
+    height: 4px;
+    border: 0 none;
+    background-color: #e7e7e7;
+}
+
+.dark-theme .post-content hr {
+    background-color: var(--border-color);
+}
+
+/* Tables */
+.post-content table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.post-content table th,
+.post-content table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.post-content table th {
+    background-color: var(--code-bg);
+    font-weight: 600;
+}
+
+.post-content table tr:nth-child(2n) {
+    background-color: var(--code-bg);
+}
+
+.post-content table tr:hover {
+    background-color: rgba(26, 188, 156, 0.05);
 }
 
 .post-navigation {
@@ -583,6 +771,16 @@ main {
     overflow-y: auto;
     min-height: 500px;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+
+    /* Apply same typography as post-content */
+    font-family: var(--font-body);
+    font-size: 1.175rem; /* 18.8px, matches post-content */
+    line-height: 1.75;
+    color: var(--text-color);
+}
+
+.dark-theme .markdown-preview {
+    background-color: var(--bg-color);
 }
 
 /* Toggle and Close Buttons */
@@ -676,8 +874,27 @@ footer {
         font-size: 1.5rem;
     }
 
+    /* Responsive typography for mobile */
     .post-header h1 {
-        font-size: 2rem;
+        font-size: 2rem; /* 32px on mobile */
+    }
+
+    .post-content h1 {
+        font-size: 1.75em; /* Slightly smaller on mobile */
+    }
+
+    .post-content h2 {
+        font-size: 1.5em;
+    }
+
+    .post-content {
+        font-size: 1.0625rem; /* 17px on mobile, slightly smaller */
+        line-height: 1.7;
+        text-align: left; /* Better for mobile reading */
+    }
+
+    .post-content p {
+        text-align: left;
     }
 
     .editor-container {
@@ -711,6 +928,13 @@ footer {
 
     .btn-toggle {
         display: none;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 374px) {
+    .post-header h1 {
+        font-size: 1.75em;
     }
 }
 
@@ -1096,7 +1320,7 @@ img.loaded {
 
 /* Comments */
 .comments-section {
-    max-width: 680px;
+    max-width: var(--content-max-width);
     margin: 3rem auto 0;
     padding-top: 2rem;
     border-top: 1px solid var(--border-color);
@@ -1104,6 +1328,9 @@ img.loaded {
 
 .comments-section h3 {
     margin-bottom: 1.5rem;
+    font-family: var(--font-heading);
+    font-weight: 300;
+    font-size: 2em;
 }
 
 .comments-list {
@@ -1127,20 +1354,23 @@ img.loaded {
 
 .comment-header strong {
     font-size: 1rem;
+    font-weight: 600;
+    font-family: var(--font-heading);
 }
 
 .comment-date {
-    color: #666;
+    color: var(--text-secondary);
     font-size: 0.875rem;
 }
 
 .comment-content {
-    line-height: 1.6;
+    line-height: var(--line-height);
     color: var(--text-color);
+    font-family: var(--font-body);
 }
 
 .no-comments {
-    color: #666;
+    color: var(--text-secondary);
     text-align: center;
     padding: 2rem;
 }
@@ -1154,10 +1384,13 @@ img.loaded {
 
 .comment-form h4 {
     margin-bottom: 1rem;
+    font-family: var(--font-heading);
+    font-weight: 300;
 }
 
 .comment-form textarea {
     min-height: 120px;
+    font-family: var(--font-body);
 }
 
 /* Ensure post cards never overlap */
