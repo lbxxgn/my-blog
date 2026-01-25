@@ -62,7 +62,7 @@
             <div class="comment">
                 <div class="comment-header">
                     <strong>{{ comment.author_name }}</strong>
-                    <span class="comment-date">{{ comment.created_at|localtime[:16] }}</span>
+                    <span class="comment-date">{{ (comment.created_at|localtime)[:16] }}</span>
                 </div>
                 <div class="comment-content">
                     {{ comment.content }}
