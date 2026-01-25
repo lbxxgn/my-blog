@@ -1,7 +1,11 @@
 import sqlite3
+import logging
 from pathlib import Path
 from contextlib import contextmanager
 from config import DATABASE_URL
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 def get_db_connection(db_path=None):
     """Create a database connection with better error handling"""
@@ -401,13 +405,20 @@ def get_post_by_id(post_id):
     return dict(post) if post else None
 
 def get_user_by_username(username):
-    """Get a user by username"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
-    user = cursor.fetchone()
-    conn.close()
-    return dict(user) if user else None
+    """Get a user by username with error handling"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+        user = cursor.fetchone()
+        conn.close()
+        return dict(user) if user else None
+    except sqlite3.Error as e:
+        logger.error(f"Database error in get_user_by_username({username}): {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in get_user_by_username({username}): {e}")
+        return None
 
 def update_user_password(user_id, new_password_hash):
     """Update user password - refactored to use context manager"""
@@ -430,22 +441,20 @@ def create_category(name):
         return None
 
 def get_all_categories():
-    """Get all categories"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM categories ORDER BY name')
-    categories = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return categories
+    """Get all categories with proper connection management"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM categories ORDER BY name')
+        categories = [dict(row) for row in cursor.fetchall()]
+        return categories
 
 def get_category_by_id(category_id):
-    """Get a category by ID"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM categories WHERE id = ?', (category_id,))
-    category = cursor.fetchone()
-    conn.close()
-    return dict(category) if category else None
+    """Get a category by ID with proper connection management"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM categories WHERE id = ?', (category_id,))
+        category = cursor.fetchone()
+        return dict(category) if category else None
 
 def update_category(category_id, name):
     """Update a category - refactored to use context manager"""

@@ -10,7 +10,7 @@ import re
 import sqlite3
 from pathlib import Path
 
-from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION, SITE_AUTHOR
+from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION, SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -46,6 +46,11 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # CSRF protection
 csrf = CSRFProtect(app)
+
+# CSRF configuration
+app.config['WTF_CSRF_ENABLED'] = WTF_CSRF_ENABLED
+app.config['WTF_CSRF_TIME_LIMIT'] = WTF_CSRF_TIME_LIMIT
+app.config['WTF_CSRF_SSL_STRICT'] = WTF_CSRF_SSL_STRICT
 
 # Rate limiting to prevent brute force attacks
 limiter = Limiter(
