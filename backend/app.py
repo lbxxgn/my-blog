@@ -1152,17 +1152,24 @@ def internal_error(error):
 def database_error(error):
     """Handle database errors"""
     log_error(error, context='Database Error')
-    app.logger.error(f"Database error: {error}")
+    return render_template('error.html', status_code=500, error=str(error)), 500
 
-    # Return JSON for AJAX requests
-    if request.path.startswith('/api/') or request.is_json:
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle file too large errors"""
+    log_error(error, context='413 Payload Too Large')
+
+    # For upload API endpoint, return JSON error
+    if request.path.startswith('/admin/upload') or request.path.startswith('/api/'):
         return jsonify({
             'success': False,
-            'message': f'数据库错误: {str(error)}'
-        }), 500
+            'error': f'文件太大，最大允许上传 16MB'
+        }), 413
 
-    # Return error page for regular requests
-    return render_template('error.html', status_code=500, error=str(error)), 500
+    # For regular pages, return HTML error page
+    return render_template('error.html', status_code=413, error='上传的文件太大，最大允许 16MB'), 413
+
 
 
 @app.cli.command()
