@@ -241,3 +241,24 @@
         padding: 6px;
     }
 }
+
+/* Fullscreen mode fix - ensure it appears above sticky header */
+.EasyMDEContainer .CodeMirror-fullscreen {
+    z-index: 10001 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    position: fixed !important;
+    height: auto !important;
+}
+
+.EasyMDEContainer .editor-preview-fullscreen {
+    z-index: 10001 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    position: fixed !important;
+    height: auto !important;
+}
