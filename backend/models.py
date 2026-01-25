@@ -390,22 +390,6 @@ def get_post_by_id(post_id):
     conn.close()
     return dict(post) if post else None
 
-def create_user(username, password_hash):
-    """Create a new user"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute(
-            'INSERT INTO users (username, password_hash) VALUES (?, ?)',
-            (username, password_hash)
-        )
-        conn.commit()
-        user_id = cursor.lastrowid
-    except sqlite3.IntegrityError:
-        user_id = None
-    conn.close()
-    return user_id
-
 def get_user_by_username(username):
     """Get a user by username"""
     conn = get_db_connection()
