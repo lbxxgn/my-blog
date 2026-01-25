@@ -15,7 +15,7 @@ from flask_wtf.csrf import CSRFProtect
 # Import logging module
 from logger import setup_logging, log_login, log_operation, log_error, log_sql
 from models import (
-    get_db_connection, init_db, get_all_posts, get_post_by_id,
+    get_db_connection, init_db, get_all_posts, get_all_posts_cursor, get_post_by_id,
     create_post, update_post, delete_post, update_post_with_tags, get_user_by_username, create_user, update_user_password,
     get_all_categories, create_category, update_category, delete_category,
     get_category_by_id, get_posts_by_category,
@@ -23,7 +23,8 @@ from models import (
     get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag,
     search_posts,
     create_comment, get_comments_by_post, get_all_comments,
-    update_comment_visibility, delete_comment
+    update_comment_visibility, delete_comment,
+    get_db_context, paginate_query_cursor
 )
 
 # Flask app with templates and static in parent directory
@@ -160,6 +161,45 @@ def view_post(post_id):
     comments = get_comments_by_post(post_id)
 
     return render_template('post.html', post=post, comments=comments)
+
+
+@app.route('/api/posts')
+def api_posts_cursor():
+    """
+    API endpoint for fetching posts with cursor-based pagination
+    More efficient than traditional OFFSET pagination for large datasets
+
+    Query params:
+        - cursor: Time-based cursor (created_at timestamp)
+        - per_page: Number of posts per page (default: 20)
+        - category_id: Optional category filter
+
+    Returns:
+        JSON with posts, next_cursor, has_more
+    """
+    cursor_time = request.args.get('cursor')
+    per_page = request.args.get('per_page', 20, type=int)
+    category_id = request.args.get('category_id')
+
+    # Validate per_page
+    if per_page not in [10, 20, 40, 80]:
+        per_page = 20
+
+    # Use cursor-based pagination
+    posts_data = get_all_posts_cursor(
+        cursor_time=cursor_time,
+        per_page=per_page,
+        include_drafts=False,
+        category_id=category_id
+    )
+
+    return jsonify({
+        'success': True,
+        'posts': posts_data['posts'],
+        'next_cursor': posts_data['next_cursor'],
+        'has_more': posts_data['has_more'],
+        'per_page': posts_data['per_page']
+    })
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -922,6 +962,46 @@ def create_admin_user():
             print("Failed to create admin user")
     else:
         print(f"Admin user already exists: {username}")
+
+
+# Export Routes
+@app.route('/admin/export')
+@login_required
+def export_page():
+    """Export page with options"""
+    return render_template('admin/export.html')
+
+
+@app.route('/admin/export/markdown')
+@login_required
+def export_markdown():
+    """Export all posts to markdown files"""
+    try:
+        from export import export_all_posts_to_markdown
+        count, path = export_all_posts_to_markdown()
+        flash(f'成功导出 {count} 篇文章到 {path}', 'success')
+        log_operation(f'Exported {count} posts to markdown')
+    except Exception as e:
+        flash(f'导出失败: {str(e)}', 'error')
+        log_error(e, context='Export to markdown')
+
+    return redirect(url_for('export_page'))
+
+
+@app.route('/admin/export/json')
+@login_required
+def export_json():
+    """Export all posts to JSON"""
+    try:
+        from export import export_to_json
+        count, path = export_to_json()
+        flash(f'成功导出 {count} 篇文章到 {path}', 'success')
+        log_operation(f'Exported {count} posts to JSON')
+    except Exception as e:
+        flash(f'导出失败: {str(e)}', 'error')
+        log_error(e, context='Export to JSON')
+
+    return redirect(url_for('export_page'))
 
 
 # Error handlers
