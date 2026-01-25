@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
             placeholder: '开始写作...\n\n支持 Markdown 语法：\n# 标题\n**粗体** 或 *斜体*\n`代码`\n\n- 列表项\n\n> 引用块\n\n[链接文字](url)\n\n![图片描述](url)',
             autofocus: true,
             forceSync: true,
+            sideBySideFullscreen: false,
             shortcuts: {
                 drawTable: 'Cmd-Opt-T',
                 toggleBold: 'Cmd-B',
@@ -105,6 +106,9 @@ document.addEventListener('DOMContentLoaded', function() {
             syncScroll: true,
             lineNumbers: true
         });
+
+        // Auto-enable side-by-side preview mode by default
+        easyMDE.toggleSideBySide();
 
         // Get CSRF token for image upload
         const csrfToken = document.querySelector('meta[name="csrf_token"]')
