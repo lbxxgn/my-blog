@@ -50,36 +50,58 @@ def migrate_users_table(conn):
     """迁移 users 表，添加新字段"""
     print("\n📋 检查 users 表结构...")
 
-    updates = []
+    cursor = conn.cursor()
 
-    # 需要添加的字段
-    new_columns = {
-        'role': "TEXT NOT NULL DEFAULT 'author'",
-        'display_name': "TEXT",
-        'bio': "TEXT",
-        'avatar_url': "TEXT",
-        'is_active': "BOOLEAN DEFAULT 1",
-        'created_at': "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-        'updated_at': "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-    }
+    # 需要添加的字段（分两步：添加列 + 填充数据）
+    # SQLite 不支持 ALTER TABLE 时使用 CURRENT_TIMESTAMP 等函数作为默认值
+    columns_to_add = [
+        ('role', "TEXT NOT NULL DEFAULT 'author'", None),
+        ('display_name', "TEXT", None),
+        ('bio', "TEXT", None),
+        ('avatar_url', "TEXT", None),
+        ('is_active', "BOOLEAN DEFAULT 1", None),
+        ('created_at', "TIMESTAMP", "CURRENT_TIMESTAMP"),  # 先添加，再填充
+        ('updated_at', "TIMESTAMP", "CURRENT_TIMESTAMP")   # 先添加，再填充
+    ]
 
-    for column, definition in new_columns.items():
+    updates_done = []
+    updates_to_fill = []
+
+    for column, definition, default_value in columns_to_add:
         if not check_column_exists(conn, 'users', column):
-            sql = f"ALTER TABLE users ADD COLUMN {column} {definition}"
+            # 移除定义中的默认值（如果有非常量默认值）
+            col_def = definition.split(' DEFAULT')[0] if default_value else definition
+
+            sql = f"ALTER TABLE users ADD COLUMN {column} {col_def}"
             print(f"  + 添加字段: {column}")
-            updates.append(sql)
+            try:
+                conn.execute(sql)
+                updates_done.append(column)
+
+                # 如果需要填充默认值
+                if default_value:
+                    updates_to_fill.append((column, default_value))
+
+            except sqlite3.Error as e:
+                print(f"  ❌ 添加 {column} 失败: {e}")
+                return False
         else:
             print(f"  ✓ 字段已存在: {column}")
 
-    if updates:
-        print("\n执行 users 表更新...")
-        for sql in updates:
-            try:
-                conn.execute(sql)
-                print(f"  ✅ {sql.split()[4]}")
-            except sqlite3.Error as e:
-                print(f"  ❌ 错误: {e}")
-                return False
+    if updates_done:
+        # 填充需要默认值的字段
+        if updates_to_fill:
+            print("\n填充默认值...")
+            for column, default_value in updates_to_fill:
+                try:
+                    if default_value == "CURRENT_TIMESTAMP":
+                        conn.execute(f"UPDATE users SET {column} = datetime('now') WHERE {column} IS NULL")
+                    else:
+                        conn.execute(f"UPDATE users SET {column} = ? WHERE {column} IS NULL", (default_value,))
+                    print(f"  ✅ 填充 {column}")
+                except sqlite3.Error as e:
+                    print(f"  ❌ 填充 {column} 失败: {e}")
+                    return False
 
         conn.commit()
         print("✅ users 表迁移完成")
