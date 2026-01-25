@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
+from urllib.parse import urlparse, urljoin
 import markdown2
 import bleach
 import os
@@ -248,6 +249,17 @@ def api_posts_cursor():
 @limiter.limit("5 per minute")
 def login():
     """Login page"""
+    def is_safe_url(target):
+        """验证URL是否安全，防止开放式重定向攻击"""
+        if not target:
+            return False
+        ref_url = urlparse(request.host_url)
+        test_url = urlparse(urljoin(request.host_url, target))
+        return (
+            test_url.scheme in ('http', 'https') and
+            ref_url.netloc == test_url.netloc
+        )
+
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -268,8 +280,9 @@ def login():
             # 记录成功登录
             log_login(username, success=True)
 
+            # 安全地处理重定向
             next_page = request.args.get('next')
-            if next_page:
+            if next_page and is_safe_url(next_page):
                 return redirect(next_page)
             return redirect(url_for('admin_dashboard'))
         else:
@@ -948,20 +961,59 @@ def delete_comment_route(comment_id):
 
 
 def create_admin_user():
-    """Create default admin user if not exists"""
-    username = os.environ.get('ADMIN_USERNAME', 'admin')
-    password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    """
+    Create default admin user if not exists
+    Requires ADMIN_USERNAME and ADMIN_PASSWORD environment variables
+    """
+    username = os.environ.get('ADMIN_USERNAME')
+    password = os.environ.get('ADMIN_PASSWORD')
+
+    # 强制要求设置环境变量
+    if not username or not password:
+        raise ValueError(
+            "\n" + "="*70 +
+            "\n SECURITY ERROR: ADMIN_USERNAME and ADMIN_PASSWORD must be set!" +
+            "\n" +
+            "\n To set up the admin user, export these environment variables:" +
+            "\n   export ADMIN_USERNAME='your_username'" +
+            "\n   export ADMIN_PASSWORD='your_secure_password'" +
+            "\n" +
+            "\n Password requirements:" +
+            "\n - At least 12 characters long" +
+            "\n - Must contain uppercase and lowercase letters" +
+            "\n - Must contain at least one digit" +
+            "\n" +
+            "="*70
+        )
+
+    # 验证密码强度
+    if len(password) < 12:
+        raise ValueError("ADMIN_PASSWORD must be at least 12 characters long")
+
+    if not re.search(r'[A-Z]', password):
+        raise ValueError("ADMIN_PASSWORD must contain at least one uppercase letter")
+
+    if not re.search(r'[a-z]', password):
+        raise ValueError("ADMIN_PASSWORD must contain at least one lowercase letter")
+
+    if not re.search(r'\d', password):
+        raise ValueError("ADMIN_PASSWORD must contain at least one digit")
+
+    # 检查常见弱密码
+    weak_passwords = ['password', 'admin123', '123456789012', 'password123']
+    if password.lower() in weak_passwords:
+        raise ValueError("ADMIN_PASSWORD is too common. Please use a stronger password.")
 
     existing_user = get_user_by_username(username)
     if not existing_user:
         password_hash = generate_password_hash(password)
-        user_id = create_user(username, password_hash)
+        user_id = create_user(username, password_hash, role='admin')
         if user_id:
-            print(f"Created admin user: {username}")
+            print(f"✓ Created admin user: {username}")
         else:
-            print("Failed to create admin user")
+            print("✗ Failed to create admin user")
     else:
-        print(f"Admin user already exists: {username}")
+        print(f"ℹ Admin user already exists: {username}")
 
 
 # Export Routes
@@ -1155,14 +1207,28 @@ def not_found_error(error):
 def internal_error(error):
     """Handle 500 errors"""
     log_error(error, context='500 Internal Server Error')
-    return render_template('error.html', status_code=500, error=str(error)), 500
+
+    # 生产环境显示通用错误信息，开发环境显示详细信息
+    if app.config.get('DEBUG'):
+        error_message = str(error)
+    else:
+        error_message = "服务器内部错误，请稍后重试"
+
+    return render_template('error.html', status_code=500, error=error_message), 500
 
 
 @app.errorhandler(sqlite3.Error)
 def database_error(error):
     """Handle database errors"""
     log_error(error, context='Database Error')
-    return render_template('error.html', status_code=500, error=str(error)), 500
+
+    # 生产环境显示通用错误信息，开发环境显示详细信息
+    if app.config.get('DEBUG'):
+        error_message = f"数据库错误: {str(error)}"
+    else:
+        error_message = "数据库错误，请稍后重试"
+
+    return render_template('error.html', status_code=500, error=error_message), 500
 
 
 @app.errorhandler(413)

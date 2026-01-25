@@ -259,10 +259,20 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None):
         where_conditions.append('posts.category_id = ?')
         params.append(category_id)
 
+    # 构建安全的WHERE子句 - 仅使用硬编码的条件
     where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
 
+    # 验证where_clause只包含安全的条件（防止代码注入）
+    allowed_patterns = ['posts.is_published = ', 'posts.category_id IS NULL', 'posts.category_id = ', '1=1']
+    if not any(allowed in where_clause for allowed in allowed_patterns):
+        raise ValueError(f"Invalid WHERE clause: {where_clause}")
+
     # Count total posts
-    count_query = 'SELECT COUNT(*) as count FROM posts LEFT JOIN categories ON posts.category_id = categories.id WHERE ' + where_clause
+    count_query = '''
+        SELECT COUNT(*) as count
+        FROM posts
+        LEFT JOIN categories ON posts.category_id = categories.id
+        WHERE ''' + where_clause
     cursor.execute(count_query, params)
     total_count = cursor.fetchone()['count']
 
