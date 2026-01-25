@@ -4,14 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf_token" content="{{ csrf_token() }}">
-    <title>{% block title %}我的博客{% endblock %}</title>
+    <title>{% block title %}{{ site_name }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3.3">
     {% block head %}{% endblock %}
 </head>
 <body>
     <header>
         <nav>
-            <h1><a href="{{ url_for('index') }}">我的博客</a></h1>
+            <h1><a href="{{ url_for('index') }}">{{ site_name }}</a></h1>
 
             <!-- 汉堡菜单按钮（仅移动端显示） -->
             <button class="hamburger" id="hamburger" aria-label="菜单">

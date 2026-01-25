@@ -9,7 +9,7 @@ import re
 import sqlite3
 from pathlib import Path
 
-from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG
+from config import SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION, SITE_AUTHOR
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -60,6 +60,16 @@ from config import SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKI
 app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
 app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
 app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
+
+# Make site settings available in all templates
+@app.context_processor
+def inject_site_settings():
+    """Inject site settings into all templates"""
+    return dict(
+        site_name=SITE_NAME,
+        site_description=SITE_DESCRIPTION,
+        site_author=SITE_AUTHOR
+    )
 
 # Setup logging system
 setup_logging(app)

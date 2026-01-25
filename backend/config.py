@@ -9,6 +9,11 @@ BASE_DIR = BACKEND_DIR.parent
 SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
 DATABASE_URL = os.environ.get('DATABASE_URL') or f'sqlite:///{BASE_DIR}/db/posts.db'
 
+# Site settings
+SITE_NAME = os.environ.get('SITE_NAME') or '我的博客'
+SITE_DESCRIPTION = os.environ.get('SITE_DESCRIPTION') or '一个简单的博客系统'
+SITE_AUTHOR = os.environ.get('SITE_AUTHOR') or '管理员'
+
 UPLOAD_FOLDER = BASE_DIR / 'static' / 'uploads'
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
