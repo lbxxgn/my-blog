@@ -1,5 +1,6 @@
 import sqlite3
 from pathlib import Path
+from contextlib import contextmanager
 from config import DATABASE_URL
 
 def get_db_connection(db_path=None):
@@ -16,6 +17,76 @@ def get_db_connection(db_path=None):
     conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('PRAGMA synchronous=NORMAL')
     return conn
+
+@contextmanager
+def get_db_context(db_path=None):
+    """
+    Database connection context manager for automatic commit/rollback
+
+    Usage:
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute('...')
+            # Auto commits on success, rolls back on exception
+    """
+    if db_path is None:
+        db_path = DATABASE_URL.replace('sqlite:///', '')
+
+    conn = get_db_connection(db_path)
+    try:
+        yield conn
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        conn.close()
+
+def paginate_query_cursor(conn, query, where_clause, params, cursor_time=None, per_page=20):
+    """
+    Generic cursor-based pagination function
+
+    Args:
+        conn: Database connection
+        query: Base SQL query (SELECT part only)
+        where_clause: WHERE clause without 'WHERE'
+        params: Query parameters list
+        cursor_time: Time cursor for pagination
+        per_page: Items per page
+
+    Returns:
+        dict with items, next_cursor, has_more
+    """
+    cursor = conn.cursor()
+
+    where_conditions = [where_clause] if where_clause else []
+    query_params = params.copy()
+
+    if cursor_time:
+        where_conditions.append('created_at < ?')
+        query_params.append(cursor_time)
+
+    final_where = ' AND '.join(where_conditions) if where_conditions else '1=1'
+
+    # Fetch one extra item to check if there's more
+    final_query = f"{query} WHERE {final_where} ORDER BY created_at DESC LIMIT ?"
+    query_params.append(per_page + 1)
+
+    cursor.execute(final_query, query_params)
+    rows = cursor.fetchall()
+    items = [dict(row) for row in rows[:per_page]]
+    has_more = len(rows) > per_page
+
+    next_cursor = None
+    if items:
+        next_cursor = items[-1].get('created_at')
+
+    return {
+        'items': items,
+        'next_cursor': next_cursor,
+        'has_more': has_more,
+        'per_page': per_page
+    }
 
 def init_db(db_path=None):
     """Initialize the database with tables"""
@@ -210,6 +281,71 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None):
         'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
     }
 
+def get_all_posts_cursor(cursor_time=None, per_page=20, include_drafts=False, category_id=None):
+    """
+    Get all posts using cursor-based pagination for better performance
+
+    Args:
+        cursor_time: Time-based cursor (created_at of last post in previous page)
+        per_page: Number of posts per page
+        include_drafts: Whether to include draft posts
+        category_id: Filter by category ID
+
+    Returns:
+        dict with posts, next_cursor, has_more
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Build WHERE clause
+    where_conditions = []
+    params = []
+
+    if not include_drafts:
+        where_conditions.append('posts.is_published = 1')
+
+    if category_id == 'none':
+        where_conditions.append('posts.category_id IS NULL')
+    elif category_id is not None:
+        where_conditions.append('posts.category_id = ?')
+        params.append(category_id)
+
+    if cursor_time:
+        where_conditions.append('posts.created_at < ?')
+        params.append(cursor_time)
+
+    where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
+
+    # Get posts
+    query = '''
+        SELECT posts.*, categories.name as category_name, categories.id as category_id
+        FROM posts
+        LEFT JOIN categories ON posts.category_id = categories.id
+        WHERE ''' + where_clause + '''
+        ORDER BY posts.created_at DESC
+        LIMIT ?
+    '''
+    params.append(per_page + 1)  # Fetch one extra to check if there's more
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    posts = [dict(row) for row in rows[:per_page]]  # Only return requested amount
+    has_more = len(rows) > per_page
+
+    # Get next cursor (created_at of last post)
+    next_cursor = None
+    if posts:
+        next_cursor = posts[-1]['created_at']
+
+    conn.close()
+
+    return {
+        'posts': posts,
+        'next_cursor': next_cursor,
+        'has_more': has_more,
+        'per_page': per_page
+    }
+
 def get_post_by_id(post_id):
     """Get a single post by ID with category information"""
     conn = get_db_connection()
@@ -250,28 +386,24 @@ def get_user_by_username(username):
     return dict(user) if user else None
 
 def update_user_password(user_id, new_password_hash):
-    """Update user password"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
-    conn.commit()
-    conn.close()
+    """Update user password - refactored to use context manager"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
+        return cursor.rowcount > 0
 
 def create_category(name):
-    """Create a new category"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    """Create a new category - refactored to use context manager"""
     try:
-        cursor.execute(
-            'INSERT INTO categories (name) VALUES (?)',
-            (name,)
-        )
-        conn.commit()
-        category_id = cursor.lastrowid
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO categories (name) VALUES (?)',
+                (name,)
+            )
+            return cursor.lastrowid
     except sqlite3.IntegrityError:
-        category_id = None
-    conn.close()
-    return category_id
+        return None
 
 def get_all_categories():
     """Get all categories"""
@@ -292,31 +424,26 @@ def get_category_by_id(category_id):
     return dict(category) if category else None
 
 def update_category(category_id, name):
-    """Update a category"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    """Update a category - refactored to use context manager"""
     try:
-        cursor.execute(
-            'UPDATE categories SET name = ? WHERE id = ?',
-            (name, category_id)
-        )
-        conn.commit()
-        success = True
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE categories SET name = ? WHERE id = ?',
+                (name, category_id)
+            )
+            return cursor.rowcount > 0
     except sqlite3.IntegrityError:
-        success = False
-    conn.close()
-    return success
+        return False
 
 def delete_category(category_id):
-    """Delete a category"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    # First, unassign all posts from this category
-    cursor.execute('UPDATE posts SET category_id = NULL WHERE category_id = ?', (category_id,))
-    # Then delete the category
-    cursor.execute('DELETE FROM categories WHERE id = ?', (category_id,))
-    conn.commit()
-    conn.close()
+    """Delete a category - refactored to use context manager"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        # First, unassign all posts from this category
+        cursor.execute('UPDATE posts SET category_id = NULL WHERE category_id = ?', (category_id,))
+        # Then delete the category
+        cursor.execute('DELETE FROM categories WHERE id = ?', (category_id,))
 
 def get_posts_by_category(category_id, include_drafts=False):
     """Get all posts in a category"""
@@ -333,20 +460,17 @@ def get_posts_by_category(category_id, include_drafts=False):
     return posts
 
 def create_tag(name):
-    """Create a new tag"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    """Create a new tag - refactored to use context manager"""
     try:
-        cursor.execute(
-            'INSERT INTO tags (name) VALUES (?)',
-            (name,)
-        )
-        conn.commit()
-        tag_id = cursor.lastrowid
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO tags (name) VALUES (?)',
+                (name,)
+            )
+            return cursor.lastrowid
     except sqlite3.IntegrityError:
-        tag_id = None
-    conn.close()
-    return tag_id
+        return None
 
 def get_all_tags():
     """Get all tags with post count"""
@@ -397,72 +521,64 @@ def get_tag_by_name(name):
     return dict(tag) if tag else None
 
 def update_tag(tag_id, name):
-    """Update a tag"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    """Update a tag - refactored to use context manager"""
     try:
-        cursor.execute(
-            'UPDATE tags SET name = ? WHERE id = ?',
-            (name, tag_id)
-        )
-        conn.commit()
-        success = True
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE tags SET name = ? WHERE id = ?',
+                (name, tag_id)
+            )
+            return cursor.rowcount > 0
     except sqlite3.IntegrityError:
-        success = False
-    conn.close()
-    return success
+        return False
 
 def delete_tag(tag_id):
-    """Delete a tag"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM tags WHERE id = ?', (tag_id,))
-    conn.commit()
-    conn.close()
+    """Delete a tag - refactored to use context manager"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM tags WHERE id = ?', (tag_id,))
 
 def set_post_tags(post_id, tag_names):
-    """Set tags for a post (replace existing)"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    """Set tags for a post (replace existing) - refactored to use context manager"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # Delete existing tag associations
-    cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (post_id,))
+        # Delete existing tag associations
+        cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (post_id,))
 
-    # Add new tag associations
-    for tag_name in tag_names:
-        if not tag_name.strip():
-            continue
+        # Add new tag associations
+        for tag_name in tag_names:
+            if not tag_name.strip():
+                continue
 
-        name = tag_name.strip()
+            name = tag_name.strip()
 
-        # Check if tag exists (inline query to avoid nested connection)
-        cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
-        result = cursor.fetchone()
+            # Check if tag exists (inline query to avoid nested connection)
+            cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
+            result = cursor.fetchone()
 
-        if result:
-            tag_id = result[0]
-        else:
-            # Create tag inline (insert into tags table)
-            try:
-                cursor.execute('INSERT INTO tags (name) VALUES (?)', (name,))
-                tag_id = cursor.lastrowid
-            except sqlite3.IntegrityError:
-                # Tag was created by another process, get it again
-                cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
-                result = cursor.fetchone()
-                if result:
-                    tag_id = result[0]
-                else:
-                    tag_id = None
+            if result:
+                tag_id = result[0]
+            else:
+                # Create tag inline (insert into tags table)
+                try:
+                    cursor.execute('INSERT INTO tags (name) VALUES (?)', (name,))
+                    tag_id = cursor.lastrowid
+                except sqlite3.IntegrityError:
+                    # Tag was created by another process, get it again
+                    cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
+                    result = cursor.fetchone()
+                    if result:
+                        tag_id = result[0]
+                    else:
+                        tag_id = None
 
-        if tag_id:
-            cursor.execute(
-                'INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)',
-                (post_id, tag_id)
-            )
-
-    conn.commit()
-    conn.close()
+            if tag_id:
+                cursor.execute(
+                    'INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)',
+                    (post_id, tag_id)
+                )
 
 def get_post_tags(post_id):
     """Get all tags for a post"""
