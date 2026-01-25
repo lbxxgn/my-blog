@@ -213,11 +213,67 @@ python backend/import_blog.py
 
 编辑 `backend/config.py` 可自定义：
 
+### 基础配置
+
 - `SECRET_KEY`: Flask 密钥（生产环境请修改）
 - `DATABASE_URL`: 数据库路径
-- `UPLOAD_FOLDER`: 图片上传目录
-- `MAX_CONTENT_LENGTH`: 最大上传大小（默认 5MB）
+- `DEBUG`: 调试模式（开发环境设为 True）
+
+### 网站设置
+
+- `SITE_NAME`: 网站名称（默认："我的博客"）
+- `SITE_DESCRIPTION`: 网站描述（默认："一个简单的博客系统"）
+- `SITE_AUTHOR`: 网站作者（默认："管理员"）
+
+这些设置会在以下地方显示：
+- 网站标题栏（浏览器标签）
+- 导航栏的网站名称
+- 页面元信息
+
+### 文件上传配置
+
+- `UPLOAD_FOLDER`: 图片上传目录（默认：`static/uploads/`）
+- `MAX_CONTENT_LENGTH`: 最大上传大小（默认：16MB）
 - `ALLOWED_EXTENSIONS`: 允许的图片类型（png, jpg, jpeg, gif, webp）
+
+### 修改网站名称
+
+**方法 1：直接修改配置文件**
+
+编辑 `backend/config.py`：
+
+```python
+SITE_NAME = os.environ.get('SITE_NAME') or '你的博客名称'
+SITE_DESCRIPTION = os.environ.get('SITE_DESCRIPTION') or '你的博客描述'
+SITE_AUTHOR = os.environ.get('SITE_AUTHOR') or '你的名字'
+```
+
+修改后重启服务器即可生效。
+
+**方法 2：使用环境变量（推荐）**
+
+```bash
+export SITE_NAME="技术博客"
+export SITE_DESCRIPTION="分享技术与生活"
+export SITE_AUTHOR="张三"
+python backend/app.py
+```
+
+或者创建 `.env` 文件：
+
+```bash
+# .env
+SITE_NAME=技术博客
+SITE_DESCRIPTION=分享技术与生活
+SITE_AUTHOR=张三
+```
+
+然后在启动时加载：
+
+```bash
+export $(cat .env | xargs)
+python backend/app.py
+```
 
 ### 日志系统
 
