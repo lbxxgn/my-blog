@@ -380,7 +380,7 @@ main {
 }
 
 .post-card h2 {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
     font-size: 1.75rem;
     font-weight: 700;
     color: var(--text-color);
@@ -393,7 +393,7 @@ main {
 .post-meta {
     color: #666;
     font-size: 0.875rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .post-excerpt {
@@ -1499,9 +1499,9 @@ footer {
 
 .post-category {
     display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.875rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 10px;
+    font-size: 0.8125rem;
     background-color: #dbeafe;
     color: #1e40af;
     font-weight: 500;
