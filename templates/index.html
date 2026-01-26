@@ -42,7 +42,7 @@
                                     <time datetime="{{ post.created_at }}">{{ (post.created_at|localtime)[:10] }}</time>
                                 </div>
                                 <div class="post-excerpt">
-                                    {{ post.content[:200] }}...
+                                    {{ post.content|excerpt }}
                                 </div>
                             </article>
                         </a>

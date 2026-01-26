@@ -35,24 +35,38 @@
     --paragraph-spacing: 1rem;
 }
 
-/* Dark Theme - Mirages inspired */
+/* Dark Theme - 舒适优化版 */
 .dark-theme {
-    --bg-color: #2c2a2a;
-    --text-color: #cccccc;
-    --text-secondary: #999999;
-    --heading-color: #dddddd;
+    --bg-color: #1a1a1a;
+    --text-color: #d4d4d4;
+    --text-secondary: #b8b8b8;
+    --heading-color: #e8e8e8;
     --border-color: #404040;
     --primary-color: #1abc9c;
     --primary-hover: #16a089;
     --success-color: #10b981;
     --error-color: #ef4444;
     --warning-color: #f59e0b;
-    --code-bg: #333333;
+    --code-bg: #2d2d2d;
     --code-border: #444444;
-    --header-bg: #242222;
-    --header-shadow: rgba(0, 0, 0, 0.3);
-    --card-shadow: rgba(0, 0, 0, 0.2);
-    --card-shadow-hover: rgba(0, 0, 0, 0.3);
+    --header-bg: #141414;
+    --header-shadow: rgba(0, 0, 0, 0.4);
+    --card-shadow: rgba(0, 0, 0, 0.3);
+    --card-shadow-hover: rgba(0, 0, 0, 0.4);
+}
+
+/* 暗色模式文字增强 */
+.dark-theme body {
+    text-shadow: 0 0 0 transparent;
+}
+
+.dark-theme h1, .dark-theme h2, .dark-theme h3,
+.dark-theme h4, .dark-theme h5, .dark-theme h6 {
+    text-shadow: 0 0 20px rgba(232, 232, 232, 0.1);
+}
+
+.dark-theme p, .dark-theme li, .dark-theme span {
+    text-shadow: 0 0 15px rgba(212, 212, 212, 0.05);
 }
 
 /* Theme Toggle Button */
@@ -358,7 +372,7 @@ main {
     text-decoration: none;
     color: inherit;
     display: block;
-    margin-bottom: 2.5rem;
+    margin-bottom: 0.75rem;
 }
 
 .post-card-link:last-child {

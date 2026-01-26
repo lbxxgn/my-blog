@@ -22,7 +22,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-productio
 # =============================================================================
 
 # SQLite数据库路径
-DATABASE_URL = os.environ.get('DATABASE_URL') or f'sqlite:///{BASE_DIR}/db/posts.db'
+DATABASE_URL = os.environ.get('DATABASE_URL') or f'sqlite:///{BASE_DIR}/db/simple_blog.db'
 
 # =============================================================================
 # 网站设置
@@ -92,3 +92,57 @@ else:
     SESSION_COOKIE_SECURE = False  # Allow cookies over HTTP
     SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to cookies
     SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection for cookies
+
+# =============================================================================
+# AI功能配置
+# =============================================================================
+
+# AI默认配置
+AI_DEFAULT_PROVIDER = os.environ.get('AI_DEFAULT_PROVIDER') or 'openai'
+AI_DEFAULT_MODEL = os.environ.get('AI_DEFAULT_MODEL') or 'gpt-3.5-turbo'
+
+# AI功能限流（每小时最大请求次数）
+AI_RATE_LIMIT_PER_HOUR = int(os.environ.get('AI_RATE_LIMIT_PER_HOUR', 10))
+
+# AI内容截断长度（字符数）
+AI_CONTENT_MAX_LENGTH = int(os.environ.get('AI_CONTENT_MAX_LENGTH', 500))
+
+# 是否启用AI历史记录（默认启用）
+AI_HISTORY_ENABLED = os.environ.get('AI_HISTORY_ENABLED', 'True').lower() in ('true', '1', 'yes')
+
+# 支持的AI提供商和模型
+AI_SUPPORTED_PROVIDERS = {
+    'openai': {
+        'name': 'OpenAI',
+        'models': ['gpt-3.5-turbo', 'gpt-4o', 'gpt-4-turbo', 'gpt-4'],
+        'default_model': 'gpt-3.5-turbo'
+    },
+    'volcengine': {
+        'name': '火山引擎',
+        'models': ['doubao-pro-32k', 'doubao-pro-4k', 'doubao-lite-4k'],
+        'default_model': 'doubao-pro-4k'
+    },
+    'dashscope': {
+        'name': '阿里百炼',
+        'models': [
+            'qwen-flash',
+            'qwen-turbo',
+            'qwen-plus',
+            'qwen-max',
+            'qwen-coder-plus',
+            'qwen-coder-plus-1106',
+            'qwen-coder-plus-latest',
+            'qwen-long-latest',
+            'qwen-long-2025-01-25',
+            'qwen-vl-max',
+            'qwen-vl-max-latest',
+        ],
+        'default_model': 'qwen-turbo'
+    },
+    # 未来可添加更多提供商
+    # 'claude': {
+    #     'name': 'Anthropic Claude',
+    #     'models': ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229', 'claude-3-opus-20240229'],
+    #     'default_model': 'claude-3-haiku-20240307'
+    # },
+}

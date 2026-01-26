@@ -140,18 +140,31 @@ def init_db(db_path=None):
             content TEXT NOT NULL,
             is_published BOOLEAN DEFAULT 0,
             category_id INTEGER,
+            author_id INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (category_id) REFERENCES categories(id)
+            FOREIGN KEY (category_id) REFERENCES categories(id),
+            FOREIGN KEY (author_id) REFERENCES users(id)
         )
     ''')
 
-    # Create users table
+    # Create users table with full schema
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'author',
+            display_name TEXT,
+            bio TEXT,
+            avatar_url TEXT,
+            is_active BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            ai_tag_generation_enabled BOOLEAN DEFAULT 1,
+            ai_provider TEXT DEFAULT 'openai',
+            ai_api_key TEXT,
+            ai_model TEXT DEFAULT 'gpt-3.5-turbo'
         )
     ''')
 
@@ -193,6 +206,8 @@ def init_db(db_path=None):
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_created_at ON posts(created_at DESC)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_published_created ON posts(is_published, created_at DESC)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_category_id ON posts(category_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_author_id ON posts(author_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_author_created ON posts(author_id, created_at DESC)')
 
     # Tags index
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name)')
@@ -217,10 +232,33 @@ def init_db(db_path=None):
     # Note: FTS triggers have been removed to prevent SQL logic errors.
     # FTS index is now maintained manually in CRUD operations.
 
+    # Create AI tag history table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ai_tag_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            prompt TEXT,
+            generated_tags TEXT,
+            model_used TEXT,
+            tokens_used INTEGER,
+            cost DECIMAL(10, 6),
+            currency TEXT DEFAULT 'USD',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    ''')
+
+    # Create AI history indexes
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ai_history_post ON ai_tag_history(post_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ai_history_user ON ai_tag_history(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_ai_history_created ON ai_tag_history(created_at DESC)')
+
     conn.commit()
     conn.close()
 
-def create_post(title, content, is_published=False, category_id=None, author_id=None):
+def create_post(title, content, is_published=False, category_id=None, author_id=None, access_level='public', access_password=None):
     """
     创建新文章
 
@@ -230,6 +268,8 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
         is_published (bool): 是否立即发布。默认为False（草稿）
         category_id (int, optional): 分类ID。默认为None
         author_id (int, optional): 作者ID。默认为None
+        access_level (str): 访问级别。默认为'public'
+        access_password (str, optional): 访问密码。默认为None
 
     Returns:
         int: 新创建文章的ID
@@ -241,8 +281,8 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        'INSERT INTO posts (title, content, is_published, category_id, author_id) VALUES (?, ?, ?, ?, ?)',
-        (title, content, is_published, category_id, author_id)
+        'INSERT INTO posts (title, content, is_published, category_id, author_id, access_level, access_password) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        (title, content, is_published, category_id, author_id, access_level, access_password)
     )
     post_id = cursor.lastrowid
 
@@ -254,14 +294,33 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
     conn.close()
     return post_id
 
-def update_post(post_id, title, content, is_published, category_id=None):
-    """Update an existing post"""
+def update_post(post_id, title, content, is_published, category_id=None, access_level=None, access_password=None):
+    """
+    Update an existing post
+
+    Args:
+        post_id (int): 文章ID
+        title (str): 文章标题
+        content (str): 文章内容
+        is_published (bool): 是否发布
+        category_id (int, optional): 分类ID
+        access_level (str, optional): 访问级别
+        access_password (str, optional): 访问密码
+    """
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        (title, content, is_published, category_id, post_id)
-    )
+
+    # 构建更新SQL（动态包含访问权限字段）
+    if access_level is not None:
+        cursor.execute(
+            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, access_level = ?, access_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (title, content, is_published, category_id, access_level, access_password, post_id)
+        )
+    else:
+        cursor.execute(
+            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (title, content, is_published, category_id, post_id)
+        )
 
     # Manually update FTS (triggers are disabled)
     cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
@@ -1085,4 +1144,484 @@ def get_posts_by_author(author_id, include_drafts=False, page=1, per_page=20):
         'per_page': per_page,
         'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
     }
+
+
+# ==================== AI功能函数 ====================
+
+def get_user_ai_config(user_id):
+    """
+    获取用户的AI配置
+
+    Args:
+        user_id: 用户ID
+
+    Returns:
+        dict: 包含AI配置的字典，如果用户不存在返回None
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT
+            ai_tag_generation_enabled,
+            ai_provider,
+            ai_api_key,
+            ai_model
+        FROM users
+        WHERE id = ?
+    ''', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if row:
+        return {
+            'ai_tag_generation_enabled': bool(row['ai_tag_generation_enabled']) if row['ai_tag_generation_enabled'] is not None else True,
+            'ai_provider': row['ai_provider'] or 'openai',
+            'ai_api_key': row['ai_api_key'],
+            'ai_model': row['ai_model'] or 'gpt-3.5-turbo'
+        }
+    return None
+
+
+def update_user_ai_config(user_id, ai_config):
+    """
+    更新用户的AI配置
+
+    Args:
+        user_id: 用户ID
+        ai_config: AI配置字典，包含:
+            - ai_tag_generation_enabled: bool (optional)
+            - ai_provider: str (optional)
+            - ai_api_key: str (optional)
+            - ai_model: str (optional)
+
+    Returns:
+        bool: 更新是否成功
+    """
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+
+        updates = []
+        params = []
+
+        if 'ai_tag_generation_enabled' in ai_config:
+            updates.append('ai_tag_generation_enabled = ?')
+            params.append(1 if ai_config['ai_tag_generation_enabled'] else 0)
+
+        if 'ai_provider' in ai_config:
+            updates.append('ai_provider = ?')
+            params.append(ai_config['ai_provider'])
+
+        if 'ai_api_key' in ai_config:
+            updates.append('ai_api_key = ?')
+            params.append(ai_config['ai_api_key'])
+
+        if 'ai_model' in ai_config:
+            updates.append('ai_model = ?')
+            params.append(ai_config['ai_model'])
+
+        if updates:
+            params.append(user_id)
+            query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
+            cursor.execute(query, params)
+            return cursor.rowcount > 0
+
+        return False
+
+
+def save_ai_tag_history(post_id, user_id, prompt, generated_tags, model_used, tokens_used, cost, currency='USD'):
+    """
+    保存AI标签生成历史记录
+
+    Args:
+        post_id: 文章ID
+        user_id: 用户ID
+        prompt: 使用的提示词
+        generated_tags: 生成的标签列表
+        model_used: 使用的模型
+        tokens_used: 使用的token数
+        cost: 成本
+        currency: 货币单位 (USD/CNY)
+
+    Returns:
+        int: 历史记录ID
+    """
+    import json
+
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO ai_tag_history (post_id, user_id, prompt, generated_tags, model_used, tokens_used, cost, currency)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            post_id,
+            user_id,
+            prompt,
+            json.dumps(generated_tags, ensure_ascii=False),
+            model_used,
+            tokens_used,
+            cost,
+            currency
+        ))
+        return cursor.lastrowid
+
+
+def get_ai_tag_history(user_id=None, post_id=None, limit=50):
+    """
+    获取AI标签生成历史记录
+
+    Args:
+        user_id: 用户ID (可选，用于过滤)
+        post_id: 文章ID (可选，用于过滤)
+        limit: 返回记录数限制
+
+    Returns:
+        list: 历史记录列表
+    """
+    import json
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # 构建WHERE条件
+    where_conditions = []
+    params = []
+
+    if user_id:
+        where_conditions.append('user_id = ?')
+        params.append(user_id)
+
+    if post_id:
+        where_conditions.append('post_id = ?')
+        params.append(post_id)
+
+    where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
+
+    query = f'''
+        SELECT ai_tag_history.*,
+               posts.title as post_title,
+               users.username as user_username
+        FROM ai_tag_history
+        LEFT JOIN posts ON ai_tag_history.post_id = posts.id
+        LEFT JOIN users ON ai_tag_history.user_id = users.id
+        WHERE {where_clause}
+        ORDER BY ai_tag_history.created_at DESC
+        LIMIT ?
+    '''
+    params.append(limit)
+    cursor.execute(query, params)
+
+    history = []
+    for row in cursor.fetchall():
+        record = dict(row)
+        # 解析JSON格式的标签
+        try:
+            record['generated_tags'] = json.loads(record['generated_tags'])
+        except:
+            record['generated_tags'] = []
+        history.append(record)
+
+    conn.close()
+    return history
+
+
+def get_ai_usage_stats(user_id=None):
+    """
+    获取AI使用统计
+
+    Args:
+        user_id: 用户ID (可选)
+
+    Returns:
+        dict: 统计信息
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if user_id:
+        cursor.execute('''
+            SELECT
+                COUNT(*) as total_generations,
+                SUM(tokens_used) as total_tokens,
+                SUM(cost) as total_cost,
+                AVG(tokens_used) as avg_tokens,
+                MAX(created_at) as last_used
+            FROM ai_tag_history
+            WHERE user_id = ?
+        ''', (user_id,))
+    else:
+        cursor.execute('''
+            SELECT
+                COUNT(*) as total_generations,
+                SUM(tokens_used) as total_tokens,
+                SUM(cost) as total_cost,
+                AVG(tokens_used) as avg_tokens,
+                MAX(created_at) as last_used
+            FROM ai_tag_history
+        ''')
+
+    stats = dict(cursor.fetchone())
+
+    # 获取最近使用的货币单位
+    if user_id:
+        cursor.execute('''
+            SELECT currency FROM ai_tag_history
+            WHERE user_id = ? AND currency IS NOT NULL
+            ORDER BY created_at DESC LIMIT 1
+        ''', (user_id,))
+    else:
+        cursor.execute('''
+            SELECT currency FROM ai_tag_history
+            WHERE currency IS NOT NULL
+            ORDER BY created_at DESC LIMIT 1
+        ''')
+
+    currency_row = cursor.fetchone()
+    stats['currency'] = currency_row['currency'] if currency_row else 'USD'
+
+    conn.close()
+
+    # 处理NULL值
+    stats['total_tokens'] = stats['total_tokens'] or 0
+    stats['total_cost'] = stats['total_cost'] or 0.0
+    stats['avg_tokens'] = stats['avg_tokens'] or 0
+
+    return stats
+
+
+def strip_html_tags(html_content):
+    """
+    移除HTML标签，保留纯文本
+
+    Args:
+        html_content: 包含HTML的文本
+
+    Returns:
+        str: 纯文本内容
+    """
+    import re
+
+    if not html_content:
+        return ""
+
+    # 移除script和style标签及其内容
+    html_content = re.sub(r'<script[^>]*?>.*?</script>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
+    html_content = re.sub(r'<style[^>]*?>.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
+
+    # 替换HTML标签
+    html_content = re.sub(r'<[^>]+>', '', html_content)
+
+    # 替换HTML实体
+    html_entities = {
+        '&nbsp;': ' ',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&amp;': '&',
+        '&quot;': '"',
+        '&apos;': "'",
+        '&copy;': '©',
+        '&reg;': '®',
+        '&mdash;': '—',
+        '&ndash;': '–',
+        '&hellip;': '…',
+        '&#39;': "'",
+        '&#34;': '"',
+    }
+
+    for entity, char in html_entities.items():
+        html_content = html_content.replace(entity, char)
+
+    # 清理多余的空白
+    html_content = re.sub(r'\s+', ' ', html_content)
+    html_content = html_content.strip()
+
+    return html_content
+
+
+def truncate_text(text, max_length=200, suffix='...'):
+    """
+    截断文本到指定长度，避免在单词中间截断
+
+    Args:
+        text: 要截断的文本
+        max_length: 最大长度
+        suffix: 截断后添加的后缀
+
+    Returns:
+        str: 截断后的文本
+    """
+    if not text:
+        return ""
+
+    # 先移除HTML标签
+    text = strip_html_tags(text)
+
+    # 如果文本已经足够短，直接返回
+    if len(text) <= max_length:
+        return text
+
+    # 截断到最大长度
+    truncated = text[:max_length]
+
+    # 尝试在最后一个空格处截断，避免截断单词
+    last_space = truncated.rfind(' ')
+
+    if last_space > max_length * 0.8:  # 如果最后一个空格在80%位置之后
+        truncated = truncated[:last_space]
+
+    return truncated + suffix
+
+
+def get_post_excerpt(post_content, max_length=200):
+    """
+    获取文章摘要（清理HTML并截断）
+
+    Args:
+        post_content: 文章内容
+        max_length: 摘要最大长度
+
+    Returns:
+        str: 文章摘要
+    """
+    return truncate_text(post_content, max_length)
+
+
+def check_post_access(post_id, user_id=None, session_passwords=None):
+    """
+    检查用户是否有权限访问文章
+
+    Args:
+        post_id: 文章ID
+        user_id: 用户ID（可选）
+        session_passwords: session中已解锁的密码列表（可选）
+
+    Returns:
+        dict: {'allowed': bool, 'reason': str}
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT access_level, access_password, author_id
+        FROM posts
+        WHERE id = ?
+    ''', (post_id,))
+
+    post = cursor.fetchone()
+    conn.close()
+
+    if not post:
+        return {'allowed': False, 'reason': '文章不存在'}
+
+    access_level = post['access_level'] or 'public'
+    access_password = post['access_password']
+    author_id = post['author_id']
+
+    # 公开文章
+    if access_level == 'public':
+        return {'allowed': True, 'reason': 'public'}
+
+    # 私密文章：只有作者和管理员可见
+    if access_level == 'private':
+        if user_id:
+            # 检查是否是作者或管理员
+            cursor = get_db_connection().cursor()
+            cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+            user = cursor.fetchone()
+
+            if user and (user_id == author_id or user['role'] == 'admin'):
+                cursor.connection.close()
+                return {'allowed': True, 'reason': 'author_or_admin'}
+
+            cursor.connection.close()
+
+        return {'allowed': False, 'reason': 'private'}
+
+    # 登录用户可见
+    if access_level == 'login':
+        if user_id:
+            return {'allowed': True, 'reason': 'logged_in'}
+        return {'allowed': False, 'reason': 'login_required'}
+
+    # 密码保护
+    if access_level == 'password':
+        # 作者和管理员直接可以访问
+        if user_id:
+            cursor = get_db_connection().cursor()
+            cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+            user = cursor.fetchone()
+
+            if user and (user_id == author_id or user['role'] == 'admin'):
+                cursor.connection.close()
+                return {'allowed': True, 'reason': 'author_or_admin'}
+
+            cursor.connection.close()
+
+        # 检查session中是否有正确的密码
+        if session_passwords and str(post_id) in session_passwords:
+            return {'allowed': True, 'reason': 'password_verified'}
+
+        return {'allowed': False, 'reason': 'password_required', 'has_password': bool(access_password)}
+
+    return {'allowed': True, 'reason': 'unknown'}
+
+
+def update_post_access(post_id, access_level, access_password=None):
+    """
+    更新文章访问权限
+
+    Args:
+        post_id: 文章ID
+        access_level: 访问级别
+        access_password: 密码（可选）
+
+    Returns:
+        bool: 是否成功
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('''
+            UPDATE posts
+            SET access_level = ?, access_password = ?
+            WHERE id = ?
+        ''', (access_level, access_password, post_id))
+
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Error updating post access: {e}")
+        return False
+    finally:
+        conn.close()
+
+
+def verify_post_password(post_id, password):
+    """
+    验证文章访问密码
+
+    Args:
+        post_id: 文章ID
+        password: 输入的密码
+
+    Returns:
+        bool: 密码是否正确
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT access_password FROM posts
+        WHERE id = ? AND access_level = 'password'
+    ''', (post_id,))
+
+    post = cursor.fetchone()
+    conn.close()
+
+    if not post or not post['access_password']:
+        return False
+
+    return password == post['access_password']
+
 

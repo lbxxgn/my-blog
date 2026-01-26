@@ -32,7 +32,7 @@ from config import DATABASE_URL
 def backup_database(db_path):
     """备份现有数据库"""
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_path = db_path.parent / f"posts_backup_{timestamp}.db"
+    backup_path = db_path.parent / f"simple_blog_backup_{timestamp}.db"
 
     print(f"📦 备份数据库到: {backup_path}")
     shutil.copy2(db_path, backup_path)
