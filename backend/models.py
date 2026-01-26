@@ -141,6 +141,8 @@ def init_db(db_path=None):
             is_published BOOLEAN DEFAULT 0,
             category_id INTEGER,
             author_id INTEGER DEFAULT 1,
+            access_level TEXT DEFAULT 'public',
+            access_password TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (category_id) REFERENCES categories(id),
@@ -1088,13 +1090,25 @@ def update_user(user_id, username=None, display_name=None, bio=None, role=None, 
 
 
 def delete_user(user_id):
-    """删除用户（将其文章设为无作者）"""
-    with get_db_context() as conn:
-        cursor = conn.cursor()
-        # 先将该用户的文章设为无作者
-        cursor.execute('UPDATE posts SET author_id = NULL WHERE author_id = ?', (user_id,))
-        # 删除用户
-        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+    """删除用户（将其文章设为无作者）
+
+    Returns:
+        bool: 删除成功返回True，否则返回False
+    """
+    try:
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            # 先将该用户的文章设为无作者
+            cursor.execute('UPDATE posts SET author_id = NULL WHERE author_id = ?', (user_id,))
+            # 删除用户
+            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            # 检查是否删除了行
+            if cursor.rowcount > 0:
+                return True
+            return False
+    except Exception as e:
+        logger.error(f"Error deleting user {user_id}: {e}")
+        return False
 
 
 def get_posts_by_author(author_id, include_drafts=False, page=1, per_page=20):
