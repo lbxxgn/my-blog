@@ -225,3 +225,147 @@ class TagGenerator:
             #     'models': ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229', 'claude-3-opus-20240229']
             # },
         ]
+
+    @classmethod
+    def generate_summary(
+        cls,
+        title: str,
+        content: str,
+        user_config: Dict[str, Any],
+        max_length: int = 200
+    ) -> Optional[Dict[str, any]]:
+        """
+        Generate a summary for a blog post
+
+        Args:
+            title: Post title
+            content: Post content
+            user_config: User AI configuration
+            max_length: Maximum length of summary
+
+        Returns:
+            Dict with summary, tokens_used, model, cost, or None if disabled
+        """
+        if not user_config.get('ai_tag_generation_enabled', False):
+            logger.info("AI summary generation is disabled for this user")
+            return None
+
+        api_key = user_config.get('ai_api_key')
+        if not api_key:
+            logger.warning("No API key configured for AI summary generation")
+            raise ValueError("API密钥未配置")
+
+        try:
+            provider = user_config.get('ai_provider', 'openai')
+            model = user_config.get('ai_model')
+            llm_provider = cls.create_provider(provider, api_key, model)
+
+            result = llm_provider.generate_summary(
+                title=title,
+                content=content,
+                max_length=max_length
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to generate summary: {str(e)}")
+            raise
+
+    @classmethod
+    def recommend_related_posts(
+        cls,
+        current_post_id: int,
+        title: str,
+        content: str,
+        all_posts: List[Dict],
+        user_config: Dict[str, Any],
+        max_recommendations: int = 3
+    ) -> Optional[Dict[str, any]]:
+        """
+        Recommend related blog posts
+
+        Args:
+            current_post_id: ID of current post
+            title: Current post title
+            content: Current post content
+            all_posts: List of all posts
+            user_config: User AI configuration
+            max_recommendations: Maximum number of recommendations
+
+        Returns:
+            Dict with recommendations, tokens_used, model, cost, or None if disabled
+        """
+        if not user_config.get('ai_tag_generation_enabled', False):
+            logger.info("AI recommendation is disabled for this user")
+            return None
+
+        api_key = user_config.get('ai_api_key')
+        if not api_key:
+            logger.warning("No API key configured for AI recommendation")
+            raise ValueError("API密钥未配置")
+
+        try:
+            provider = user_config.get('ai_provider', 'openai')
+            model = user_config.get('ai_model')
+            llm_provider = cls.create_provider(provider, api_key, model)
+
+            result = llm_provider.recommend_related_posts(
+                current_post_id=current_post_id,
+                title=title,
+                content=content,
+                all_posts=all_posts,
+                max_recommendations=max_recommendations
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to generate recommendations: {str(e)}")
+            raise
+
+    @classmethod
+    def continue_writing(
+        cls,
+        title: str,
+        content: str,
+        user_config: Dict[str, Any],
+        continuation_length: int = 500
+    ) -> Optional[Dict[str, any]]:
+        """
+        Continue writing from where the content left off
+
+        Args:
+            title: Post title
+            content: Existing content
+            user_config: User AI configuration
+            continuation_length: Target length of continuation
+
+        Returns:
+            Dict with continuation, tokens_used, model, cost, or None if disabled
+        """
+        if not user_config.get('ai_tag_generation_enabled', False):
+            logger.info("AI writing continuation is disabled for this user")
+            return None
+
+        api_key = user_config.get('ai_api_key')
+        if not api_key:
+            logger.warning("No API key configured for AI writing continuation")
+            raise ValueError("API密钥未配置")
+
+        try:
+            provider = user_config.get('ai_provider', 'openai')
+            model = user_config.get('ai_model')
+            llm_provider = cls.create_provider(provider, api_key, model)
+
+            result = llm_provider.continue_writing(
+                title=title,
+                content=content,
+                continuation_length=continuation_length
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to continue writing: {str(e)}")
+            raise

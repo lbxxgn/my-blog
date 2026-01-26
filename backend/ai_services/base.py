@@ -97,6 +97,79 @@ class BaseLLMProvider(ABC):
 
         return prompt
 
+    @abstractmethod
+    def generate_summary(
+        self,
+        title: str,
+        content: str,
+        max_length: int = 200
+    ) -> Dict[str, any]:
+        """
+        Generate a summary for a blog post
+
+        Args:
+            title: Post title
+            content: Post content
+            max_length: Maximum length of summary
+
+        Returns:
+            Dict containing:
+                - summary: Generated summary text
+                - tokens_used: Number of tokens used
+                - model: Model used
+        """
+        pass
+
+    @abstractmethod
+    def recommend_related_posts(
+        self,
+        current_post_id: int,
+        title: str,
+        content: str,
+        all_posts: List[Dict],
+        max_recommendations: int = 3
+    ) -> Dict[str, any]:
+        """
+        Recommend related blog posts
+
+        Args:
+            current_post_id: ID of current post
+            title: Current post title
+            content: Current post content
+            all_posts: List of all posts (dicts with id, title, content)
+            max_recommendations: Maximum number of recommendations
+
+        Returns:
+            Dict containing:
+                - recommendations: List of related post IDs
+                - tokens_used: Number of tokens used
+                - model: Model used
+        """
+        pass
+
+    @abstractmethod
+    def continue_writing(
+        self,
+        title: str,
+        content: str,
+        continuation_length: int = 500
+    ) -> Dict[str, any]:
+        """
+        Continue writing from where the content left off
+
+        Args:
+            title: Post title
+            content: Existing content
+            continuation_length: Target length of continuation
+
+        Returns:
+            Dict containing:
+                - continuation: Generated text to append
+                - tokens_used: Number of tokens used
+                - model: Model used
+        """
+        pass
+
     def _parse_tags_from_response(self, response_text: str) -> List[str]:
         """
         Parse tags from LLM response

@@ -1872,6 +1872,189 @@ def ai_history():
                          stats=stats)
 
 
+@app.route('/admin/ai/generate-summary', methods=['POST'])
+@login_required
+def generate_summary():
+    """
+    AI生成文章摘要API
+    """
+    user_id = session.get('user_id')
+    user_config = get_user_ai_config(user_id)
+
+    data = request.get_json()
+    title = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+    max_length = data.get('max_length', 200)
+
+    if not title:
+        return jsonify({'success': False, 'error': '标题不能为空'}), 400
+
+    if not content:
+        return jsonify({'success': False, 'error': '内容不能为空'}), 400
+
+    try:
+        from ai_services.tag_generator import TagGenerator
+
+        result = TagGenerator.generate_summary(
+            title=title,
+            content=content,
+            user_config=user_config,
+            max_length=max_length
+        )
+
+        if not result:
+            return jsonify({'success': False, 'error': 'AI功能未启用'}), 400
+
+        # Save to AI history
+        save_ai_tag_history(
+            user_id=user_id,
+            post_id=data.get('post_id'),
+            action='generate_summary',
+            provider=user_config.get('ai_provider'),
+            model=result.get('model'),
+            tokens_used=result.get('tokens_used', 0),
+            input_tokens=result.get('input_tokens', 0),
+            output_tokens=result.get('output_tokens', 0),
+            cost=result.get('cost', 0),
+            result_preview=result.get('summary', '')[:100]
+        )
+
+        return jsonify({
+            'success': True,
+            'summary': result['summary'],
+            'tokens_used': result['tokens_used'],
+            'model': result['model']
+        })
+
+    except Exception as e:
+        logger.error(f"AI summary generation error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/admin/ai/recommend-posts', methods=['POST'])
+@login_required
+def recommend_posts():
+    """
+    AI推荐相关文章API
+    """
+    user_id = session.get('user_id')
+    user_config = get_user_ai_config(user_id)
+
+    data = request.get_json()
+    post_id = data.get('post_id')
+    title = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+    max_recommendations = data.get('max_recommendations', 3)
+
+    if not post_id:
+        return jsonify({'success': False, 'error': '文章ID不能为空'}), 400
+
+    if not title or not content:
+        return jsonify({'success': False, 'error': '标题和内容不能为空'}), 400
+
+    try:
+        from ai_services.tag_generator import TagGenerator
+
+        # Get all published posts
+        all_posts = get_all_posts(include_drafts=False)
+
+        result = TagGenerator.recommend_related_posts(
+            current_post_id=post_id,
+            title=title,
+            content=content,
+            all_posts=all_posts,
+            user_config=user_config,
+            max_recommendations=max_recommendations
+        )
+
+        if not result:
+            return jsonify({'success': False, 'error': 'AI功能未启用'}), 400
+
+        # Save to AI history
+        save_ai_tag_history(
+            user_id=user_id,
+            post_id=post_id,
+            action='recommend_posts',
+            provider=user_config.get('ai_provider'),
+            model=result.get('model'),
+            tokens_used=result.get('tokens_used', 0),
+            input_tokens=result.get('input_tokens', 0),
+            output_tokens=result.get('output_tokens', 0),
+            cost=result.get('cost', 0),
+            result_preview=f"Recommended {len(result.get('recommendations', []))} posts"
+        )
+
+        return jsonify({
+            'success': True,
+            'recommendations': result['recommendations'],
+            'tokens_used': result['tokens_used'],
+            'model': result['model']
+        })
+
+    except Exception as e:
+        logger.error(f"AI recommendation error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/admin/ai/continue-writing', methods=['POST'])
+@login_required
+def continue_writing():
+    """
+    AI续写内容API
+    """
+    user_id = session.get('user_id')
+    user_config = get_user_ai_config(user_id)
+
+    data = request.get_json()
+    title = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+    continuation_length = data.get('continuation_length', 500)
+
+    if not title:
+        return jsonify({'success': False, 'error': '标题不能为空'}), 400
+
+    if not content:
+        return jsonify({'success': False, 'error': '内容不能为空'}), 400
+
+    try:
+        from ai_services.tag_generator import TagGenerator
+
+        result = TagGenerator.continue_writing(
+            title=title,
+            content=content,
+            user_config=user_config,
+            continuation_length=continuation_length
+        )
+
+        if not result:
+            return jsonify({'success': False, 'error': 'AI功能未启用'}), 400
+
+        # Save to AI history
+        save_ai_tag_history(
+            user_id=user_id,
+            post_id=data.get('post_id'),
+            action='continue_writing',
+            provider=user_config.get('ai_provider'),
+            model=result.get('model'),
+            tokens_used=result.get('tokens_used', 0),
+            input_tokens=result.get('input_tokens', 0),
+            output_tokens=result.get('output_tokens', 0),
+            cost=result.get('cost', 0),
+            result_preview=result.get('continuation', '')[:100]
+        )
+
+        return jsonify({
+            'success': True,
+            'continuation': result['continuation'],
+            'tokens_used': result['tokens_used'],
+            'model': result['model']
+        })
+
+    except Exception as e:
+        logger.error(f"AI writing continuation error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
