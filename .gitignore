@@ -59,6 +59,10 @@ Thumbs.db
 exports/
 !exports/.gitkeep
 
+# XML exports and backups
+*.xml
+网易博客日志列表.xml
+
 # Temporary files
 *.tmp
 *.bak

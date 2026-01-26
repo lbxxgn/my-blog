@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}数据导入 - 管理后台{% endblock %}
+
+{% block content %}
+<div class="container admin-dashboard">
+    <div class="dashboard-header">
+        <h2>数据导入</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('export_page') }}" class="btn">数据导出</a>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+        </div>
+    </div>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="import-section">
+        <h3>导入选项</h3>
+        <p class="text-secondary">选择要导入的文件格式，支持从之前导出的数据中恢复文章。</p>
+
+        <div class="import-options">
+            <!-- JSON Import -->
+            <div class="import-option-card">
+                <div class="import-icon">📦</div>
+                <div class="import-info">
+                    <h4>从 JSON 文件导入</h4>
+                    <p>导入之前导出的 JSON 备份文件，恢复所有文章、分类和标签</p>
+                    <ul class="import-features">
+                        <li>✓ 完整的数据库结构</li>
+                        <li>✓ 保留原始发布日期</li>
+                        <li>✓ 自动创建分类和标签</li>
+                        <li>✓ 智能跳过重复文章</li>
+                    </ul>
+                </div>
+                <div class="import-action">
+                    <form action="{{ url_for('import_json') }}" method="post" enctype="multipart/form-data" class="import-form">
+                        <input type="file" name="import_file" accept=".json" id="jsonFileInput" required>
+                        <label for="jsonFileInput" class="file-label">选择 JSON 文件</label>
+                        <button type="submit" class="btn btn-primary">导入 JSON</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Markdown Import -->
+            <div class="import-option-card">
+                <div class="import-icon">📝</div>
+                <div class="import-info">
+                    <h4>从 Markdown 文件导入</h4>
+                    <p>导入包含 YAML frontmatter 的 Markdown 文件（需打包为 ZIP）</p>
+                    <ul class="import-features">
+                        <li>✓ 支持标准 frontmatter 格式</li>
+                        <li>✓ 批量导入多个文件</li>
+                        <li>✓ 保留分类和标签</li>
+                        <li>✓ 自动识别文章元数据</li>
+                    </ul>
+                </div>
+                <div class="import-action">
+                    <form action="{{ url_for('import_markdown') }}" method="post" enctype="multipart/form-data" class="import-form">
+                        <input type="file" name="import_file" accept=".zip" id="markdownFileInput" required>
+                        <label for="markdownFileInput" class="file-label">选择 ZIP 文件</label>
+                        <button type="submit" class="btn btn-primary">导入 Markdown</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Info -->
+        <div class="import-info-box">
+            <h4>📌 导入说明</h4>
+            <ul>
+                <li><strong>JSON 格式</strong>：使用系统导出功能生成的 JSON 文件</li>
+                <li><strong>Markdown 格式</strong>：将导出的 Markdown 文件打包成 ZIP 上传</li>
+                <li>导入时会自动检测重复文章（通过标题和日期）</li>
+                <li>不存在的分类和标签会自动创建</li>
+                <li>文章的作者将设置为当前登录的管理员</li>
+            </ul>
+        </div>
+
+        <!-- Import Warnings -->
+        <div class="import-warning-box">
+            <h4>⚠️ 注意事项</h4>
+            <ul>
+                <li>导入操作不可撤销，请确保备份重要数据</li>
+                <li>重复的文章会被自动跳过</li>
+                <li>如果文章数量较多，导入可能需要一些时间</li>
+                <li>建议在导入前先清空测试数据</li>
+            </ul>
+        </div>
+
+        <!-- Export First Info -->
+        <div class="export-first-info">
+            <h4>💡 还没有导出文件？</h4>
+            <p>如果这是第一次使用，您可以先导出现有数据：</p>
+            <a href="{{ url_for('export_page') }}" class="btn">前往数据导出</a>
+        </div>
+    </div>
+</div>
+
+<style>
+.import-section {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.import-section h3 {
+    margin-bottom: 1rem;
+    color: var(--text-color, #1f2937);
+}
+
+.import-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.import-option-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s;
+}
+
+.import-option-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.import-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.import-info {
+    flex: 1;
+}
+
+.import-info h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    color: var(--text-color, #1f2937);
+}
+
+.import-info p {
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.import-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem 0;
+}
+
+.import-features li {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.9rem;
+    padding: 0.25rem 0;
+}
+
+.import-action {
+    margin-top: 1rem;
+}
+
+.import-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.import-form input[type="file"] {
+    display: none;
+}
+
+.file-label {
+    display: block;
+    padding: 0.5rem 1rem;
+    background: var(--code-bg, #f3f4f6);
+    border: 2px dashed var(--border-color, #d1d5db);
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-secondary, #6b7280);
+}
+
+.file-label:hover {
+    border-color: var(--primary-color, #10b981);
+    color: var(--primary-color, #10b981);
+}
+
+.import-form input[type="file"]:checked + .file-label {
+    border-color: var(--primary-color, #10b981);
+    background: var(--primary-bg, #d1fae5);
+}
+
+.import-action .btn {
+    width: 100%;
+}
+
+.import-info-box,
+.import-warning-box {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.import-warning-box {
+    background: #fef3c7;
+    border-color: #f59e0b;
+}
+
+.import-warning-box h4 {
+    color: #92400e;
+    margin: 0 0 1rem 0;
+}
+
+.import-warning-box ul li {
+    color: #92400e;
+}
+
+.import-info-box h4,
+.import-warning-box h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+}
+
+.import-info-box ul,
+.import-warning-box ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.import-info-box li,
+.import-warning-box li {
+    padding: 0.5rem 0;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.6;
+}
+
+.import-info-box code,
+.import-warning-box code {
+    padding: 0.25rem 0.5rem;
+    background: var(--code-bg, #f3f4f6);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-family: 'Courier New', monospace;
+}
+
+.export-first-info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.export-first-info h4 {
+    margin: 0 0 0.5rem 0;
+    color: white;
+}
+
+.export-first-info p {
+    margin: 0.5rem 0 1rem 0;
+    opacity: 0.9;
+}
+
+.export-first-info .btn {
+    background: white;
+    color: #667eea;
+    border: none;
+}
+
+.export-first-info .btn:hover {
+    background: #f0f0f0;
+}
+
+/* Flash messages */
+.flash-messages {
+    margin-bottom: 1.5rem;
+}
+
+.flash-message {
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+.flash-message.success {
+    background: var(--success-bg, #d1fae5);
+    color: var(--success-color, #065f46);
+    border: 1px solid var(--success-border, #10b981);
+}
+
+.flash-message.error {
+    background: var(--error-bg, #fee2e2);
+    color: var(--error-color, #991b1b);
+    border: 1px solid var(--error-border, #ef4444);
+}
+
+.flash-message.warning {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Dark theme */
+.dark-theme .import-option-card {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.dark-theme .import-info h4 {
+    color: #f9fafb;
+}
+
+.dark-theme .file-label {
+    background: #374151;
+    border-color: #4b5563;
+    color: #d1d5db;
+}
+
+.dark-theme .file-label:hover {
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.dark-theme .import-info-box {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.dark-theme .import-warning-box {
+    background: #451a03;
+    border-color: #92400e;
+}
+
+.dark-theme .import-warning-box h4 {
+    color: #fef3c7;
+}
+
+.dark-theme .import-warning-box li {
+    color: #fef3c7;
+}
+
+.dark-theme .import-info-box code,
+.dark-theme .import-warning-box code {
+    background: #374151;
+    color: #f9fafb;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .import-options {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+// Update file label when file is selected
+document.querySelectorAll('input[type="file"]').forEach(input => {
+    input.addEventListener('change', function(e) {
+        const label = this.nextElementSibling;
+        const fileName = e.target.files[0]?.name;
+
+        if (fileName) {
+            label.textContent = `已选择: ${fileName}`;
+            label.style.borderColor = 'var(--primary-color, #10b981)';
+            label.style.background = 'var(--primary-bg, #d1fae5)';
+            label.style.color = 'var(--primary-color, #10b981)';
+        }
+    });
+});
+</script>
+{% endblock %}

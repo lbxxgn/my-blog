@@ -1,0 +1,14 @@
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+*.db.backup.*
+*.db.old
+*.db.new
+
+# SQL dumps
+dump.sql
+
+# Backup files
+*_backup_*.db
+backup*.db

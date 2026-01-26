@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}AI使用历史 - 我的博客{% endblock %}
+
+{% block content %}
+<div class="container admin-dashboard">
+    <div class="dashboard-header">
+        <h2>AI使用历史</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('ai_settings') }}" class="btn">AI设置</a>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+        </div>
+    </div>
+
+    <!-- 统计摘要 -->
+    {% if stats %}
+    <div class="stats-summary">
+        <div class="stat-card">
+            <div class="stat-label">总生成次数</div>
+            <div class="stat-value">{{ stats.total_generations }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">总Token数</div>
+            <div class="stat-value">{{ stats.total_tokens }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">总成本</div>
+            <div class="stat-value">${{ "%.4f"|format(stats.total_cost) }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">平均Token</div>
+            <div class="stat-value">{{ "%.0f"|format(stats.avg_tokens) }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 历史记录 -->
+    {% if history %}
+    <table class="posts-table">
+        <thead>
+            <tr>
+                <th>时间</th>
+                <th>文章</th>
+                <th>模型</th>
+                <th>生成的标签</th>
+                <th>Token数</th>
+                <th>成本</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in history %}
+            <tr>
+                <td>{{ record.created_at|localtime }}</td>
+                <td>
+                    {% if record.post_title %}
+                        <a href="{{ url_for('view_post', post_id=record.post_id) }}">{{ record.post_title }}</a>
+                    {% elif record.post_id %}
+                        <span style="color: #999;">文章已删除</span>
+                    {% else %}
+                        <span style="color: #999;">（新建文章）</span>
+                    {% endif %}
+                </td>
+                <td><code>{{ record.model_used }}</code></td>
+                <td>
+                    {% if record.generated_tags %}
+                        <div class="tags-display">
+                            {% for tag in record.generated_tags %}
+                            <span class="tag-item">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <span style="color: #999;">-</span>
+                    {% endif %}
+                </td>
+                <td>{{ record.tokens_used }}</td>
+                <td>${{ "%.6f"|format(record.cost) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>还没有AI使用记录。</p>
+        <p>配置AI功能后，在编辑文章时使用AI生成标签，这里将显示使用历史。</p>
+        <a href="{{ url_for('ai_settings') }}" class="btn btn-primary">前往AI设置</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.stats-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.stat-card .stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 0.5rem;
+}
+
+.stat-card .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--primary-color, #10b981);
+}
+
+.tags-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.tag-item {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: var(--code-bg, #f3f4f6);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    color: var(--text-color, #1f2937);
+}
+
+code {
+    padding: 0.25rem 0.5rem;
+    background: var(--code-bg, #f3f4f6);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-family: 'Courier New', monospace;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+}
+
+.empty-state p {
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 1rem;
+}
+
+/* Dark theme */
+.dark-theme .stat-card {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.dark-theme .tag-item,
+.dark-theme code {
+    background: #374151;
+    color: #f9fafb;
+}
+
+.dark-theme .empty-state {
+    background: #1f2937;
+    border-color: #374151;
+}
+</style>
+{% endblock %}

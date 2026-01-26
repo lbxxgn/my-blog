@@ -42,8 +42,13 @@ def clean_html_content(html_content):
 
     return html_content.strip()
 
-def import_blogs_from_xml(xml_file_path):
-    """从 XML 文件导入博客数据"""
+def import_blogs_from_xml(xml_file_path, author_id=2):
+    """从 XML 文件导入博客数据
+
+    Args:
+        xml_file_path: XML文件路径
+        author_id: 作者ID（默认为2，即lbxxgn用户）
+    """
 
     # 解析 XML
     print(f"正在解析 XML 文件: {xml_file_path}")
@@ -52,10 +57,24 @@ def import_blogs_from_xml(xml_file_path):
 
     # 获取所有博客条目
     blogs = root.findall('blog')
-    print(f"找到 {len(blogs)} 篇博客文章\n")
+    print(f"找到 {len(blogs)} 篇博客文章")
+    print(f"作者ID: {author_id}\n")
 
     # 确保数据库已初始化
     init_db()
+
+    # 验证用户存在
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username, display_name FROM users WHERE id = ?', (author_id,))
+    user = cursor.fetchone()
+    conn.close()
+
+    if not user:
+        print(f"错误: 找不到ID为 {author_id} 的用户")
+        return
+
+    print(f"导入到用户: {user['username']} ({user['display_name']})\n")
 
     # 获取或创建分类映射
     category_map = {}
@@ -135,7 +154,8 @@ def import_blogs_from_xml(xml_file_path):
                 title=title,
                 content=content,
                 is_published=is_published,
-                category_id=category_id
+                category_id=category_id,
+                author_id=author_id
             )
 
             # 更新创建时间为原始发布时间

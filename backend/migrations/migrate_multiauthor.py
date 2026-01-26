@@ -11,7 +11,7 @@ from pathlib import Path
 
 def migrate_database():
     # 数据库路径
-    db_path = Path(__file__).parent.parent.parent / 'db' / 'posts.db'
+    db_path = Path(__file__).parent.parent.parent / 'db' / 'simple_blog.db'
 
     if not db_path.exists():
         print(f"❌ 数据库文件不存在: {db_path}")

@@ -81,7 +81,9 @@ from models import (
     create_comment, get_comments_by_post, get_all_comments,
     update_comment_visibility, delete_comment,
     # 搜索和分页
-    search_posts, paginate_query_cursor, get_posts_by_author
+    search_posts, paginate_query_cursor, get_posts_by_author,
+    # AI功能相关
+    get_user_ai_config, update_user_ai_config, save_ai_tag_history, get_ai_tag_history, get_ai_usage_stats
 )
 
 # =============================================================================
@@ -91,6 +93,11 @@ from auth_decorators import (
     login_required, role_required, admin_required, editor_required,
     can_edit_post, can_delete_post, can_manage_users, get_current_user
 )
+
+# =============================================================================
+# AI服务导入
+# =============================================================================
+from ai_services import TagGenerator
 
 # =============================================================================
 # Flask应用初始化
@@ -119,7 +126,7 @@ app.config['WTF_CSRF_SSL_STRICT'] = WTF_CSRF_SSL_STRICT
 limiter = Limiter(
     app=app,
     key_func=get_remote_address,  # 使用IP地址作为限制依据
-    default_limits=["200 per day", "50 per hour"],  # 每天最多200次，每小时最多50次
+    default_limits=["1000 per day", "200 per hour"],  # 每天最多1000次，每小时最多200次
     storage_uri="memory://",  # 使用内存存储（生产环境建议使用Redis）
     strategy="fixed-window"  # 固定时间窗口策略
 )
@@ -246,6 +253,14 @@ def localtime_filter(value):
     return utc_to_local(value)
 
 
+# 自定义摘要过滤器，清理HTML标签并截断文本
+@app.template_filter('excerpt')
+def excerpt_filter(value, max_length=200):
+    """Jinja2过滤器：获取文章摘要（清理HTML并截断）"""
+    from models import get_post_excerpt
+    return get_post_excerpt(value, max_length)
+
+
 def login_required(f):
     """Decorator to require login for certain routes"""
     @wraps(f)
@@ -305,6 +320,36 @@ def view_post(post_id):
     if post is None:
         flash('文章不存在', 'error')
         return redirect(url_for('index'))
+
+    # 检查访问权限
+    from models import check_post_access
+    session_passwords = session.get('unlocked_posts', {})
+
+    access_check = check_post_access(
+        post_id,
+        session.get('user_id'),
+        session_passwords
+    )
+
+    if not access_check['allowed']:
+        # 权限不足，显示相应的提示页面
+        reason = access_check['reason']
+
+        if reason == 'password_required':
+            # 密码保护文章，显示密码输入页面
+            return render_template('post_password.html', post=post)
+
+        elif reason == 'login_required':
+            flash('此文章需要登录后才能查看', 'warning')
+            return redirect(url_for('login', next=request.url))
+
+        elif reason == 'private':
+            flash('此文章为私密文章，无权访问', 'error')
+            return redirect(url_for('index'))
+
+        else:
+            flash('无权访问此文章', 'error')
+            return redirect(url_for('index'))
 
     # Render markdown content
     post['content_html'] = markdown2.markdown(
@@ -540,6 +585,10 @@ def new_post():
         elif category_id is not None:
             category_id = int(category_id)
 
+        # 访问权限设置
+        access_level = request.form.get('access_level', 'public')
+        access_password = request.form.get('access_password', '') if access_level == 'password' else None
+
         if not title or not content:
             flash('标题和内容不能为空', 'error')
             categories = get_all_categories()
@@ -549,7 +598,36 @@ def new_post():
         author_id = session.get('user_id')
 
         # Create post first
-        post_id = create_post(title, content, is_published, category_id, author_id)
+        post_id = create_post(title, content, is_published, category_id, author_id, access_level, access_password)
+
+        # Update AI history records with this post_id (for records created before saving)
+        try:
+            import sqlite3
+            from models import DATABASE_URL
+            db_path = DATABASE_URL.replace('sqlite:///', '')
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # Update the most recent AI history record for this user that has no post_id
+            cursor.execute('''
+                UPDATE ai_tag_history
+                SET post_id = ?
+                WHERE id = (
+                    SELECT id FROM ai_tag_history
+                    WHERE user_id = ? AND post_id IS NULL
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                )
+            ''', (post_id, author_id))
+
+            updated = cursor.rowcount
+            conn.commit()
+            conn.close()
+
+            if updated > 0:
+                print(f"[AI History] Updated {updated} history record(s) with post_id={post_id}")
+        except Exception as e:
+            print(f"[AI History] Failed to update history: {e}")
 
         # Handle tags (in separate connection but after commit)
         tag_names = request.form.get('tags', '').split(',')
@@ -594,11 +672,26 @@ def edit_post(post_id):
             categories = get_all_categories()
             return render_template('admin/editor.html', post=post, categories=categories)
 
+        # 访问权限设置
+        access_level = request.form.get('access_level', 'public')
+        access_password = request.form.get('access_password', '') if access_level == 'password' else None
+
         # Handle tags
         tag_names = request.form.get('tags', '').split(',')
 
-        # Update post and tags in a single transaction
-        update_post_with_tags(post_id, title, content, is_published, category_id, tag_names)
+        # Update post
+        update_post(post_id, title, content, is_published, category_id, access_level, access_password)
+
+        # Update tags separately
+        if tag_names and tag_names[0]:
+            set_post_tags(post_id, tag_names)
+        else:
+            # Clear all tags if empty
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (post_id,))
+            conn.commit()
+            conn.close()
 
         flash('文章更新成功', 'success')
         return redirect(url_for('view_post', post_id=post_id))
@@ -1092,6 +1185,34 @@ def search():
 
 
 # Comment Routes
+@app.route('/post/<int:post_id>/verify-password', methods=['POST'])
+def verify_post_password(post_id):
+    """Verify password for password-protected post"""
+    data = request.get_json()
+    password = data.get('password', '')
+
+    if not password:
+        return jsonify({'success': False, 'message': '请输入密码'}), 400
+
+    from models import verify_post_password
+
+    if verify_post_password(post_id, password):
+        # 密码正确，保存到session
+        if 'unlocked_posts' not in session:
+            session['unlocked_posts'] = {}
+
+        session['unlocked_posts'][str(post_id)] = True
+        session.modified = True
+
+        return jsonify({
+            'success': True,
+            'message': '密码验证成功',
+            'redirect': url_for('view_post', post_id=post_id)
+        })
+    else:
+        return jsonify({'success': False, 'message': '密码错误，请重试'}), 401
+
+
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
     """Add a comment to a post"""
@@ -1251,6 +1372,123 @@ def export_json():
     return redirect(url_for('export_page'))
 
 
+# Import Routes
+@app.route('/admin/import')
+@login_required
+def import_page():
+    """Import page with options"""
+    return render_template('admin/import.html')
+
+
+@app.route('/admin/import/json', methods=['POST'])
+@login_required
+def import_json():
+    """Import posts from JSON file"""
+    try:
+        user_id = session.get('user_id')
+
+        # Check if file was uploaded
+        if 'import_file' not in request.files:
+            flash('没有上传文件', 'error')
+            return redirect(url_for('import_page'))
+
+        file = request.files['import_file']
+
+        if file.filename == '':
+            flash('没有选择文件', 'error')
+            return redirect(url_for('import_page'))
+
+        if not file.filename.endswith('.json'):
+            flash('只支持JSON格式文件', 'error')
+            return redirect(url_for('import_page'))
+
+        # Save file temporarily
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.json', delete=False) as tmp_file:
+            file.save(tmp_file.name)
+            tmp_file_path = tmp_file.name
+
+        # Import posts
+        from import_posts import import_from_json
+        count, skipped, messages = import_from_json(tmp_file_path, user_id)
+
+        # Clean up temp file
+        import os
+        os.unlink(tmp_file_path)
+
+        # Show results
+        for msg in messages[1:]:  # Skip summary message
+            flash(msg, 'success' if '✅' in msg else 'warning' if '⚠️' in msg else 'error')
+
+        flash(messages[0], 'success')  # Summary message
+        log_operation(user_id, session.get('username'), f'导入 {count} 篇文章从 JSON')
+
+    except Exception as e:
+        flash(f'导入失败: {str(e)}', 'error')
+        log_error(e, context='Import from JSON')
+
+    return redirect(url_for('import_page'))
+
+
+@app.route('/admin/import/markdown', methods=['POST'])
+@login_required
+def import_markdown():
+    """Import posts from markdown directory"""
+    try:
+        user_id = session.get('user_id')
+
+        # Check if directory was uploaded as zip
+        if 'import_file' not in request.files:
+            flash('没有上传文件', 'error')
+            return redirect(url_for('import_page'))
+
+        file = request.files['import_file']
+
+        if file.filename == '':
+            flash('没有选择文件', 'error')
+            return redirect(url_for('import_page'))
+
+        if not file.filename.endswith('.zip'):
+            flash('只支持ZIP压缩包格式', 'error')
+            return redirect(url_for('import_page'))
+
+        # Extract zip file
+        import tempfile
+        import zipfile
+        import shutil
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = os.path.join(tmp_dir, 'import.zip')
+            file.save(zip_path)
+
+            # Extract zip
+            extract_dir = os.path.join(tmp_dir, 'extracted')
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(extract_dir)
+
+            # Find posts directory or use extracted directory
+            posts_dir = os.path.join(extract_dir, 'posts')
+            if not os.path.exists(posts_dir):
+                posts_dir = extract_dir
+
+            # Import posts
+            from import_posts import import_from_markdown_directory
+            count, skipped, messages = import_from_markdown_directory(posts_dir, user_id)
+
+        # Show results
+        for msg in messages[1:]:  # Skip summary message
+            flash(msg, 'success' if '✅' in msg else 'warning' if '⚠️' in msg else 'error')
+
+        flash(messages[0], 'success')  # Summary message
+        log_operation(user_id, session.get('username'), f'导入 {count} 篇文章从 Markdown')
+
+    except Exception as e:
+        flash(f'导入失败: {str(e)}', 'error')
+        log_error(e, context='Import from markdown')
+
+    return redirect(url_for('import_page'))
+
+
 # ==================== 用户管理路由 ====================
 
 @app.route('/admin/users')
@@ -1390,6 +1628,248 @@ def view_author(author_id):
                          end_item=end_item,
                          page_range=page_range,
                          show_ellipsis=show_ellipsis)
+
+
+# =============================================================================
+# AI功能路由
+# =============================================================================
+
+@app.route('/admin/ai/generate-tags', methods=['POST'])
+@login_required
+def generate_tags():
+    """
+    AI生成标签API
+
+    接收文章标题和内容，返回AI生成的标签
+    """
+    try:
+        # 获取请求数据
+        data = request.get_json()
+        title = data.get('title', '').strip()
+        content = data.get('content', '').strip()
+
+        # 验证输入
+        if not title:
+            return jsonify({
+                'success': False,
+                'error': '文章标题不能为空'
+            }), 400
+
+        if not content:
+            return jsonify({
+                'success': False,
+                'error': '文章内容不能为空'
+            }), 400
+
+        # 获取当前用户的AI配置
+        user_id = session.get('user_id')
+        user_ai_config = get_user_ai_config(user_id)
+
+        if not user_ai_config:
+            return jsonify({
+                'success': False,
+                'error': '用户不存在'
+            }), 404
+
+        # 生成标签
+        result = TagGenerator.generate_for_post(
+            title=title,
+            content=content,
+            user_config=user_ai_config,
+            max_tags=3
+        )
+
+        if result is None:
+            return jsonify({
+                'success': False,
+                'error': 'AI标签生成功能未启用，请在设置中启用'
+            }), 400
+
+        # 记录生成历史（异步，不阻塞响应）
+        try:
+            post_id = data.get('post_id')
+            # 始终保存历史记录，即使没有 post_id（新建文章的情况）
+            history_id = save_ai_tag_history(
+                post_id=int(post_id) if post_id else None,
+                user_id=user_id,
+                prompt=f"Title: {title}\nContent: {content[:100]}...",
+                generated_tags=result['tags'],
+                model_used=result['model'],
+                tokens_used=result['tokens_used'],
+                cost=result.get('cost', 0),
+                currency=result.get('currency', 'USD')
+            )
+            print(f"[AI History] Saved record ID: {history_id}, post_id: {post_id}")
+        except Exception as e:
+            # 历史记录失败不影响主流程
+            print(f"[AI History] Failed to save: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            log_error(e, context='保存AI历史记录失败')
+
+        log_operation(session.get('user_id'), session.get('username'),
+                     f'AI生成标签: {", ".join(result["tags"])} ({result["tokens_used"]} tokens)')
+
+        return jsonify({
+            'success': True,
+            'tags': result['tags'],
+            'tokens_used': result['tokens_used'],
+            'model': result['model'],
+            'cost': result.get('cost', 0)
+        })
+
+    except ValueError as e:
+        # 配置错误
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+    except Exception as e:
+        log_error(e, context='AI标签生成失败')
+        return jsonify({
+            'success': False,
+            'error': f'生成失败: {str(e)}'
+        }), 500
+
+
+@app.route('/admin/ai/configure', methods=['GET', 'POST'])
+@login_required
+def ai_settings():
+    """
+    AI设置页面和API
+    GET: 显示设置页面
+    POST: 更新AI配置
+    """
+    user_id = session.get('user_id')
+
+    if request.method == 'GET':
+        # 获取用户当前AI配置
+        ai_config = get_user_ai_config(user_id)
+        supported_providers = TagGenerator.get_supported_providers()
+
+        # 获取使用统计
+        stats = get_ai_usage_stats(user_id)
+
+        return render_template('admin/ai_settings.html',
+                             ai_config=ai_config,
+                             supported_providers=supported_providers,
+                             stats=stats)
+
+    else:  # POST
+        try:
+            # 更新AI配置
+            data = request.get_json()
+
+            # 验证数据
+            ai_config = {}
+
+            if 'ai_tag_generation_enabled' in data:
+                ai_config['ai_tag_generation_enabled'] = bool(data['ai_tag_generation_enabled'])
+
+            if 'ai_provider' in data:
+                provider = data['ai_provider']
+                # 验证提供商是否支持
+                supported = [p['id'] for p in TagGenerator.get_supported_providers()]
+                if provider not in supported:
+                    return jsonify({
+                        'success': False,
+                        'error': f'不支持的AI提供商: {provider}'
+                    }), 400
+                ai_config['ai_provider'] = provider
+
+            if 'ai_api_key' in data:
+                api_key = data['ai_api_key'].strip()
+                if api_key:
+                    ai_config['ai_api_key'] = api_key
+
+            if 'ai_model' in data:
+                model = data['ai_model'].strip()
+                if model:
+                    ai_config['ai_model'] = model
+
+            # 更新配置
+            success = update_user_ai_config(user_id, ai_config)
+
+            if success:
+                log_operation(session.get('user_id'), session.get('username'),
+                             '更新AI配置')
+                return jsonify({
+                    'success': True,
+                    'message': 'AI配置已更新'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': '配置更新失败'
+                }), 500
+
+        except Exception as e:
+            log_error(e, context='更新AI配置失败')
+            return jsonify({
+                'success': False,
+                'error': f'更新失败: {str(e)}'
+            }), 500
+
+
+@app.route('/admin/ai/test', methods=['POST'])
+@login_required
+def test_ai_config():
+    """
+    测试AI配置API
+
+    支持两种模式：
+    1. 测试表单中的配置（POST请求体中提供）
+    2. 测试数据库中保存的配置
+    """
+    try:
+        user_id = session.get('user_id')
+
+        # 尝试从请求体获取配置（表单中的值）
+        form_config = request.get_json()
+
+        if form_config and form_config.get('ai_api_key'):
+            # 使用表单中的配置进行测试
+            ai_config = {
+                'ai_tag_generation_enabled': True,
+                'ai_provider': form_config.get('ai_provider', 'openai'),
+                'ai_api_key': form_config.get('ai_api_key'),
+                'ai_model': form_config.get('ai_model')
+            }
+        else:
+            # 使用数据库中保存的配置
+            ai_config = get_user_ai_config(user_id)
+
+            if not ai_config:
+                return jsonify({
+                    'success': False,
+                    'message': '未配置API密钥，请先在下方输入密钥'
+                })
+
+        # 测试配置
+        result = TagGenerator.test_user_config(ai_config)
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'测试失败: {str(e)}'
+        })
+
+
+@app.route('/admin/ai/history')
+@login_required
+def ai_history():
+    """
+    AI生成历史页面
+    """
+    user_id = session.get('user_id')
+    history = get_ai_tag_history(user_id=user_id, limit=50)
+    stats = get_ai_usage_stats(user_id)
+
+    return render_template('admin/ai_history.html',
+                         history=history,
+                         stats=stats)
 
 
 # Error handlers

@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+
+{% block title %}AI设置 - 我的博客{% endblock %}
+
+{% block content %}
+<div class="container admin-dashboard" style="max-width: 900px;">
+    <div class="dashboard-header">
+        <h2>AI功能设置</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+            <a href="{{ url_for('ai_history') }}" class="btn">使用历史</a>
+        </div>
+    </div>
+
+    <div class="ai-settings-container">
+        <!-- 功能开关 -->
+        <div class="ai-section">
+            <h3>功能设置</h3>
+            <div class="ai-setting-item">
+                <label class="toggle-label">
+                    <input type="checkbox" id="aiEnabled"
+                           {% if ai_config and ai_config.ai_tag_generation_enabled %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-text">启用AI标签生成</span>
+                </label>
+                <p class="setting-description">
+                    启用后，在编辑文章时可以使用AI自动生成标签。需要配置API密钥才能使用。
+                </p>
+            </div>
+        </div>
+
+        <!-- AI提供商配置 -->
+        <div class="ai-section">
+            <h3>AI提供商配置</h3>
+
+            <div class="ai-setting-item">
+                <label for="aiProvider">AI提供商</label>
+                <select id="aiProvider" class="form-control">
+                    {% for provider in supported_providers %}
+                    <option value="{{ provider.id }}"
+                            {% if ai_config and ai_config.ai_provider == provider.id %}selected{% endif %}>
+                        {{ provider.name }} - {{ provider.description }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="ai-setting-item">
+                <label for="aiModel">模型</label>
+                <select id="aiModel" class="form-control">
+                    <option value="">请先选择提供商</option>
+                </select>
+            </div>
+
+            <div class="ai-setting-item">
+                <label for="apiKey">API密钥</label>
+                <input type="password" id="apiKey" class="form-control"
+                       placeholder="sk-..."
+                       {% if ai_config and ai_config.ai_api_key %}value="{{ ai_config.ai_api_key }}"{% endif %}>
+                <p class="setting-description">
+                    您的API密钥将加密存储在数据库中。建议使用环境变量配置。
+                </p>
+            </div>
+
+            <div class="ai-actions">
+                <button type="button" class="btn" onclick="testConfig()">测试连接</button>
+                <button type="button" class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+            </div>
+            <p class="setting-description" style="margin-top: 0.5rem;">
+                💡 提示：可以直接点击"测试连接"测试表单中的配置，测试成功后再点击"保存配置"。
+            </p>
+
+            <div id="testResult" class="ai-test-result" style="display: none;"></div>
+        </div>
+
+        <!-- 使用统计 -->
+        {% if stats %}
+        <div class="ai-section">
+            <h3>使用统计</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value">{{ stats.total_generations }}</div>
+                    <div class="stat-label">生成次数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ stats.total_tokens }}</div>
+                    <div class="stat-label">总Token数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">
+                        {% if stats.currency == 'CNY' %}¥{% else %}${% endif %}{{ "%.4f"|format(stats.total_cost) }}
+                    </div>
+                    <div class="stat-label">总成本</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ "%.0f"|format(stats.avg_tokens) }}</div>
+                    <div class="stat-label">平均Token</div>
+                </div>
+            </div>
+            {% if stats.last_used %}
+            <p class="stats-last-used">最后使用: {{ stats.last_used|localtime }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- 成本说明 -->
+        <div class="ai-section ai-info-section">
+            <h3>成本说明</h3>
+
+            <!-- OpenAI -->
+            <h4 style="margin-top: 0; color: var(--text-color);">OpenAI (美元)</h4>
+            <table class="cost-table">
+                <thead>
+                    <tr>
+                        <th>模型</th>
+                        <th>输入 (每1K tokens)</th>
+                        <th>输出 (每1K tokens)</th>
+                        <th>预估单次成本</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>GPT-3.5-turbo</td>
+                        <td>$0.0005</td>
+                        <td>$0.0015</td>
+                        <td>~$0.0005</td>
+                    </tr>
+                    <tr>
+                        <td>GPT-4o</td>
+                        <td>$0.005</td>
+                        <td>$0.015</td>
+                        <td>~$0.005</td>
+                    </tr>
+                    <tr>
+                        <td>GPT-4-turbo</td>
+                        <td>$0.01</td>
+                        <td>$0.03</td>
+                        <td>~$0.01</td>
+                    </tr>
+                    <tr>
+                        <td>GPT-4</td>
+                        <td>$0.03</td>
+                        <td>$0.06</td>
+                        <td>~$0.03</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 火山引擎 -->
+            <h4 style="margin-top: 1.5rem; color: var(--text-color);">火山引擎 (人民币)</h4>
+            <table class="cost-table">
+                <thead>
+                    <tr>
+                        <th>模型</th>
+                        <th>输入 (每1K tokens)</th>
+                        <th>输出 (每1K tokens)</th>
+                        <th>预估单次成本</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>doubao-pro-32k</td>
+                        <td>¥0.00012</td>
+                        <td>¥0.00012</td>
+                        <td>~¥0.00004</td>
+                    </tr>
+                    <tr>
+                        <td>doubao-pro-4k</td>
+                        <td>¥0.00004</td>
+                        <td>¥0.00004</td>
+                        <td>~¥0.00001</td>
+                    </tr>
+                    <tr>
+                        <td>doubao-lite-4k</td>
+                        <td>¥0.00003</td>
+                        <td>¥0.00003</td>
+                        <td>~¥0.00001</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- 阿里百炼 -->
+            <h4 style="margin-top: 1.5rem; color: var(--text-color);">阿里百炼 (人民币)</h4>
+            <table class="cost-table">
+                <thead>
+                    <tr>
+                        <th>模型</th>
+                        <th>输入 (每1K tokens)</th>
+                        <th>输出 (每1K tokens)</th>
+                        <th>预估单次成本</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>qwen-flash <span style="font-size: 0.85em; color: var(--text-secondary);">推荐</span></td>
+                        <td>¥0.0001</td>
+                        <td>¥0.0002</td>
+                        <td>~¥0.00004</td>
+                    </tr>
+                    <tr>
+                        <td>qwen-turbo</td>
+                        <td>¥0.0003</td>
+                        <td>¥0.0006</td>
+                        <td>~¥0.0001</td>
+                    </tr>
+                    <tr>
+                        <td>qwen-plus</td>
+                        <td>¥0.0008</td>
+                        <td>¥0.002</td>
+                        <td>~¥0.0003</td>
+                    </tr>
+                    <tr>
+                        <td>qwen-coder-plus</td>
+                        <td>¥0.0008</td>
+                        <td>¥0.002</td>
+                        <td>~¥0.0003</td>
+                    </tr>
+                    <tr>
+                        <td>qwen-long-latest</td>
+                        <td>¥0.0005</td>
+                        <td>¥0.002</td>
+                        <td>~¥0.0003</td>
+                    </tr>
+                    <tr>
+                        <td>qwen-max</td>
+                        <td>¥0.02</td>
+                        <td>¥0.06</td>
+                        <td>~¥0.007</td>
+                    </tr>
+                    <tr>
+                        <td>qwen-vl-max</td>
+                        <td>¥0.02</td>
+                        <td>¥0.06</td>
+                        <td>~¥0.007</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="margin-top: 0.5rem; font-size: 0.85em; color: var(--text-secondary);">
+                更多模型：qwen-coder-plus-1106, qwen-coder-plus-latest, qwen-long-2025-01-25, qwen-vl-max-latest
+            </p>
+
+            <p class="info-text">
+                <strong>提示：</strong>每次生成约使用200-300 tokens（输入） + 50 tokens（输出）。
+                国内模型（火山引擎、阿里百炼）成本明显低于OpenAI，推荐优先使用。
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+.ai-settings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.ai-section {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.ai-section h3 {
+    margin: 0 0 1.5rem 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-color, #1f2937);
+}
+
+.ai-section h4 {
+    margin: 1.5rem 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color, #1f2937);
+}
+
+.ai-section h4:first-child {
+    margin-top: 0;
+}
+
+.ai-setting-item {
+    margin-bottom: 1.5rem;
+}
+
+.ai-setting-item:last-child {
+    margin-bottom: 0;
+}
+
+.ai-setting-item label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-color, #1f2937);
+}
+
+.ai-setting-item .form-control {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: var(--input-bg, #fff);
+    color: var(--text-color, #1f2937);
+}
+
+.setting-description {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.5;
+}
+
+/* Toggle Switch */
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.toggle-label input[type="checkbox"] {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    appearance: none;
+    background: var(--border-color, #e5e7eb);
+    border-radius: 13px;
+    outline: none;
+    transition: background 0.3s;
+}
+
+.toggle-label input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+
+.toggle-label input[type="checkbox"]:checked {
+    background: #10b981;
+}
+
+.toggle-label input[type="checkbox"]:checked::after {
+    transform: translateX(24px);
+}
+
+.toggle-text {
+    font-weight: 500;
+    color: var(--text-color, #1f2937);
+}
+
+/* Actions */
+.ai-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* Test Result */
+.ai-test-result {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.ai-test-result.success {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #10b981;
+}
+
+.ai-test-result.error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #ef4444;
+}
+
+/* Stats */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: var(--code-bg, #f9fafb);
+    border-radius: 8px;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color, #10b981);
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+    margin-top: 0.25rem;
+}
+
+.stats-last-used {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+/* Cost Table */
+.cost-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.cost-table th,
+.cost-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.cost-table th {
+    font-weight: 600;
+    color: var(--text-color, #1f2937);
+    background: var(--code-bg, #f9fafb);
+}
+
+.cost-table tr:last-child td {
+    border-bottom: none;
+}
+
+.info-text {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: var(--code-bg, #f9fafb);
+    border-left: 3px solid var(--primary-color, #10b981);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.ai-info-section {
+    background: var(--card-bg, #f9fafb);
+}
+
+/* Dark theme */
+.dark-theme .ai-section {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.dark-theme .ai-setting-item .form-control {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.dark-theme .toggle-label input[type="checkbox"] {
+    background: #4b5563;
+}
+
+.dark-theme .stat-item {
+    background: #374151;
+}
+
+.dark-theme .cost-table th {
+    background: #374151;
+}
+
+.dark-theme .info-text,
+.dark-theme .ai-info-section {
+    background: #374151;
+}
+</style>
+
+<script>
+// Provider models mapping
+const providerModels = {{ supported_providers|tojson }};
+
+// Update model options based on selected provider
+function updateModelOptions() {
+    const provider = document.getElementById('aiProvider').value;
+    const modelSelect = document.getElementById('aiModel');
+    const currentConfig = {{ ai_config|tojson }};
+
+    modelSelect.innerHTML = '';
+
+    const providerInfo = providerModels.find(p => p.id === provider);
+    if (providerInfo) {
+        providerInfo.models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            if (currentConfig && currentConfig.ai_model === model) {
+                option.selected = true;
+            }
+            modelSelect.appendChild(option);
+        });
+    }
+}
+
+// Initialize model options on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateModelOptions();
+    document.getElementById('aiProvider').addEventListener('change', updateModelOptions);
+});
+
+// Test AI configuration
+async function testConfig() {
+    const resultDiv = document.getElementById('testResult');
+    resultDiv.style.display = 'block';
+    resultDiv.className = 'ai-test-result';
+    resultDiv.textContent = '正在测试连接...';
+
+    // Get current form values
+    const config = {
+        ai_provider: document.getElementById('aiProvider').value,
+        ai_model: document.getElementById('aiModel').value,
+        ai_api_key: document.getElementById('apiKey').value
+    };
+
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
+
+    try {
+        const response = await fetch('/admin/ai/test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(config)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.classList.add('success');
+            resultDiv.textContent = '✅ ' + data.message;
+        } else {
+            resultDiv.classList.add('error');
+            resultDiv.textContent = '❌ ' + data.message;
+        }
+    } catch (error) {
+        resultDiv.classList.add('error');
+        resultDiv.textContent = '❌ 测试失败: ' + error.message;
+    }
+}
+
+// Save AI configuration
+async function saveConfig() {
+    const config = {
+        ai_tag_generation_enabled: document.getElementById('aiEnabled').checked,
+        ai_provider: document.getElementById('aiProvider').value,
+        ai_model: document.getElementById('aiModel').value,
+        ai_api_key: document.getElementById('apiKey').value
+    };
+
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
+
+    try {
+        const response = await fetch('/admin/ai/configure', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(config)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert('配置已保存！');
+        } else {
+            alert('保存失败: ' + data.error);
+        }
+    } catch (error) {
+        alert('保存失败: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

@@ -20,25 +20,6 @@
         </div>
 
         <div class="form-group">
-            <label for="category_id">分类</label>
-            <select id="category_id" name="category_id">
-                <option value="">无分类</option>
-                {% for category in categories %}
-                <option value="{{ category.id }}"
-                    {% if post and post.category_id == category.id %}selected{% endif %}>
-                    {{ category.name }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label for="tags">标签（用逗号分隔）</label>
-            <input type="text" name="tags" id="tags" value="{% if post and post.tags %}{{ post.tags|map(attribute='name')|join(', ') }}{% endif %}" placeholder="例如: Python, Flask, Web">
-            <small style="color: #666;">多个标签用逗号分隔</small>
-        </div>
-
-        <div class="form-group">
             <label for="content">内容</label>
             <textarea id="content" name="content" rows="20" required>{% if post %}{{ post.content }}{% endif %}</textarea>
             <!-- Hidden file input for image upload -->
@@ -46,23 +27,402 @@
             <div id="saveStatus" class="save-status"></div>
         </div>
 
-        <div class="form-actions">
+        <!-- 分类和标签合并为一行 -->
+        <div class="form-row">
+            <div class="form-group" style="flex: 1;">
+                <label for="category_id">分类</label>
+                <select id="category_id" name="category_id" style="width: 100%; padding: 0.625rem 0.875rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.95rem; background: var(--card-bg, #fff); color: var(--text-color, #1f2937); cursor: pointer; transition: all 0.2s;">
+                    <option value="">无分类</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}"
+                        {% if post and post.category_id == category.id %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group" style="flex: 2;">
+                <label for="tags">标签（用逗号分隔）</label>
+                <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+                    <input type="text" name="tags" id="tags" value="{% if post and post.tags %}{{ post.tags|map(attribute='name')|join(', ') }}{% endif %}" placeholder="例如: Python, Flask, Web" style="flex: 1; padding: 0.625rem 0.875rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.95rem; transition: all 0.2s;">
+                    <button type="button" id="aiGenerateBtn" class="btn btn-secondary" onclick="generateAITags()" title="使用AI生成标签" style="flex-shrink: 0;">
+                        <span style="display: flex; align-items: center; gap: 0.25rem;">
+                            <span class="ai-icon">🤖</span>
+                            <span>AI生成</span>
+                        </span>
+                    </button>
+                </div>
+                <small style="color: #666;">多个标签用逗号分隔</small>
+                <div id="aiStatus" class="ai-status" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- 底部操作栏 -->
+        <div class="editor-footer">
             <input type="checkbox" name="is_published" id="is_published" {% if post and post.is_published %}checked{% endif %} style="display: none;">
-            {% if not post or not post.is_published %}
-            <button type="button" id="publishToggle" class="btn btn-outline" onclick="togglePublish()">立即发布</button>
-            {% endif %}
-            <button type="submit" class="btn btn-primary">保存</button>
-            <a href="{{ url_for('admin_dashboard') }}" class="btn">取消</a>
+
+            <!-- 左侧：权限设置 -->
+            <div class="footer-left">
+                <div class="access-setting">
+                    <label for="access_level" style="font-size: 0.875rem; color: var(--text-secondary, #666); margin-bottom: 0.25rem;">访问权限</label>
+                    <select id="access_level" name="access_level" onchange="togglePasswordField()" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.9rem; background: var(--card-bg, #fff); color: var(--text-color, #1f2937);">
+                        <option value="public" {% if not post or post.get('access_level') == 'public' or post.get('access_level') is none %}selected{% endif %}>🌐 公开</option>
+                        <option value="login" {% if post and post.get('access_level') == 'login' %}selected{% endif %}>🔒 登录用户</option>
+                        <option value="password" {% if post and post.get('access_level') == 'password' %}selected{% endif %}>🔑 密码保护</option>
+                        <option value="private" {% if post and post.get('access_level') == 'private' %}selected{% endif %}>👁️ 私密</option>
+                    </select>
+                    <input type="text" id="access_password" name="access_password" value="{% if post and post.get('access_password') %}{{ post.access_password }}{% endif %}" placeholder="设置密码" style="display: none; margin-left: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.9rem; width: 150px;">
+                </div>
+            </div>
+
+            <!-- 右侧：操作按钮 -->
+            <div class="footer-right">
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">取消</a>
+                {% if not post or not post.is_published %}
+                <button type="button" id="publishToggle" class="btn btn-primary" onclick="togglePublish()">立即发布</button>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
         </div>
     </form>
 </div>
 
 <!-- Link Quill CSS from CDN -->
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+
+<style>
+/* Form Row Layout */
+.form-row {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.form-row .form-group {
+    margin-bottom: 0;
+}
+
+/* Form input and select styles */
+.form-row input[type="text"],
+.form-row select {
+    width: 100%;
+}
+
+.form-row input[type="text"]:focus,
+.form-row select:focus {
+    outline: none;
+    border-color: var(--primary-color, #10b981);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.form-row select:hover {
+    border-color: #9ca3af;
+}
+
+/* Dark theme fixes */
+.dark-theme .form-row input[type="text"],
+.dark-theme .form-row select {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.dark-theme .form-row input[type="text"]:focus,
+.dark-theme .form-row select:focus {
+    border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.dark-theme .form-row select:hover {
+    border-color: #6b7280;
+}
+
+/* Responsive for form row */
+@media (max-width: 768px) {
+    .form-row {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+
+/* Editor Footer Layout */
+.editor-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    margin-top: 2rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.access-setting {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.access-setting label {
+    white-space: nowrap;
+}
+
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Button Styles */
+.btn-primary {
+    background: var(--primary-color, #10b981);
+    color: white;
+    border: 1px solid var(--primary-color, #10b981);
+}
+
+.btn-primary:hover {
+    background: #059669;
+    border-color: #059669;
+}
+
+.btn-secondary {
+    background: white;
+    color: var(--text-color, #1f2937);
+    border: 1px solid var(--border-color, #d1d5db);
+}
+
+.btn-secondary:hover {
+    background: var(--code-bg, #f9fafb);
+    border-color: var(--border-color, #d1d5db);
+}
+
+.dark-theme .btn-secondary {
+    background: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
+}
+
+.dark-theme .btn-secondary:hover {
+    background: #4b5563;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .editor-footer {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .footer-left,
+    .footer-right {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .access-setting {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .footer-right {
+        flex-wrap: wrap;
+    }
+}
+
+/* AI Button Styles */
+.ai-generate-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.ai-icon {
+    font-size: 1rem;
+}
+
+.ai-status {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ai-status.loading {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #3b82f6;
+}
+
+.ai-status.success {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #10b981;
+}
+
+.ai-status.error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #ef4444;
+}
+
+.ai-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.dark-theme .ai-status.loading {
+    background: #1e3a8a;
+    color: #bfdbfe;
+}
+
+.dark-theme .ai-status.success {
+    background: #064e3b;
+    color: #d1fae5;
+}
+
+.dark-theme .ai-status.error {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
 <!-- Load Quill from CDN -->
 <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
 <script src="{{ url_for('static', filename='js/quill-editor.js') }}?v=1.0"></script>
+
+<script>
+// Publish and save article
+function togglePublish() {
+    const checkbox = document.getElementById('is_published');
+    const form = document.getElementById('editorForm');
+
+    // Set publish status to true
+    checkbox.checked = true;
+
+    // Submit the form to save and publish
+    form.submit();
+}
+
+// Toggle password field visibility
+function togglePasswordField() {
+    const accessLevel = document.getElementById('access_level').value;
+    const passwordInput = document.getElementById('access_password');
+
+    if (accessLevel === 'password') {
+        passwordInput.style.display = 'inline-block';
+    } else {
+        passwordInput.style.display = 'none';
+        passwordInput.value = '';
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    togglePasswordField();
+});
+
+// Generate AI tags
+async function generateAITags() {
+    const title = document.getElementById('title').value.trim();
+    const content = document.getElementById('content').value.trim();
+    const statusDiv = document.getElementById('aiStatus');
+    const tagsInput = document.getElementById('tags');
+    const generateBtn = document.getElementById('aiGenerateBtn');
+
+    // Validate inputs
+    if (!title) {
+        showAiStatus('error', '请先输入文章标题');
+        return;
+    }
+
+    if (!content) {
+        showAiStatus('error', '请先输入文章内容');
+        return;
+    }
+
+    // Get post ID if editing (extract from URL path)
+    const pathParts = window.location.pathname.split('/');
+    let postId = pathParts[pathParts.length - 1];
+    // If the last part is not a number, set postId to null
+    if (isNaN(parseInt(postId))) {
+        postId = null;
+    }
+
+    // Show loading state
+    generateBtn.disabled = true;
+    showAiStatus('loading', '🤖 AI正在生成标签...');
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
+
+    try {
+        const response = await fetch('/admin/ai/generate-tags', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                title: title,
+                content: content,
+                post_id: postId
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update tags input
+            const tags = data.tags.join(', ');
+            tagsInput.value = tags;
+
+            showAiStatus('success',
+                `✅ 已生成 ${data.tags.length} 个标签 (${data.tokens_used} tokens, ${data.model})`);
+        } else {
+            showAiStatus('error', `❌ ${data.error || '生成失败'}`);
+        }
+    } catch (error) {
+        showAiStatus('error', `❌ 网络错误: ${error.message}`);
+    } finally {
+        generateBtn.disabled = false;
+    }
+}
+
+// Show AI status message
+function showAiStatus(type, message) {
+    const statusDiv = document.getElementById('aiStatus');
+    statusDiv.className = 'ai-status ' + type;
+    statusDiv.style.display = 'flex';
+    statusDiv.innerHTML = message;
+
+    // Auto hide success messages after 5 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            statusDiv.style.display = 'none';
+        }, 5000);
+    }
+}
+</script>
 {% endblock %}

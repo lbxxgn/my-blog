@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent.parent
-DB_PATH = BASE_DIR / 'db' / 'posts.db'
+DB_PATH = BASE_DIR / 'db' / 'simple_blog.db'
 
 def check_database():
     """检查数据库完整性"""
@@ -76,7 +76,7 @@ def backup_database():
     """备份数据库"""
     print("\n创建备份...")
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    backup_path = DB_PATH.parent / f'posts.db.backup.{timestamp}'
+    backup_path = DB_PATH.parent / f'simple_blog.db.backup.{timestamp}'
     shutil.copy2(DB_PATH, backup_path)
     print(f"✓ 备份已创建: {backup_path}")
 
@@ -126,7 +126,7 @@ def fix_database():
 
         # 重建数据库
         print("\n重建数据库...")
-        new_db_path = DB_PATH.parent / 'posts.db.new'
+        new_db_path = DB_PATH.parent / 'simple_blog.db.new'
         new_conn = sqlite3.connect(str(new_db_path))
         with open(DB_PATH.parent / 'dump.sql', 'r') as f:
             sql = f.read()
@@ -134,7 +134,7 @@ def fix_database():
         new_conn.close()
 
         # 替换旧数据库
-        shutil.move(DB_PATH, DB_PATH.parent / 'posts.db.old')
+        shutil.move(DB_PATH, DB_PATH.parent / 'simple_blog.db.old')
         shutil.move(str(new_db_path), DB_PATH)
         print("✓ 数据库已重建")
 

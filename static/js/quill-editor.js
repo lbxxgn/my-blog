@@ -196,5 +196,102 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Expose quill instance globally for debugging
         window.quill = quill;
+
+        // Get post_id for AI generation (if editing)
+        const postId = {% if post %}{{ post.id }}{% else %}null{% endif %};
+    }
+
+    // AI Tag Generation Function
+    window.generateAITags = async function() {
+        const title = document.getElementById('title')?.value?.trim();
+        const tagsInput = document.getElementById('tags');
+        const aiStatus = document.getElementById('aiStatus');
+        const aiGenerateBtn = document.getElementById('aiGenerateBtn');
+
+        // Validate inputs
+        if (!title) {
+            showAIStatus('error', '请先输入文章标题');
+            return;
+        }
+
+        if (!window.quill) {
+            showAIStatus('error', '编辑器未初始化');
+            return;
+        }
+
+        // Get content from Quill editor
+        const content = window.quill.getText().trim();
+
+        if (content.length < 50) {
+            showAIStatus('error', '文章内容太少，请至少输入50个字符');
+            return;
+        }
+
+        // Show loading state
+        showAIStatus('loading', '🤖 AI正在分析文章内容...');
+        if (aiGenerateBtn) {
+            aiGenerateBtn.disabled = true;
+            aiGenerateBtn.style.opacity = '0.6';
+        }
+
+        try {
+            const response = await fetch('/admin/ai/generate-tags', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: title,
+                    content: content,
+                    post_id: postId
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Update tags input with generated tags
+                const newTags = data.tags.join(', ');
+                if (tagsInput) {
+                    // Append to existing tags or replace
+                    const existingTags = tagsInput.value.trim();
+                    tagsInput.value = existingTags
+                        ? existingTags + ', ' + newTags
+                        : newTags;
+                }
+
+                // Show success message
+                showAIStatus(
+                    'success',
+                    `✅ 已生成标签: ${data.tags.join(', ')} (${data.tokens_used} tokens, 约$${data.cost.toFixed(4)})`
+                );
+
+                // Auto-hide success message after 5 seconds
+                setTimeout(() => {
+                    if (aiStatus) aiStatus.style.display = 'none';
+                }, 5000);
+            } else {
+                showAIStatus('error', '❌ ' + data.error);
+            }
+        } catch (error) {
+            showAIStatus('error', '❌ 生成失败: ' + error.message);
+        } finally {
+            if (aiGenerateBtn) {
+                aiGenerateBtn.disabled = false;
+                aiGenerateBtn.style.opacity = '1';
+            }
+        }
+    };
+
+    // Helper function to show AI status messages
+    function showAIStatus(type, message) {
+        const aiStatus = document.getElementById('aiStatus');
+        if (!aiStatus) return;
+
+        aiStatus.className = 'ai-status ' + type;
+        aiStatus.innerHTML = type === 'loading'
+            ? '<span class="ai-spinner"></span><span>' + message + '</span>'
+            : message;
+        aiStatus.style.display = 'flex';
     }
 });
