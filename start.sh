@@ -98,10 +98,10 @@ echo -e "  PORT=$PORT"
 # 检查数据库
 echo -e "${YELLOW}[4/6] 检查数据库...${NC}"
 
-if [ ! -f "db/posts.db" ]; then
+if [ ! -f "db/simple_blog.db" ]; then
     echo -e "  ${YELLOW}数据库不存在，首次启动将自动创建${NC}"
 else
-    DB_SIZE=$(du -h "db/posts.db" | cut -f1)
+    DB_SIZE=$(du -h "db/simple_blog.db" | cut -f1)
     echo -e "  ${GREEN}✓${NC} 数据库存在 (大小: $DB_SIZE)"
 fi
 

@@ -2318,3 +2318,23 @@ img.loaded {
     display: block;
     margin: 1.5rem 0;
 }
+
+/* AI推荐文章链接样式 */
+.recommendation-link {
+    color: #1abc9c;
+    text-decoration: none;
+    border-bottom: 1px dotted #1abc9c;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.recommendation-link:hover {
+    color: #16a089;
+    border-bottom-style: solid;
+    text-decoration: none;
+}
+
+.ai-status .recommendation-link {
+    color: inherit;
+    border-bottom-color: currentColor;
+}

@@ -48,9 +48,9 @@ UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 # 允许的图片文件扩展名
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-# 最大上传文件大小（16MB）
+# 最大上传文件大小（100MB）
 # 注意：这是全局限制，对单个请求生效
-MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
+MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB
 
 # =============================================================================
 # CSRF保护配置

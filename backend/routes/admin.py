@@ -453,13 +453,13 @@ def upload_image():
 
         # 验证图片尺寸
         width, height = img.size
-        max_dimension = 4096
+        max_dimension = 8192
         if width > max_dimension or height > max_dimension:
             return jsonify({'success': False, 'error': f'图片尺寸过大，最大允许{max_dimension}x{max_dimension}'}), 400
 
         # 验证文件大小
         file_size = len(file_content)
-        max_file_size = 5 * 1024 * 1024  # 5MB
+        max_file_size = 50 * 1024 * 1024  # 50MB
         if file_size > max_file_size:
             return jsonify({'success': False, 'error': f'文件大小超过限制（最大{max_file_size//1024//1024}MB）'}), 400
     except Exception as e:

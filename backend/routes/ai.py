@@ -60,12 +60,25 @@ def generate_tags():
             }), 404
 
         # 生成标签
-        result = TagGenerator.generate_for_post(
-            title=title,
-            content=content,
-            user_config=user_ai_config,
-            max_tags=3
-        )
+        try:
+            result = TagGenerator.generate_for_post(
+                title=title,
+                content=content,
+                user_config=user_ai_config,
+                max_tags=3
+            )
+        except Exception as e:
+            error_msg = str(e)
+            # 提供更友好的错误信息
+            if 'did not match the expected pattern' in error_msg or 'pattern' in error_msg.lower():
+                logger.error(f"API validation error: {error_msg}")
+                logger.error(f"User config: provider={user_ai_config.get('ai_provider')}, model={user_ai_config.get('ai_model')}")
+                return jsonify({
+                    'success': False,
+                    'error': f'API配置验证失败：模型名称或密钥格式不正确（{user_ai_config.get("ai_provider")}/{user_ai_config.get("ai_model", "default")}）'
+                }), 400
+            else:
+                raise
 
         if result is None:
             return jsonify({
@@ -78,14 +91,18 @@ def generate_tags():
             post_id = data.get('post_id')
             # 始终保存历史记录，即使没有 post_id（新建文章的情况）
             history_id = save_ai_tag_history(
-                post_id=int(post_id) if post_id else None,
                 user_id=user_id,
-                prompt=f"Title: {title}\nContent: {content[:100]}...",
-                generated_tags=result['tags'],
-                model_used=result['model'],
-                tokens_used=result['tokens_used'],
+                post_id=int(post_id) if post_id else None,
+                action='generate_tags',
+                provider=user_ai_config.get('ai_provider'),
+                model_used=result.get('model'),
+                tokens_used=result.get('tokens_used', 0),
+                input_tokens=result.get('input_tokens', 0),
+                output_tokens=result.get('output_tokens', 0),
                 cost=result.get('cost', 0),
-                currency=result.get('currency', 'USD')
+                currency=result.get('currency', 'USD'),
+                result_preview=result.get('tags', []),
+                generated_tags=result.get('tags', [])  # 兼容旧格式
             )
             print(f"[AI History] Saved record ID: {history_id}, post_id: {post_id}")
         except Exception as e:
@@ -251,13 +268,52 @@ def ai_history():
     """
     AI生成历史页面
     """
+    import json
+
     user_id = session.get('user_id')
     history = get_ai_tag_history(user_id=user_id, limit=50)
     stats = get_ai_usage_stats(user_id)
 
+    # Parse generated_tags JSON for each record
+    for record in history:
+        if record.get('generated_tags'):
+            try:
+                # Try to parse as JSON
+                parsed = json.loads(record['generated_tags'])
+                # If it's a list (old format), keep it as is
+                # If it's a dict (new format), use it as parsed_data
+                if isinstance(parsed, dict):
+                    record['parsed_data'] = parsed
+                else:
+                    record['parsed_data'] = None
+            except (json.JSONDecodeError, TypeError):
+                record['parsed_data'] = None
+        else:
+            record['parsed_data'] = None
+
     return render_template('admin/ai_history.html',
                          history=history,
                          stats=stats)
+
+
+@ai_bp.route('/status')
+@login_required
+def ai_status():
+    """
+    获取AI功能启用状态API
+
+    返回当前用户的AI功能是否启用，用于前端控制AI功能的显示/隐藏
+    """
+    user_id = session.get('user_id')
+    ai_config = get_user_ai_config(user_id)
+
+    ai_enabled = False
+    if ai_config:
+        ai_enabled = ai_config.get('ai_tag_generation_enabled', False)
+
+    return jsonify({
+        'ai_enabled': ai_enabled
+    })
 
 
 @ai_bp.route('/generate-summary', methods=['POST'])
@@ -267,7 +323,7 @@ def generate_summary():
     AI生成文章摘要API
     """
     user_id = session.get('user_id')
-    user_config = get_user_ai_config(user_id)
+    user_ai_config = get_user_ai_config(user_id)
 
     data = request.get_json()
     title = data.get('title', '').strip()
@@ -284,7 +340,7 @@ def generate_summary():
         result = TagGenerator.generate_summary(
             title=title,
             content=content,
-            user_config=user_config,
+            user_config=user_ai_config,
             max_length=max_length
         )
 
@@ -296,8 +352,8 @@ def generate_summary():
             user_id=user_id,
             post_id=data.get('post_id'),
             action='generate_summary',
-            provider=user_config.get('ai_provider'),
-            model=result.get('model'),
+            provider=user_ai_config.get('ai_provider'),
+            model_used=result.get('model'),
             tokens_used=result.get('tokens_used', 0),
             input_tokens=result.get('input_tokens', 0),
             output_tokens=result.get('output_tokens', 0),
@@ -324,7 +380,7 @@ def recommend_posts():
     AI推荐相关文章API
     """
     user_id = session.get('user_id')
-    user_config = get_user_ai_config(user_id)
+    user_ai_config = get_user_ai_config(user_id)
 
     data = request.get_json()
     post_id = data.get('post_id')
@@ -340,14 +396,15 @@ def recommend_posts():
 
     try:
         # Get all published posts
-        all_posts = get_all_posts(include_drafts=False)
+        all_posts_data = get_all_posts(include_drafts=False)
+        all_posts = all_posts_data.get('posts', [])
 
         result = TagGenerator.recommend_related_posts(
             current_post_id=post_id,
             title=title,
             content=content,
             all_posts=all_posts,
-            user_config=user_config,
+            user_config=user_ai_config,
             max_recommendations=max_recommendations
         )
 
@@ -359,14 +416,22 @@ def recommend_posts():
             user_id=user_id,
             post_id=post_id,
             action='recommend_posts',
-            provider=user_config.get('ai_provider'),
-            model=result.get('model'),
+            provider=user_ai_config.get('ai_provider'),
+            model_used=result.get('model'),
             tokens_used=result.get('tokens_used', 0),
             input_tokens=result.get('input_tokens', 0),
             output_tokens=result.get('output_tokens', 0),
             cost=result.get('cost', 0),
-            result_preview=f"Recommended {len(result.get('recommendations', []))} posts"
+            result_preview=f"Recommended {len(result.get('recommendations', []))} posts",
+            recommendations_count=len(result.get('recommendations', []))
         )
+
+        # Debug: log the recommendations data
+        logger.info(f"Recommendations data type: {type(result['recommendations'])}")
+        logger.info(f"Recommendations data: {result['recommendations']}")
+        if result['recommendations']:
+            logger.info(f"First recommendation: {result['recommendations'][0]}")
+            logger.info(f"First recommendation type: {type(result['recommendations'][0])}")
 
         return jsonify({
             'success': True,
@@ -387,7 +452,7 @@ def continue_writing():
     AI续写内容API
     """
     user_id = session.get('user_id')
-    user_config = get_user_ai_config(user_id)
+    user_ai_config = get_user_ai_config(user_id)
 
     data = request.get_json()
     title = data.get('title', '').strip()
@@ -404,7 +469,7 @@ def continue_writing():
         result = TagGenerator.continue_writing(
             title=title,
             content=content,
-            user_config=user_config,
+            user_config=user_ai_config,
             continuation_length=continuation_length
         )
 
@@ -416,13 +481,14 @@ def continue_writing():
             user_id=user_id,
             post_id=data.get('post_id'),
             action='continue_writing',
-            provider=user_config.get('ai_provider'),
-            model=result.get('model'),
+            provider=user_ai_config.get('ai_provider'),
+            model_used=result.get('model'),
             tokens_used=result.get('tokens_used', 0),
             input_tokens=result.get('input_tokens', 0),
             output_tokens=result.get('output_tokens', 0),
             cost=result.get('cost', 0),
-            result_preview=result.get('continuation', '')[:100]
+            result_preview=result.get('continuation', '')[:100],
+            continuation_length=continuation_length
         )
 
         return jsonify({

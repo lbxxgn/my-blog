@@ -7,6 +7,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 import markdown2
 import bleach
+import logging
+
+logger = logging.getLogger(__name__)
 
 from models import (
     get_all_posts, get_all_posts_cursor, get_post_by_id,
@@ -66,15 +69,23 @@ def view_post(post_id):
     # 检查访问权限
     session_passwords = session.get('unlocked_posts', {})
 
+    # Debug logging
+    logger.info(f"[Post Access] Viewing post {post_id}, access_level: {post.get('access_level')}, user_id: {session.get('user_id')}")
+    logger.info(f"[Post Access] Session passwords: {list(session_passwords.keys()) if session_passwords else 'None'}")
+
     access_check = check_post_access(
         post_id,
         session.get('user_id'),
         session_passwords
     )
 
+    logger.info(f"[Post Access] Access check result: allowed={access_check['allowed']}, reason={access_check.get('reason')}")
+
     if not access_check['allowed']:
         # 权限不足，显示相应的提示页面
         reason = access_check['reason']
+
+        logger.info(f"[Post Access] Access denied, reason: {reason}")
 
         if reason == 'password_required':
             # 密码保护文章，显示密码输入页面
@@ -127,6 +138,8 @@ def verify_post_password(post_id):
     data = request.get_json()
     password = data.get('password', '')
 
+    logger.info(f"[Password Verify] Attempting to verify password for post {post_id}")
+
     if not password:
         return jsonify({'success': False, 'message': '请输入密码'}), 400
 
@@ -138,13 +151,25 @@ def verify_post_password(post_id):
         session['unlocked_posts'][str(post_id)] = True
         session.modified = True
 
+        logger.info(f"[Password Verify] Password verified successfully for post {post_id}")
+        logger.info(f"[Password Verify] Session unlocked_posts: {list(session['unlocked_posts'].keys())}")
+
         return jsonify({
             'success': True,
             'message': '密码验证成功',
             'redirect': url_for('blog.view_post', post_id=post_id)
         })
     else:
+        logger.warning(f"[Password Verify] Invalid password for post {post_id}")
         return jsonify({'success': False, 'message': '密码错误，请重试'}), 401
+
+
+@blog_bp.route('/clear-session', methods=['POST'])
+def clear_session():
+    """临时调试：清除session中的密码记录"""
+    session.pop('unlocked_posts', None)
+    session.modified = True
+    return jsonify({'success': True, 'message': 'Session已清除'})
 
 
 @blog_bp.route('/post/<int:post_id>/comment', methods=['POST'])

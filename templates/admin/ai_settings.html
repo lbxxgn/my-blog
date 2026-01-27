@@ -21,10 +21,12 @@
                     <input type="checkbox" id="aiEnabled"
                            {% if ai_config and ai_config.ai_tag_generation_enabled %}checked{% endif %}>
                     <span class="toggle-slider"></span>
-                    <span class="toggle-text">启用AI标签生成</span>
+                    <span class="toggle-text">启用AI助手功能</span>
                 </label>
                 <p class="setting-description">
-                    启用后，在编辑文章时可以使用AI自动生成标签。需要配置API密钥才能使用。
+                    启用后，在编辑文章时可以使用AI助手功能，包括：
+                    标签生成、摘要生成、推荐相关文章、内容续写等。需要配置API密钥才能使用。
+                    <br><strong style="color: var(--danger-color, #dc3545);">关闭后，编辑器中将隐藏所有AI功能按钮。</strong>
                 </p>
             </div>
         </div>
@@ -560,12 +562,22 @@ async function testConfig() {
 
 // Save AI configuration
 async function saveConfig() {
+    const resultDiv = document.getElementById('testResult');
+    resultDiv.style.display = 'block';
+    resultDiv.className = 'ai-test-result';
+    resultDiv.textContent = '正在保存配置...';
+
     const config = {
         ai_tag_generation_enabled: document.getElementById('aiEnabled').checked,
         ai_provider: document.getElementById('aiProvider').value,
         ai_model: document.getElementById('aiModel').value,
         ai_api_key: document.getElementById('apiKey').value
     };
+
+    console.log('Saving AI config:', {
+        ...config,
+        ai_api_key: config.ai_api_key ? '***' + config.ai_api_key.slice(-4) : '(empty)'
+    });
 
     // Get CSRF token from meta tag
     const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
@@ -580,15 +592,34 @@ async function saveConfig() {
             body: JSON.stringify(config)
         });
 
+        console.log('Response status:', response.status);
+
+        // Check if response is OK
+        if (!response.ok) {
+            const responseText = await response.text();
+            console.error('Server returned error:', response.status, responseText);
+            resultDiv.classList.add('error');
+            resultDiv.textContent = `❌ 服务器错误 (${response.status}): ${responseText.substring(0, 200)}`;
+            return;
+        }
+
         const data = await response.json();
+        console.log('Response data:', data);
 
         if (data.success) {
-            alert('配置已保存！');
+            resultDiv.classList.add('success');
+            resultDiv.textContent = '✅ 配置已保存！';
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 3000);
         } else {
-            alert('保存失败: ' + data.error);
+            resultDiv.classList.add('error');
+            resultDiv.textContent = '❌ 保存失败: ' + data.error;
         }
     } catch (error) {
-        alert('保存失败: ' + error.message);
+        console.error('Save config error:', error);
+        resultDiv.classList.add('error');
+        resultDiv.textContent = '❌ 保存失败: ' + error.message;
     }
 }
 </script>

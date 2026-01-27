@@ -140,9 +140,9 @@ class TestCategoryTagRoutes:
     
     def test_view_category(self, client, temp_db):
         """测试查看分类"""
-        from models import create_category, create_post, get_user_by_username
+        from models import create_category, create_post, create_user, get_user_by_username
         from werkzeug.security import generate_password_hash
-        
+
         # 创建测试数据
         password_hash = generate_password_hash('TestPassword123!')
         user_id = create_user('testuser', password_hash, role='author')
@@ -154,9 +154,9 @@ class TestCategoryTagRoutes:
     
     def test_view_tag(self, client, temp_db):
         """测试查看标签"""
-        from models import create_tag, create_post, set_post_tags, get_user_by_username
+        from models import create_tag, create_post, create_user, set_post_tags, get_user_by_username
         from werkzeug.security import generate_password_hash
-        
+
         # 创建测试数据
         password_hash = generate_password_hash('TestPassword123!')
         user_id = create_user('testuser', password_hash, role='author')

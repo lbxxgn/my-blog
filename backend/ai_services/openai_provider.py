@@ -38,9 +38,32 @@ class OpenAIProvider(BaseLLMProvider):
         """Initialize OpenAI client"""
         try:
             from openai import OpenAI
+
+            # Validate API key format
+            if not self.api_key or not isinstance(self.api_key, str):
+                raise ValueError("API密钥格式无效：密钥不能为空")
+
+            # OpenAI API keys typically start with 'sk-'
+            if not self.api_key.startswith('sk-'):
+                logger.warning(f"API key may be invalid (doesn't start with 'sk-'): {self.api_key[:10]}...")
+
+            # Validate model name
+            valid_models = list(self.COST_PER_1K_TOKENS.keys()) + [
+                'gpt-3.5-turbo-0125',
+                'gpt-3.5-turbo-1106',
+                'gpt-4o-2024-05-13',
+                'gpt-4-turbo-2024-04-09'
+            ]
+            if self.model not in valid_models:
+                logger.warning(f"Model '{self.model}' may not be valid. Supported models: {valid_models}")
+
             self.client = OpenAI(api_key=self.api_key)
+            logger.info(f"OpenAI client initialized with model: {self.model}")
         except ImportError:
             logger.error("OpenAI library not installed. Run: pip install openai")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
             raise
 
     def generate_tags(
@@ -106,6 +129,7 @@ class OpenAIProvider(BaseLLMProvider):
                 'output_tokens': output_tokens,
                 'model': self.model,
                 'cost': cost,
+                'currency': 'USD',
                 'raw_response': content_text
             }
 
@@ -216,7 +240,8 @@ class OpenAIProvider(BaseLLMProvider):
                 'input_tokens': input_tokens,
                 'output_tokens': output_tokens,
                 'model': self.model,
-                'cost': cost
+                'cost': cost,
+                'currency': 'USD'
             }
 
         except Exception as e:
@@ -319,9 +344,17 @@ class OpenAIProvider(BaseLLMProvider):
                 numbers = re.findall(r'\d+', response_text)
                 recommendations = [int(n) for n in numbers[:max_recommendations]]
 
-            # Validate recommendations
-            valid_ids = {c["id"] for c in candidates}
-            recommendations = [r for r in recommendations if r in valid_ids][:max_recommendations]
+            # Validate recommendations and create full post info
+            valid_ids = {c["id"]: c for c in candidates}
+            recommendations = [
+                {
+                    'id': r,
+                    'title': valid_ids[r]['title'],
+                    'url': f'/post/{r}'
+                }
+                for r in recommendations
+                if r in valid_ids
+            ][:max_recommendations]
 
             logger.info(f"Generated {len(recommendations)} recommendations, tokens: {tokens_used}, cost: ${cost:.6f}")
 
@@ -331,7 +364,8 @@ class OpenAIProvider(BaseLLMProvider):
                 'input_tokens': input_tokens,
                 'output_tokens': output_tokens,
                 'model': self.model,
-                'cost': cost
+                'cost': cost,
+                'currency': 'USD'
             }
 
         except Exception as e:
@@ -409,7 +443,8 @@ class OpenAIProvider(BaseLLMProvider):
                 'input_tokens': input_tokens,
                 'output_tokens': output_tokens,
                 'model': self.model,
-                'cost': cost
+                'cost': cost,
+                'currency': 'USD'
             }
 
         except Exception as e:

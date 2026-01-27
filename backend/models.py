@@ -1211,6 +1211,9 @@ def update_user_ai_config(user_id, ai_config):
     Returns:
         bool: 更新是否成功
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     with get_db_context() as conn:
         cursor = conn.cursor()
 
@@ -1220,46 +1223,106 @@ def update_user_ai_config(user_id, ai_config):
         if 'ai_tag_generation_enabled' in ai_config:
             updates.append('ai_tag_generation_enabled = ?')
             params.append(1 if ai_config['ai_tag_generation_enabled'] else 0)
+            logger.info(f"Update AI config: ai_tag_generation_enabled = {ai_config['ai_tag_generation_enabled']}")
 
         if 'ai_provider' in ai_config:
             updates.append('ai_provider = ?')
             params.append(ai_config['ai_provider'])
+            logger.info(f"Update AI config: ai_provider = {ai_config['ai_provider']}")
 
         if 'ai_api_key' in ai_config:
             updates.append('ai_api_key = ?')
             params.append(ai_config['ai_api_key'])
+            logger.info(f"Update AI config: ai_api_key = ***{ai_config['ai_api_key'][-4:] if ai_config['ai_api_key'] else '(empty)'}")
 
         if 'ai_model' in ai_config:
             updates.append('ai_model = ?')
             params.append(ai_config['ai_model'])
+            logger.info(f"Update AI config: ai_model = {ai_config['ai_model']}")
 
         if updates:
             params.append(user_id)
             query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
+            logger.info(f"Executing query: {query} with params count: {len(params)}")
             cursor.execute(query, params)
-            return cursor.rowcount > 0
+            affected_rows = cursor.rowcount
+            logger.info(f"Update affected {affected_rows} rows")
+            return affected_rows > 0
 
+        logger.warning("No updates to apply")
         return False
 
 
-def save_ai_tag_history(post_id, user_id, prompt, generated_tags, model_used, tokens_used, cost, currency='USD'):
+def save_ai_tag_history(post_id=None, user_id=None, prompt=None, generated_tags=None,
+                        model_used=None, tokens_used=None, cost=None, currency='USD',
+                        action=None, provider=None, input_tokens=None, output_tokens=None,
+                        result_preview=None, **kwargs):
     """
-    保存AI标签生成历史记录
+    保存AI功能使用历史记录（通用函数）
+
+    支持两种调用格式：
+    1. 旧格式（标签生成）：save_ai_tag_history(post_id, user_id, prompt, generated_tags, model_used, tokens_used, cost, currency)
+    2. 新格式（所有AI功能）：save_ai_tag_history(user_id=..., post_id=..., action=..., provider=..., model=..., ...)
 
     Args:
-        post_id: 文章ID
+        post_id: 文章ID (可选)
         user_id: 用户ID
-        prompt: 使用的提示词
-        generated_tags: 生成的标签列表
+        prompt: 提示词或操作类型
+        generated_tags: 生成的结果（标签/摘要/推荐等）
         model_used: 使用的模型
-        tokens_used: 使用的token数
+        tokens_used: 使用的token总数
         cost: 成本
         currency: 货币单位 (USD/CNY)
+        action: 操作类型 (generate_tags, generate_summary, recommend_posts, continue_writing)
+        provider: AI提供商 (openai, volcengine, dashscope)
+        input_tokens: 输入token数
+        output_tokens: 输出token数
+        result_preview: 结果预览
+        **kwargs: 其他参数（兼容性）
 
     Returns:
         int: 历史记录ID
     """
     import json
+
+    # 处理新格式的参数
+    if action is not None:
+        # 新格式：将数据转换为适合存储的格式
+        prompt = action  # 使用action作为prompt
+
+        # 构建完整的结果对象
+        result_data = {
+            'action': action,
+            'provider': provider,
+            'model': model_used or kwargs.get('model'),
+        }
+
+        # 根据action添加特定字段
+        if action == 'generate_tags':
+            result_data['tags'] = result_preview or generated_tags
+        elif action == 'generate_summary':
+            result_data['summary'] = result_preview
+        elif action == 'recommend_posts':
+            result_data['recommendations_count'] = kwargs.get('recommendations_count', 0)
+        elif action == 'continue_writing':
+            result_data['continuation_length'] = kwargs.get('continuation_length', 0)
+            result_data['continuation_preview'] = result_preview[:200] if result_preview else ''
+
+        # 添加token信息
+        if input_tokens is not None or output_tokens is not None:
+            result_data['input_tokens'] = input_tokens
+            result_data['output_tokens'] = output_tokens
+            result_data['total_tokens'] = tokens_used
+
+        generated_tags = json.dumps(result_data, ensure_ascii=False)
+
+        # 组合provider和model
+        if provider and model_used:
+            model_used = f"{provider}:{model_used}"
+    else:
+        # 旧格式：直接使用生成的标签
+        if generated_tags is not None and not isinstance(generated_tags, str):
+            generated_tags = json.dumps(generated_tags, ensure_ascii=False)
 
     with get_db_context() as conn:
         cursor = conn.cursor()
@@ -1270,7 +1333,7 @@ def save_ai_tag_history(post_id, user_id, prompt, generated_tags, model_used, to
             post_id,
             user_id,
             prompt,
-            json.dumps(generated_tags, ensure_ascii=False),
+            generated_tags,
             model_used,
             tokens_used,
             cost,
@@ -1558,17 +1621,11 @@ def check_post_access(post_id, user_id=None, session_passwords=None):
 
     # 密码保护
     if access_level == 'password':
-        # 作者和管理员直接可以访问
-        if user_id:
+        # 只有作者可以直接访问（管理员也需要输入密码）
+        if user_id and user_id == author_id:
             cursor = get_db_connection().cursor()
-            cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
-            user = cursor.fetchone()
-
-            if user and (user_id == author_id or user['role'] == 'admin'):
-                cursor.connection.close()
-                return {'allowed': True, 'reason': 'author_or_admin'}
-
             cursor.connection.close()
+            return {'allowed': True, 'reason': 'author'}
 
         # 检查session中是否有正确的密码
         if session_passwords and str(post_id) in session_passwords:
@@ -1622,6 +1679,9 @@ def verify_post_password(post_id, password):
     Returns:
         bool: 密码是否正确
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -1633,9 +1693,18 @@ def verify_post_password(post_id, password):
     post = cursor.fetchone()
     conn.close()
 
-    if not post or not post['access_password']:
+    if not post:
+        logger.warning(f"[Password Verify] Post {post_id} not found or not password protected")
         return False
 
-    return password == post['access_password']
+    if not post['access_password']:
+        logger.warning(f"[Password Verify] Post {post_id} is password protected but has no password set")
+        return False
+
+    logger.info(f"[Password Verify] Post {post_id} checking password")
+    result = password == post['access_password']
+    logger.info(f"[Password Verify] Password match: {result}")
+
+    return result
 
 

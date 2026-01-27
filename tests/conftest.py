@@ -176,6 +176,8 @@ def client(app_with_aliases):
     app = app_with_aliases
     app.config['TESTING'] = True
     app.config['SECRET_KEY'] = 'test-secret-key'
+    # 禁用CSRF保护以便测试
+    app.config['WTF_CSRF_ENABLED'] = False
 
     with app.test_client() as client:
         yield client

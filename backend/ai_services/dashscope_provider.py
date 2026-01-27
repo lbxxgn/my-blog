@@ -82,12 +82,30 @@ class DashscopeProvider(BaseLLMProvider):
         """Initialize DashScope client using OpenAI SDK with custom base URL"""
         try:
             from openai import OpenAI
+
+            # Validate API key format
+            if not self.api_key or not isinstance(self.api_key, str):
+                raise ValueError("API密钥格式无效：密钥不能为空")
+
+            # DashScope API keys typically start with 'sk-'
+            if not self.api_key.startswith('sk-'):
+                logger.warning(f"API key may be invalid (doesn't start with 'sk-'): {self.api_key[:10]}...")
+
+            # Validate model name
+            valid_models = list(self.COST_PER_1K_TOKENS.keys())
+            if self.model not in valid_models:
+                logger.warning(f"Model '{self.model}' may not be valid. Supported models: {valid_models}")
+
             self.client = OpenAI(
                 api_key=self.api_key,
                 base_url=self.BASE_URL
             )
+            logger.info(f"DashScope client initialized with model: {self.model}")
         except ImportError:
             logger.error("OpenAI library not installed. Run: pip install openai")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to initialize DashScope client: {str(e)}")
             raise
 
     def generate_tags(
@@ -313,8 +331,17 @@ class DashscopeProvider(BaseLLMProvider):
                 numbers = re.findall(r'\d+', response_text)
                 recommendations = [int(n) for n in numbers[:max_recommendations]]
 
-            valid_ids = {c["id"] for c in candidates}
-            recommendations = [r for r in recommendations if r in valid_ids][:max_recommendations]
+            # Validate recommendations and create full post info
+            valid_ids = {c["id"]: c for c in candidates}
+            recommendations = [
+                {
+                    'id': r,
+                    'title': valid_ids[r]['title'],
+                    'url': f'/post/{r}'
+                }
+                for r in recommendations
+                if r in valid_ids
+            ][:max_recommendations]
 
             return {
                 'recommendations': recommendations,
