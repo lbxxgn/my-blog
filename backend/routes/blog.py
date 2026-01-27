@@ -129,7 +129,10 @@ def view_post(post_id):
     # 获取文章评论
     comments = get_comments_by_post(post_id)
 
-    return render_template('post.html', post=post, comments=comments)
+    # 生成完整的文章URL用于分享
+    post_url = url_for('blog.view_post', post_id=post_id, _external=True)
+
+    return render_template('post.html', post=post, comments=comments, post_url=post_url)
 
 
 @blog_bp.route('/post/<int:post_id>/verify-password', methods=['POST'])
