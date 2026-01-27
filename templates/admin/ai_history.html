@@ -36,48 +36,96 @@
 
     <!-- 历史记录 -->
     {% if history %}
-    <table class="posts-table">
-        <thead>
-            <tr>
-                <th>时间</th>
-                <th>文章</th>
-                <th>模型</th>
-                <th>生成的标签</th>
-                <th>Token数</th>
-                <th>成本</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for record in history %}
-            <tr>
-                <td>{{ record.created_at|localtime }}</td>
-                <td>
-                    {% if record.post_title %}
-                        <a href="{{ url_for('view_post', post_id=record.post_id) }}">{{ record.post_title }}</a>
-                    {% elif record.post_id %}
-                        <span style="color: #999;">文章已删除</span>
-                    {% else %}
-                        <span style="color: #999;">（新建文章）</span>
-                    {% endif %}
-                </td>
-                <td><code>{{ record.model_used }}</code></td>
-                <td>
-                    {% if record.generated_tags %}
-                        <div class="tags-display">
-                            {% for tag in record.generated_tags %}
-                            <span class="tag-item">{{ tag }}</span>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <span style="color: #999;">-</span>
-                    {% endif %}
-                </td>
-                <td>{{ record.tokens_used }}</td>
-                <td>${{ "%.6f"|format(record.cost) }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-container">
+        <table class="posts-table ai-history-table">
+            <thead>
+                <tr>
+                    <th width="15%">时间</th>
+                    <th width="10%">功能</th>
+                    <th width="20%">文章</th>
+                    <th width="15%">AI模型</th>
+                    <th width="20%">结果</th>
+                    <th width="10%" style="text-align: right;">Token</th>
+                    <th width="10%" style="text-align: right;">成本</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in history %}
+                <tr>
+                    <td class="time-cell">{{ record.created_at|localtime }}</td>
+                    <td class="action-cell">
+                        {% if record.parsed_data and record.parsed_data.action %}
+                            {% if record.parsed_data.action == 'generate_tags' %}
+                                <span class="action-tag tag-type-generate">标签生成</span>
+                            {% elif record.parsed_data.action == 'generate_summary' %}
+                                <span class="action-tag tag-type-summary">摘要生成</span>
+                            {% elif record.parsed_data.action == 'recommend_posts' %}
+                                <span class="action-tag tag-type-recommend">推荐文章</span>
+                            {% elif record.parsed_data.action == 'continue_writing' %}
+                                <span class="action-tag tag-type-continue">内容续写</span>
+                            {% else %}
+                                <span class="action-tag tag-type-default">未知</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="action-tag tag-type-generate">标签生成</span>
+                        {% endif %}
+                    </td>
+                    <td class="article-cell">
+                        {% if record.post_title %}
+                            <a href="{{ url_for('view_post', post_id=record.post_id) }}" class="article-link">{{ record.post_title }}</a>
+                        {% elif record.post_id %}
+                            <span class="text-muted">文章 #{{ record.post_id }}</span>
+                        {% else %}
+                            <span class="text-muted">（未保存）</span>
+                        {% endif %}
+                    </td>
+                    <td class="model-cell">
+                        <code class="model-code">{{ record.model_used or '-' }}</code>
+                    </td>
+                    <td class="result-cell">
+                        {% if record.parsed_data %}
+                            {# 新格式：解析JSON结果 #}
+                            {% if record.parsed_data.action == 'generate_tags' %}
+                                <div class="tags-result">
+                                    {% for tag in record.parsed_data.tags %}
+                                        <span class="mini-tag">{{ tag }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% elif record.parsed_data.action == 'generate_summary' %}
+                                <div class="summary-result">{{ record.parsed_data.summary[:80] }}{% if record.parsed_data.summary|length > 80 %}...{% endif %}</div>
+                            {% elif record.parsed_data.action == 'recommend_posts' %}
+                                <span class="recommend-result">推荐 {{ record.parsed_data.recommendations_count }} 篇</span>
+                            {% elif record.parsed_data.action == 'continue_writing' %}
+                                <span class="continue-result">续写 {{ record.parsed_data.continuation_length }} 字</span>
+                            {% endif %}
+                        {% elif record.generated_tags and record.generated_tags is iterable and record.generated_tags is not string %}
+                            {# 旧格式：标签列表 #}
+                            <div class="tags-result">
+                                {% for tag in record.generated_tags %}
+                                    <span class="mini-tag">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="number-cell" style="text-align: right;">{{ record.tokens_used or 0 }}</td>
+                    <td class="number-cell" style="text-align: right;">
+                        {% if record.cost %}
+                            {% if record.currency == 'CNY' %}
+                                ¥{{ "%.6f"|format(record.cost) }}
+                            {% else %}
+                                ${{ "%.6f"|format(record.cost) }}
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
     <div class="empty-state">
         <p>还没有AI使用记录。</p>
@@ -115,27 +163,145 @@
     color: var(--primary-color, #10b981);
 }
 
-.tags-display {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+.table-container {
+    overflow-x: auto;
 }
 
-.tag-item {
+.ai-history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ai-history-table th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #374151;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.ai-history-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: top;
+}
+
+.ai-history-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.time-cell {
+    font-size: 0.875rem;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.action-cell {
+    white-space: nowrap;
+}
+
+.action-tag {
     display: inline-block;
     padding: 0.25rem 0.75rem;
-    background: var(--code-bg, #f3f4f6);
-    border-radius: 4px;
-    font-size: 0.875rem;
-    color: var(--text-color, #1f2937);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
-code {
-    padding: 0.25rem 0.5rem;
-    background: var(--code-bg, #f3f4f6);
-    border-radius: 4px;
+.tag-type-generate {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.tag-type-summary {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.tag-type-recommend {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.tag-type-continue {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.tag-type-default {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.article-cell {
     font-size: 0.875rem;
-    font-family: 'Courier New', monospace;
+}
+
+.article-link {
+    color: #1f2937;
+    text-decoration: none;
+}
+
+.article-link:hover {
+    color: #3b82f6;
+    text-decoration: underline;
+}
+
+.text-muted {
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+.model-cell {
+    font-size: 0.875rem;
+}
+
+.model-code {
+    padding: 0.25rem 0.5rem;
+    background: #f3f4f6;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: 'Monaco', 'Courier New', monospace;
+    color: #374151;
+}
+
+.result-cell {
+    font-size: 0.875rem;
+}
+
+.tags-result {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+}
+
+.mini-tag {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    background: #f3f4f6;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: #374151;
+}
+
+.summary-result {
+    color: #6b7280;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+.recommend-result,
+.continue-result {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.number-cell {
+    font-size: 0.875rem;
+    font-family: 'Monaco', 'Courier New', monospace;
+    color: #374151;
 }
 
 .empty-state {
@@ -151,21 +317,18 @@ code {
     margin-bottom: 1rem;
 }
 
-/* Dark theme */
-.dark-theme .stat-card {
-    background: #1f2937;
-    border-color: #374151;
-}
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .ai-history-table th,
+    .ai-history-table td {
+        padding: 0.5rem;
+        font-size: 0.75rem;
+    }
 
-.dark-theme .tag-item,
-.dark-theme code {
-    background: #374151;
-    color: #f9fafb;
-}
-
-.dark-theme .empty-state {
-    background: #1f2937;
-    border-color: #374151;
+    .action-tag {
+        font-size: 0.625rem;
+        padding: 0.1875rem 0.5rem;
+    }
 }
 </style>
 {% endblock %}

@@ -523,6 +523,105 @@ sqlite3 db/posts.db "SELECT id, title, created_at FROM posts LIMIT 10;"
 
 ---
 
+## AI功能配置
+
+系统集成了AI功能，支持多个AI提供商。配置方式有两种：
+
+### 方式一：通过Web界面配置（推荐）
+
+1. 启动应用并登录管理员账号
+2. 访问AI设置页面：`http://localhost:5001/admin/ai/configure`
+3. 选择AI提供商并配置API密钥
+4. 测试连接
+5. 保存设置
+
+**支持的AI提供商：**
+
+#### 1. OpenAI
+- **模型**: GPT-3.5-turbo, GPT-4o, GPT-4-turbo, GPT-4
+- **成本**: ~$0.001-0.002/次
+- **适用场景**: 英文内容，高质量要求
+- **密钥获取**: https://platform.openai.com/api-keys
+
+#### 2. 火山引擎（豆包）
+- **模型**: doubao-pro-32k, doubao-pro-4k, doubao-lite-4k
+- **成本**: ~¥0.00001-0.00004/次（最低）
+- **适用场景**: 中文内容，成本敏感
+- **密钥获取**: https://console.volcengine.com/ark
+
+#### 3. 阿里百炼（通义千问）
+- **模型**: qwen-flash, qwen-turbo, qwen-plus, qwen-max
+- **成本**: ~¥0.0001-0.002/次
+- **适用场景**: 中文内容，性价比高
+- **密钥获取**: https://dashscope.console.aliyun.com/
+
+### 方式二：通过环境变量配置
+
+编辑 `.env` 文件：
+
+```bash
+# AI提供商选择
+AI_PROVIDER=openai
+
+# 对应的API密钥
+OPENAI_API_KEY=sk-xxxxx
+# 或
+VOLCENGINE_API_KEY=xxxxx
+# 或
+DASHSCOPE_API_KEY=sk-xxxxx
+
+# AI模型（可选，留空使用默认）
+AI_MODEL=gpt-3.5-turbo
+
+# 启用AI标签生成（可选）
+AI_TAG_GENERATION_ENABLED=1
+```
+
+### AI功能说明
+
+**1. AI标签生成**
+- 在文章编辑器中点击"AI生成"按钮
+- 自动分析文章内容并生成3-5个相关标签
+- 支持中英文内容识别
+
+**2. AI摘要生成**
+- 在AI工具栏点击"生成摘要"按钮
+- 生成200字以内的文章摘要
+- 可选择添加到文章开头
+
+**3. AI相关文章推荐**
+- 保存文章后点击"推荐相关文章"按钮
+- 基于主题、技术栈、领域智能推荐
+- 最多推荐3篇相关文章
+
+**4. AI内容续写**
+- 在AI工具栏点击"AI续写"按钮
+- 保持原有写作风格续写约500字
+- 需至少先写100字才能使用
+
+### 查看AI使用情况
+
+- 访问：`http://localhost:5001/admin/ai/history`
+- 查看所有AI功能调用记录
+- 查看tokens使用统计
+- 查看费用统计（区分CNY和USD）
+
+### 成本优化建议
+
+1. **中文内容优先使用国内模型**
+   - 火山引擎：成本最低（¥0.00001/次）
+   - 阿里百炼：性价比高（¥0.0001/次）
+
+2. **英文内容或高质量要求使用OpenAI**
+   - GPT-3.5-turbo：速度快，质量好（$0.001/次）
+   - GPT-4o：质量最高（$0.002/次）
+
+3. **批量操作成本控制**
+   - 使用火山引擎批量生成标签
+   - 重要文章使用OpenAI或阿里百炼
+
+---
+
 ## 技术栈
 
 - **后端**: Flask 3.0, Python 3.8+

@@ -20,7 +20,7 @@ def login_required(f):
     def decorated_function(*args, **kwargs):
         if session.get('user_id') is None:
             flash('请先登录', 'warning')
-            return redirect(url_for('login', next=request.url))
+            return redirect(url_for('auth.login', next=request.url))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -39,7 +39,7 @@ def role_required(*allowed_roles):
         def decorated_function(*args, **kwargs):
             if session.get('user_id') is None:
                 flash('请先登录', 'warning')
-                return redirect(url_for('login', next=request.url))
+                return redirect(url_for('auth.login', next=request.url))
 
             user = get_user_by_username(session.get('username'))
             if not user:
@@ -48,7 +48,7 @@ def role_required(*allowed_roles):
 
             if user.get('role') not in allowed_roles:
                 flash('权限不足', 'error')
-                return redirect(url_for('index'))
+                return redirect(url_for('blog.index'))
 
             return f(*args, **kwargs)
         return decorated_function
@@ -75,7 +75,7 @@ def can_edit_post(f):
     def decorated_function(post_id, *args, **kwargs):
         if session.get('user_id') is None:
             flash('请先登录', 'warning')
-            return redirect(url_for('login', next=request.url))
+            return redirect(url_for('auth.login', next=request.url))
 
         user = get_user_by_username(session.get('username'))
         if not user:
@@ -85,7 +85,7 @@ def can_edit_post(f):
         post = get_post_by_id(post_id)
         if not post:
             flash('文章不存在', 'error')
-            return redirect(url_for('index'))
+            return redirect(url_for('blog.index'))
 
         # admin和editor可以编辑所有文章
         if user.get('role') in ['admin', 'editor']:
@@ -100,7 +100,7 @@ def can_edit_post(f):
                 return redirect(url_for('view_post', post_id=post_id))
 
         flash('权限不足', 'error')
-        return redirect(url_for('index'))
+        return redirect(url_for('blog.index'))
 
     return decorated_function
 
@@ -114,7 +114,7 @@ def can_delete_post(f):
     def decorated_function(post_id, *args, **kwargs):
         if session.get('user_id') is None:
             flash('请先登录', 'warning')
-            return redirect(url_for('login', next=request.url))
+            return redirect(url_for('auth.login', next=request.url))
 
         user = get_user_by_username(session.get('username'))
         if not user:
@@ -137,7 +137,7 @@ def can_manage_users(f):
     def decorated_function(*args, **kwargs):
         if session.get('user_id') is None:
             flash('请先登录', 'warning')
-            return redirect(url_for('login', next=request.url))
+            return redirect(url_for('auth.login', next=request.url))
 
         user = get_user_by_username(session.get('username'))
         if not user or user.get('role') != 'admin':

@@ -1,16 +1,24 @@
 // Quill Rich Text Editor
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[Quill] DOMContentLoaded fired');
+    console.log('[Quill] Quill is available:', typeof Quill !== 'undefined');
+
     const textarea = document.getElementById('content');
+    console.log('[Quill] Textarea found:', !!textarea);
 
     if (textarea) {
+        console.log('[Quill] Initializing Quill editor...');
+
         // Hide the original textarea
         textarea.style.display = 'none';
+        console.log('[Quill] Original textarea hidden');
 
         // Create a container for Quill editor
         const editorContainer = document.createElement('div');
         editorContainer.id = 'quill-editor';
         editorContainer.style.minHeight = '400px';
         textarea.parentNode.insertBefore(editorContainer, textarea.nextSibling);
+        console.log('[Quill] Editor container created');
 
         // Get CSRF token
         const csrfToken = document.querySelector('meta[name="csrf_token"]')
@@ -18,35 +26,44 @@ document.addEventListener('DOMContentLoaded', function() {
             : '';
 
         // Initialize Quill
-        const quill = new Quill('#quill-editor', {
-            theme: 'snow',
-            placeholder: '开始写作...\n\n支持富文本粘贴，可直接从其他网站复制文章内容',
-            modules: {
-                toolbar: {
-                    container: [
-                        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-                        ['bold', 'italic', 'underline', 'strike'],
-                        [{ 'color': [] }, { 'background': [] }],
-                        [{ 'align': [] }],
-                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                        [{ 'indent': '-1'}, { 'indent': '+1' }],
-                        ['link', 'image', 'video'],
-                        ['blockquote', 'code-block'],
-                        ['clean']
-                    ],
-                    handlers: {
-                        image: function() {
-                            // Trigger image upload
-                            document.getElementById('imageUpload').click();
+        console.log('[Quill] Creating Quill instance...');
+        let quill;
+
+        try {
+            quill = new Quill('#quill-editor', {
+                theme: 'snow',
+                placeholder: '开始写作...\n\n支持富文本粘贴，可直接从其他网站复制文章内容',
+                modules: {
+                    toolbar: {
+                        container: [
+                            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                            ['bold', 'italic', 'underline', 'strike'],
+                            [{ 'color': [] }, { 'background': [] }],
+                            [{ 'align': [] }],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            [{ 'indent': '-1'}, { 'indent': '+1' }],
+                            ['link', 'image', 'video'],
+                            ['blockquote', 'code-block'],
+                            ['clean']
+                        ],
+                        handlers: {
+                            image: function() {
+                                // Trigger image upload
+                                document.getElementById('imageUpload').click();
+                            }
                         }
+                    },
+                    clipboard: {
+                        // Allow pasting HTML content
+                        matchVisual: false
                     }
-                },
-                clipboard: {
-                    // Allow pasting HTML content
-                    matchVisual: false
                 }
-            }
-        });
+            });
+            console.log('[Quill] Quill instance created successfully!');
+        } catch (e) {
+            console.error('[Quill] Error creating Quill:', e);
+            return;
+        }
 
         // Load existing content if editing
         if (textarea.value) {
@@ -99,64 +116,92 @@ document.addEventListener('DOMContentLoaded', function() {
         const imageUpload = document.getElementById('imageUpload');
         if (imageUpload) {
             imageUpload.addEventListener('change', async function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
+                const files = Array.from(e.target.files);
+                if (!files.length) return;
 
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('csrf_token', csrfToken);
+                const totalFiles = files.length;
+                let uploadedCount = 0;
+                let successCount = 0;
+                let failedCount = 0;
+                const failedFiles = [];
 
-                try {
-                    if (saveStatus) {
-                        saveStatus.textContent = '正在上传图片...';
-                        saveStatus.className = 'save-status saving';
-                    }
+                // Get current cursor position to insert images at
+                const range = quill.getSelection();
+                let insertIndex = range ? range.index : 0;
 
-                    const response = await fetch('/admin/upload', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: formData
-                    });
+                for (let i = 0; i < totalFiles; i++) {
+                    const file = files[i];
+                    uploadedCount++;
 
-                    const data = await response.json();
-
-                    if (data.success) {
-                        // Insert image into Quill editor
-                        const range = quill.getSelection();
-                        quill.insertEmbed(range ? range.index : 0, 'image', data.url);
-
+                    try {
+                        // Show progress
                         if (saveStatus) {
-                            saveStatus.textContent = '图片上传成功！';
-                            saveStatus.className = 'save-status saved';
-                            setTimeout(() => {
-                                saveStatus.textContent = '';
-                                saveStatus.className = 'save-status';
-                            }, 2000);
+                            saveStatus.textContent = `正在上传第 ${uploadedCount}/${totalFiles} 张图片...`;
+                            saveStatus.className = 'save-status saving';
                         }
-                    } else {
-                        if (saveStatus) {
-                            saveStatus.textContent = '上传失败: ' + data.error;
-                            saveStatus.className = 'save-status error';
-                            setTimeout(() => {
-                                saveStatus.textContent = '';
-                                saveStatus.className = 'save-status';
-                            }, 3000);
+
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('csrf_token', csrfToken);
+
+                        const response = await fetch('/admin/upload', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: formData
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            // Insert image into Quill editor
+                            quill.insertEmbed(insertIndex, 'image', data.url);
+                            // Insert a line break after each image
+                            quill.insertText(insertIndex + 1, '\n');
+                            // Move insert index forward
+                            insertIndex += 2;
+                            successCount++;
                         } else {
-                            alert('上传失败: ' + data.error);
+                            failedCount++;
+                            failedFiles.push(`${file.name}: ${data.error}`);
                         }
+
+                        // Show progress update
+                        if (saveStatus) {
+                            saveStatus.textContent = `上传中 ${uploadedCount}/${totalFiles} (成功: ${successCount}, 失败: ${failedCount})`;
+                        }
+
+                    } catch (error) {
+                        failedCount++;
+                        failedFiles.push(`${file.name}: ${error.message}`);
+                        console.error('Upload error:', error);
                     }
-                } catch (error) {
-                    if (saveStatus) {
-                        saveStatus.textContent = '上传失败: ' + error.message;
-                        saveStatus.className = 'save-status error';
+                }
+
+                // Show final result
+                if (saveStatus) {
+                    if (failedCount === 0) {
+                        saveStatus.textContent = `✅ 成功上传 ${successCount} 张图片！`;
+                        saveStatus.className = 'save-status saved';
                         setTimeout(() => {
                             saveStatus.textContent = '';
                             saveStatus.className = 'save-status';
                         }, 3000);
+                    } else if (successCount === 0) {
+                        saveStatus.textContent = `❌ 上传失败: ${failedFiles[0]}`;
+                        saveStatus.className = 'save-status error';
+                        setTimeout(() => {
+                            saveStatus.textContent = '';
+                            saveStatus.className = 'save-status';
+                        }, 5000);
                     } else {
-                        alert('上传失败: ' + error.message);
+                        saveStatus.textContent = `⚠️ 部分成功: ${successCount}张成功, ${failedCount}张失败`;
+                        saveStatus.className = 'save-status saved';
+                        setTimeout(() => {
+                            saveStatus.textContent = '';
+                            saveStatus.className = 'save-status';
+                        }, 4000);
                     }
                 }
 
@@ -196,9 +241,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Expose quill instance globally for debugging
         window.quill = quill;
-
-        // Get post_id for AI generation (if editing)
-        const postId = {% if post %}{{ post.id }}{% else %}null{% endif %};
     }
 
     // AI Tag Generation Function
@@ -227,6 +269,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Get post_id from URL (if editing)
+        const pathParts = window.location.pathname.split('/');
+        let postId = pathParts[pathParts.length - 1];
+        // If the last part is not a number, set postId to null
+        if (isNaN(parseInt(postId))) {
+            postId = null;
+        }
+
         // Show loading state
         showAIStatus('loading', '🤖 AI正在分析文章内容...');
         if (aiGenerateBtn) {
@@ -235,10 +285,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf_token"]')
+                ? document.querySelector('meta[name="csrf_token"]').getAttribute('content')
+                : '';
+
             const response = await fetch('/admin/ai/generate-tags', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({
                     title: title,
@@ -247,7 +303,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             });
 
-            const data = await response.json();
+            // Check if response is OK
+            if (!response.ok) {
+                const responseText = await response.text();
+                console.error('Server returned error:', response.status, responseText);
+                showAIStatus('error', `❌ 服务器错误 (${response.status}): ${responseText.substring(0, 200)}...`);
+                return;
+            }
+
+            // Try to parse as JSON
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                const responseText = await response.text();
+                console.error('Failed to parse JSON:', responseText);
+                showAIStatus('error', `❌ 响应格式错误: ${responseText.substring(0, 200)}...`);
+                return;
+            }
 
             if (data.success) {
                 // Update tags input with generated tags

@@ -71,3 +71,7 @@ blog.db
 
 # Keep .gitkeep files
 !.gitkeep
+
+# Uploaded images and media
+static/uploads/*
+!static/uploads/.gitkeep
