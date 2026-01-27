@@ -1354,8 +1354,6 @@ def get_ai_tag_history(user_id=None, post_id=None, limit=50):
     Returns:
         list: 历史记录列表
     """
-    import json
-
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -1390,11 +1388,7 @@ def get_ai_tag_history(user_id=None, post_id=None, limit=50):
     history = []
     for row in cursor.fetchall():
         record = dict(row)
-        # 解析JSON格式的标签
-        try:
-            record['generated_tags'] = json.loads(record['generated_tags'])
-        except:
-            record['generated_tags'] = []
+        # 保留JSON字符串格式，由路由层负责解析
         history.append(record)
 
     conn.close()
