@@ -278,28 +278,19 @@ def ai_history():
     for record in history:
         if record.get('generated_tags'):
             try:
-                # Try to parse as JSON
                 parsed = json.loads(record['generated_tags'])
-
-                # Debug logging
-                logger.info(f"[AI History] Record {record.get('id')}: parsed type = {type(parsed)}, content = {str(parsed)[:200]}")
 
                 # If it's a list (old format), keep it as is
                 # If it's a dict (new format), use it as parsed_data
                 if isinstance(parsed, dict):
                     record['parsed_data'] = parsed
-                    logger.info(f"[AI History] Parsed data action: {parsed.get('action')}")
                 else:
                     record['parsed_data'] = None
             except (json.JSONDecodeError, TypeError) as e:
-                tags_value = record.get('generated_tags')
-                logger.error(f"[AI History] Failed to parse JSON: {e}, content type: {type(tags_value)}, content: {str(tags_value)[:100] if tags_value else 'None'}")
+                logger.error(f"Failed to parse AI history JSON: {e}")
                 record['parsed_data'] = None
         else:
             record['parsed_data'] = None
-
-        # Debug: log post_title
-        logger.info(f"[AI History] Record {record.get('id')}: post_title = {record.get('post_title')}, post_id = {record.get('post_id')}")
 
     return render_template('admin/ai_history.html',
                          history=history,
