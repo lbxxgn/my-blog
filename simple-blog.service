@@ -19,12 +19,9 @@ Environment="FLASK_ENV=production"
 Environment="PYTHONPATH=/root/my-blog"
 Environment="PORT=5001"
 
-# 从 .env 文件加载环境变量
-# 这会读取 .env 文件并设置所有环境变量
+# 从 .env 文件加载环境变量（不存在不报错）
+# 注意：- 前缀表示文件可选
 EnvironmentFile=-/root/my-blog/.env
-
-# 如果 .env 文件不在项目根目录，使用绝对路径
-# EnvironmentFile=-/root/my-blog/backend/.env
 
 # 启动命令
 ExecStart=/usr/bin/python3 /root/my-blog/backend/app.py
@@ -35,16 +32,16 @@ RestartSec=10
 StartLimitInterval=60
 StartLimitBurst=3
 
-# 日志配置
+# 日志配置（相对于 WorkingDirectory）
 StandardOutput=append:/root/my-blog/logs/app.log
 StandardError=append:/root/my-blog/logs/error.log
 
-# 安全设置
-NoNewPrivileges=false
-PrivateTmp=false
+# 安全设置（生产环境建议启用）
+# NoNewPrivileges=true
+# PrivateTmp=true
 
-# 资源限制（可选）
-# LimitNOFILE=65536
+# 资源限制
+LimitNOFILE=65536
 # MemoryLimit=512M
 
 [Install]
