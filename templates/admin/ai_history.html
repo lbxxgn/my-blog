@@ -71,7 +71,7 @@
                         {% endif %}
                         <!-- Debug: show raw data -->
                         <small style="display: block; color: #999; font-size: 0.7em;">
-                            generated_tags: {{ record.generated_tags|string|truncate(50) }}
+                            generated_tags: {{ record.generated_tags|truncate(50) if record.generated_tags else 'None' }}
                         </small>
                     </td>
                     <td class="article-cell">
