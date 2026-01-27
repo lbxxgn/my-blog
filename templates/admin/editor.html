@@ -437,6 +437,14 @@ async function generateAISummary() {
         return;
     }
 
+    // Get post ID from URL if editing
+    const pathParts = window.location.pathname.split('/');
+    let postId = pathParts[pathParts.length - 1];
+    // If postId is not a number, we're creating a new post
+    if (isNaN(parseInt(postId))) {
+        postId = null;
+    }
+
     showAiToolsStatus('loading', '🤖 AI正在生成摘要...');
 
     const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
@@ -449,6 +457,7 @@ async function generateAISummary() {
                 'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({
+                post_id: postId,
                 title: title,
                 content: content
             })
@@ -601,6 +610,14 @@ async function continueAIWriting() {
         return;
     }
 
+    // Get post ID from URL if editing
+    const pathParts = window.location.pathname.split('/');
+    let postId = pathParts[pathParts.length - 1];
+    // If postId is not a number, we're creating a new post
+    if (isNaN(parseInt(postId))) {
+        postId = null;
+    }
+
     showAiToolsStatus('loading', '🤖 AI正在续写内容...');
 
     const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
@@ -613,6 +630,7 @@ async function continueAIWriting() {
                 'X-CSRFToken': csrfToken
             },
             body: JSON.stringify({
+                post_id: postId,
                 title: title,
                 content: content
             })
