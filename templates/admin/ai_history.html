@@ -64,11 +64,15 @@
                             {% elif record.parsed_data.action == 'continue_writing' %}
                                 <span class="action-tag tag-type-continue">内容续写</span>
                             {% else %}
-                                <span class="action-tag tag-type-default">未知</span>
+                                <span class="action-tag tag-type-default">未知: {{ record.parsed_data.action }}</span>
                             {% endif %}
                         {% else %}
-                            <span class="action-tag tag-type-generate">标签生成</span>
+                            <span class="action-tag tag-type-default">解析失败</span>
                         {% endif %}
+                        <!-- Debug: show raw data -->
+                        <small style="display: block; color: #999; font-size: 0.7em;">
+                            generated_tags: {{ record.generated_tags|string|truncate(50) }}
+                        </small>
                     </td>
                     <td class="article-cell">
                         {% if record.post_title %}
@@ -87,16 +91,28 @@
                             {# 新格式：解析JSON结果 #}
                             {% if record.parsed_data.action == 'generate_tags' %}
                                 <div class="tags-result">
-                                    {% for tag in record.parsed_data.tags %}
-                                        <span class="mini-tag">{{ tag }}</span>
-                                    {% endfor %}
+                                    {% if record.parsed_data.tags %}
+                                        {% for tag in record.parsed_data.tags %}
+                                            <span class="mini-tag">{{ tag }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">（无标签数据）</span>
+                                    {% endif %}
                                 </div>
                             {% elif record.parsed_data.action == 'generate_summary' %}
-                                <div class="summary-result">{{ record.parsed_data.summary[:80] }}{% if record.parsed_data.summary|length > 80 %}...{% endif %}</div>
+                                <div class="summary-result">
+                                    {% if record.parsed_data.summary %}
+                                        {{ record.parsed_data.summary[:80] }}{% if record.parsed_data.summary|length > 80 %}...{% endif %}
+                                    {% else %}
+                                        <span class="text-muted">（无摘要数据）</span>
+                                    {% endif %}
+                                </div>
                             {% elif record.parsed_data.action == 'recommend_posts' %}
-                                <span class="recommend-result">推荐 {{ record.parsed_data.recommendations_count }} 篇</span>
+                                <span class="recommend-result">推荐 {{ record.parsed_data.recommendations_count or 0 }} 篇</span>
                             {% elif record.parsed_data.action == 'continue_writing' %}
-                                <span class="continue-result">续写 {{ record.parsed_data.continuation_length }} 字</span>
+                                <span class="continue-result">续写 {{ record.parsed_data.continuation_length or 0 }} 字</span>
+                            {% else %}
+                                <span class="text-muted">未知格式</span>
                             {% endif %}
                         {% elif record.generated_tags and record.generated_tags is iterable and record.generated_tags is not string %}
                             {# 旧格式：标签列表 #}
