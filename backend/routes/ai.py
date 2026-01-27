@@ -292,7 +292,8 @@ def ai_history():
                 else:
                     record['parsed_data'] = None
             except (json.JSONDecodeError, TypeError) as e:
-                logger.error(f"[AI History] Failed to parse JSON: {e}, content: {record.get('generated_tags')[:100]}")
+                tags_value = record.get('generated_tags')
+                logger.error(f"[AI History] Failed to parse JSON: {e}, content type: {type(tags_value)}, content: {str(tags_value)[:100] if tags_value else 'None'}")
                 record['parsed_data'] = None
         else:
             record['parsed_data'] = None
