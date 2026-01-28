@@ -240,61 +240,97 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Timeline page loaded');
+    console.log('Filter buttons:', document.querySelectorAll('.filter-btn').length);
+    console.log('Timeline items:', document.querySelectorAll('.timeline-item').length);
+
     // 筛选按钮功能
     const filterBtns = document.querySelectorAll('.filter-btn');
     const timelineItems = document.querySelectorAll('.timeline-item');
 
-    filterBtns.forEach(btn => {
+    filterBtns.forEach((btn, index) => {
         btn.addEventListener('click', function() {
+            console.log('Filter button clicked:', this.getAttribute('data-filter'));
+
             // 移除所有按钮的 active 类
             filterBtns.forEach(b => b.classList.remove('active'));
             // 添加当前按钮的 active 类
             this.classList.add('active');
 
             const filter = this.getAttribute('data-filter');
+            console.log('Applying filter:', filter);
 
             // 筛选项目
+            let visibleCount = 0;
             timelineItems.forEach(item => {
                 const status = item.getAttribute('data-status');
                 const type = item.getAttribute('data-type');
 
+                console.log('Item status:', status, 'type:', type);
+
                 if (filter === 'all') {
                     item.classList.remove('hidden');
+                    visibleCount++;
                 } else if (status === filter) {
                     item.classList.remove('hidden');
+                    visibleCount++;
                 } else {
                     item.classList.add('hidden');
                 }
             });
+
+            console.log('Visible items after filter:', visibleCount);
         });
     });
 
     // 时区转换 - 将 UTC 时间转换为 UTC+8
     function convertToChinaTime(utcTimeString) {
         try {
-            const utcDate = new Date(utcTimeString);
-            // 转换为 UTC+8
-            const chinaTime = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
-            return chinaTime.toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
+            console.log('Converting time:', utcTimeString);
+
+            // 解析 SQLite datetime 格式：YYYY-MM-DD HH:MM:SS
+            const parts = utcTimeString.match(/(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+
+            if (parts) {
+                const [, year, month, day, hour, minute, second] = parts;
+                // 创建日期对象（注意月份要减1）
+                const date = new Date(year, month - 1, day, hour, minute, second);
+
+                // 转换为 UTC+8（如果已经是本地时间，则不需要转换）
+                // SQLite 存储的是 UTC，需要转换为本地时间
+                const chinaTime = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+
+                const formatted = chinaTime.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                });
+
+                console.log('Converted:', utcTimeString, '->', formatted);
+                return formatted;
+            }
+
+            return utcTimeString;
         } catch (e) {
+            console.error('Time conversion error:', e);
             return utcTimeString;
         }
     }
 
     // 更新所有时间显示
     document.querySelectorAll('.item-date').forEach(el => {
-        const originalTime = el.textContent;
-        el.textContent = convertToChinaTime(originalTime);
+        const originalTime = el.textContent.trim();
+        const convertedTime = convertToChinaTime(originalTime);
+        el.textContent = convertedTime;
         el.title = '原始时间: ' + originalTime; // 鼠标悬停显示原始时间
+        console.log('Time updated:', originalTime, '->', convertedTime);
     });
+
+    console.log('Timeline initialization complete');
 });
 </script>
 {% endblock %}
