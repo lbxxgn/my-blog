@@ -188,5 +188,52 @@ class TestCommentRoutes:
             'author_name': '',
             'content': 'Test comment'
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
+
+
+class TestKnowledgeBaseRoutes:
+    """知识库路由测试"""
+
+    def test_quick_note_page_requires_login(self, client):
+        """测试快速记事页面需要登录"""
+        response = client.get('/quick-note')
+        assert response.status_code == 302  # Redirect to login
+
+    def test_quick_note_page_with_login(self, client, test_admin_user):
+        """测试快速记事页面显示"""
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.get('/quick-note')
+        assert response.status_code == 200
+        assert '快速记事' in response.data.decode()
+
+    def test_timeline_page(self, client, test_admin_user):
+        """测试时间线页面"""
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.get('/timeline')
+        assert response.status_code == 200
+
+    def test_create_quick_note(self, client, test_admin_user):
+        """测试创建快速笔记"""
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.post('/quick-note', json={
+            'title': 'Test Note',
+            'content': 'Test content'
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'card_id' in data
