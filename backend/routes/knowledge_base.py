@@ -8,6 +8,7 @@
 """
 
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+from flask_wtf.csrf import csrf_exempt
 from auth_decorators import login_required
 from models import (
     create_card, get_card_by_id, get_cards_by_user,
@@ -37,22 +38,28 @@ def quick_note():
         if not content:
             return jsonify({'success': False, 'error': '内容不能为空'}), 400
 
-        # Create card with 'idea' status
-        card_id = create_card(
-            user_id=session['user_id'],
-            title=title if title else None,
-            content=content,
-            status='idea',
-            source='web'
-        )
+        try:
+            # Create card with 'idea' status
+            card_id = create_card(
+                user_id=session['user_id'],
+                title=title if title else None,
+                content=content,
+                status='idea',
+                source='web'
+            )
 
-        log_operation(session['user_id'], session.get('username', 'Unknown'),
-                      f'创建快速笔记', f'卡片ID: {card_id}')
+            log_operation(session['user_id'], session.get('username', 'Unknown'),
+                          f'创建快速笔记', f'卡片ID: {card_id}')
 
-        if request.is_json:
-            return jsonify({'success': True, 'card_id': card_id})
-        else:
-            return redirect(url_for('knowledge_base.timeline'))
+            if request.is_json:
+                return jsonify({'success': True, 'card_id': card_id})
+            else:
+                return redirect(url_for('knowledge_base.timeline'))
+        except Exception as e:
+            if request.is_json:
+                return jsonify({'success': False, 'error': str(e)}), 500
+            else:
+                return redirect(url_for('knowledge_base.timeline'))
 
     return render_template('quick_note.html')
 
@@ -90,6 +97,7 @@ def timeline():
 
 
 @knowledge_base_bp.route('/api/cards/<int:card_id>', methods=['GET', 'PUT', 'DELETE'])
+@csrf_exempt
 @login_required
 def card_detail(card_id):
     """卡片详情API"""
@@ -117,6 +125,7 @@ def card_detail(card_id):
 
 
 @knowledge_base_bp.route('/api/cards/<int:card_id>/status', methods=['PUT'])
+@csrf_exempt
 @login_required
 def card_status(card_id):
     """更新卡片状态"""
@@ -139,6 +148,7 @@ def card_status(card_id):
 
 
 @knowledge_base_bp.route('/api/cards/merge', methods=['POST'])
+@csrf_exempt
 @login_required
 def merge_cards():
     """合并卡片到文章"""

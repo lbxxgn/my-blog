@@ -104,11 +104,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
+            // Get CSRF token from meta tag
+            const csrfToken = document.querySelector('meta[name="csrf_token"]')?.getAttribute('content');
+
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+
+            // Add CSRF token if available
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+
             const response = await fetch('/quick-note', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: headers,
                 body: JSON.stringify({
                     title: titleInput.value.trim(),
                     content: content
