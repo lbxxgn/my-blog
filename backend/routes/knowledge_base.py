@@ -12,7 +12,7 @@ from auth_decorators import login_required
 from models import (
     create_card, get_card_by_id, get_cards_by_user,
     update_card_status, update_card, delete_card, get_timeline_items,
-    get_user_by_id
+    get_user_by_id, merge_cards_to_post
 )
 import json
 from logger import log_operation
@@ -136,3 +136,35 @@ def card_status(card_id):
                   f'更新卡片状态', f'卡片ID: {card_id}, 新状态: {new_status}')
 
     return jsonify({'success': True})
+
+
+@knowledge_base_bp.route('/api/cards/merge', methods=['POST'])
+@login_required
+def merge_cards():
+    """合并卡片到文章"""
+    data = request.get_json()
+    card_ids = data.get('card_ids', [])
+    action = data.get('action', 'create_post')
+    post_id = data.get('post_id')
+
+    if not card_ids:
+        return jsonify({'success': False, 'error': '请选择要合并的卡片'}), 400
+
+    try:
+        if action == 'create_post':
+            post_id = merge_cards_to_post(card_ids, session['user_id'])
+        elif action == 'append_post':
+            if not post_id:
+                return jsonify({'success': False, 'error': '请指定目标文章'}), 400
+            post_id = merge_cards_to_post(card_ids, session['user_id'], post_id)
+        else:
+            return jsonify({'success': False, 'error': '无效的操作'}), 400
+
+        log_operation(session['user_id'], session.get('username', 'Unknown'),
+                      f'合并卡片', f'卡片IDs: {card_ids} -> 文章ID: {post_id}')
+
+        return jsonify({'success': True, 'post_id': post_id})
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+

@@ -237,3 +237,27 @@ class TestKnowledgeBaseRoutes:
         data = response.get_json()
         assert data['success'] is True
         assert 'card_id' in data
+
+    def test_merge_cards_to_post(self, client, test_admin_user):
+        """测试合并卡片到文章"""
+        from models import create_card
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        # Create test cards
+        card1_id = create_card(user_id=1, title='Card 1', content='Content 1', status='idea')
+        card2_id = create_card(user_id=1, title='Card 2', content='Content 2', status='idea')
+
+        # Merge cards
+        response = client.post('/api/cards/merge', json={
+            'card_ids': [card1_id, card2_id],
+            'action': 'create_post'
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'post_id' in data
