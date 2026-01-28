@@ -75,3 +75,7 @@ blog.db
 # Uploaded images and media
 static/uploads/*
 !static/uploads/.gitkeep
+
+# Git worktrees
+.worktrees/
+worktrees/
