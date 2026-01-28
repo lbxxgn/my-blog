@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}快速记事 - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="quick-note-container">
+    <h1>快速记事</h1>
+    <p class="text-muted">快速捕获你的想法</p>
+
+    <form id="quick-note-form" class="quick-note-form">
+        <div class="form-group">
+            <label for="title">标题（可选）</label>
+            <input type="text" id="title" name="title" class="form-control"
+                   placeholder="给这个想法起个标题...">
+        </div>
+
+        <div class="form-group">
+            <label for="content">内容 *</label>
+            <textarea id="content" name="content" class="form-control" rows="15"
+                      placeholder="写下你的想法..." required></textarea>
+        </div>
+
+        <div class="quick-note-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> 快速保存 (Ctrl+S)
+            </button>
+            <button type="button" id="clear-btn" class="btn btn-secondary">
+                <i class="fas fa-eraser"></i> 清空
+            </button>
+        </div>
+    </form>
+
+    <div id="save-status" class="save-status"></div>
+</div>
+
+<style>
+.quick-note-container {
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 30px;
+}
+
+.quick-note-form {
+    margin-top: 30px;
+}
+
+.quick-note-form input,
+.quick-note-form textarea {
+    font-size: 16px;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    transition: border-color 0.3s;
+}
+
+.quick-note-form input:focus,
+.quick-note-form textarea:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.quick-note-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.save-status {
+    margin-top: 20px;
+    padding: 10px;
+    border-radius: 4px;
+    display: none;
+}
+
+.save-status.success {
+    background-color: #d4edda;
+    color: #155724;
+    display: block;
+}
+
+.save-status.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    display: block;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('quick-note-form');
+    const contentInput = document.getElementById('content');
+    const titleInput = document.getElementById('title');
+    const saveStatus = document.getElementById('save-status');
+    const clearBtn = document.getElementById('clear-btn');
+
+    // Form submit
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const content = contentInput.value.trim();
+        if (!content) {
+            showStatus('内容不能为空', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/quick-note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: titleInput.value.trim(),
+                    content: content
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showStatus('已保存到时间线！', 'success');
+                // Clear form
+                titleInput.value = '';
+                contentInput.value = '';
+                // Focus back to content for next note
+                contentInput.focus();
+            } else {
+                showStatus(data.error || '保存失败', 'error');
+            }
+        } catch (error) {
+            showStatus('保存失败：' + error.message, 'error');
+        }
+    });
+
+    // Ctrl+S shortcut
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            form.dispatchEvent(new Event('submit'));
+        }
+    });
+
+    // Clear button
+    clearBtn.addEventListener('click', function() {
+        titleInput.value = '';
+        contentInput.value = '';
+        contentInput.focus();
+    });
+
+    function showStatus(message, type) {
+        saveStatus.textContent = message;
+        saveStatus.className = 'save-status ' + type;
+        setTimeout(() => {
+            saveStatus.className = 'save-status';
+        }, 3000);
+    }
+});
+</script>
+{% endblock %}
