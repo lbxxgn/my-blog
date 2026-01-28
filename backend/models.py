@@ -150,6 +150,17 @@ def init_db(db_path=None):
         )
     ''')
 
+    # Add new columns to posts table if they don't exist
+    try:
+        cursor.execute('ALTER TABLE posts ADD COLUMN post_type TEXT DEFAULT \'blog\'')
+    except Exception:
+        pass  # Column already exists
+
+    try:
+        cursor.execute('ALTER TABLE posts ADD COLUMN source_card_ids TEXT')
+    except Exception:
+        pass  # Column already exists
+
     # Create users table with full schema
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
