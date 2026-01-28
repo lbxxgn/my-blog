@@ -257,6 +257,29 @@ def init_db(db_path=None):
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_ai_history_user ON ai_tag_history(user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_ai_history_created ON ai_tag_history(created_at DESC)')
 
+    # Create cards table for knowledge base system
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS cards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT,
+            content TEXT NOT NULL,
+            tags TEXT,
+            status TEXT DEFAULT 'idea',
+            source TEXT DEFAULT 'web',
+            linked_article_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (linked_article_id) REFERENCES posts(id)
+        )
+    ''')
+
+    # Create cards indexes
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_user_status ON cards(user_id, status)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_created ON cards(created_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_linked_article ON cards(linked_article_id)')
+
     conn.commit()
     conn.close()
 
@@ -926,6 +949,257 @@ def delete_comment(comment_id):
     cursor.execute('DELETE FROM comments WHERE id = ?', (comment_id,))
     conn.commit()
     conn.close()
+
+# =============================================================================
+# Cards Model Functions
+# =============================================================================
+
+def create_card(user_id, title, content, tags=None, status='idea', source='web', linked_article_id=None):
+    """
+    创建新卡片
+
+    Args:
+        user_id (int): 用户ID
+        title (str, optional): 卡片标题
+        content (str): 卡片内容
+        tags (list, optional): 标签列表
+        status (str): 状态 (idea/draft/incubating/published)
+        source (str): 来源 (web/plugin/voice/mobile)
+        linked_article_id (int, optional): 关联的文章ID
+
+    Returns:
+        int: 新创建卡片的ID
+    """
+    import json
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    tags_json = json.dumps(tags) if tags else None
+
+    cursor.execute('''
+        INSERT INTO cards (user_id, title, content, tags, status, source, linked_article_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (user_id, title, content, tags_json, status, source, linked_article_id))
+
+    card_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return card_id
+
+
+def get_card_by_id(card_id):
+    """
+    通过ID获取卡片
+
+    Args:
+        card_id (int): 卡片ID
+
+    Returns:
+        dict or None: 卡片数据
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM cards WHERE id = ?', (card_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    return dict(row) if row else None
+
+
+def get_cards_by_user(user_id, status=None, limit=None, offset=None):
+    """
+    获取用户的所有卡片
+
+    Args:
+        user_id (int): 用户ID
+        status (str, optional): 筛选状态
+        limit (int, optional): 限制数量
+        offset (int, optional): 偏移量
+
+    Returns:
+        list: 卡片列表
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    query = 'SELECT * FROM cards WHERE user_id = ?'
+    params = [user_id]
+
+    if status:
+        query += ' AND status = ?'
+        params.append(status)
+
+    query += ' ORDER BY created_at DESC'
+
+    if limit:
+        query += ' LIMIT ?'
+        params.append(limit)
+        if offset:
+            query += ' OFFSET ?'
+            params.append(offset)
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+def update_card_status(card_id, status):
+    """
+    更新卡片状态
+
+    Args:
+        card_id (int): 卡片ID
+        status (str): 新状态
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE cards SET status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    ''', (status, card_id))
+
+    conn.commit()
+    conn.close()
+
+
+def update_card(card_id, title=None, content=None, tags=None, status=None):
+    """
+    更新卡片信息
+
+    Args:
+        card_id (int): 卡片ID
+        title (str, optional): 新标题
+        content (str, optional): 新内容
+        tags (list, optional): 新标签
+        status (str, optional): 新状态
+    """
+    import json
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    updates = []
+    params = []
+
+    if title is not None:
+        updates.append('title = ?')
+        params.append(title)
+
+    if content is not None:
+        updates.append('content = ?')
+        params.append(content)
+
+    if tags is not None:
+        updates.append('tags = ?')
+        params.append(json.dumps(tags))
+
+    if status is not None:
+        updates.append('status = ?')
+        params.append(status)
+
+    if updates:
+        updates.append('updated_at = CURRENT_TIMESTAMP')
+        query = f"UPDATE cards SET {', '.join(updates)} WHERE id = ?"
+        params.append(card_id)
+
+        cursor.execute(query, params)
+        conn.commit()
+
+    conn.close()
+
+
+def delete_card(card_id):
+    """
+    删除卡片
+
+    Args:
+        card_id (int): 卡片ID
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM cards WHERE id = ?', (card_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_timeline_items(user_id, limit=20, cursor_time=None):
+    """
+    获取时间线项目（卡片和文章的混合流）
+
+    Args:
+        user_id (int): 用户ID
+        limit (int): 每页数量
+        cursor_time (str, optional): 时间游标
+
+    Returns:
+        dict: 包含 items, next_cursor, has_more
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Query cards
+    cards_query = '''
+        SELECT id, title, content, 'card' as type, status, created_at
+        FROM cards
+        WHERE user_id = ?
+    '''
+    cards_params = [user_id]
+
+    if cursor_time:
+        cards_query += ' AND created_at < ?'
+        cards_params.append(cursor_time)
+
+    cards_query += ' ORDER BY created_at DESC LIMIT ?'
+    cards_params.append(limit + 1)
+
+    cursor.execute(cards_query, cards_params)
+    cards = [dict(row) for row in cursor.fetchall()]
+
+    # Query published posts
+    posts_query = '''
+        SELECT id, title, content, 'post' as type,
+               CASE WHEN is_published = 1 THEN 'published' ELSE 'draft' END as status,
+               created_at
+        FROM posts
+        WHERE author_id = ?
+    '''
+    posts_params = [user_id]
+
+    if cursor_time:
+        posts_query += ' AND created_at < ?'
+        posts_params.append(cursor_time)
+
+    posts_query += ' ORDER BY created_at DESC LIMIT ?'
+    posts_params.append(limit + 1)
+
+    cursor.execute(posts_query, posts_params)
+    posts = [dict(row) for row in cursor.fetchall()]
+
+    # Merge and sort by created_at
+    all_items = cards + posts
+    all_items.sort(key=lambda x: x['created_at'], reverse=True)
+
+    # Paginate
+    items = all_items[:limit]
+    has_more = len(all_items) > limit
+
+    next_cursor = None
+    if items:
+        next_cursor = items[-1]['created_at']
+
+    conn.close()
+
+    return {
+        'items': items,
+        'next_cursor': next_cursor,
+        'has_more': has_more
+    }
 
 def update_post_with_tags(post_id, title, content, is_published, category_id=None, tag_names=None):
     """Update post and its tags in a single transaction"""
@@ -1700,5 +1974,3 @@ def verify_post_password(post_id, password):
     logger.info(f"[Password Verify] Password match: {result}")
 
     return result
-
-
