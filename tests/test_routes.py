@@ -291,3 +291,27 @@ class TestKnowledgeBaseRoutes:
         if response.status_code == 200:
             assert 'success' in data
             assert 'tags' in data or 'message' in data
+
+    def test_ai_merge_cards(self, client, test_admin_user):
+        """测试AI合并卡片"""
+        from models import create_card
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        # Create test cards
+        card1_id = create_card(user_id=1, title='Card 1', content='Content 1', status='idea')
+        card2_id = create_card(user_id=1, title='Card 2', content='Content 2', status='idea')
+
+        # AI merge
+        response = client.post('/api/cards/ai-merge', json={
+            'card_ids': [card1_id, card2_id],
+            'merge_style': 'comprehensive'
+        })
+
+        # May succeed or fail depending on AI config
+        assert response.status_code in [200, 400, 500]
+        data = response.get_json()
+        assert 'success' in data

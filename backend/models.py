@@ -1281,6 +1281,55 @@ def merge_cards_to_post(card_ids, user_id, post_id=None):
 
     return post_id
 
+
+def ai_merge_cards_to_post(card_ids, user_id, user_config, merge_style='comprehensive'):
+    """
+    使用AI合并卡片到文章
+
+    Args:
+        card_ids (list): 卡片ID列表
+        user_id (int): 用户ID
+        user_config (dict): 用户AI配置
+        merge_style (str): 合并风格 ('comprehensive' 或 'outline')
+
+    Returns:
+        dict: 包含 post_id, title, content, outline, tags, tokens_used
+    """
+    from ai_services.card_merger import AICardMerger
+
+    # Use AI to merge
+    ai_result = AICardMerger.merge_cards(
+        card_ids=card_ids,
+        user_id=user_id,
+        user_config=user_config,
+        merge_style=merge_style
+    )
+
+    # Create post with AI-generated content
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO posts (title, content, is_published, author_id, post_type)
+        VALUES (?, ?, 0, ?, 'knowledge-article')
+    ''', (ai_result['title'], ai_result['content'], user_id))
+
+    post_id = cursor.lastrowid
+
+    # Update cards status and link
+    placeholders = ','.join(['?' for _ in card_ids])
+    cursor.execute(f'''
+        UPDATE cards SET status = 'incubating', linked_article_id = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id IN ({placeholders})
+    ''', [post_id] + card_ids)
+
+    conn.commit()
+    conn.close()
+
+    ai_result['post_id'] = post_id
+    return ai_result
+
+
 def update_post_with_tags(post_id, title, content, is_published, category_id=None, tag_names=None):
     """Update post and its tags in a single transaction"""
     conn = get_db_connection()

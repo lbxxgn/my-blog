@@ -12,7 +12,7 @@ from auth_decorators import login_required
 from models import (
     create_card, get_card_by_id, get_cards_by_user,
     update_card_status, update_card, delete_card, get_timeline_items,
-    get_user_by_id, merge_cards_to_post, get_user_ai_config
+    get_user_by_id, merge_cards_to_post, get_user_ai_config, ai_merge_cards_to_post
 )
 import json
 from logger import log_operation
@@ -231,5 +231,48 @@ def generate_card_tags():
         # Configuration errors should return 400
         return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@knowledge_base_bp.route('/api/cards/ai-merge', methods=['POST'])
+@login_required
+def ai_merge_cards():
+    """AI合并卡片"""
+    data = request.get_json()
+    card_ids = data.get('card_ids', [])
+    merge_style = data.get('merge_style', 'comprehensive')
+
+    if not card_ids:
+        return jsonify({'success': False, 'error': '请选择要合并的卡片'}), 400
+
+    # Get user AI config
+    user_ai_config = get_user_ai_config(session['user_id'])
+
+    if not user_ai_config or not user_ai_config.get('ai_tag_generation_enabled', False):
+        return jsonify({'success': False, 'error': 'AI功能未启用，请先在设置中配置'}), 400
+
+    try:
+        result = ai_merge_cards_to_post(
+            card_ids=card_ids,
+            user_id=session['user_id'],
+            user_config=user_ai_config,
+            merge_style=merge_style
+        )
+
+        log_operation(session['user_id'], session.get('username', 'Unknown'),
+                     f'AI合并卡片', f'卡片IDs: {card_ids} -> 文章ID: {result["post_id"]}')
+
+        return jsonify({
+            'success': True,
+            'post_id': result['post_id'],
+            'title': result['title'],
+            'outline': result.get('outline', ''),
+            'tags': result.get('tags', []),
+            'tokens_used': result.get('tokens_used', 0)
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
