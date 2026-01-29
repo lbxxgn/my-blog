@@ -276,3 +276,18 @@ def ai_merge_cards():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@knowledge_base_bp.route('/incubator')
+@login_required
+def incubator():
+    """孵化箱页面"""
+    status = request.args.get('status', 'incubating')
+
+    # Get cards by status
+    cards = get_cards_by_user(session['user_id'], status=status)
+
+    # Get user info
+    user = get_user_by_id(session['user_id'])
+
+    return render_template('incubator.html', cards=cards, user=user, current_status=status)
+
