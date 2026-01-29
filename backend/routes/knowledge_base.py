@@ -12,7 +12,7 @@ from auth_decorators import login_required
 from models import (
     create_card, get_card_by_id, get_cards_by_user,
     update_card_status, update_card, delete_card, get_timeline_items,
-    get_user_by_id, merge_cards_to_post
+    get_user_by_id, merge_cards_to_post, get_user_ai_config
 )
 import json
 from logger import log_operation
@@ -173,6 +173,63 @@ def merge_cards():
 
         return jsonify({'success': True, 'post_id': post_id})
 
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@knowledge_base_bp.route('/api/cards/generate-tags', methods=['POST'])
+@login_required
+def generate_card_tags():
+    """AI生成卡片标签"""
+    from ai_services import TagGenerator
+
+    data = request.get_json()
+    card_id = data.get('card_id')
+
+    if not card_id:
+        return jsonify({'success': False, 'error': '卡片ID不能为空'}), 400
+
+    # Get card
+    card = get_card_by_id(card_id)
+    if not card or card['user_id'] != session['user_id']:
+        return jsonify({'success': False, 'error': '卡片不存在'}), 404
+
+    # Get user AI config
+    user_ai_config = get_user_ai_config(session['user_id'])
+
+    if not user_ai_config or not user_ai_config.get('ai_tag_generation_enabled', False):
+        return jsonify({'success': False, 'error': 'AI标签生成功能未启用'}), 400
+
+    try:
+        # Generate tags using existing TagGenerator
+        title = card['title'] or '无标题'
+        content = card['content']
+
+        result = TagGenerator.generate_for_post(
+            title=title,
+            content=content,
+            user_config=user_ai_config,
+            max_tags=5
+        )
+
+        if result and result.get('tags'):
+            # Update card with generated tags
+            update_card(card_id, tags=result['tags'])
+
+            log_operation(session['user_id'], session.get('username', 'Unknown'),
+                         f'AI生成卡片标签', f'卡片ID: {card_id}, 标签: {result["tags"]}')
+
+            return jsonify({
+                'success': True,
+                'tags': result['tags'],
+                'tokens_used': result.get('tokens_used', 0)
+            })
+        else:
+            return jsonify({'success': False, 'error': '标签生成失败'}), 500
+
+    except ValueError as e:
+        # Configuration errors should return 400
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

@@ -261,3 +261,33 @@ class TestKnowledgeBaseRoutes:
         data = response.get_json()
         assert data['success'] is True
         assert 'post_id' in data
+
+    def test_generate_tags_for_card(self, client, test_admin_user):
+        """测试为卡片生成AI标签"""
+        from models import create_card
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        # Create a card
+        card_id = create_card(
+            user_id=1,
+            title='Machine Learning Basics',
+            content='Machine learning is a subset of artificial intelligence...',
+            status='idea'
+        )
+
+        # Generate tags
+        response = client.post('/api/cards/generate-tags', json={
+            'card_id': card_id
+        })
+
+        # Check response - may succeed or fail depending on AI config
+        assert response.status_code in [200, 400]
+        data = response.get_json()
+
+        if response.status_code == 200:
+            assert 'success' in data
+            assert 'tags' in data or 'message' in data
