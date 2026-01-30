@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Extension Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f0f0f0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        h1 { color: #333; }
+        .highlight {
+            background: yellow;
+            padding: 2px 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Browser Extension Test Page</h1>
+
+    <div class="test-section">
+        <h2>Test Instructions</h2>
+        <ol>
+            <li>Select this text with your mouse</li>
+            <li>A floating toolbar should appear with buttons: 📌 🏷️ ✏️ ❌</li>
+            <li>Click the 📌 button to save</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Sample Text 1</h2>
+        <p>This is a paragraph of text that you can select to test the browser extension. When you select this text, the floating toolbar should appear automatically.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Sample Text 2</h2>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Select this text to test if the extension works correctly on different content.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Code Example</h2>
+        <pre><code>function hello() {
+    console.log("Hello, World!");
+    return true;
+}</code></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Debug Info</h2>
+        <p>Check the browser console (F12) for these messages:</p>
+        <ul>
+            <li>"Knowledge Base Content Script loaded"</li>
+            <li>"Knowledge Base Extension initialized"</li>
+            <li>When you select text: "Text selected: ..."</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Troubleshooting</h2>
+        <p><strong>Toolbar not appearing?</strong></p>
+        <ul>
+            <li>1. Check chrome://extensions/ - is the extension enabled?</li>
+            <li>2. Click the refresh button 🔄 on the extension card</li>
+            <li>3. Close and reopen this test page</li>
+            <li>4. Open DevTools (F12) and check Console tab for errors</li>
+        </ul>
+    </div>
+</body>
+</html>
