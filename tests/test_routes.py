@@ -188,5 +188,76 @@ class TestCommentRoutes:
             'author_name': '',
             'content': 'Test comment'
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
+
+
+class TestKnowledgeBaseRoutes:
+    """知识库API路由测试"""
+
+    def test_plugin_submit_content(self, client, test_admin_user):
+        """测试插件提交内容"""
+        from models import create_user, generate_api_key
+        from werkzeug.security import generate_password_hash
+
+        # Create user with API key
+        password_hash = generate_password_hash('TestPass123!')
+        user_id = create_user('extuser', password_hash, role='author')
+        api_key = generate_api_key(user_id)
+
+        # Submit via plugin API
+        response = client.post('/api/plugin/submit',
+            json={
+                'title': 'Test Page',
+                'content': 'Selected text from page',
+                'source_url': 'https://example.com/test',
+                'tags': ['test', 'plugin']
+            },
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'card_id' in data
+
+    def test_plugin_submit_requires_api_key(self, client):
+        """测试插件提交需要API密钥"""
+        response = client.post('/api/plugin/submit',
+            json={
+                'title': 'Test Page',
+                'content': 'Selected text from page',
+                'source_url': 'https://example.com/test',
+            }
+        )
+
+        assert response.status_code == 401
+
+    def test_plugin_sync_annotations(self, client):
+        """测试插件同步标注"""
+        from models import create_user, generate_api_key
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('extuser2', generate_password_hash('TestPass123!'), role='author')
+        api_key = generate_api_key(user_id)
+
+        response = client.post('/api/plugin/sync-annotations',
+            json={
+                'url': 'https://example.com/test',
+                'annotations': [
+                    {
+                        'id': 'uuid-1',
+                        'text': 'Selected text',
+                        'xpath': '/html/body/p[1]',
+                        'color': 'yellow',
+                        'note': 'My note',
+                        'annotation_type': 'highlight'
+                    }
+                ]
+            },
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code in [200, 201]
+        data = response.get_json()
+        assert data['success'] is True

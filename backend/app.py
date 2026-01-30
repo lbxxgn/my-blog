@@ -202,7 +202,7 @@ def allowed_file(filename):
 # =============================================================================
 # 注册蓝图
 # =============================================================================
-from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp
+from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp
 
 # 注册认证蓝图
 app.register_blueprint(auth_bp)
@@ -218,6 +218,9 @@ app.register_blueprint(api_bp, url_prefix='/api')
 
 # 注册AI蓝图
 app.register_blueprint(ai_bp)
+
+# 注册知识库蓝图
+app.register_blueprint(knowledge_base_bp)
 
 # 对登录路由应用速率限制
 limiter.limit("5 per minute")(app.view_functions['auth.login'])

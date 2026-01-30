@@ -1702,3 +1702,215 @@ def verify_post_password(post_id, password):
     return result
 
 
+# ==================== 知识库功能 - 浏览器插件支持 ====================
+
+def init_cards_table():
+    """初始化知识库卡片表"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS cards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            status TEXT DEFAULT 'idea',
+            source TEXT,
+            tags TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cards_user_created
+        ON cards(user_id, created_at DESC)
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_cards_status
+        ON cards(status)
+    ''')
+
+    conn.commit()
+    conn.close()
+
+    print("Cards table initialized")
+
+
+def init_card_annotations_table():
+    """初始化卡片标注表"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS card_annotations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            card_id INTEGER,
+            source_url TEXT NOT NULL,
+            annotation_text TEXT,
+            xpath TEXT,
+            color TEXT DEFAULT 'yellow',
+            note TEXT,
+            annotation_type TEXT DEFAULT 'highlight',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (card_id) REFERENCES cards(id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_annotations_user_url
+        ON card_annotations(user_id, source_url)
+    ''')
+
+    conn.commit()
+    conn.close()
+
+    print("Card annotations table initialized")
+
+
+def init_api_keys_table():
+    """初始化API密钥表"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            api_key TEXT NOT NULL UNIQUE,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+
+def generate_api_key(user_id):
+    """生成API密钥"""
+    import secrets
+    api_key = secrets.token_urlsafe(32)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO api_keys (user_id, api_key, created_at)
+        VALUES (?, ?, CURRENT_TIMESTAMP)
+    ''', (user_id, api_key))
+
+    conn.commit()
+    conn.close()
+
+    return api_key
+
+
+def validate_api_key(api_key):
+    """验证API密钥并返回user_id"""
+    if not api_key:
+        return None
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT user_id FROM api_keys
+        WHERE api_key = ? AND is_active = 1
+    ''', (api_key,))
+
+    result = cursor.fetchone()
+    conn.close()
+
+    return result['user_id'] if result else None
+
+
+def create_card(user_id, title, content, status='idea', source=None, tags=None):
+    """创建知识库卡片"""
+    import json
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Convert tags list to JSON string if provided
+    tags_json = json.dumps(tags) if tags else None
+
+    cursor.execute('''
+        INSERT INTO cards (user_id, title, content, status, source, tags)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (user_id, title, content, status, source, tags_json))
+
+    card_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    return card_id
+
+
+def get_cards_by_user(user_id, status=None, limit=50):
+    """获取用户的知识库卡片"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if status:
+        cursor.execute('''
+            SELECT * FROM cards
+            WHERE user_id = ? AND status = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ''', (user_id, status, limit))
+    else:
+        cursor.execute('''
+            SELECT * FROM cards
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT ?
+        ''', (user_id, limit))
+
+    cards = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return cards
+
+
+def create_annotation(user_id, source_url, annotation_text, xpath, color, note, annotation_type='highlight', card_id=None):
+    """创建标注"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO card_annotations
+        (user_id, card_id, source_url, annotation_text, xpath, color, note, annotation_type)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (user_id, card_id, source_url, annotation_text, xpath, color, note, annotation_type))
+
+    annotation_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    return annotation_id
+
+
+def get_annotations_by_url(user_id, source_url):
+    """获取指定URL的所有标注"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT * FROM card_annotations
+        WHERE user_id = ? AND source_url = ?
+        ORDER BY created_at DESC
+    ''', (user_id, source_url))
+
+    annotations = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return annotations
+
+

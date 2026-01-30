@@ -37,6 +37,10 @@ def temp_db():
 
     # 初始化数据库
     models.init_db(db_path)
+    # 初始化知识库相关表
+    models.init_cards_table()
+    models.init_api_keys_table()
+    models.init_card_annotations_table()
 
     yield db_path
 
