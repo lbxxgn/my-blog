@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>知识库</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <div class="user-info">
+        <span class="status-indicator" id="syncStatus"></span>
+        <span class="user-name">知识库</span>
+      </div>
+    </header>
+
+    <main class="popup-main">
+      <div class="recent-captures" id="recentCaptures">
+        <p class="empty-state">No recent captures</p>
+      </div>
+    </main>
+
+    <footer class="popup-footer">
+      <button id="quickNoteBtn" class="btn btn-primary">
+        📝 Quick Note
+      </button>
+      <a href="http://localhost:5001/timeline" target="_blank" class="btn btn-secondary">
+        📚 Open Knowledge Base
+      </a>
+      <button id="settingsBtn" class="btn btn-icon">
+        ⚙️
+      </button>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
