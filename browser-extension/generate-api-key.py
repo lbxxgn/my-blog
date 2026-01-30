@@ -3,14 +3,20 @@
 Generate API Key for Browser Extension Testing
 
 This script helps you generate an API key for testing the browser extension.
-Run it from the backend directory.
+Run it from the browser-extension directory.
 """
 
 import sys
 import os
 
+# Set DATABASE_URL to the correct location before importing models
+script_dir = os.path.dirname(os.path.abspath(__file__))
+db_path = os.path.join(script_dir, '..', 'db', 'simple_blog.db')
+os.environ['DATABASE_URL'] = f'sqlite:///{db_path}'
+
 # Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+backend_dir = os.path.join(script_dir, '..', 'backend')
+sys.path.insert(0, backend_dir)
 
 from models import get_user_by_username, generate_api_key, validate_api_key
 
