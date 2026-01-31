@@ -35,20 +35,172 @@
                     </button>
                 </li>
                 {% if session.get('user_id') %}
-                    <li><a href="{{ url_for('admin_dashboard') }}">管理</a></li>
-                    <li><a href="{{ url_for('knowledge_base.timeline') }}">知识库</a></li>
-                    <li><a href="{{ url_for('knowledge_base.incubator') }}">孵化箱</a></li>
+                    <li><a href="{{ url_for('admin_dashboard') }}">文章管理</a></li>
+                    <li class="dropdown">
+                        <a href="{{ url_for('knowledge_base.timeline') }}" class="dropdown-toggle">
+                            知识库 <span class="dropdown-arrow">▼</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a href="{{ url_for('knowledge_base.timeline') }}">时间线</a></li>
+                            <li><a href="{{ url_for('knowledge_base.incubator') }}">孵化箱</a></li>
+                            <li><a href="{{ url_for('knowledge_base.quick_note') }}">快速记事</a></li>
+                        </ul>
+                    </li>
                     {% if session.get('role') == 'admin' %}
-                    <li><a href="{{ url_for('user_list') }}">用户管理</a></li>
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle">
+                            <span class="user-icon">👤</span> <span class="dropdown-arrow">▼</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li class="dropdown-submenu">
+                                <a href="#" class="submenu-toggle">
+                                    管理目录 <span class="submenu-arrow">▶</span>
+                                </a>
+                                <ul class="submenu">
+                                    <li><a href="{{ url_for('user_list') }}">用户管理</a></li>
+                                    <li><a href="{{ url_for('ai_config') }}">AI设置</a></li>
+                                </ul>
+                            </li>
+                            <li><a href="{{ url_for('change_password') }}">修改密码</a></li>
+                            <li><a href="{{ url_for('logout') }}">退出</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="dropdown">
+                        <a href="#" class="dropdown-toggle">
+                            <span class="user-icon">👤</span> <span class="dropdown-arrow">▼</span>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a href="{{ url_for('change_password') }}">修改密码</a></li>
+                            <li><a href="{{ url_for('logout') }}">退出</a></li>
+                        </ul>
+                    </li>
                     {% endif %}
-                    <li><a href="{{ url_for('change_password') }}">修改密码</a></li>
-                    <li><a href="{{ url_for('logout') }}">退出</a></li>
                 {% else %}
                     <li><a href="{{ url_for('login') }}">登录</a></li>
                 {% endif %}
             </ul>
         </nav>
     </header>
+
+<style>
+/* Dropdown Menu Styles */
+.dropdown {
+    position: relative;
+}
+
+.dropdown-toggle {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dropdown-arrow,
+.submenu-arrow {
+    font-size: 10px;
+    transition: transform 0.3s ease;
+}
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    min-width: 180px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 8px 0;
+    z-index: 1000;
+    margin-top: 8px;
+}
+
+.dropdown:hover .dropdown-menu {
+    display: block;
+}
+
+.dropdown-menu li {
+    list-style: none;
+}
+
+.dropdown-menu li a {
+    display: block;
+    padding: 10px 20px;
+    color: #333;
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.dropdown-menu li a:hover {
+    background: #f5f5f5;
+}
+
+/* Submenu Styles */
+.dropdown-submenu {
+    position: relative;
+}
+
+.submenu-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.submenu {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    background: white;
+    min-width: 160px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 8px 0;
+    margin-left: 8px;
+}
+
+.dropdown-submenu:hover .submenu {
+    display: block;
+}
+
+.dropdown-submenu:hover .submenu-arrow {
+    transform: rotate(90deg);
+}
+
+.dropdown:hover .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+/* User Icon Style */
+.user-icon {
+    font-size: 18px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .dropdown-menu {
+        position: static;
+        box-shadow: none;
+        border-left: 3px solid #007bff;
+        margin-top: 0;
+        padding-left: 10px;
+    }
+
+    .submenu {
+        position: static;
+        box-shadow: none;
+        border-left: 3px solid #28a745;
+        margin-left: 10px;
+        padding-left: 10px;
+    }
+
+    .dropdown-arrow,
+    .submenu-arrow {
+        display: inline-block;
+    }
+}
+</style>
 
     <main>
         {% with messages = get_flashed_messages(with_categories=true) %}
