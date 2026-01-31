@@ -78,6 +78,9 @@
                     <a href="#" class="action-btn edit-btn" data-id="{{ item.id }}">
                         <i class="fas fa-edit"></i> 编辑
                     </a>
+                    <a href="#" class="action-btn delete-btn" data-id="{{ item.id }}">
+                        <i class="fas fa-trash"></i> 删除
+                    </a>
                     {% if item.status == 'idea' %}
                     <a href="#" class="action-btn incubate-btn" data-id="{{ item.id }}">
                         <i class="fas fa-egg"></i> 开始孵化
@@ -226,6 +229,14 @@
 
 .action-btn:hover {
     text-decoration: underline;
+}
+
+.delete-btn {
+    color: #dc3545;
+}
+
+.delete-btn:hover {
+    color: #c82333;
 }
 
 .timeline-load-more {
@@ -463,6 +474,40 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error:', error);
             alert('保存失败');
+        });
+    });
+
+    // ==================== 删除卡片功能 ====================
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const cardId = this.getAttribute('data-id');
+            const cardTitle = this.closest('.timeline-item').querySelector('.item-title')?.textContent || '此卡片';
+
+            // 确认删除
+            if (confirm(`确定要删除卡片 "${cardTitle}" 吗？\n\n此操作不可恢复！`)) {
+                console.log('删除卡片 ID:', cardId);
+
+                fetch(`/api/cards/${cardId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('删除成功！');
+                        location.reload(); // 刷新页面以显示更新
+                    } else {
+                        alert('删除失败: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('删除失败');
+                });
+            }
         });
     });
 
