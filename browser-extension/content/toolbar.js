@@ -95,22 +95,49 @@ export default class Toolbar {
 
   async submitToBackend(content) {
     try {
-      // Send message to background script
-      const response = await chrome.runtime.sendMessage({
-        action: 'submitContent',
-        data: content
-      });
+      console.log('📤 Sending message to background script...');
 
-      if (response.success) {
+      // Send message to background script with retry logic
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({
+          action: 'submitContent',
+          data: content
+        });
+      } catch (retryError) {
+        // If we get a context invalidated error, wait a moment and retry once
+        if (retryError.message && retryError.message.includes('Extension context invalidated')) {
+          console.warn('⚠️ Extension context invalidated, retrying...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          response = await chrome.runtime.sendMessage({
+            action: 'submitContent',
+            data: content
+          });
+        } else {
+          throw retryError;
+        }
+      }
+
+      console.log('📥 Received response:', response);
+
+      if (response && response.success) {
         this.showNotification('✅ Saved to knowledge base!');
-        console.log('Saved:', response.data);
+        console.log('✅ Saved successfully:', response.data);
+      } else if (response) {
+        this.showNotification('❌ Failed: ' + (response.error || 'Unknown error'));
+        console.error('❌ Save failed:', response.error);
       } else {
-        this.showNotification('❌ Failed to save');
-        console.error('Error:', response.error);
+        this.showNotification('❌ No response from extension');
+        console.error('❌ No response received');
       }
     } catch (error) {
       this.showNotification('❌ Error: ' + error.message);
-      console.error('Error:', error);
+      console.error('❌ Exception caught:', error);
+
+      // If context invalidated, suggest reloading the extension
+      if (error.message && error.message.includes('Extension context invalidated')) {
+        this.showNotification('💡 提示: 请刷新扩展后重试');
+      }
     }
   }
 

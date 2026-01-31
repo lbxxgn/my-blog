@@ -1,5 +1,5 @@
 // Content script for web page interaction
-// All-in-one bundle for better compatibility
+// All-in-one bundle for better compatibility (no ES6 imports)
 
 console.log('Knowledge Base Content Script loaded');
 
@@ -60,20 +60,19 @@ class Selector {
     const selection = window.getSelection();
     const selectedText = selection.toString().trim();
 
-    if (!selectedText) {
+    if (selectedText.length === 0) {
       return null;
     }
 
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+
     return {
       text: selectedText,
-      html: selection.getRangeAt(0).cloneContents(),
-      url: window.location.href,
-      title: document.title
+      rect: rect,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 50
     };
-  }
-
-  clearSelection() {
-    window.getSelection().removeAllRanges();
   }
 }
 
@@ -81,44 +80,41 @@ class Selector {
 class Toolbar {
   constructor() {
     this.toolbar = null;
+    this.currentSelection = null;
     this.init();
   }
 
   init() {
     // Create toolbar element
-    this.createToolbar();
+    this.toolbar = document.createElement('div');
+    this.toolbar.className = 'kb-toolbar';
+    this.toolbar.style.display = 'none';
+    document.body.appendChild(this.toolbar);
 
-    // Listen for show/hide events
+    // Add buttons
+    this.addButton('📌', 'Save to knowledge base', () => this.handleSave());
+    this.addButton('🏷️', 'Add tags', () => this.handleWithTags());
+    this.addButton('✏️', 'Add note', () => this.handleWithNote());
+
+    // Listen for toolbar events
     document.addEventListener('kb:showToolbar', (e) => this.show(e.detail));
     document.addEventListener('kb:hideToolbar', () => this.hide());
   }
 
-  createToolbar() {
-    this.toolbar = document.createElement('div');
-    this.toolbar.className = 'kb-toolbar';
-    this.toolbar.innerHTML = `
-      <button class="kb-btn kb-btn-save" title="保存">📌</button>
-      <button class="kb-btn kb-btn-tag" title="保存并添加标签">🏷️</button>
-      <button class="kb-btn kb-btn-note" title="保存并添加备注">✏️</button>
-      <button class="kb-btn kb-btn-close" title="关闭">❌</button>
-    `;
-
-    // Attach event listeners
-    this.toolbar.querySelector('.kb-btn-save').addEventListener('click', () => this.saveSelection());
-    this.toolbar.querySelector('.kb-btn-tag').addEventListener('click', () => this.saveWithTags());
-    this.toolbar.querySelector('.kb-btn-note').addEventListener('click', () => this.saveWithNote());
-    this.toolbar.querySelector('.kb-btn-close').addEventListener('click', () => this.hide());
-
-    document.body.appendChild(this.toolbar);
+  addButton(emoji, title, handler) {
+    const btn = document.createElement('button');
+    btn.className = 'kb-toolbar-btn';
+    btn.innerHTML = emoji;
+    btn.title = title;
+    btn.onclick = handler;
+    this.toolbar.appendChild(btn);
   }
 
   show(detail) {
     this.currentSelection = detail;
-
-    // Get toolbar dimensions (after it's displayed)
     this.toolbar.style.display = 'block';
     const toolbarRect = this.toolbar.getBoundingClientRect();
-    const toolbarWidth = toolbarRect.width || 150; // Approximate width
+    const toolbarWidth = toolbarRect.width || 150;
     const toolbarHeight = toolbarRect.height || 50;
 
     // Calculate position with viewport bounds checking
@@ -130,7 +126,7 @@ class Toolbar {
     const maxX = window.innerWidth - toolbarWidth - 10;
     x = Math.max(minX, Math.min(x, maxX));
 
-    // Keep within vertical bounds (don't go above or below viewport)
+    // Keep within vertical bounds
     const minY = 10;
     const maxY = window.innerHeight - toolbarHeight - 10;
     y = Math.max(minY, Math.min(y, maxY));
@@ -144,52 +140,51 @@ class Toolbar {
     this.currentSelection = null;
   }
 
-  async saveSelection() {
-    console.log('💾 Save button clicked!');
-    console.log('Selected text:', this.currentSelection.text);
+  handleSave() {
+    if (!this.currentSelection) return;
 
     const content = {
       title: document.title,
       content: this.currentSelection.text,
       source_url: window.location.href,
-      tags: [],
-      annotation_type: 'capture'
+      tags: []
     };
 
-    console.log('Sending to backend:', content);
-    await this.submitToBackend(content);
+    this.submitToBackend(content);
     this.hide();
   }
 
-  async saveWithTags() {
-    const tags = prompt('Enter tags (comma separated):');
+  handleWithTags() {
+    if (!this.currentSelection) return;
+
+    const tags = prompt('Enter tags separated by commas:');
     if (!tags) return;
 
     const content = {
       title: document.title,
       content: this.currentSelection.text,
       source_url: window.location.href,
-      tags: tags.split(',').map(t => t.trim()),
-      annotation_type: 'capture'
+      tags: tags.split(',').map(t => t.trim()).filter(t => t)
     };
 
-    await this.submitToBackend(content);
+    this.submitToBackend(content);
     this.hide();
   }
 
-  async saveWithNote() {
-    const note = prompt('Add a note:');
+  handleWithNote() {
+    if (!this.currentSelection) return;
+
+    const note = prompt('Add a note (optional):');
     if (!note) return;
 
     const content = {
       title: document.title,
-      content: `${this.currentSelection.text}\n\nNote: ${note}`,
+      content: this.currentSelection.text + '\n\nNote: ' + note,
       source_url: window.location.href,
-      tags: ['note'],
-      annotation_type: 'note'
+      tags: []
     };
 
-    await this.submitToBackend(content);
+    this.submitToBackend(content);
     this.hide();
   }
 
@@ -197,11 +192,26 @@ class Toolbar {
     try {
       console.log('📤 Sending message to background script...');
 
-      // Send message to background script
-      const response = await chrome.runtime.sendMessage({
-        action: 'submitContent',
-        data: content
-      });
+      // Send message to background script with retry logic
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage({
+          action: 'submitContent',
+          data: content
+        });
+      } catch (retryError) {
+        // If we get a context invalidated error, wait a moment and retry once
+        if (retryError.message && retryError.message.includes('Extension context invalidated')) {
+          console.warn('⚠️ Extension context invalidated, retrying...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          response = await chrome.runtime.sendMessage({
+            action: 'submitContent',
+            data: content
+          });
+        } else {
+          throw retryError;
+        }
+      }
 
       console.log('📥 Received response:', response);
 
@@ -218,6 +228,11 @@ class Toolbar {
     } catch (error) {
       this.showNotification('❌ Error: ' + error.message);
       console.error('❌ Exception caught:', error);
+
+      // If context invalidated, suggest reloading the extension
+      if (error.message && error.message.includes('Extension context invalidated')) {
+        this.showNotification('💡 提示: 请刷新扩展后重试');
+      }
     }
   }
 
@@ -225,7 +240,7 @@ class Toolbar {
     const notification = document.createElement('div');
     notification.className = 'kb-notification';
     notification.textContent = message;
-    notification.style.cssText = `
+    notification.style.cssText = \`
       position: fixed;
       top: 20px;
       right: 20px;
@@ -235,7 +250,7 @@ class Toolbar {
       border-radius: 4px;
       z-index: 10000;
       animation: kb-slide-in 0.3s ease-out;
-    `;
+    \`;
 
     document.body.appendChild(notification);
 
@@ -246,7 +261,6 @@ class Toolbar {
 }
 
 // ==================== Initialize ====================
-// Initialize components
 const selector = new Selector();
 const toolbar = new Toolbar();
 
