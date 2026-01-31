@@ -239,3 +239,53 @@ class TestCommentModels:
         
         comments = get_all_comments()
         assert len(comments) == 2
+
+
+class TestCardModels:
+    """卡片模型测试"""
+
+    def test_create_card(self, temp_db):
+        """测试创建卡片"""
+        import json
+        from models import create_card, get_card_by_id
+
+        card_id = create_card(
+            user_id=1,
+            title='Test Card',
+            content='Test content',
+            tags=['test', 'idea'],
+            status='idea',
+            source='web'
+        )
+
+        assert card_id is not None
+        assert card_id > 0
+
+        card = get_card_by_id(card_id)
+        assert card['title'] == 'Test Card'
+        assert card['content'] == 'Test content'
+        assert json.loads(card['tags']) == ['test', 'idea']
+        assert card['status'] == 'idea'
+        assert card['source'] == 'web'
+
+    def test_get_cards_by_user(self, temp_db):
+        """测试获取用户的所有卡片"""
+        from models import create_card, get_cards_by_user
+
+        create_card(user_id=1, title='Card 1', content='Content 1', status='idea')
+        create_card(user_id=1, title='Card 2', content='Content 2', status='draft')
+        create_card(user_id=2, title='Card 3', content='Content 3', status='idea')
+
+        cards = get_cards_by_user(user_id=1)
+        assert len(cards) == 2
+        assert all(c['user_id'] == 1 for c in cards)
+
+    def test_update_card_status(self, temp_db):
+        """测试更新卡片状态"""
+        from models import create_card, update_card_status, get_card_by_id
+
+        card_id = create_card(user_id=1, title='Test', content='Content', status='idea')
+        update_card_status(card_id, 'incubating')
+
+        card = get_card_by_id(card_id)
+        assert card['status'] == 'incubating'

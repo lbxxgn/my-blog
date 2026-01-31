@@ -36,6 +36,8 @@
                 </li>
                 {% if session.get('user_id') %}
                     <li><a href="{{ url_for('admin_dashboard') }}">管理</a></li>
+                    <li><a href="{{ url_for('knowledge_base.timeline') }}">知识库</a></li>
+                    <li><a href="{{ url_for('knowledge_base.incubator') }}">孵化箱</a></li>
                     {% if session.get('role') == 'admin' %}
                     <li><a href="{{ url_for('user_list') }}">用户管理</a></li>
                     {% endif %}

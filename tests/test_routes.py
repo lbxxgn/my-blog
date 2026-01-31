@@ -188,5 +188,130 @@ class TestCommentRoutes:
             'author_name': '',
             'content': 'Test comment'
         }, follow_redirects=True)
-        
+
         assert response.status_code == 200
+
+
+class TestKnowledgeBaseRoutes:
+    """知识库路由测试"""
+
+    def test_quick_note_page_requires_login(self, client):
+        """测试快速记事页面需要登录"""
+        response = client.get('/quick-note')
+        assert response.status_code == 302  # Redirect to login
+
+    def test_quick_note_page_with_login(self, client, test_admin_user):
+        """测试快速记事页面显示"""
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.get('/quick-note')
+        assert response.status_code == 200
+        assert '快速记事' in response.data.decode()
+
+    def test_timeline_page(self, client, test_admin_user):
+        """测试时间线页面"""
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.get('/timeline')
+        assert response.status_code == 200
+
+    def test_create_quick_note(self, client, test_admin_user):
+        """测试创建快速笔记"""
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.post('/quick-note', json={
+            'title': 'Test Note',
+            'content': 'Test content'
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'card_id' in data
+
+    def test_merge_cards_to_post(self, client, test_admin_user):
+        """测试合并卡片到文章"""
+        from models import create_card
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        # Create test cards
+        card1_id = create_card(user_id=1, title='Card 1', content='Content 1', status='idea')
+        card2_id = create_card(user_id=1, title='Card 2', content='Content 2', status='idea')
+
+        # Merge cards
+        response = client.post('/api/cards/merge', json={
+            'card_ids': [card1_id, card2_id],
+            'action': 'create_post'
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert 'post_id' in data
+
+    def test_generate_tags_for_card(self, client, test_admin_user):
+        """测试为卡片生成AI标签"""
+        from models import create_card
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        # Create a card
+        card_id = create_card(
+            user_id=1,
+            title='Machine Learning Basics',
+            content='Machine learning is a subset of artificial intelligence...',
+            status='idea'
+        )
+
+        # Generate tags
+        response = client.post('/api/cards/generate-tags', json={
+            'card_id': card_id
+        })
+
+        # Check response - may succeed or fail depending on AI config
+        assert response.status_code in [200, 400]
+        data = response.get_json()
+
+        if response.status_code == 200:
+            assert 'success' in data
+            assert 'tags' in data or 'message' in data
+
+    def test_ai_merge_cards(self, client, test_admin_user):
+        """测试AI合并卡片"""
+        from models import create_card
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        # Create test cards
+        card1_id = create_card(user_id=1, title='Card 1', content='Content 1', status='idea')
+        card2_id = create_card(user_id=1, title='Card 2', content='Content 2', status='idea')
+
+        # AI merge
+        response = client.post('/api/cards/ai-merge', json={
+            'card_ids': [card1_id, card2_id],
+            'merge_style': 'comprehensive'
+        })
+
+        # May succeed or fail depending on AI config
+        assert response.status_code in [200, 400, 500]
+        data = response.get_json()
+        assert 'success' in data
