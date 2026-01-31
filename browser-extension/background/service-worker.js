@@ -16,15 +16,30 @@ self.addEventListener('activate', (event) => {
 
 // Handle messages from content scripts and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Received message:', request);
+  console.log('📨 Service Worker received message:', request);
+  console.log('📨 Action:', request.action);
 
   if (request.action === 'submitContent') {
+    console.log('📨 Processing submitContent with data:', request.data);
+
     // Forward to API client
     import('./api-client.js').then(module => {
+      console.log('📦 API client module loaded');
+
       module.submitContent(request.data)
-        .then(response => sendResponse({success: true, data: response}))
-        .catch(error => sendResponse({success: false, error: error.message}));
+        .then(response => {
+          console.log('✅ Submit successful:', response);
+          sendResponse({success: true, data: response});
+        })
+        .catch(error => {
+          console.error('❌ Submit failed:', error);
+          sendResponse({success: false, error: error.message});
+        });
+    }).catch(error => {
+      console.error('❌ Failed to load API client:', error);
+      sendResponse({success: false, error: 'Failed to load API client'});
     });
+
     return true; // Keep message channel open for async response
   }
 
@@ -36,4 +51,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   }
+
+  // Unknown action
+  console.warn('⚠️ Unknown action:', request.action);
+  return false;
 });

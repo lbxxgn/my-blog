@@ -121,6 +121,9 @@ class Toolbar {
   }
 
   async saveSelection() {
+    console.log('💾 Save button clicked!');
+    console.log('Selected text:', this.currentSelection.text);
+
     const content = {
       title: document.title,
       content: this.currentSelection.text,
@@ -129,6 +132,7 @@ class Toolbar {
       annotation_type: 'capture'
     };
 
+    console.log('Sending to backend:', content);
     await this.submitToBackend(content);
     this.hide();
   }
@@ -167,22 +171,29 @@ class Toolbar {
 
   async submitToBackend(content) {
     try {
+      console.log('📤 Sending message to background script...');
+
       // Send message to background script
       const response = await chrome.runtime.sendMessage({
         action: 'submitContent',
         data: content
       });
 
-      if (response.success) {
+      console.log('📥 Received response:', response);
+
+      if (response && response.success) {
         this.showNotification('✅ Saved to knowledge base!');
-        console.log('Saved:', response.data);
+        console.log('✅ Saved successfully:', response.data);
+      } else if (response) {
+        this.showNotification('❌ Failed: ' + (response.error || 'Unknown error'));
+        console.error('❌ Save failed:', response.error);
       } else {
-        this.showNotification('❌ Failed to save');
-        console.error('Error:', response.error);
+        this.showNotification('❌ No response from extension');
+        console.error('❌ No response received');
       }
     } catch (error) {
       this.showNotification('❌ Error: ' + error.message);
-      console.error('Error:', error);
+      console.error('❌ Exception caught:', error);
     }
   }
 
