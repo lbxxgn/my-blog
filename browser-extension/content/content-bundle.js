@@ -240,17 +240,7 @@ class Toolbar {
     const notification = document.createElement('div');
     notification.className = 'kb-notification';
     notification.textContent = message;
-    notification.style.cssText = \`
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #333;
-      color: white;
-      padding: 12px 20px;
-      border-radius: 4px;
-      z-index: 10000;
-      animation: kb-slide-in 0.3s ease-out;
-    \`;
+    notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 4px; z-index: 10000; animation: kb-slide-in 0.3s ease-out;';
 
     document.body.appendChild(notification);
 
