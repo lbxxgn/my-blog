@@ -192,24 +192,39 @@ class Toolbar {
     try {
       console.log('📤 Sending message to background script...');
 
-      // Send message to background script with retry logic
+      // Send message to background script with robust retry logic
       let response;
-      try {
-        response = await chrome.runtime.sendMessage({
-          action: 'submitContent',
-          data: content
-        });
-      } catch (retryError) {
-        // If we get a context invalidated error, wait a moment and retry once
-        if (retryError.message && retryError.message.includes('Extension context invalidated')) {
-          console.warn('⚠️ Extension context invalidated, retrying...');
-          await new Promise(resolve => setTimeout(resolve, 500));
+      let lastError;
+
+      // Retry up to 3 times with exponential backoff
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
           response = await chrome.runtime.sendMessage({
             action: 'submitContent',
             data: content
           });
-        } else {
-          throw retryError;
+          // If successful, break out of retry loop
+          break;
+        } catch (retryError) {
+          lastError = retryError;
+
+          // Check if it's a context invalidated error
+          if (retryError.message && retryError.message.includes('Extension context invalidated')) {
+            console.warn('⚠️ Extension context invalidated, attempt ' + attempt + '/3...');
+
+            // If this was the last attempt, give up
+            if (attempt >= 3) {
+              throw new Error('Service Worker not responding after 3 retries. Please reload the extension.');
+            }
+
+            // Exponential backoff: 500ms, 1000ms, 2000ms
+            const delay = 500 * attempt;
+            console.log('⏳ Waiting ' + delay + 'ms before retry...');
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            // Not a context error, don't retry
+            throw retryError;
+          }
         }
       }
 
@@ -229,9 +244,9 @@ class Toolbar {
       this.showNotification('❌ Error: ' + error.message);
       console.error('❌ Exception caught:', error);
 
-      // If context invalidated, suggest reloading the extension
-      if (error.message && error.message.includes('Extension context invalidated')) {
-        this.showNotification('💡 提示: 请刷新扩展后重试');
+      // If all retries failed, show reload instructions
+      if (error.message && error.message.includes('Service Worker not responding')) {
+        this.showNotification('💡 请在 chrome://extensions/ 页面刷新扩展');
       }
     }
   }
