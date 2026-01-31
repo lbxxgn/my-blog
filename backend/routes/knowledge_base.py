@@ -103,7 +103,7 @@ def plugin_submit():
 
     # Add source URL to content if provided
     if source_url:
-        content = f"Source: {source_url}\n\n{content}"
+        content = f"{content}\n\n来源: {source_url}"
 
     try:
         card_id = create_card(
