@@ -217,6 +217,18 @@
     <script>
     // Dropdown Menu Click Handler
     document.addEventListener('DOMContentLoaded', function() {
+        // Prevent dropdowns from closing when moving mouse inside
+        document.querySelectorAll('.dropdown').forEach(dropdown => {
+            dropdown.addEventListener('mouseleave', function(e) {
+                // Don't close on mouseleave, only on outside click
+                e.stopPropagation();
+            });
+
+            dropdown.addEventListener('mouseenter', function(e) {
+                e.stopPropagation();
+            });
+        });
+
         // Handle all dropdown toggles
         const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
 
@@ -229,9 +241,10 @@
                 const menu = dropdown.querySelector('.dropdown-menu');
 
                 // Close all other dropdowns
-                document.querySelectorAll('.dropdown-menu').forEach(m => {
-                    if (m !== menu) {
-                        m.style.display = 'none';
+                document.querySelectorAll('.dropdown').forEach(d => {
+                    if (d !== dropdown) {
+                        const m = d.querySelector('.dropdown-menu');
+                        if (m) m.style.display = 'none';
                     }
                 });
 
@@ -261,9 +274,10 @@
             });
         });
 
-        // Close dropdowns when clicking outside
+        // Close dropdowns when clicking outside (not on navigation)
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.dropdown')) {
+            const nav = document.querySelector('nav');
+            if (nav && !nav.contains(e.target)) {
                 document.querySelectorAll('.dropdown-menu').forEach(menu => {
                     menu.style.display = 'none';
                 });
@@ -273,10 +287,14 @@
             }
         });
 
-        // Prevent menu items from closing dropdown
-        document.querySelectorAll('.dropdown-menu a, .submenu a').forEach(link => {
-            link.addEventListener('click', function(e) {
-                // Let the link navigate normally
+        // Keep dropdown open when hovering over menu items
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+            menu.addEventListener('mouseenter', function(e) {
+                e.stopPropagation();
+            });
+
+            menu.addEventListener('mouseleave', function(e) {
+                e.stopPropagation();
             });
         });
     });
