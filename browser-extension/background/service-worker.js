@@ -152,6 +152,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('📨 Service Worker received message:', request);
   console.log('📨 Action:', request.action);
 
+  // Handle keep-alive ping
+  if (request.action === 'ping' || request.action === 'wakeUp') {
+    console.log('💓 Service Worker ping received');
+    sendResponse({ success: true, message: 'pong' });
+    return true;
+  }
+
   if (request.action === 'submitContent') {
     console.log('📨 Processing submitContent with data:', request.data);
 

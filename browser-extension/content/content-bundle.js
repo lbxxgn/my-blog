@@ -192,6 +192,14 @@ class Toolbar {
     try {
       console.log('📤 Sending message to background script...');
 
+      // Pre-flight ping to ensure Service Worker is active
+      try {
+        await chrome.runtime.sendMessage({ action: 'ping' });
+        console.log('✅ Service Worker is active');
+      } catch (pingError) {
+        console.warn('⚠️ Pre-flight ping failed, Service Worker may be inactive');
+      }
+
       // Send message to background script with robust retry logic
       let response;
       let lastError;
@@ -276,6 +284,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: true, data: selection });
   }
   return true;
+});
+
+// ==================== Service Worker Keep-Alive ====================
+// Keep Service Worker alive to prevent it from being terminated
+let keepAliveInterval;
+
+async function keepServiceWorkerAlive() {
+  try {
+    // Send a ping message to keep the SW alive
+    await chrome.runtime.sendMessage({ action: 'ping' });
+    console.log('🔄 Service Worker ping successful');
+  } catch (error) {
+    console.warn('⚠️ Service Worker ping failed:', error.message);
+    // Try to reconnect by sending any message
+    try {
+      await chrome.runtime.sendMessage({ action: 'wakeUp' });
+    } catch (e) {
+      console.error('❌ Service Worker wake-up failed');
+    }
+  }
+}
+
+// Start keep-alive ping every 30 seconds
+keepAliveInterval = setInterval(keepServiceWorkerAlive, 30000);
+
+// Also ping on user interaction to ensure SW is active
+document.addEventListener('click', () => {
+  keepServiceWorkerAlive();
+});
+
+document.addEventListener('keydown', () => {
+  keepServiceWorkerAlive();
 });
 
 console.log('Knowledge Base Extension initialized');
