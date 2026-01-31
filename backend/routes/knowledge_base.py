@@ -92,6 +92,10 @@ def plugin_submit():
     tags = data.get('tags', [])
     annotation_type = data.get('annotation_type', 'capture')
 
+    # Validate content is not empty
+    if not content or not content.strip():
+        return jsonify({'success': False, 'error': 'Content is required'}), 400
+
     # Validate content length
     valid, error_msg = validate_content_length(content)
     if not valid:
@@ -144,7 +148,7 @@ def sync_annotations():
             # Validate annotation data
             errors = validate_annotation_data(ann)
             if errors:
-                return jsonify({'success': False, 'error': '; '.join(errors)}), 400
+                return jsonify({'success': False, 'error': 'Validation failed: ' + '; '.join(errors)}), 400
 
             # Create annotation
             ann_id = create_annotation(

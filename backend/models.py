@@ -2107,6 +2107,12 @@ def verify_post_password(post_id, password):
 
 # ==================== 浏览器插件 API 功能 ====================
 
+def init_cards_table():
+    """初始化知识库卡片表（已在init_db中创建，此函数为兼容性保留）"""
+    # Cards table is already created in init_db()
+    # This function exists for backward compatibility with test fixtures
+    pass
+
 def init_api_keys_table():
     """初始化API密钥表"""
     conn = get_db_connection()
