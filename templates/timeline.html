@@ -238,13 +238,235 @@
 }
 </style>
 
+<!-- 编辑卡片模态框 -->
+<div id="editModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>编辑卡片</h2>
+            <span class="close">&times;</span>
+        </div>
+        <form id="editForm">
+            <input type="hidden" id="editCardId">
+
+            <div class="form-group">
+                <label for="editTitle">标题</label>
+                <input type="text" id="editTitle" class="form-control" required>
+            </div>
+
+            <div class="form-group">
+                <label for="editContent">内容</label>
+                <textarea id="editContent" class="form-control" rows="10" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="editTags">标签（逗号分隔）</label>
+                <input type="text" id="editTags" class="form-control">
+            </div>
+
+            <div class="form-group">
+                <label for="editStatus">状态</label>
+                <select id="editStatus" class="form-control">
+                    <option value="idea">想法</option>
+                    <option value="incubating">孵化中</option>
+                    <option value="draft">草稿</option>
+                    <option value="published">已发布</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">保存</button>
+                <button type="button" class="btn btn-secondary" id="cancelEdit">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.close {
+    font-size: 28px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.form-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Timeline page loaded');
     console.log('Filter buttons:', document.querySelectorAll('.filter-btn').length);
     console.log('Timeline items:', document.querySelectorAll('.timeline-item').length);
 
-    // 筛选按钮功能
+    // ==================== 编辑卡片功能 ====================
+    const modal = document.getElementById('editModal');
+    const editForm = document.getElementById('editForm');
+    const closeBtn = modal.querySelector('.close');
+    const cancelBtn = document.getElementById('cancelEdit');
+
+    // 打开编辑模态框
+    document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const cardId = this.getAttribute('data-id');
+            console.log('编辑卡片 ID:', cardId);
+
+            // 获取卡片详情
+            fetch(`/api/cards/${cardId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const card = data.card;
+                        document.getElementById('editCardId').value = card.id;
+                        document.getElementById('editTitle').value = card.title || '';
+                        document.getElementById('editContent').value = card.content || '';
+                        document.getElementById('editTags').value = (card.tags || []).join(', ');
+                        document.getElementById('editStatus').value = card.status || 'idea';
+                        modal.style.display = 'block';
+                    } else {
+                        alert('获取卡片详情失败: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('获取卡片详情失败');
+                });
+        });
+    });
+
+    // 关闭模态框
+    closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    cancelBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    // 点击模态框外部关闭
+    window.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    // 保存编辑
+    editForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const cardId = document.getElementById('editCardId').value;
+        const data = {
+            title: document.getElementById('editTitle').value,
+            content: document.getElementById('editContent').value,
+            tags: document.getElementById('editTags').value.split(',').map(t => t.trim()).filter(t => t),
+            status: document.getElementById('editStatus').value
+        };
+
+        console.log('保存卡片:', cardId, data);
+
+        fetch(`/api/cards/${cardId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('保存成功！');
+                modal.style.display = 'none';
+                location.reload(); // 刷新页面以显示更新
+            } else {
+                alert('保存失败: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('保存失败');
+        });
+    });
+
+    // ==================== 筛选按钮功能 ====================
     const filterBtns = document.querySelectorAll('.filter-btn');
     const timelineItems = document.querySelectorAll('.timeline-item');
 
