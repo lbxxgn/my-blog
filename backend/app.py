@@ -225,7 +225,6 @@ app.register_blueprint(knowledge_base_bp)
 # 为知识库 API 端点豁免 CSRF 保护
 # 浏览器扩展无法处理 CSRF token
 csrf.exempt(knowledge_base_bp)
-
 # 对登录路由应用速率限制
 limiter.limit("5 per minute")(app.view_functions['auth.login'])
 

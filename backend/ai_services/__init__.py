@@ -1,12 +1,10 @@
 """
-AI Services Module for Simple Blog
+AI Services Package
 
-This module provides AI-powered features for the blog, including:
-- Automatic tag generation
-- Content analysis
-- Multiple LLM provider support (OpenAI, Claude, Qwen)
+Provides AI-powered features for the blog system.
 """
 
 from .tag_generator import TagGenerator
+from .card_merger import AICardMerger
 
-__all__ = ['TagGenerator']
+__all__ = ['TagGenerator', 'AICardMerger']

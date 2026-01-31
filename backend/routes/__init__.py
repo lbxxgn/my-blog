@@ -7,7 +7,7 @@
 - admin: 管理后台路由（仪表板、文章管理、用户管理等）
 - api: API路由（RESTful API、二维码生成等）
 - ai: AI功能路由（标签生成、摘要、推荐等）
-- knowledge_base: 知识库路由（浏览器插件API）
+- knowledge_base: 知识库路由（浏览器插件API、快速记事、时间线、卡片管理）
 """
 
 from .auth import auth_bp

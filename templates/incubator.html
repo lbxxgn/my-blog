@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+
+{% block title %}孵化箱 - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="incubator-container">
+    <div class="incubator-header">
+        <h1>孵化箱</h1>
+        <p class="text-muted">将想法孵化成成熟文章</p>
+    </div>
+
+    <div class="incubator-workspace">
+        <!-- Left: Card List -->
+        <div class="incubator-cards-panel">
+            <div class="panel-header">
+                <h3>待孵化卡片</h3>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-status="incubating">孵化中</button>
+                    <button class="filter-btn" data-status="idea">想法</button>
+                </div>
+            </div>
+
+            <div class="cards-list" id="cards-list">
+                {% for card in cards %}
+                <div class="card-item" data-card-id="{{ card.id }}" data-status="{{ card.status }}">
+                    <div class="card-header">
+                        <h4>{{ card.title or '无标题' }}</h4>
+                        <input type="checkbox" class="card-checkbox" value="{{ card.id }}">
+                    </div>
+                    <div class="card-preview">
+                        {{ card.content[:100] }}{% if card.content|length > 100 %}...{% endif %}
+                    </div>
+                    <div class="card-meta">
+                        <span class="card-date">{{ card.created_at }}</span>
+                        <span class="badge badge-{{ card.status }}">
+                            {% if card.status == 'idea' %}想法
+                            {% elif card.status == 'incubating' %}孵化中
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="panel-actions">
+                <button id="ai-merge-btn" class="btn btn-primary" disabled>
+                    <i class="fas fa-magic"></i> AI智能合并
+                </button>
+                <button id="merge-btn" class="btn btn-secondary" disabled>
+                    <i class="fas fa-compress-alt"></i> 普通合并
+                </button>
+            </div>
+        </div>
+
+        <!-- Right: Editor -->
+        <div class="incubator-editor-panel">
+            <div class="panel-header">
+                <h3>编辑区</h3>
+                <div class="editor-actions">
+                    <button id="generate-outline-btn" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-list"></i> 生成大纲
+                    </button>
+                    <button id="find-related-btn" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-link"></i> 查找关联
+                    </button>
+                </div>
+            </div>
+
+            <div class="editor-content">
+                <input type="text" id="post-title" class="form-control"
+                       placeholder="文章标题..." value="">
+
+                <div id="outline-container" class="outline-box" style="display:none;">
+                    <h4>文章大纲</h4>
+                    <div id="outline-content"></div>
+                </div>
+
+                <textarea id="post-content" class="form-control editor-textarea"
+                          placeholder="选择卡片开始编辑，或使用AI辅助..."
+                          rows="20"></textarea>
+            </div>
+
+            <div class="panel-footer">
+                <button id="save-draft-btn" class="btn btn-secondary">
+                    <i class="fas fa-save"></i> 保存草稿
+                </button>
+                <button id="publish-btn" class="btn btn-success">
+                    <i class="fas fa-paper-plane"></i> 发布文章
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.incubator-container {
+    max-width: 1400px;
+    margin: 40px auto;
+    padding: 30px;
+}
+
+.incubator-workspace {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 30px;
+    margin-top: 30px;
+}
+
+.incubator-cards-panel,
+.incubator-editor-panel {
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-btn {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.filter-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.cards-list {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.card-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.card-item:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.1);
+}
+
+.card-item.selected {
+    border-color: #007bff;
+    background: #f0f8ff;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.card-preview {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+
+.card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+}
+
+.card-date {
+    color: #999;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.badge-idea { background: #e3f2fd; color: #1976d2; }
+.badge-incubating { background: #fff3e0; color: #f57c00; }
+
+.panel-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.panel-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.editor-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.editor-textarea {
+    min-height: 400px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.outline-box {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+.panel-footer {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const cardsList = document.querySelectorAll('.card-item');
+    const checkboxes = document.querySelectorAll('.card-checkbox');
+    const aiMergeBtn = document.getElementById('ai-merge-btn');
+    const mergeBtn = document.getElementById('merge-btn');
+    const postTitle = document.getElementById('post-title');
+    const postContent = document.getElementById('post-content');
+
+    // Card selection
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateMergeButtons();
+        });
+    });
+
+    // Card click to load in editor
+    cardsList.forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.type !== 'checkbox') {
+                const cardId = this.dataset.cardId;
+                loadCardInEditor(cardId);
+            }
+        });
+    });
+
+    function updateMergeButtons() {
+        const selectedCount = document.querySelectorAll('.card-checkbox:checked').length;
+        aiMergeBtn.disabled = selectedCount < 2;
+        mergeBtn.disabled = selectedCount < 2;
+    }
+
+    async function loadCardInEditor(cardId) {
+        try {
+            const response = await fetch(`/api/cards/${cardId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                postTitle.value = data.card.title || '';
+                postContent.value = data.card.content;
+            }
+        } catch (error) {
+            console.error('Error loading card:', error);
+        }
+    }
+
+    // AI Merge
+    aiMergeBtn.addEventListener('click', async function() {
+        const selectedCards = Array.from(document.querySelectorAll('.card-checkbox:checked'))
+            .map(cb => parseInt(cb.value));
+
+        if (selectedCards.length < 2) {
+            alert('请至少选择2张卡片');
+            return;
+        }
+
+        if (!confirm('AI将智能整理选中的卡片，可能需要一些时间。继续？')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/cards/ai-merge', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    card_ids: selectedCards,
+                    merge_style: 'comprehensive'
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`AI合并完成！已创建文章草稿。\n\n使用tokens: ${data.tokens_used || 0}`);
+                window.location.href = `/admin/edit/${data.post_id}`;
+            } else {
+                alert('合并失败：' + data.error);
+            }
+        } catch (error) {
+            alert('合并失败：' + error.message);
+        }
+    });
+
+    // Regular merge
+    mergeBtn.addEventListener('click', async function() {
+        const selectedCards = Array.from(document.querySelectorAll('.card-checkbox:checked'))
+            .map(cb => parseInt(cb.value));
+
+        if (selectedCards.length < 2) {
+            alert('请至少选择2张卡片');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/cards/merge', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    card_ids: selectedCards,
+                    action: 'create_post'
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert('卡片已合并到文章！');
+                window.location.href = `/admin/edit/${data.post_id}`;
+            } else {
+                alert('合并失败：' + data.error);
+            }
+        } catch (error) {
+            alert('合并失败：' + error.message);
+        }
+    });
+
+    // Generate outline (simplified)
+    document.getElementById('generate-outline-btn').addEventListener('click', function() {
+        const content = postContent.value;
+        if (!content.trim()) {
+            alert('请先选择或输入内容');
+            return;
+        }
+
+        // Simple outline generation (would use AI in production)
+        const lines = content.split('\n').filter(line => line.trim());
+        let outline = '<ul>';
+        lines.slice(0, 5).forEach(line => {
+            if (line.trim().length > 0) {
+                outline += `<li>${line.substring(0, 50)}...</li>`;
+            }
+        });
+        outline += '</ul>';
+
+        document.getElementById('outline-content').innerHTML = outline;
+        document.getElementById('outline-container').style.display = 'block';
+    });
+});
+</script>
+{% endblock %}
