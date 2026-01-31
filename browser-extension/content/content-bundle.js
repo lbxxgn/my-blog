@@ -6,13 +6,19 @@ console.log('Knowledge Base Content Script loaded');
 // ==================== Selector Class ====================
 class Selector {
   constructor() {
+    this.selectionTimeout = null;
     this.init();
   }
 
   init() {
-    // Listen for text selection
-    document.addEventListener('mouseup', () => this.handleSelection());
-    document.addEventListener('touchend', () => this.handleSelection());
+    // Listen for text selection with debouncing
+    const handleSelectionDebounced = () => {
+      clearTimeout(this.selectionTimeout);
+      this.selectionTimeout = setTimeout(() => this.handleSelection(), 150);
+    };
+
+    document.addEventListener('mouseup', handleSelectionDebounced);
+    document.addEventListener('touchend', handleSelectionDebounced);
   }
 
   handleSelection() {
@@ -109,10 +115,28 @@ class Toolbar {
   show(detail) {
     this.currentSelection = detail;
 
-    // Position toolbar
-    this.toolbar.style.left = `${detail.x}px`;
-    this.toolbar.style.top = `${detail.y}px`;
+    // Get toolbar dimensions (after it's displayed)
     this.toolbar.style.display = 'block';
+    const toolbarRect = this.toolbar.getBoundingClientRect();
+    const toolbarWidth = toolbarRect.width || 150; // Approximate width
+    const toolbarHeight = toolbarRect.height || 50;
+
+    // Calculate position with viewport bounds checking
+    let x = detail.x - toolbarWidth / 2;
+    let y = detail.y - toolbarHeight;
+
+    // Keep within horizontal bounds
+    const minX = 10;
+    const maxX = window.innerWidth - toolbarWidth - 10;
+    x = Math.max(minX, Math.min(x, maxX));
+
+    // Keep within vertical bounds (don't go above or below viewport)
+    const minY = 10;
+    const maxY = window.innerHeight - toolbarHeight - 10;
+    y = Math.max(minY, Math.min(y, maxY));
+
+    this.toolbar.style.left = `${x}px`;
+    this.toolbar.style.top = `${y}px`;
   }
 
   hide() {

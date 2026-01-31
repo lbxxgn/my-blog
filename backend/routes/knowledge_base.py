@@ -5,6 +5,7 @@
 - /api/plugin/submit - 提交内容到知识库
 - /api/plugin/sync-annotations - 同步页面标注
 - /api/plugin/annotations - 获取页面标注
+- /api/plugin/recent - 获取最近的卡片
 """
 
 from flask import Blueprint, request, jsonify, g
@@ -15,6 +16,11 @@ knowledge_base_bp = Blueprint('knowledge_base', __name__)
 
 # Note: CSRF exemption is handled in app.py after blueprint registration
 # with: csrf.exempt(knowledge_base_bp)
+
+# Validation constants
+VALID_ANNOTATION_COLORS = ['yellow', 'blue', 'green', 'pink', 'orange', 'purple']
+VALID_ANNOTATION_TYPES = ['highlight', 'note', 'bookmark']
+MAX_CONTENT_LENGTH = 1024 * 1024  # 1MB max content size
 
 
 def api_key_required(f):
@@ -36,6 +42,30 @@ def api_key_required(f):
     return decorated_function
 
 
+def validate_annotation_data(annotation):
+    """验证标注数据"""
+    errors = []
+
+    # Validate color
+    color = annotation.get('color', 'yellow')
+    if color not in VALID_ANNOTATION_COLORS:
+        errors.append(f"Invalid color '{color}'. Must be one of: {', '.join(VALID_ANNOTATION_COLORS)}")
+
+    # Validate annotation_type
+    ann_type = annotation.get('annotation_type', 'highlight')
+    if ann_type not in VALID_ANNOTATION_TYPES:
+        errors.append(f"Invalid annotation_type '{ann_type}'. Must be one of: {', '.join(VALID_ANNOTATION_TYPES)}")
+
+    return errors
+
+
+def validate_content_length(content):
+    """验证内容长度"""
+    if len(content) > MAX_CONTENT_LENGTH:
+        return False, f'Content too large (max {MAX_CONTENT_LENGTH} bytes)'
+    return True, None
+
+
 @knowledge_base_bp.route('/api/plugin/submit', methods=['POST'])
 @api_key_required
 def plugin_submit():
@@ -51,6 +81,11 @@ def plugin_submit():
 
     if not content:
         return jsonify({'success': False, 'error': 'Content is required'}), 400
+
+    # Validate content length
+    valid, error_msg = validate_content_length(content)
+    if not valid:
+        return jsonify({'success': False, 'error': error_msg}), 413
 
     # Build full content with metadata
     full_content = f"Source: {source_url}\n\n{content}"
@@ -87,6 +122,20 @@ def sync_annotations():
 
     if not url or not annotations:
         return jsonify({'success': False, 'error': 'URL and annotations required'}), 400
+
+    # Validate all annotations first
+    validation_errors = []
+    for i, ann in enumerate(annotations):
+        errors = validate_annotation_data(ann)
+        if errors:
+            validation_errors.append(f"Annotation {i}: {'; '.join(errors)}")
+
+    if validation_errors:
+        return jsonify({
+            'success': False,
+            'error': 'Validation failed',
+            'details': validation_errors
+        }), 400
 
     try:
         annotation_ids = []
@@ -130,6 +179,28 @@ def get_annotations():
             'success': True,
             'annotations': annotations,
             'count': len(annotations)
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@knowledge_base_bp.route('/api/plugin/recent', methods=['GET'])
+@api_key_required
+def get_recent_cards():
+    """获取最近的知识库卡片"""
+    from models import get_cards_by_user
+
+    limit = request.args.get('limit', 10, type=int)
+    limit = min(limit, 50)  # Cap at 50
+
+    try:
+        cards = get_cards_by_user(g.user_id, limit=limit)
+
+        return jsonify({
+            'success': True,
+            'cards': cards,
+            'count': len(cards)
         })
 
     except Exception as e:

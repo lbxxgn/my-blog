@@ -261,3 +261,223 @@ class TestKnowledgeBaseRoutes:
         assert response.status_code in [200, 201]
         data = response.get_json()
         assert data['success'] is True
+
+    def test_plugin_get_annotations(self, client):
+        """测试获取标注"""
+        from models import create_user, generate_api_key, create_annotation
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('extuser3', generate_password_hash('TestPass123!'), role='author')
+        api_key = generate_api_key(user_id)
+
+        # Create a test annotation
+        create_annotation(
+            user_id=user_id,
+            source_url='https://example.com/test',
+            annotation_text='Test annotation',
+            xpath='/html/body/p[1]',
+            color='yellow',
+            note='Test note'
+        )
+
+        # Get annotations
+        response = client.get('/api/plugin/annotations?url=https://example.com/test',
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['count'] >= 1
+        assert len(data['annotations']) >= 1
+
+    def test_plugin_invalid_api_key(self, client):
+        """测试无效的API密钥"""
+        response = client.post('/api/plugin/submit',
+            json={
+                'title': 'Test Page',
+                'content': 'Selected text from page',
+                'source_url': 'https://example.com/test',
+            },
+            headers={'X-API-Key': 'invalid_key_12345'}
+        )
+
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['success'] is False
+        assert 'error' in data
+
+    def test_plugin_missing_api_key(self, client):
+        """测试缺少API密钥"""
+        response = client.post('/api/plugin/submit',
+            json={
+                'title': 'Test Page',
+                'content': 'Selected text from page',
+                'source_url': 'https://example.com/test',
+            }
+        )
+
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data['success'] is False
+        assert 'error' in data
+
+    def test_plugin_submit_missing_content(self, client):
+        """测试提交时缺少必填内容"""
+        from models import create_user, generate_api_key
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('extuser4', generate_password_hash('TestPass123!'), role='author')
+        api_key = generate_api_key(user_id)
+
+        response = client.post('/api/plugin/submit',
+            json={
+                'title': 'Test Page',
+                'source_url': 'https://example.com/test',
+            },
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['success'] is False
+        assert 'error' in data
+
+    def test_plugin_sync_annotations_missing_params(self, client):
+        """测试同步标注时缺少参数"""
+        from models import create_user, generate_api_key
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('extuser5', generate_password_hash('TestPass123!'), role='author')
+        api_key = generate_api_key(user_id)
+
+        # Missing URL
+        response = client.post('/api/plugin/sync-annotations',
+            json={
+                'annotations': []
+            },
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['success'] is False
+
+    def test_plugin_get_annotations_missing_url(self, client):
+        """测试获取标注时缺少URL参数"""
+        from models import create_user, generate_api_key
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('extuser6', generate_password_hash('TestPass123!'), role='author')
+        api_key = generate_api_key(user_id)
+
+        response = client.get('/api/plugin/annotations',
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['success'] is False
+
+    def test_plugin_recent_captures(self, client):
+        """测试获取最近捕获"""
+        from models import create_user, generate_api_key, create_card
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('extuser7', generate_password_hash('TestPass123!'), role='author')
+        api_key = generate_api_key(user_id)
+
+        # Create some test cards
+        create_card(user_id, 'Test Card 1', 'Content 1', 'idea', 'web')
+        create_card(user_id, 'Test Card 2', 'Content 2', 'idea', 'web')
+
+        response = client.get('/api/plugin/recent?limit=5',
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['count'] >= 2
+        assert len(data['cards']) >= 2
+
+    def test_plugin_content_too_large(self, client):
+        """测试内容过大"""
+        from models import create_user, generate_api_key
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('extuser8', generate_password_hash('TestPass123!'), role='author')
+        api_key = generate_api_key(user_id)
+
+        # Create content larger than 1MB
+        large_content = 'x' * (1024 * 1024 + 1)
+
+        response = client.post('/api/plugin/submit',
+            json={
+                'title': 'Test Page',
+                'content': large_content,
+                'source_url': 'https://example.com/test',
+            },
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code == 413
+        data = response.get_json()
+        assert data['success'] is False
+        assert 'too large' in data['error'].lower()
+
+    def test_plugin_invalid_annotation_color(self, client):
+        """测试无效的标注颜色"""
+        from models import create_user, generate_api_key
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('extuser9', generate_password_hash('TestPass123!'), role='author')
+        api_key = generate_api_key(user_id)
+
+        response = client.post('/api/plugin/sync-annotations',
+            json={
+                'url': 'https://example.com/test',
+                'annotations': [
+                    {
+                        'text': 'Selected text',
+                        'xpath': '/html/body/p[1]',
+                        'color': 'invalid_color',
+                        'note': 'My note'
+                    }
+                ]
+            },
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['success'] is False
+        assert 'Validation failed' in data['error']
+
+    def test_plugin_invalid_annotation_type(self, client):
+        """测试无效的标注类型"""
+        from models import create_user, generate_api_key
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('extuser10', generate_password_hash('TestPass123!'), role='author')
+        api_key = generate_api_key(user_id)
+
+        response = client.post('/api/plugin/sync-annotations',
+            json={
+                'url': 'https://example.com/test',
+                'annotations': [
+                    {
+                        'text': 'Selected text',
+                        'xpath': '/html/body/p[1]',
+                        'color': 'yellow',
+                        'annotation_type': 'invalid_type'
+                    }
+                ]
+            },
+            headers={'X-API-Key': api_key}
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['success'] is False
+        assert 'Validation failed' in data['error']

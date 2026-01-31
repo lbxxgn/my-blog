@@ -3,6 +3,30 @@
 console.log('Knowledge Base Extension Service Worker loaded');
 
 const API_BASE = 'http://localhost:5001';
+const REQUEST_TIMEOUT = 10000; // 10 seconds
+
+// ==================== Helper Functions ====================
+
+// Fetch with timeout
+async function fetchWithTimeout(url, options = {}, timeout = REQUEST_TIMEOUT) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeout}ms`);
+    }
+    throw error;
+  }
+}
 
 // ==================== API Client Functions ====================
 
@@ -29,7 +53,7 @@ async function submitContent(data) {
   console.log('🌐 Sending request to:', `${API_BASE}/api/plugin/submit`);
   console.log('📦 Data:', data);
 
-  const response = await fetch(`${API_BASE}/api/plugin/submit`, {
+  const response = await fetchWithTimeout(`${API_BASE}/api/plugin/submit`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -58,7 +82,7 @@ async function syncAnnotations(url, annotations) {
     throw new Error('API key not configured');
   }
 
-  const response = await fetch(`${API_BASE}/api/plugin/sync-annotations`, {
+  const response = await fetchWithTimeout(`${API_BASE}/api/plugin/sync-annotations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -82,7 +106,7 @@ async function getAnnotations(url) {
     throw new Error('API key not configured');
   }
 
-  const response = await fetch(`${API_BASE}/api/plugin/annotations?url=${encodeURIComponent(url)}`, {
+  const response = await fetchWithTimeout(`${API_BASE}/api/plugin/annotations?url=${encodeURIComponent(url)}`, {
     method: 'GET',
     headers: {
       'X-API-Key': apiKey
