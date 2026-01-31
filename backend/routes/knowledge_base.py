@@ -13,6 +13,9 @@ from logger import log_operation
 
 knowledge_base_bp = Blueprint('knowledge_base', __name__)
 
+# Note: CSRF exemption is handled in app.py after blueprint registration
+# with: csrf.exempt(knowledge_base_bp)
+
 
 def api_key_required(f):
     """API密钥认证装饰器"""
