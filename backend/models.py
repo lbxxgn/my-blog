@@ -1009,6 +1009,8 @@ def get_card_by_id(card_id):
     Returns:
         dict or None: 卡片数据
     """
+    import json
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -1016,7 +1018,18 @@ def get_card_by_id(card_id):
     row = cursor.fetchone()
     conn.close()
 
-    return dict(row) if row else None
+    if row:
+        card = dict(row)
+        # Parse JSON tags string to list
+        if card.get('tags'):
+            try:
+                card['tags'] = json.loads(card['tags'])
+            except (json.JSONDecodeError, TypeError):
+                card['tags'] = []
+        else:
+            card['tags'] = []
+        return card
+    return None
 
 
 def get_cards_by_user(user_id, status=None, limit=None, offset=None):
@@ -1032,6 +1045,8 @@ def get_cards_by_user(user_id, status=None, limit=None, offset=None):
     Returns:
         list: 卡片列表
     """
+    import json
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -1055,7 +1070,20 @@ def get_cards_by_user(user_id, status=None, limit=None, offset=None):
     rows = cursor.fetchall()
     conn.close()
 
-    return [dict(row) for row in rows]
+    # Parse JSON tags for each card
+    cards = []
+    for row in rows:
+        card = dict(row)
+        if card.get('tags'):
+            try:
+                card['tags'] = json.loads(card['tags'])
+            except (json.JSONDecodeError, TypeError):
+                card['tags'] = []
+        else:
+            card['tags'] = []
+        cards.append(card)
+
+    return cards
 
 
 def update_card_status(card_id, status):
