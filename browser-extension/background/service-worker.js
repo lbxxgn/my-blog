@@ -2,10 +2,19 @@
 
 console.log('Knowledge Base Extension Service Worker loaded');
 
-const API_BASE = 'http://localhost:5001';
+const DEFAULT_API_URL = 'http://localhost:5001';
 const REQUEST_TIMEOUT = 10000; // 10 seconds
 
 // ==================== Helper Functions ====================
+
+// Get API base URL from storage
+async function getAPIBaseURL() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['apiUrl'], (result) => {
+      resolve(result.apiUrl || DEFAULT_API_URL);
+    });
+  });
+}
 
 // Fetch with timeout
 async function fetchWithTimeout(url, options = {}, timeout = REQUEST_TIMEOUT) {
@@ -43,17 +52,19 @@ async function getAPIKey() {
 async function submitContent(data) {
   console.log('🔑 Getting API key...');
   const apiKey = await getAPIKey();
+  const apiUrl = await getAPIBaseURL();
   console.log('🔑 API key found:', apiKey ? 'Yes' : 'No');
+  console.log('🌐 API URL:', apiUrl);
 
   if (!apiKey) {
     console.error('❌ API key not configured!');
     throw new Error('API key not configured. Please set your API key in extension settings.');
   }
 
-  console.log('🌐 Sending request to:', `${API_BASE}/api/plugin/submit`);
+  console.log('🌐 Sending request to:', `${apiUrl}/api/plugin/submit`);
   console.log('📦 Data:', data);
 
-  const response = await fetchWithTimeout(`${API_BASE}/api/plugin/submit`, {
+  const response = await fetchWithTimeout(`${apiUrl}/api/plugin/submit`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -77,12 +88,13 @@ async function submitContent(data) {
 // Sync annotations to backend
 async function syncAnnotations(url, annotations) {
   const apiKey = await getAPIKey();
+  const apiUrl = await getAPIBaseURL();
 
   if (!apiKey) {
     throw new Error('API key not configured');
   }
 
-  const response = await fetchWithTimeout(`${API_BASE}/api/plugin/sync-annotations`, {
+  const response = await fetchWithTimeout(`${apiUrl}/api/plugin/sync-annotations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -101,12 +113,13 @@ async function syncAnnotations(url, annotations) {
 // Get annotations from backend
 async function getAnnotations(url) {
   const apiKey = await getAPIKey();
+  const apiUrl = await getAPIBaseURL();
 
   if (!apiKey) {
     throw new Error('API key not configured');
   }
 
-  const response = await fetchWithTimeout(`${API_BASE}/api/plugin/annotations?url=${encodeURIComponent(url)}`, {
+  const response = await fetchWithTimeout(`${apiUrl}/api/plugin/annotations?url=${encodeURIComponent(url)}`, {
     method: 'GET',
     headers: {
       'X-API-Key': apiKey

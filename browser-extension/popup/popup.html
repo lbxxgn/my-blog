@@ -16,7 +16,7 @@
 
     <main class="popup-main">
       <div class="recent-captures" id="recentCaptures">
-        <p class="empty-state">No recent captures</p>
+        <p class="empty-state">Loading...</p>
       </div>
     </main>
 
@@ -24,7 +24,7 @@
       <button id="quickNoteBtn" class="btn btn-primary">
         📝 Quick Note
       </button>
-      <a href="http://localhost:5001/timeline" target="_blank" class="btn btn-secondary">
+      <a id="knowledgeBaseBtn" target="_blank" class="btn btn-secondary">
         📚 Open Knowledge Base
       </a>
       <button id="settingsBtn" class="btn btn-icon">
@@ -33,6 +33,40 @@
     </footer>
   </div>
 
-  <script type="module" src="popup.js"></script>
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>设置</h2>
+        <button id="closeModal" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="apiUrl">API 地址</label>
+          <input type="text" id="apiUrl" placeholder="https://your-server.com" />
+          <small>例如: https://blog.example.com</small>
+        </div>
+        <div class="form-group">
+          <label for="apiKey">API 密钥</label>
+          <input type="password" id="apiKeyInput" placeholder="输入你的 API 密钥" />
+          <small>从知识库设置中获取</small>
+        </div>
+        <div id="connectionStatus" class="connection-status">
+          <span class="status-dot"></span>
+          <span class="status-text">未连接</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="testConnection" class="btn btn-secondary">
+          🔍 测试连接
+        </button>
+        <button id="saveSettings" class="btn btn-primary">
+          💾 保存设置
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
 </body>
 </html>

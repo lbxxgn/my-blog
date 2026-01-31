@@ -27,16 +27,66 @@ Chrome Extension (Manifest V3) for quick content capture and web page annotation
 
 ### Configuration
 
+#### For Local Development
+
 1. Make sure the backend server is running at `http://localhost:5001`
 2. Generate an API key:
    ```bash
-   cd browser-extension
-   python3 generate-api-key.py
+   cd backend
+   export ADMIN_USERNAME='admin'
+   export ADMIN_PASSWORD='AdminPass123!'
+   python3 -c "
+   from app import app, create_admin_user
+   from models import generate_api_key, get_user_by_username
+   with app.app_context():
+       create_admin_user()
+       user = get_user_by_username('admin')
+       key = generate_api_key(user['id'])
+       print(f'API Key: {key}')
+   "
    ```
 3. Click the extension icon in toolbar
 4. Click settings (gear icon ⚙️)
 5. Enter your API Key
 6. You're ready to capture!
+
+#### For Remote Server (Production)
+
+**IMPORTANT**: The extension needs permission to access your remote server.
+
+**Option 1: Modify manifest.json (Recommended for Production)**
+
+1. Open `browser-extension/manifest.json`
+2. Update the `host_permissions` section:
+   ```json
+   "host_permissions": [
+     "https://your-domain.com/*"
+   ]
+   ```
+3. Reload the extension in Chrome
+
+**Option 2: Use as Development Extension (For Testing)**
+
+The extension comes with `localhost:5001` permission. To test with a remote server:
+
+1. Click extension icon
+2. Click settings (⚙️)
+3. Enter your API URL (e.g., `https://blog.example.com`)
+4. Click "Test Connection" to verify
+5. Save settings
+6. Chrome will prompt for additional permissions - accept them
+
+**Server Setup** (on your server):
+
+1. Deploy the Simple Blog backend to your server
+2. Configure CORS to allow the extension:
+   ```python
+   # In your Flask app configuration
+   CORS_ORIGINS = [
+       'chrome-extension://*',  # For development
+   ]
+   ```
+3. Ensure HTTPS is enabled (required for extensions from web store)
 
 ---
 
