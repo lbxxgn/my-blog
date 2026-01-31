@@ -48,12 +48,12 @@
                     </li>
                     {% if session.get('role') == 'admin' %}
                     <li class="dropdown">
-                        <span class="dropdown-toggle" style="cursor: pointer;">
+                        <span class="dropdown-toggle">
                             <span class="user-icon">👤</span> <span class="dropdown-arrow">▼</span>
                         </span>
                         <ul class="dropdown-menu">
                             <li class="dropdown-submenu">
-                                <span class="submenu-toggle" style="cursor: pointer; display: block; width: 100%;">
+                                <span class="submenu-toggle">
                                     管理目录 <span class="submenu-arrow">▶</span>
                                 </span>
                                 <ul class="submenu">
@@ -67,7 +67,7 @@
                     </li>
                     {% else %}
                     <li class="dropdown">
-                        <span class="dropdown-toggle" style="cursor: pointer;">
+                        <span class="dropdown-toggle">
                             <span class="user-icon">👤</span> <span class="dropdown-arrow">▼</span>
                         </span>
                         <ul class="dropdown-menu">
@@ -140,16 +140,21 @@
 
 .submenu-toggle {
     cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: block;
+    width: 100%;
+    padding: 10px 20px;
+    box-sizing: border-box;
     user-select: none;  /* Prevent text selection */
+}
+
+.submenu-toggle:hover {
+    background: #f5f5f5;
 }
 
 .submenu {
     display: none;
     position: absolute;
-    left: 100%;
+    right: 0;  /* Align to right edge of parent */
     top: 0;
     background: white;
     min-width: 160px;
