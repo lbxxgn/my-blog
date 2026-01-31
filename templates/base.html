@@ -21,61 +21,49 @@
             </button>
 
             <ul class="nav-links" id="navLinks">
-                <li><a href="{{ url_for('index') }}">首页</a></li>
                 <li>
                     <form action="{{ url_for('search') }}" method="get" class="search-form-nav">
                         <input type="text" name="q" placeholder="搜索文章..." class="search-input-nav" value="{{ request.args.get('q', '') }}">
                         <button type="submit" class="search-btn">🔍</button>
                     </form>
                 </li>
-                <li>
-                    <button class="theme-toggle" id="themeToggle" aria-label="切换主题">
-                        <span class="theme-toggle-icon">🌙</span>
-                        <span class="theme-toggle-text">暗色</span>
-                    </button>
-                </li>
                 {% if session.get('user_id') %}
-                    <li><a href="{{ url_for('admin_dashboard') }}">文章管理</a></li>
+                    <li><a href="{{ url_for('admin_dashboard') }}">文章</a></li>
                     <li class="dropdown">
                         <span class="dropdown-toggle" style="cursor: pointer;">
                             知识库 <span class="dropdown-arrow">▼</span>
                         </span>
                         <ul class="dropdown-menu">
                             <li><a href="{{ url_for('knowledge_base.timeline') }}">时间线</a></li>
-                            <li><a href="{{ url_for('knowledge_base.incubator') }}">孵化箱</a></li>
                             <li><a href="{{ url_for('knowledge_base.quick_note') }}">快速记事</a></li>
                         </ul>
                     </li>
                     {% if session.get('role') == 'admin' %}
                     <li class="dropdown">
-                        <span class="dropdown-toggle">
-                            <span class="user-icon">👤</span> <span class="dropdown-arrow">▼</span>
+                        <span class="dropdown-toggle" style="cursor: pointer;">
+                            管理 <span class="dropdown-arrow">▼</span>
                         </span>
                         <ul class="dropdown-menu">
-                            <li class="dropdown-submenu">
-                                <span class="submenu-toggle">
-                                    管理目录 <span class="submenu-arrow">▶</span>
-                                </span>
-                                <ul class="submenu">
-                                    <li><a href="{{ url_for('user_list') }}">用户管理</a></li>
-                                    <li><a href="{{ url_for('ai.ai_settings') }}">AI设置</a></li>
-                                </ul>
-                            </li>
-                            <li><a href="{{ url_for('change_password') }}">修改密码</a></li>
-                            <li><a href="{{ url_for('logout') }}">退出</a></li>
+                            <li><a href="{{ url_for('user_list') }}">用户管理</a></li>
+                            <li><a href="{{ url_for('ai.ai_settings') }}">AI设置</a></li>
                         </ul>
                     </li>
-                    {% else %}
+                    {% endif %}
                     <li class="dropdown">
                         <span class="dropdown-toggle">
                             <span class="user-icon">👤</span> <span class="dropdown-arrow">▼</span>
                         </span>
                         <ul class="dropdown-menu">
+                            <li>
+                                <button class="theme-toggle" id="themeToggle" aria-label="切换主题" style="background: none; border: none; padding: 10px 20px; width: 100%; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                    <span class="theme-toggle-icon">🌙</span>
+                                    <span class="theme-toggle-text">暗色</span>
+                                </button>
+                            </li>
                             <li><a href="{{ url_for('change_password') }}">修改密码</a></li>
                             <li><a href="{{ url_for('logout') }}">退出</a></li>
                         </ul>
                     </li>
-                    {% endif %}
                 {% else %}
                     <li><a href="{{ url_for('login') }}">登录</a></li>
                 {% endif %}
@@ -97,8 +85,7 @@
     user-select: none;  /* Prevent text selection */
 }
 
-.dropdown-arrow,
-.submenu-arrow {
+.dropdown-arrow {
     font-size: 10px;
     transition: transform 0.3s ease;
     display: inline-block;
@@ -133,39 +120,8 @@
     background: #f5f5f5;
 }
 
-/* Submenu Styles */
-.dropdown-submenu {
-    position: relative;
-}
-
-.submenu-toggle {
-    cursor: pointer;
-    display: block;
-    width: 100%;
-    padding: 10px 20px;
-    box-sizing: border-box;
-    user-select: none;  /* Prevent text selection */
-}
-
-.submenu-toggle:hover {
-    background: #f5f5f5;
-}
-
-.submenu {
-    display: none;
-    position: absolute;
-    right: 0;  /* Align to right edge of parent */
-    top: 0;
-    background: white;
-    min-width: 160px;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    padding: 8px 0;
-}
-
 /* Active state for open dropdowns */
-.dropdown-menu.show,
-.submenu.show {
+.dropdown-menu.show {
     display: block;
 }
 
@@ -183,16 +139,7 @@
         padding-left: 10px;
     }
 
-    .submenu {
-        position: static;
-        box-shadow: none;
-        border-left: 3px solid #28a745;
-        margin-left: 10px;
-        padding-left: 10px;
-    }
-
-    .dropdown-arrow,
-    .submenu-arrow {
+    .dropdown-arrow {
         display: inline-block;
     }
 }
@@ -262,32 +209,12 @@
             });
         });
 
-        // Handle submenu toggles
-        const submenuToggles = document.querySelectorAll('.submenu-toggle');
-
-        submenuToggles.forEach(toggle => {
-            toggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const submenu = this.nextElementSibling;
-                if (submenu.style.display === 'block') {
-                    submenu.style.display = 'none';
-                } else {
-                    submenu.style.display = 'block';
-                }
-            });
-        });
-
         // Close dropdowns when clicking outside (not on navigation)
         document.addEventListener('click', function(e) {
             const nav = document.querySelector('nav');
             if (nav && !nav.contains(e.target)) {
                 document.querySelectorAll('.dropdown-menu').forEach(menu => {
                     menu.style.display = 'none';
-                });
-                document.querySelectorAll('.submenu').forEach(submenu => {
-                    submenu.style.display = 'none';
                 });
             }
         });

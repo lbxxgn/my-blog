@@ -1,6 +1,6 @@
 // API client for communicating with backend
 
-const API_BASE = 'http://localhost:5001';
+const API_BASE = 'http://localhost:5001/knowledge_base';
 
 // Get API key from storage
 async function getAPIKey() {

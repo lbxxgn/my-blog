@@ -220,7 +220,7 @@ app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(ai_bp)
 
 # 注册知识库蓝图
-app.register_blueprint(knowledge_base_bp)
+app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
 
 # 为知识库 API 端点豁免 CSRF 保护
 # 浏览器扩展无法处理 CSRF token

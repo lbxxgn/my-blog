@@ -161,6 +161,27 @@ def init_db(db_path=None):
     except Exception:
         pass  # Column already exists
 
+    # Add note-related columns
+    try:
+        cursor.execute('ALTER TABLE posts ADD COLUMN excerpt TEXT')
+    except Exception:
+        pass  # Column already exists
+
+    try:
+        cursor.execute('ALTER TABLE posts ADD COLUMN metadata TEXT')
+    except Exception:
+        pass  # Column already exists
+
+    try:
+        cursor.execute('ALTER TABLE posts ADD COLUMN parent_note_id INTEGER')
+    except Exception:
+        pass  # Column already exists
+
+    try:
+        cursor.execute('ALTER TABLE posts ADD COLUMN link_count INTEGER DEFAULT 0')
+    except Exception:
+        pass  # Column already exists
+
     # Create users table with full schema
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -290,6 +311,61 @@ def init_db(db_path=None):
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_user_status ON cards(user_id, status)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_created ON cards(created_at DESC)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_cards_linked_article ON cards(linked_article_id)')
+
+    # Create api_keys table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS api_keys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            api_key TEXT NOT NULL UNIQUE,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id)')
+
+    # Create card_annotations table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS card_annotations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            card_id INTEGER,
+            source_url TEXT NOT NULL,
+            annotation_text TEXT,
+            xpath TEXT,
+            color TEXT DEFAULT 'yellow',
+            note TEXT,
+            annotation_type TEXT DEFAULT 'highlight',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (card_id) REFERENCES cards(id)
+        )
+    ''')
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_annotations_user_url ON card_annotations(user_id, source_url)')
+
+    # Create note_links table for note linking feature
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS note_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_post_id INTEGER NOT NULL,
+            target_post_id INTEGER NOT NULL,
+            link_text TEXT,
+            link_context TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (source_post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY (target_post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            UNIQUE(source_post_id, target_post_id)
+        )
+    ''')
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_post_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_post_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_type ON posts(post_type)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_parent_note ON posts(parent_note_id)')
 
     conn.commit()
     conn.close()

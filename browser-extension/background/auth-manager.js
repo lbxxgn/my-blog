@@ -31,7 +31,7 @@ export async function clearAPIKey() {
 
 // Validate API key with backend
 export async function validateAPIKey(apiKey) {
-  const API_BASE = 'http://localhost:5001';
+  const API_BASE = 'http://localhost:5001/knowledge_base';
 
   try {
     const response = await fetch(`${API_BASE}/api/plugin/validate`, {

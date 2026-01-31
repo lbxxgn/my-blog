@@ -3,7 +3,7 @@
 console.log('Popup loaded');
 
 // Default API URL
-const DEFAULT_API_URL = 'http://localhost:5001';
+const DEFAULT_API_URL = 'http://localhost:5001/knowledge_base';
 
 document.addEventListener('DOMContentLoaded', () => {
   init();

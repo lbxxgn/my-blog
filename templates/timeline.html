@@ -5,7 +5,6 @@
 {% block content %}
 <div class="timeline-container">
     <div class="timeline-header">
-        <h1>知识库时间线</h1>
         <div class="timeline-stats">
             <span class="stat-item">
                 <strong>{{ stats.total }}</strong> 总计
@@ -25,6 +24,9 @@
     <div class="timeline-actions">
         <a href="{{ url_for('knowledge_base.quick_note') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> 新建笔记
+        </a>
+        <a href="{{ url_for('knowledge_base.incubator') }}" class="btn btn-secondary">
+            <i class="fas fa-egg"></i> 孵化箱
         </a>
     </div>
 
@@ -132,6 +134,8 @@
 
 .timeline-actions {
     margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
 }
 
 .timeline-filters {
@@ -436,6 +440,13 @@
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
 }
 
 .btn-primary {
@@ -445,6 +456,9 @@
 
 .btn-primary:hover {
     background-color: #0056b3;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+    text-decoration: none;
 }
 
 .btn-secondary {
@@ -454,6 +468,9 @@
 
 .btn-secondary:hover {
     background-color: #545b62;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.2);
+    text-decoration: none;
 }
 </style>
 
@@ -477,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('编辑卡片 ID:', cardId);
 
             // 获取卡片详情
-            fetch(`/api/cards/${cardId}`, {
+            fetch(`/knowledge_base/api/cards/${cardId}`, {
                 credentials: 'same-origin'  // 确保发送cookies
             })
                 .then(response => {
@@ -545,7 +562,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log('保存卡片:', cardId, data);
 
-        fetch(`/api/cards/${cardId}`, {
+        fetch(`/knowledge_base/api/cards/${cardId}`, {
             method: 'PUT',
             credentials: 'same-origin',  // 确保发送cookies
             headers: {
@@ -594,7 +611,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (confirm(`确定要删除卡片 "${cardTitle}" 吗？\n\n此操作不可恢复！`)) {
                 console.log('删除卡片 ID:', cardId);
 
-                fetch(`/api/cards/${cardId}`, {
+                fetch(`/knowledge_base/api/cards/${cardId}`, {
                     method: 'DELETE',
                     credentials: 'same-origin',  // 确保发送cookies
                     headers: {

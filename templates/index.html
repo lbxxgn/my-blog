@@ -80,4 +80,405 @@
         </aside>
     </div>
 </div>
+
+<!-- 快速记事浮动按钮（仅登录用户可见） -->
+{% if session.get('user_id') %}
+<button id="quickNoteFab" class="quick-note-fab" title="快速记事">
+    <span class="fab-icon">✏️</span>
+    <span class="fab-text">快速记事</span>
+</button>
+
+<!-- 快速记事模态框 -->
+<div id="quickNoteModal" class="quick-note-modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>✏️ 快速记事</h2>
+            <button class="close-btn" id="closeModal">&times;</button>
+        </div>
+        <form id="quickNoteForm">
+            <div class="form-group">
+                <label for="noteTitle">标题（可选）</label>
+                <input type="text" id="noteTitle" name="title" placeholder="给这个想法起个标题...">
+            </div>
+            <div class="form-group">
+                <label for="noteContent">内容 *</label>
+                <textarea id="noteContent" name="content" rows="8" placeholder="记录你的想法..." required></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+/* 快速记事浮动按钮 */
+.quick-note-fab {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.quick-note-fab:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 30px rgba(102, 126, 234, 0.5);
+}
+
+.quick-note-fab:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.fab-icon {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.fab-text {
+    font-size: 15px;
+}
+
+/* 模态框样式 */
+.quick-note-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.quick-note-modal .modal-content {
+    background: white;
+    border-radius: 16px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 28px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 22px;
+    color: #1f2937;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 32px;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 0;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.form-group {
+    padding: 20px 28px;
+}
+
+.form-group:first-of-type {
+    padding-top: 28px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    transition: all 0.2s;
+    box-sizing: border-box;
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 28px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+/* 暗色主题适配 */
+.dark-theme .quick-note-modal .modal-content {
+    background: #1f2937;
+}
+
+.dark-theme .modal-header {
+    border-bottom-color: #374151;
+}
+
+.dark-theme .modal-header h2 {
+    color: #f9fafb;
+}
+
+.dark-theme .form-group label {
+    color: #e5e7eb;
+}
+
+.dark-theme .form-group input[type="text"],
+.dark-theme .form-group textarea {
+    background: #374151;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.dark-theme .form-group input[type="text"]:focus,
+.dark-theme .form-group textarea:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.1);
+}
+
+.dark-theme .form-actions {
+    border-top-color: #374151;
+}
+
+.dark-theme .close-btn {
+    color: #6b7280;
+}
+
+.dark-theme .close-btn:hover {
+    background: #374151;
+    color: #e5e7eb;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .quick-note-fab {
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 18px;
+    }
+
+    .fab-text {
+        display: none;
+    }
+
+    .quick-note-modal .modal-content {
+        width: 95%;
+        margin: 10px;
+    }
+
+    .modal-header {
+        padding: 20px;
+    }
+
+    .modal-header h2 {
+        font-size: 20px;
+    }
+
+    .form-group {
+        padding: 16px 20px;
+    }
+
+    .form-actions {
+        padding: 16px 20px;
+    }
+}
+</style>
+
+<script>
+// 快速记事功能
+document.addEventListener('DOMContentLoaded', function() {
+    const fab = document.getElementById('quickNoteFab');
+    const modal = document.getElementById('quickNoteModal');
+    const closeBtn = document.getElementById('closeModal');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const form = document.getElementById('quickNoteForm');
+
+    // 打开模态框
+    fab.addEventListener('click', function() {
+        modal.style.display = 'flex';
+        document.getElementById('noteTitle').focus();
+    });
+
+    // 关闭模态框函数
+    function closeModal() {
+        modal.style.display = 'none';
+        form.reset();
+    }
+
+    // 关闭按钮
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+
+    // 点击背景关闭
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+
+    // ESC键关闭
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.style.display === 'flex') {
+            closeModal();
+        }
+    });
+
+    // 表单提交
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const title = document.getElementById('noteTitle').value.trim();
+        const content = document.getElementById('noteContent').value.trim();
+
+        if (!content) {
+            alert('请输入内容');
+            return;
+        }
+
+        // 禁用按钮防止重复提交
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '保存中...';
+
+        try {
+            const response = await fetch('/knowledge_base/quick-note', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: title,
+                    content: content
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // 显示成功提示
+                closeModal();
+                alert('✅ 记事保存成功！');
+
+                // 可选：跳转到时间线查看
+                // window.location.href = '/knowledge_base/timeline';
+            } else {
+                alert('❌ 保存失败：' + (data.error || '未知错误'));
+                submitBtn.disabled = false;
+                submitBtn.textContent = '保存';
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('❌ 保存失败，请重试');
+            submitBtn.disabled = false;
+            submitBtn.textContent = '保存';
+        }
+    });
+});
+</script>
+{% endif %}
 {% endblock %}
