@@ -227,7 +227,7 @@ def get_recent_captures():
                 'id': card['id'],
                 'title': card['title'],
                 'content': card['content'],
-                'tags': json.loads(card['tags']) if card['tags'] else [],
+                'tags': card['tags'],  # Already parsed by get_cards_by_user
                 'status': card['status'],
                 'source': card['source'],
                 'created_at': card['created_at']

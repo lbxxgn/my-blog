@@ -206,7 +206,7 @@ class TestKnowledgeBaseRoutes:
         api_key = generate_api_key(user_id)
 
         # Submit via plugin API
-        response = client.post('/api/plugin/submit',
+        response = client.post('/knowledge_base/api/plugin/submit',
             json={
                 'title': 'Test Page',
                 'content': 'Selected text from page',
@@ -223,7 +223,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_submit_requires_api_key(self, client):
         """测试插件提交需要API密钥"""
-        response = client.post('/api/plugin/submit',
+        response = client.post('/knowledge_base/api/plugin/submit',
             json={
                 'title': 'Test Page',
                 'content': 'Selected text from page',
@@ -241,7 +241,7 @@ class TestKnowledgeBaseRoutes:
         user_id = create_user('extuser2', generate_password_hash('TestPass123!'), role='author')
         api_key = generate_api_key(user_id)
 
-        response = client.post('/api/plugin/sync-annotations',
+        response = client.post('/knowledge_base/api/plugin/sync-annotations',
             json={
                 'url': 'https://example.com/test',
                 'annotations': [
@@ -281,7 +281,7 @@ class TestKnowledgeBaseRoutes:
         )
 
         # Get annotations
-        response = client.get('/api/plugin/annotations?url=https://example.com/test',
+        response = client.get('/knowledge_base/api/plugin/annotations?url=https://example.com/test',
             headers={'X-API-Key': api_key}
         )
 
@@ -293,7 +293,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_invalid_api_key(self, client):
         """测试无效的API密钥"""
-        response = client.post('/api/plugin/submit',
+        response = client.post('/knowledge_base/api/plugin/submit',
             json={
                 'title': 'Test Page',
                 'content': 'Selected text from page',
@@ -309,7 +309,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_missing_api_key(self, client):
         """测试缺少API密钥"""
-        response = client.post('/api/plugin/submit',
+        response = client.post('/knowledge_base/api/plugin/submit',
             json={
                 'title': 'Test Page',
                 'content': 'Selected text from page',
@@ -330,7 +330,7 @@ class TestKnowledgeBaseRoutes:
         user_id = create_user('extuser4', generate_password_hash('TestPass123!'), role='author')
         api_key = generate_api_key(user_id)
 
-        response = client.post('/api/plugin/submit',
+        response = client.post('/knowledge_base/api/plugin/submit',
             json={
                 'title': 'Test Page',
                 'source_url': 'https://example.com/test',
@@ -352,7 +352,7 @@ class TestKnowledgeBaseRoutes:
         api_key = generate_api_key(user_id)
 
         # Missing URL
-        response = client.post('/api/plugin/sync-annotations',
+        response = client.post('/knowledge_base/api/plugin/sync-annotations',
             json={
                 'annotations': []
             },
@@ -371,7 +371,7 @@ class TestKnowledgeBaseRoutes:
         user_id = create_user('extuser6', generate_password_hash('TestPass123!'), role='author')
         api_key = generate_api_key(user_id)
 
-        response = client.get('/api/plugin/annotations',
+        response = client.get('/knowledge_base/api/plugin/annotations',
             headers={'X-API-Key': api_key}
         )
 
@@ -391,7 +391,7 @@ class TestKnowledgeBaseRoutes:
         create_card(user_id, 'Test Card 1', 'Content 1', 'idea', 'web')
         create_card(user_id, 'Test Card 2', 'Content 2', 'idea', 'web')
 
-        response = client.get('/api/plugin/recent?limit=5',
+        response = client.get('/knowledge_base/api/plugin/recent?limit=5',
             headers={'X-API-Key': api_key}
         )
 
@@ -412,7 +412,7 @@ class TestKnowledgeBaseRoutes:
         # Create content larger than 1MB
         large_content = 'x' * (1024 * 1024 + 1)
 
-        response = client.post('/api/plugin/submit',
+        response = client.post('/knowledge_base/api/plugin/submit',
             json={
                 'title': 'Test Page',
                 'content': large_content,
@@ -434,7 +434,7 @@ class TestKnowledgeBaseRoutes:
         user_id = create_user('extuser9', generate_password_hash('TestPass123!'), role='author')
         api_key = generate_api_key(user_id)
 
-        response = client.post('/api/plugin/sync-annotations',
+        response = client.post('/knowledge_base/api/plugin/sync-annotations',
             json={
                 'url': 'https://example.com/test',
                 'annotations': [
@@ -462,7 +462,7 @@ class TestKnowledgeBaseRoutes:
         user_id = create_user('extuser10', generate_password_hash('TestPass123!'), role='author')
         api_key = generate_api_key(user_id)
 
-        response = client.post('/api/plugin/sync-annotations',
+        response = client.post('/knowledge_base/api/plugin/sync-annotations',
             json={
                 'url': 'https://example.com/test',
                 'annotations': [
