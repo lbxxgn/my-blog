@@ -268,7 +268,7 @@ class TestCardModels:
         card = get_card_by_id(card_id)
         assert card['title'] == 'Test Card'
         assert card['content'] == 'Test content'
-        assert json.loads(card['tags']) == ['test', 'idea']
+        assert card['tags'] == ['test', 'idea']
         assert card['status'] == 'idea'
         assert card['source'] == 'web'
 

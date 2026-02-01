@@ -1,10 +1,11 @@
 import sqlite3
 import logging
+import os
 from pathlib import Path
 from contextlib import contextmanager
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
-from config import DATABASE_URL
+import config
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ def get_db_connection(db_path=None):
         - synchronous=NORMAL: 平衡性能和安全性
     """
     if db_path is None:
-        db_path = DATABASE_URL.replace('sqlite:///', '')
+        db_path = config.DATABASE_URL.replace('sqlite:///', '')
 
     # 连接数据库，增加超时时间以处理长时间查询
     conn = sqlite3.connect(
@@ -39,11 +40,13 @@ def get_db_connection(db_path=None):
     # 设置行工厂，使结果可以像字典一样访问
     conn.row_factory = sqlite3.Row
 
-    # 启用WAL（Write-Ahead Logging）模式，提高并发性能
-    conn.execute('PRAGMA journal_mode=WAL')
-
-    # 设置同步模式为NORMAL（在每次事务时同步，但不是每次写入）
-    conn.execute('PRAGMA synchronous=NORMAL')
+    # 在测试环境中禁用WAL模式以避免锁定问题
+    # 生产环境启用WAL以提高并发性能
+    if os.environ.get('TESTING') != '1':
+        # 启用WAL（Write-Ahead Logging）模式，提高并发性能
+        conn.execute('PRAGMA journal_mode=WAL')
+        # 设置同步模式为NORMAL（在每次事务时同步，但不是每次写入）
+        conn.execute('PRAGMA synchronous=NORMAL')
 
     return conn
 
@@ -59,7 +62,7 @@ def get_db_context(db_path=None):
             # Auto commits on success, rolls back on exception
     """
     if db_path is None:
-        db_path = DATABASE_URL.replace('sqlite:///', '')
+        db_path = config.DATABASE_URL.replace('sqlite:///', '')
 
     conn = get_db_connection(db_path)
     try:
@@ -120,7 +123,7 @@ def paginate_query_cursor(conn, query, where_clause, params, cursor_time=None, p
 def init_db(db_path=None):
     """Initialize the database with tables"""
     if db_path is None:
-        db_path = DATABASE_URL.replace('sqlite:///', '')
+        db_path = config.DATABASE_URL.replace('sqlite:///', '')
 
     conn = get_db_connection(db_path)
     cursor = conn.cursor()
