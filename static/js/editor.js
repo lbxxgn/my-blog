@@ -1,296 +1,418 @@
-// Enhanced Markdown Editor with rich features
-const contentTextarea = document.getElementById('content');
-const previewDiv = document.getElementById('preview');
+// Quill Rich Text Editor
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('[Quill] DOMContentLoaded fired');
+    console.log('[Quill] Quill is available:', typeof Quill !== 'undefined');
 
-// Markdown action mappings
-const markdownActions = {
-    bold: { before: '**', after: '**', placeholder: '粗体文本' },
-    italic: { before: '*', after: '*', placeholder: '斜体文本' },
-    strikethrough: { before: '~~', after: '~~', placeholder: '删除线文本' },
-    h1: { before: '# ', after: '', placeholder: '一级标题', prefix: true },
-    h2: { before: '## ', after: '', placeholder: '二级标题', prefix: true },
-    h3: { before: '### ', after: '', placeholder: '三级标题', prefix: true },
-    ul: { before: '- ', after: '', placeholder: '列表项', prefix: true },
-    ol: { before: '1. ', after: '', placeholder: '列表项', prefix: true },
-    quote: { before: '> ', after: '', placeholder: '引用内容', prefix: true },
-    code: { before: '`', after: '`', placeholder: '代码' },
-    codeblock: { before: '```\n', after: '\n```', placeholder: '代码块' },
-    link: { before: '[', after: '](url)', placeholder: '链接文字' },
-    image: { before: '![', after: '](url)', placeholder: '图片描述' },
-    hr: { before: '\n---\n', after: '', placeholder: '', standalone: true },
-    table: { before: '| 标题1 | 标题2 |\n|-------|-------|\n| 内容1 | 内容2 |', after: '', placeholder: '', standalone: true }
-};
+    const textarea = document.getElementById('content');
+    console.log('[Quill] Textarea found:', !!textarea);
 
-// Enhanced Markdown parser with more features
-function parseMarkdown(text) {
-    // Escape HTML first
-    text = text.replace(/&/g, '&amp;')
-               .replace(/</g, '&lt;')
-               .replace(/>/g, '&gt;');
+    if (textarea) {
+        console.log('[Quill] Initializing Quill editor...');
 
-    let html = text;
+        // Hide the original textarea
+        textarea.style.display = 'none';
+        console.log('[Quill] Original textarea hidden');
 
-    // Code blocks (must be first to avoid interference)
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(match, lang, code) {
-        return `<pre><code class="language-${lang}">${code.trim()}</code></pre>`;
-    });
+        // Create a container for Quill editor
+        const editorContainer = document.createElement('div');
+        editorContainer.id = 'quill-editor';
+        editorContainer.style.minHeight = '400px';
+        textarea.parentNode.insertBefore(editorContainer, textarea.nextSibling);
+        console.log('[Quill] Editor container created');
 
-    // Horizontal rules
-    html = html.replace(/^---$/gm, '<hr>');
+        // Get CSRF token
+        const csrfToken = document.querySelector('meta[name="csrf_token"]')
+            ? document.querySelector('meta[name="csrf_token"]').getAttribute('content')
+            : '';
 
-    // Headers
-    html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
-    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+        // Initialize Quill
+        console.log('[Quill] Creating Quill instance...');
+        let quill;
 
-    // Bold and Italic combinations
-    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-    // Strikethrough
-    html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
-
-    // Code
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Blockquotes
-    html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
-
-    // Unordered lists
-    html = html.replace(/^\- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-
-    // Ordered lists
-    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
-    // Note: ordered lists need special handling to separate from ul
-
-    // Links
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-
-    // Images
-    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
-
-    // Line breaks and paragraphs
-    html = html.replace(/\n\n+/g, '</p><p>');
-    html = html.replace(/\n/g, '<br>');
-
-    // Wrap in paragraphs if not already wrapped
-    if (!html.startsWith('<')) {
-        html = '<p>' + html + '</p>';
-    }
-
-    return html;
-}
-
-// Update word count
-function updateStats() {
-    const text = contentTextarea.value;
-    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-    const chars = text.length;
-    const lines = text.split('\n').length;
-
-    document.getElementById('wordCount').textContent = words.toLocaleString();
-    document.getElementById('charCount').textContent = chars.toLocaleString();
-    document.getElementById('lineCount').textContent = lines.toLocaleString();
-}
-
-// Insert markdown syntax
-function insertMarkdown(action) {
-    const config = markdownActions[action];
-    if (!config) return;
-
-    const start = contentTextarea.selectionStart;
-    const end = contentTextarea.selectionEnd;
-    const text = contentTextarea.value;
-    const selectedText = text.substring(start, end) || config.placeholder;
-
-    let insertion;
-    if (config.standalone) {
-        insertion = config.before;
-        contentTextarea.value = text.substring(0, end) + insertion + text.substring(end);
-        contentTextarea.selectionStart = contentTextarea.selectionEnd = end + insertion.length;
-    } else {
-        insertion = config.before + selectedText + config.after;
-        contentTextarea.value = text.substring(0, start) + insertion + text.substring(end);
-        contentTextarea.selectionStart = start + config.before.length;
-        contentTextarea.selectionEnd = start + config.before.length + selectedText.length;
-    }
-
-    contentTextarea.focus();
-    contentTextarea.dispatchEvent(new Event('input'));
-}
-
-// Initialize editor
-if (contentTextarea && previewDiv) {
-    // Update preview on input
-    contentTextarea.addEventListener('input', function() {
-        previewDiv.innerHTML = parseMarkdown(this.value);
-        updateStats();
-    });
-
-    // Initial preview and stats
-    previewDiv.innerHTML = parseMarkdown(contentTextarea.value);
-    updateStats();
-
-    // Toolbar button clicks
-    document.querySelectorAll('.toolbar-btn[data-action]').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            const action = this.getAttribute('data-action');
-            insertMarkdown(action);
-        });
-    });
-
-    // Keyboard shortcuts
-    contentTextarea.addEventListener('keydown', function(e) {
-        if (e.ctrlKey || e.metaKey) {
-            switch(e.key.toLowerCase()) {
-                case 'b':
-                    e.preventDefault();
-                    insertMarkdown('bold');
-                    break;
-                case 'i':
-                    e.preventDefault();
-                    insertMarkdown('italic');
-                    break;
-                case 'z':
-                    e.preventDefault();
-                    document.execCommand('undo');
-                    break;
-                case 'y':
-                    e.preventDefault();
-                    document.execCommand('redo');
-                    break;
-            }
-        }
-
-        // Tab key for indentation
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            insertMarkdown('code');
-        }
-    });
-
-    // Fullscreen toggle
-    let isFullscreen = false;
-    document.querySelector('[data-action="fullscreen"]').addEventListener('click', function() {
-        isFullscreen = !isFullscreen;
-        const editorContainer = document.querySelector('.admin-editor');
-
-        if (isFullscreen) {
-            editorContainer.classList.add('fullscreen-mode');
-            document.body.style.overflow = 'hidden';
-        } else {
-            editorContainer.classList.remove('fullscreen-mode');
-            document.body.style.overflow = '';
-        }
-    });
-
-    // Auto-save to localStorage
-    let saveTimeout;
-    const saveStatus = document.getElementById('saveStatus');
-    const titleInput = document.getElementById('title');
-    const postId = titleInput ? window.location.pathname.split('/').pop() : '';
-
-    function autoSave() {
-        const content = contentTextarea.value;
-        const title = titleInput ? titleInput.value : '';
-        localStorage.setItem(`editor_draft_${postId}`, JSON.stringify({
-            title,
-            content,
-            timestamp: new Date().toISOString()
-        }));
-        saveStatus.textContent = '已自动保存 ' + new Date().toLocaleTimeString();
-        saveStatus.className = 'save-status saved';
-
-        setTimeout(() => {
-            saveStatus.textContent = '';
-            saveStatus.className = 'save-status';
-        }, 2000);
-    }
-
-    contentTextarea.addEventListener('input', function() {
-        clearTimeout(saveTimeout);
-        saveStatus.textContent = '正在保存...';
-        saveStatus.className = 'save-status saving';
-        saveTimeout = setTimeout(autoSave, 1000);
-    });
-
-    // Load draft on page load
-    const savedDraft = localStorage.getItem(`editor_draft_${postId}`);
-    if (savedDraft && !contentTextarea.value) {
         try {
-            const draft = JSON.parse(savedDraft);
-            if (confirm(`发现未保存的草稿 (${new Date(draft.timestamp).toLocaleString()})，是否恢复？`)) {
-                if (titleInput) titleInput.value = draft.title;
-                contentTextarea.value = draft.content;
-                previewDiv.innerHTML = parseMarkdown(contentTextarea.value);
-                updateStats();
-            }
+            quill = new Quill('#quill-editor', {
+                theme: 'snow',
+                placeholder: '开始写作...\n\n支持富文本粘贴，可直接从其他网站复制文章内容',
+                modules: {
+                    toolbar: {
+                        container: [
+                            [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                            ['bold', 'italic', 'underline', 'strike'],
+                            [{ 'color': [] }, { 'background': [] }],
+                            [{ 'align': [] }],
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            [{ 'indent': '-1'}, { 'indent': '+1' }],
+                            ['link', 'image', 'video'],
+                            ['blockquote', 'code-block'],
+                            ['clean']
+                        ],
+                        handlers: {
+                            image: function() {
+                                // Trigger image upload
+                                document.getElementById('imageUpload').click();
+                            }
+                        }
+                    },
+                    clipboard: {
+                        // Allow pasting HTML content
+                        matchVisual: false
+                    }
+                }
+            });
+            console.log('[Quill] Quill instance created successfully!');
         } catch (e) {
-            console.error('Failed to load draft:', e);
+            console.error('[Quill] Error creating Quill:', e);
+            return;
         }
-    }
-}
 
-// Image upload functionality
-const imageUpload = document.getElementById('imageUpload');
-if (imageUpload) {
-    imageUpload.addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+        // Load existing content if editing
+        if (textarea.value) {
+            quill.root.innerHTML = textarea.value;
+        }
 
-        const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('csrf_token', csrfToken);
+        // Sync content to textarea on change
+        quill.on('text-change', function() {
+            textarea.value = quill.root.innerHTML;
+        });
 
-        try {
-            const saveStatus = document.getElementById('saveStatus');
-            saveStatus.textContent = '正在上传图片...';
-            saveStatus.className = 'save-status saving';
+        // Auto-save functionality
+        const saveStatus = document.getElementById('saveStatus');
+        if (saveStatus) {
+            let autoSaveTimeout;
 
-            const response = await fetch('/admin/upload', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken
-                },
-                body: formData
+            quill.on('text-change', function() {
+                clearTimeout(autoSaveTimeout);
+                saveStatus.textContent = '正在保存...';
+                saveStatus.className = 'save-status saving';
+
+                autoSaveTimeout = setTimeout(function() {
+                    // Save to localStorage
+                    localStorage.setItem('editor_content', quill.root.innerHTML);
+                    saveStatus.textContent = '已自动保存 ' + new Date().toLocaleTimeString();
+                    saveStatus.className = 'save-status saved';
+                }, 1000);
             });
 
-            const data = await response.json();
+            // Load saved content on page load
+            const savedContent = localStorage.getItem('editor_content');
+            if (savedContent && !textarea.value) {
+                // Create a custom modal for draft recovery
+                const modal = document.createElement('div');
+                modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
+                modal.innerHTML = `
+                    <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+                        <h3 style="margin: 0 0 1rem 0; color: #333;">📝 发现未保存的草稿</h3>
+                        <p style="color: #666; line-height: 1.6;">我们检测到您之前有未保存的内容，是否要恢复？</p>
+                        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
+                            <button id="restoreDraft" style="flex: 1; padding: 0.75rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 500;">恢复草稿</button>
+                            <button id="ignoreDraft" style="flex: 1; padding: 0.75rem 1.5rem; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 500;">忽略并清除</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
 
-            if (data.success) {
-                const markdown = `![${file.name.split('.')[0] || '图片'}](${data.url})`;
-                const textarea = document.getElementById('content');
-                const start = textarea.selectionStart;
-                const end = textarea.selectionEnd;
+                // Handle restore button
+                document.getElementById('restoreDraft').addEventListener('click', function() {
+                    quill.root.innerHTML = savedContent;
+                    textarea.value = savedContent;
+                    document.body.removeChild(modal);
+                });
 
-                textarea.value = textarea.value.substring(0, start) + markdown + textarea.value.substring(end);
-                textarea.focus();
-                textarea.selectionStart = textarea.selectionEnd = start + markdown.length;
-                textarea.dispatchEvent(new Event('input'));
-
-                saveStatus.textContent = '图片上传成功！';
-                saveStatus.className = 'save-status saved';
-                setTimeout(() => {
-                    saveStatus.textContent = '';
-                    saveStatus.className = 'save-status';
-                }, 2000);
-            } else {
-                saveStatus.textContent = '上传失败: ' + data.error;
-                saveStatus.className = 'save-status error';
-                setTimeout(() => {
-                    saveStatus.textContent = '';
-                    saveStatus.className = 'save-status';
-                }, 3000);
+                // Handle ignore button
+                document.getElementById('ignoreDraft').addEventListener('click', function() {
+                    localStorage.removeItem('editor_content');
+                    document.body.removeChild(modal);
+                });
             }
-        } catch (error) {
-            alert('上传失败: ' + error.message);
         }
 
-        e.target.value = '';
-    });
-}
+        // Handle form submission
+        const form = document.getElementById('editorForm');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // Ensure Quill content is synced to textarea
+                textarea.value = quill.root.innerHTML;
+                // Clear draft after successful save
+                localStorage.removeItem('editor_content');
+            });
+        }
+
+        // Handle cancel button - clear draft cache
+        const cancelButton = document.querySelector('a[href*="admin_dashboard"]');
+        if (cancelButton) {
+            cancelButton.addEventListener('click', function(e) {
+                // Check if there's unsaved content
+                const currentContent = quill.root.innerHTML;
+                const savedContent = localStorage.getItem('editor_content');
+
+                // Only show confirmation if there's content that hasn't been saved to database
+                if (currentContent && currentContent !== '<p><br></p>' && !textarea.value) {
+                    if (confirm('您有未保存的内容，确定要离开吗？点击"确定"将清除草稿缓存。')) {
+                        localStorage.removeItem('editor_content');
+                    } else {
+                        e.preventDefault();
+                        return false;
+                    }
+                } else {
+                    // No unsaved content, just clear the draft cache
+                    localStorage.removeItem('editor_content');
+                }
+            });
+        }
+
+        // Custom image upload handler
+        const imageUpload = document.getElementById('imageUpload');
+        if (imageUpload) {
+            imageUpload.addEventListener('change', async function(e) {
+                const files = Array.from(e.target.files);
+                if (!files.length) return;
+
+                const totalFiles = files.length;
+                let uploadedCount = 0;
+                let successCount = 0;
+                let failedCount = 0;
+                const failedFiles = [];
+
+                // Get current cursor position to insert images at
+                const range = quill.getSelection();
+                let insertIndex = range ? range.index : 0;
+
+                for (let i = 0; i < totalFiles; i++) {
+                    const file = files[i];
+                    uploadedCount++;
+
+                    try {
+                        // Show progress
+                        if (saveStatus) {
+                            saveStatus.textContent = `正在上传第 ${uploadedCount}/${totalFiles} 张图片...`;
+                            saveStatus.className = 'save-status saving';
+                        }
+
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        formData.append('csrf_token', csrfToken);
+
+                        const response = await fetch('/admin/upload', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: formData
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            // Insert image into Quill editor
+                            quill.insertEmbed(insertIndex, 'image', data.url);
+                            // Insert a line break after each image
+                            quill.insertText(insertIndex + 1, '\n');
+                            // Move insert index forward
+                            insertIndex += 2;
+                            successCount++;
+                        } else {
+                            failedCount++;
+                            failedFiles.push(`${file.name}: ${data.error}`);
+                        }
+
+                        // Show progress update
+                        if (saveStatus) {
+                            saveStatus.textContent = `上传中 ${uploadedCount}/${totalFiles} (成功: ${successCount}, 失败: ${failedCount})`;
+                        }
+
+                    } catch (error) {
+                        failedCount++;
+                        failedFiles.push(`${file.name}: ${error.message}`);
+                        console.error('Upload error:', error);
+                    }
+                }
+
+                // Show final result
+                if (saveStatus) {
+                    if (failedCount === 0) {
+                        saveStatus.textContent = `✅ 成功上传 ${successCount} 张图片！`;
+                        saveStatus.className = 'save-status saved';
+                        setTimeout(() => {
+                            saveStatus.textContent = '';
+                            saveStatus.className = 'save-status';
+                        }, 3000);
+                    } else if (successCount === 0) {
+                        saveStatus.textContent = `❌ 上传失败: ${failedFiles[0]}`;
+                        saveStatus.className = 'save-status error';
+                        setTimeout(() => {
+                            saveStatus.textContent = '';
+                            saveStatus.className = 'save-status';
+                        }, 5000);
+                    } else {
+                        saveStatus.textContent = `⚠️ 部分成功: ${successCount}张成功, ${failedCount}张失败`;
+                        saveStatus.className = 'save-status saved';
+                        setTimeout(() => {
+                            saveStatus.textContent = '';
+                            saveStatus.className = 'save-status';
+                        }, 4000);
+                    }
+                }
+
+                // Reset file input
+                e.target.value = '';
+            });
+        }
+
+        // Custom button handlers
+        const publishToggle = document.getElementById('publishToggle');
+        const isPublishedCheckbox = document.getElementById('is_published');
+
+        window.togglePublish = function() {
+            if (publishToggle && isPublishedCheckbox) {
+                // Sync content before submit
+                textarea.value = quill.root.innerHTML;
+                isPublishedCheckbox.checked = true;
+                // Submit form after a short delay to allow checkbox to be set
+                setTimeout(() => {
+                    form.submit();
+                }, 100);
+            }
+        };
+
+        // Handle paste events to clean up HTML
+        quill.clipboard.addMatcher(Node.ELEMENT_NODE, function(node, delta) {
+            // Remove unwanted styles and attributes from pasted content
+            const removed = [];
+            delta.ops.forEach(function(op) {
+                if (op.insert && typeof op.insert === 'string') {
+                    // Clean up extra whitespace
+                    op.insert = op.insert.replace(/\n{3,}/g, '\n\n');
+                }
+            });
+            return delta;
+        });
+
+        // Expose quill instance globally for debugging
+        window.quill = quill;
+    }
+
+    // AI Tag Generation Function
+    window.generateAITags = async function() {
+        const title = document.getElementById('title')?.value?.trim();
+        const tagsInput = document.getElementById('tags');
+        const aiStatus = document.getElementById('aiStatus');
+        const aiGenerateBtn = document.getElementById('aiGenerateBtn');
+
+        // Validate inputs
+        if (!title) {
+            showAIStatus('error', '请先输入文章标题');
+            return;
+        }
+
+        if (!window.quill) {
+            showAIStatus('error', '编辑器未初始化');
+            return;
+        }
+
+        // Get content from Quill editor
+        const content = window.quill.getText().trim();
+
+        if (content.length < 50) {
+            showAIStatus('error', '文章内容太少，请至少输入50个字符');
+            return;
+        }
+
+        // Get post_id from URL (if editing)
+        const pathParts = window.location.pathname.split('/');
+        let postId = pathParts[pathParts.length - 1];
+        // If the last part is not a number, set postId to null
+        if (isNaN(parseInt(postId))) {
+            postId = null;
+        }
+
+        // Show loading state
+        showAIStatus('loading', '🤖 AI正在分析文章内容...');
+        if (aiGenerateBtn) {
+            aiGenerateBtn.disabled = true;
+            aiGenerateBtn.style.opacity = '0.6';
+        }
+
+        try {
+            // Get CSRF token
+            const csrfToken = document.querySelector('meta[name="csrf_token"]')
+                ? document.querySelector('meta[name="csrf_token"]').getAttribute('content')
+                : '';
+
+            const response = await fetch('/admin/ai/generate-tags', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    title: title,
+                    content: content,
+                    post_id: postId
+                })
+            });
+
+            // Check if response is OK
+            if (!response.ok) {
+                const responseText = await response.text();
+                console.error('Server returned error:', response.status, responseText);
+                showAIStatus('error', `❌ 服务器错误 (${response.status}): ${responseText.substring(0, 200)}...`);
+                return;
+            }
+
+            // Try to parse as JSON
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                const responseText = await response.text();
+                console.error('Failed to parse JSON:', responseText);
+                showAIStatus('error', `❌ 响应格式错误: ${responseText.substring(0, 200)}...`);
+                return;
+            }
+
+            if (data.success) {
+                // Update tags input with generated tags
+                const newTags = data.tags.join(', ');
+                if (tagsInput) {
+                    // Append to existing tags or replace
+                    const existingTags = tagsInput.value.trim();
+                    tagsInput.value = existingTags
+                        ? existingTags + ', ' + newTags
+                        : newTags;
+                }
+
+                // Show success message
+                showAIStatus(
+                    'success',
+                    `✅ 已生成标签: ${data.tags.join(', ')} (${data.tokens_used} tokens, 约$${data.cost.toFixed(4)})`
+                );
+
+                // Auto-hide success message after 5 seconds
+                setTimeout(() => {
+                    if (aiStatus) aiStatus.style.display = 'none';
+                }, 5000);
+            } else {
+                showAIStatus('error', '❌ ' + data.error);
+            }
+        } catch (error) {
+            showAIStatus('error', '❌ 生成失败: ' + error.message);
+        } finally {
+            if (aiGenerateBtn) {
+                aiGenerateBtn.disabled = false;
+                aiGenerateBtn.style.opacity = '1';
+            }
+        }
+    };
+
+    // Helper function to show AI status messages
+    function showAIStatus(type, message) {
+        const aiStatus = document.getElementById('aiStatus');
+        if (!aiStatus) return;
+
+        aiStatus.className = 'ai-status ' + type;
+        aiStatus.innerHTML = type === 'loading'
+            ? '<span class="ai-spinner"></span><span>' + message + '</span>'
+            : message;
+        aiStatus.style.display = 'flex';
+    }
+});

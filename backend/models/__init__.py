@@ -2,13 +2,11 @@
 Models Package
 
 This package provides all database models and functions for the Simple Blog application.
-All functions are imported from models.py for backward compatibility.
 """
 
 # Import all functions from models.py
 from .models import *
 
-# Export all public functions
 __all__ = [
     # Database functions
     'get_db_connection',
@@ -25,11 +23,12 @@ __all__ = [
     'get_all_posts_cursor',
     'get_post_by_id',
     'update_post_with_tags',
+    'get_posts_by_author',
     'get_post_excerpt',
     'check_post_access',
     'update_post_access',
     'verify_post_password',
-    'get_posts_by_author',
+    'search_posts',
 
     # Category functions
     'create_category',
@@ -59,12 +58,12 @@ __all__ = [
     'delete_comment',
 
     # User functions
-    'create_user',
-    'get_user_by_id',
     'get_user_by_username',
-    'get_all_users',
-    'update_user',
+    'get_user_by_id',
     'update_user_password',
+    'get_all_users',
+    'create_user',
+    'update_user',
     'delete_user',
     'get_user_ai_config',
     'update_user_ai_config',
@@ -73,6 +72,9 @@ __all__ = [
     'get_ai_usage_stats',
     'generate_api_key',
     'validate_api_key',
+    'init_cards_table',
+    'init_api_keys_table',
+    'init_card_annotations_table',
 
     # Card functions
     'create_card',
@@ -81,23 +83,15 @@ __all__ = [
     'update_card_status',
     'update_card',
     'delete_card',
+    'get_timeline_items',
     'merge_cards_to_post',
     'ai_merge_cards_to_post',
 
-    # Timeline functions
-    'get_timeline_items',
+    # Annotation functions
     'create_annotation',
     'get_annotations_by_url',
-
-    # Search functions
-    'search_posts',
 
     # Utility functions
     'strip_html_tags',
     'truncate_text',
-
-    # Init functions
-    'init_cards_table',
-    'init_api_keys_table',
-    'init_card_annotations_table',
 ]
