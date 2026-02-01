@@ -104,7 +104,7 @@ def plugin_submit():
 
     # Add source URL to content if provided
     if source_url:
-        content = f"{content}\n\n来源: {source_url}"
+        content = f"{content}\n\n<p>来源: <a href=\"{source_url}\" target=\"_blank\">{source_url}</a></p>"
 
     try:
         if create_as_post:
