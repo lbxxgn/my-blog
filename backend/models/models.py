@@ -671,6 +671,14 @@ def get_category_by_id(category_id):
         category = cursor.fetchone()
         return dict(category) if category else None
 
+def get_category_by_name(category_name):
+    """Get a category by name"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM categories WHERE name = ?', (category_name,))
+        category = cursor.fetchone()
+        return dict(category) if category else None
+
 def update_category(category_id, name):
     """Update a category - refactored to use context manager"""
     try:

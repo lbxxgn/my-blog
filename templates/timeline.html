@@ -80,6 +80,9 @@
                     <a href="#" class="action-btn edit-btn" data-id="{{ item.id }}">
                         <i class="fas fa-edit"></i> 编辑
                     </a>
+                    <a href="#" class="action-btn convert-to-post-btn" data-id="{{ item.id }}">
+                        <i class="fas fa-file-alt"></i> 转为文章
+                    </a>
                     <a href="#" class="action-btn delete-btn" data-id="{{ item.id }}">
                         <i class="fas fa-trash"></i> 删除
                     </a>
@@ -316,6 +319,22 @@
 
 .delete-btn:hover i {
     transform: scale(1.15) rotate(5deg);
+}
+
+.convert-to-post-btn {
+    color: #28a745;
+    background: #f0fff4;
+}
+
+.convert-to-post-btn:hover {
+    background: #e8f5e9;
+    color: #28a745;
+    border-color: #28a745;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.15);
+}
+
+.convert-to-post-btn:hover i {
+    transform: scale(1.15);
 }
 
 .timeline-load-more {
@@ -596,6 +615,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.location.href = '/login';
             } else {
                 alert('保存失败: ' + error.message);
+            }
+        });
+    });
+
+    // ==================== 转为文章功能 ====================
+    document.querySelectorAll('.convert-to-post-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const cardId = this.getAttribute('data-id');
+            const cardTitle = this.closest('.timeline-item').querySelector('.item-title')?.textContent || '此卡片';
+
+            // 确认转换
+            if (confirm(`确定要将卡片 "${cardTitle}" 转换为文章吗？\n\n转换后卡片将被删除，内容将作为已发布的文章保存到"转载"分类下。`)) {
+                console.log('转换卡片为文章 ID:', cardId);
+
+                fetch(`/knowledge_base/api/card/${cardId}/convert-to-post`, {
+                    method: 'POST',
+                    credentials: 'same-origin',  // 确保发送cookies
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    // 检查是否被重定向到登录页
+                    if (response.redirected || response.status === 302) {
+                        throw new Error('请先登录');
+                    }
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        alert('转换成功！卡片已转换为文章。');
+                        location.reload(); // 刷新页面以显示更新
+                    } else {
+                        alert('转换失败: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    if (error.message === '请先登录') {
+                        alert('登录已过期，请重新登录后重试');
+                        window.location.href = '/login';
+                    } else {
+                        alert('转换失败: ' + error.message);
+                    }
+                });
             }
         });
     });

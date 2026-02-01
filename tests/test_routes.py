@@ -196,7 +196,7 @@ class TestKnowledgeBaseRoutes:
     """知识库API路由测试"""
 
     def test_plugin_submit_content(self, client, test_admin_user):
-        """测试插件提交内容"""
+        """测试插件提交内容（默认创建文章）"""
         from models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
@@ -205,7 +205,7 @@ class TestKnowledgeBaseRoutes:
         user_id = create_user('extuser', password_hash, role='author')
         api_key = generate_api_key(user_id)
 
-        # Submit via plugin API
+        # Submit via plugin API (default: create as post)
         response = client.post('/knowledge_base/api/plugin/submit',
             json={
                 'title': 'Test Page',
@@ -219,7 +219,8 @@ class TestKnowledgeBaseRoutes:
         assert response.status_code == 200
         data = response.get_json()
         assert data['success'] is True
-        assert 'card_id' in data
+        assert 'post_id' in data
+        assert data['type'] == 'post'
 
     def test_plugin_submit_requires_api_key(self, client):
         """测试插件提交需要API密钥"""

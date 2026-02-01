@@ -34,6 +34,7 @@ __all__ = [
     'create_category',
     'get_all_categories',
     'get_category_by_id',
+    'get_category_by_name',
     'update_category',
     'delete_category',
     'get_posts_by_category',

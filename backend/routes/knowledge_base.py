@@ -83,7 +83,7 @@ def validate_content_length(content):
 @api_key_required
 def plugin_submit():
     """接收浏览器插件提交的内容"""
-    from models import create_card
+    from models import create_card, create_post, get_category_by_name, create_category
 
     data = request.get_json()
     title = data.get('title', 'Untitled')
@@ -91,6 +91,7 @@ def plugin_submit():
     source_url = data.get('source_url', '')
     tags = data.get('tags', [])
     annotation_type = data.get('annotation_type', 'capture')
+    create_as_post = data.get('create_as_post', True)  # 默认创建文章
 
     # Validate content is not empty
     if not content or not content.strip():
@@ -106,23 +107,53 @@ def plugin_submit():
         content = f"{content}\n\n来源: {source_url}"
 
     try:
-        card_id = create_card(
-            user_id=g.user_id,
-            title=title,
-            content=content,
-            tags=tags,
-            status='idea',
-            source='plugin'
-        )
+        if create_as_post:
+            # 创建为文章
+            # 获取或创建"转载"分类
+            category = get_category_by_name('转载')
+            if not category:
+                category_id = create_category('转载')
+            else:
+                category_id = category['id']
 
-        log_operation(g.user_id, 'browser_extension',
-                      f'浏览器插件提交', f'卡片ID: {card_id}, 类型: {annotation_type}')
+            # 创建已发布的文章
+            post_id = create_post(
+                title=title,
+                content=content,
+                is_published=True,
+                category_id=category_id,
+                author_id=g.user_id
+            )
 
-        return jsonify({
-            'success': True,
-            'card_id': card_id,
-            'message': 'Saved successfully'
-        })
+            log_operation(g.user_id, 'browser_extension',
+                          f'浏览器插件提交(文章)', f'文章ID: {post_id}, 类型: {annotation_type}')
+
+            return jsonify({
+                'success': True,
+                'post_id': post_id,
+                'type': 'post',
+                'message': '文章创建成功'
+            })
+        else:
+            # 创建为卡片
+            card_id = create_card(
+                user_id=g.user_id,
+                title=title,
+                content=content,
+                tags=tags,
+                status='idea',
+                source='plugin'
+            )
+
+            log_operation(g.user_id, 'browser_extension',
+                          f'浏览器插件提交', f'卡片ID: {card_id}, 类型: {annotation_type}')
+
+            return jsonify({
+                'success': True,
+                'card_id': card_id,
+                'type': 'card',
+                'message': 'Saved successfully'
+            })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -514,6 +545,56 @@ def ai_merge_cards():
             'outline': result.get('outline', ''),
             'tags': result.get('tags', []),
             'tokens_used': result.get('tokens_used', 0)
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@knowledge_base_bp.route('/api/card/<int:card_id>/convert-to-post', methods=['POST'])
+@login_required
+def convert_card_to_post(card_id):
+    """将卡片转换为文章"""
+    from models import get_card_by_id, create_post, get_category_by_name, create_category, delete_card
+
+    # 获取卡片
+    card = get_card_by_id(card_id)
+    if not card:
+        return jsonify({'success': False, 'error': '卡片不存在'}), 404
+
+    # 检查权限
+    if card['user_id'] != g.user.id and g.user.role != 'admin':
+        return jsonify({'success': False, 'error': '无权操作此卡片'}), 403
+
+    try:
+        # 获取或创建"转载"分类
+        category = get_category_by_name('转载')
+        if not category:
+            category_id = create_category('转载')
+        else:
+            category_id = category['id']
+
+        # 创建已发布的文章
+        post_id = create_post(
+            title=card['title'] or '未命名',
+            content=card['content'],
+            is_published=True,
+            category_id=category_id,
+            author_id=g.user.id
+        )
+
+        # 删除原卡片
+        delete_card(card_id)
+
+        log_operation(g.user.id, 'card_convert',
+                      f'卡片转换为文章', f'卡片ID: {card_id}, 文章ID: {post_id}')
+
+        return jsonify({
+            'success': True,
+            'post_id': post_id,
+            'message': '卡片已成功转换为文章'
         })
 
     except Exception as e:
