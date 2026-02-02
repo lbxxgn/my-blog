@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.0">
     {% block head %}{% endblock %}
 </head>
-<body>
+<body data-page="{% block page_type %}home{% endblock %}">
     <header>
         <nav>
             <h1><a href="{{ url_for('index') }}">{{ site_name }}</a></h1>
@@ -231,6 +231,12 @@
         });
     });
     </script>
+
+    <!-- 全局快捷键 -->
+    <script src="{{ url_for('static', filename='js/shortcuts.js') }}?v=1.0"></script>
+
+    <!-- 图片懒加载 -->
+    <script src="{{ url_for('static', filename='js/lazyload.js') }}?v=1.0"></script>
 
     {% block scripts %}{% endblock %}
 </body>

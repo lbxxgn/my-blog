@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "知识库快速捕获",
+  "version": "1.0.0",
+  "description": "快速保存网页内容到个人知识库",
+
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+
+  "host_permissions": [
+    "http://localhost:5001/*"
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content-bundle.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_end"
+    }
+  ],
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "browser_specific_settings": {
+    "safari": {
+      "strict_site_minification": false
+    }
+  }
+}

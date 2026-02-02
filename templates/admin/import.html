@@ -45,6 +45,7 @@
                 </div>
                 <div class="import-action">
                     <form action="{{ url_for('import_json') }}" method="post" enctype="multipart/form-data" class="import-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="file" name="import_file" accept=".json" id="jsonFileInput" required>
                         <label for="jsonFileInput" class="file-label">选择 JSON 文件</label>
                         <button type="submit" class="btn btn-primary">导入 JSON</button>
@@ -67,6 +68,7 @@
                 </div>
                 <div class="import-action">
                     <form action="{{ url_for('import_markdown') }}" method="post" enctype="multipart/form-data" class="import-form">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="file" name="import_file" accept=".zip" id="markdownFileInput" required>
                         <label for="markdownFileInput" class="file-label">选择 ZIP 文件</label>
                         <button type="submit" class="btn btn-primary">导入 Markdown</button>

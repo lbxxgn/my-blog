@@ -408,11 +408,247 @@ def batch_delete():
             conn.close()
 
 
+@admin_bp.route('/batch-publish', methods=['POST'])
+@login_required
+def batch_publish():
+    """批量发布/取消发布文章"""
+    user_id = session.get('user_id')
+    username = session.get('username', 'Unknown')
+
+    conn = None
+    try:
+        data = request.get_json()
+        post_ids = data.get('post_ids', [])
+        publish = data.get('publish', True)  # True=发布, False=取消发布
+
+        log_operation(user_id, username, '批量发布/取消发布',
+                    f'文章ID: {post_ids}, 操作: {"发布" if publish else "取消发布"}')
+
+        if not post_ids:
+            return jsonify({'success': False, 'message': '未选择任何文章'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        updated_count = 0
+        errors = []
+
+        for post_id in post_ids:
+            try:
+                log_sql('batch_publish', f'UPDATE posts SET is_published = {publish} WHERE id = {post_id}')
+
+                cursor.execute(
+                    'UPDATE posts SET is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                    (1 if publish else 0, post_id)
+                )
+
+                updated_count += 1
+            except Exception as e:
+                error_msg = f"文章 {post_id} 更新失败: {str(e)}"
+                errors.append(error_msg)
+                log_error(e, context=f'批量发布 - 文章 {post_id}', user_id=user_id)
+
+        conn.commit()
+
+        action = '发布' if publish else '取消发布'
+        if errors:
+            result_msg = f'部分成功: {updated_count}/{len(post_ids)} 篇文章{action}成功'
+            if updated_count == 0:
+                result_msg = f'{action}失败: {errors[0]}'
+        else:
+            result_msg = f'成功{action} {updated_count} 篇文章'
+
+        log_operation(user_id, username, '批量发布/取消发布', result_msg)
+
+        return jsonify({
+            'success': updated_count > 0,
+            'message': result_msg
+        })
+
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@admin_bp.route('/batch-add-tags', methods=['POST'])
+@login_required
+def batch_add_tags():
+    """批量添加标签到文章"""
+    user_id = session.get('user_id')
+    username = session.get('username', 'Unknown')
+
+    conn = None
+    try:
+        data = request.get_json()
+        post_ids = data.get('post_ids', [])
+        tags = data.get('tags', [])  # 标签列表
+
+        log_operation(user_id, username, '批量添加标签',
+                    f'文章ID: {post_ids}, 标签: {tags}')
+
+        if not post_ids:
+            return jsonify({'success': False, 'message': '未选择任何文章'}), 400
+
+        if not tags:
+            return jsonify({'success': False, 'message': '未指定任何标签'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        updated_count = 0
+        errors = []
+
+        for post_id in post_ids:
+            try:
+                # 获取或创建标签
+                for tag_name in tags:
+                    # 检查标签是否存在
+                    cursor.execute('SELECT id FROM tags WHERE name = ?', (tag_name,))
+                    tag = cursor.fetchone()
+
+                    if not tag:
+                        # 创建新标签
+                        cursor.execute('INSERT INTO tags (name, slug) VALUES (?, ?)',
+                                     (tag_name, tag_name.lower().replace(' ', '-')))
+                        tag_id = cursor.lastrowid
+                    else:
+                        tag_id = tag[0]
+
+                    # 检查文章是否已有此标签
+                    cursor.execute('SELECT 1 FROM post_tags WHERE post_id = ? AND tag_id = ?',
+                                 (post_id, tag_id))
+                    if not cursor.fetchone():
+                        # 添加标签关联
+                        cursor.execute('INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)',
+                                     (post_id, tag_id))
+
+                updated_count += 1
+            except Exception as e:
+                error_msg = f"文章 {post_id} 添加标签失败: {str(e)}"
+                errors.append(error_msg)
+                log_error(e, context=f'批量添加标签 - 文章 {post_id}', user_id=user_id)
+
+        conn.commit()
+
+        if errors:
+            result_msg = f'部分成功: {updated_count}/{len(post_ids)} 篇文章添加标签成功'
+            if updated_count == 0:
+                result_msg = f'添加标签失败: {errors[0]}'
+        else:
+            result_msg = f'成功为 {updated_count} 篇文章添加标签'
+
+        log_operation(user_id, username, '批量添加标签', result_msg)
+
+        return jsonify({
+            'success': updated_count > 0,
+            'message': result_msg
+        })
+
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
+@admin_bp.route('/batch-update-access', methods=['POST'])
+@login_required
+def batch_update_access():
+    """批量更新文章访问权限"""
+    user_id = session.get('user_id')
+    username = session.get('username', 'Unknown')
+
+    conn = None
+    try:
+        data = request.get_json()
+        post_ids = data.get('post_ids', [])
+        access_level = data.get('access_level', 'public')  # public, password, private
+        access_password = data.get('access_password', '')  # 仅当access_level为password时使用
+
+        log_operation(user_id, username, '批量更新访问权限',
+                    f'文章ID: {post_ids}, 权限: {access_level}')
+
+        if not post_ids:
+            return jsonify({'success': False, 'message': '未选择任何文章'}), 400
+
+        if access_level not in ['public', 'password', 'private']:
+            return jsonify({'success': False, 'message': '无效的访问权限类型'}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        updated_count = 0
+        errors = []
+
+        for post_id in post_ids:
+            try:
+                log_sql('batch_update_access', f'UPDATE posts SET access_level = {access_level} WHERE id = {post_id}')
+
+                cursor.execute(
+                    'UPDATE posts SET access_level = ?, access_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                    (access_level, access_password if access_level == 'password' else None, post_id)
+                )
+
+                updated_count += 1
+            except Exception as e:
+                error_msg = f"文章 {post_id} 更新失败: {str(e)}"
+                errors.append(error_msg)
+                log_error(e, context=f'批量更新访问权限 - 文章 {post_id}', user_id=user_id)
+
+        conn.commit()
+
+        access_level_names = {
+            'public': '公开',
+            'password': '密码保护',
+            'private': '私密'
+        }
+
+        if errors:
+            result_msg = f'部分成功: {updated_count}/{len(post_ids)} 篇文章更新成功'
+            if updated_count == 0:
+                result_msg = f'更新失败: {errors[0]}'
+        else:
+            result_msg = f'成功将 {updated_count} 篇文章设置为{access_level_names[access_level]}'
+
+        log_operation(user_id, username, '批量更新访问权限', result_msg)
+
+        return jsonify({
+            'success': updated_count > 0,
+            'message': result_msg
+        })
+
+    except sqlite3.Error as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        if conn:
+            conn.close()
+
+
 @admin_bp.route('/upload', methods=['POST'])
 @login_required
 def upload_image():
     """
-    处理图片上传，包含多层安全验证
+    处理图片上传，包含多层安全验证和图片优化
 
     安全验证流程:
         1. 文件存在性检查
@@ -421,6 +657,11 @@ def upload_image():
         4. 图片尺寸验证（防止DoS）
         5. 文件大小验证（5MB限制）
         6. 安全文件名生成（时间戳+随机后缀）
+
+    新功能:
+        - 自动压缩图片为WebP格式
+        - 生成多种尺寸（缩略图、中等、大图）
+        - 返回所有尺寸的URL
     """
     # 检查文件是否存在
     if 'file' not in request.files:
@@ -470,18 +711,72 @@ def upload_image():
     secure_name = secure_filename(file.filename)
     ext = secure_name.rsplit('.', 1)[1].lower() if '.' in secure_name else file_type
     random_suffix = os.urandom(4).hex()
-    filename = f"{timestamp}_{random_suffix}.{ext}"
-    filepath = UPLOAD_FOLDER / filename
+    base_filename = f"{timestamp}_{random_suffix}"
 
-    # 保存文件
+    # 创建uploads目录下的images子目录
+    images_dir = UPLOAD_FOLDER / 'images'
+    images_dir.mkdir(exist_ok=True)
+
+    # 保存原始文件
+    original_path = images_dir / f"{base_filename}.{ext}"
     try:
-        with open(filepath, 'wb') as f:
+        with open(original_path, 'wb') as f:
             f.write(file_content)
-        # 返回上传图片的URL
-        url = url_for('static', filename=f'uploads/{filename}')
-        return jsonify({'success': True, 'url': url})
     except Exception as e:
         return jsonify({'success': False, 'error': f'文件保存失败: {str(e)}'}), 500
+
+    # 优化图片并生成多种尺寸
+    try:
+        from image_processor import generate_image_sizes, optimize_image
+
+        # 生成多种尺寸
+        sizes = generate_image_sizes(str(original_path), str(images_dir))
+
+        # 优化原始图片（替换为WebP）
+        optimized_path = f"{images_dir / base_filename}.webp"
+        success, result = optimize_image(str(original_path), optimized_path)
+
+        if success:
+            # 删除原始文件
+            os.remove(original_path)
+
+            # 返回所有尺寸的URL
+            return jsonify({
+                'success': True,
+                'urls': {
+                    'thumbnail': url_for('static', filename=f'uploads/images/{Path(result).name}') if sizes.get('thumbnail') else url_for('static', filename=f'uploads/images/{Path(result).name}'),
+                    'medium': url_for('static', filename=f'uploads/images/{Path(result).name}') if sizes.get('medium') else url_for('static', filename=f'uploads/images/{Path(result).name}'),
+                    'large': url_for('static', filename=f'uploads/images/{Path(result).name}') if sizes.get('large') else url_for('static', filename=f'uploads/images/{Path(result).name}'),
+                    'original': url_for('static', filename=f'uploads/images/{Path(result).name}')
+                },
+                'filename': f"{base_filename}.webp"
+            })
+        else:
+            # 优化失败，返回原始文件URL
+            return jsonify({
+                'success': True,
+                'urls': {
+                    'thumbnail': url_for('static', filename=f'uploads/{secure_name}'),
+                    'medium': url_for('static', filename=f'uploads/{secure_name}'),
+                    'large': url_for('static', filename=f'uploads/{secure_name}'),
+                    'original': url_for('static', filename=f'uploads/{secure_name}')
+                },
+                'filename': secure_name
+            })
+
+    except Exception as e:
+        logger.error(f'Error processing image: {e}')
+        # 图片处理失败，返回原始文件
+        return jsonify({
+            'success': True,
+            'urls': {
+                'thumbnail': url_for('static', filename=f'uploads/{secure_name}'),
+                'medium': url_for('static', filename=f'uploads/{secure_name}'),
+                'large': url_for('static', filename=f'uploads/{secure_name}'),
+                'original': url_for('static', filename=f'uploads/{secure_name}')
+            },
+            'filename': secure_name
+        })
 
 
 # =============================================================================

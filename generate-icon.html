@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+    <style>
+        body { font-family: Arial; padding: 20px; text-align: center; }
+        canvas { border: 1px solid #ccc; margin: 10px; }
+        .preview { display: flex; justify-content: center; gap: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🎨 知识库图标生成器</h1>
+    <p>点击按钮生成并下载图标</p>
+    <button onclick="generateAllIcons()">生成并下载所有图标</button>
+
+    <div class="preview">
+        <div>
+            <h3>16x16</h3>
+            <canvas id="icon16" width="16" height="16"></canvas>
+        </div>
+        <div>
+            <h3>48x48</h3>
+            <canvas id="icon48" width="48" height="48"></canvas>
+        </div>
+        <div>
+            <h3>128x128</h3>
+            <canvas id="icon128" width="128" height="128"></canvas>
+        </div>
+    </div>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const s = size;
+
+            // 背景 - 渐变圆形
+            const gradient = ctx.createLinearGradient(0, 0, s, s);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(s/2, s/2, s/2 - 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 书本图标
+            ctx.fillStyle = 'white';
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = s/32;
+
+            // 左页
+            ctx.beginPath();
+            ctx.moveTo(s*0.25, s*0.28);
+            ctx.lineTo(s*0.48, s*0.28);
+            ctx.lineTo(s*0.48, s*0.72);
+            ctx.lineTo(s*0.25, s*0.72);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 右页
+            ctx.beginPath();
+            ctx.moveTo(s*0.52, s*0.28);
+            ctx.lineTo(s*0.75, s*0.28);
+            ctx.lineTo(s*0.75, s*0.72);
+            ctx.lineTo(s*0.52, s*0.72);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 中线
+            ctx.beginPath();
+            ctx.moveTo(s*0.5, s*0.28);
+            ctx.lineTo(s*0.5, s*0.72);
+            ctx.stroke();
+
+            // 小星星装饰
+            if (s >= 48) {
+                ctx.font = `${s*0.2}px Arial`;
+                ctx.fillText('⭐', s*0.38, s*0.88);
+            }
+
+            // 高光效果
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.beginPath();
+            ctx.arc(s*0.35, s*0.35, s*0.08, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function downloadIcon(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function generateAllIcons() {
+            const sizes = [
+                {canvas: 'icon16', size: 16},
+                {canvas: 'icon48', size: 48},
+                {canvas: 'icon128', size: 128}
+            ];
+
+            sizes.forEach(({canvas, size}) => {
+                drawIcon(document.getElementById(canvas), size);
+                setTimeout(() => {
+                    downloadIcon(canvas, `icon${size}.png`);
+                }, 100);
+            });
+        }
+
+        // 页面加载时预览
+        window.onload = () => {
+            drawIcon(document.getElementById('icon16'), 16);
+            drawIcon(document.getElementById('icon48'), 48);
+            drawIcon(document.getElementById('icon128'), 128);
+        };
+    </script>
+</body>
+</html>

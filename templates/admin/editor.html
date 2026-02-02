@@ -8,9 +8,29 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/quill.css') }}">
 {% endblock %}
 
+{% block page_type %}editor{% endblock %}
+
 {% block content %}
 <div class="container admin-editor">
     <h2>{% if post %}编辑文章{% else %}新建文章{% endif %}</h2>
+
+    <!-- 草稿恢复提示 -->
+    <div id="draftRecovery" class="draft-recovery" style="display: none;">
+        <div class="draft-recovery-content">
+            <span class="recovery-icon">💾</span>
+            <span class="recovery-text">检测到未保存的草稿，是否恢复？</span>
+            <div class="recovery-actions">
+                <button type="button" class="btn btn-sm btn-primary" onclick="recoverDraft()">恢复</button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="discardDraft()">丢弃</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自动保存状态指示器 -->
+    <div class="autosave-indicator" id="autosaveIndicator">
+        <span class="indicator-dot"></span>
+        <span class="indicator-text">已保存</span>
+    </div>
 
     <form method="POST" class="editor-form" id="editorForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -333,6 +353,141 @@
     background: #7f1d1d;
     color: #fecaca;
 }
+
+/* ==================== 自动保存样式 ==================== */
+
+/* 自动保存指示器 */
+.autosave-indicator {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 20px;
+    font-size: 0.875rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.indicator-dot.dot-saving {
+    background: #fbbf24;
+    animation: pulse 1s infinite;
+}
+
+.indicator-dot.dot-saved {
+    background: #10b981;
+    animation: none;
+}
+
+.indicator-dot.dot-error {
+    background: #ef4444;
+    animation: none;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* 草稿恢复提示 */
+.draft-recovery {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    z-index: 2000;
+    padding: 20px;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.draft-recovery-content {
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.recovery-icon {
+    font-size: 2rem;
+}
+
+.recovery-text {
+    flex: 1;
+    font-size: 1rem;
+}
+
+.recovery-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.recovery-actions .btn {
+    padding: 8px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.recovery-actions .btn-primary {
+    background: white;
+    color: #667eea;
+}
+
+.recovery-actions .btn-primary:hover {
+    background: #f0f0f0;
+}
+
+.recovery-actions .btn-secondary {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.recovery-actions .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .autosave-indicator {
+        top: auto;
+        bottom: 20px;
+        right: 20px;
+    }
+
+    .draft-recovery-content {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .recovery-actions {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
 </style>
 {% endblock %}
 
@@ -342,6 +497,271 @@
 <script src="{{ url_for('static', filename='js/editor.js') }}?v=1.1"></script>
 
 <script>
+// ==================== 自动保存功能 ====================
+
+const AUTOSAVE_KEY = 'blog_draft_autosave';
+const AUTOSAVE_DELAY = 3000; // 3秒后自动保存
+let autosaveTimer = null;
+let lastSavedContent = '';
+
+// 初始化自动保存
+function initAutosave() {
+    const form = document.getElementById('editorForm');
+    if (!form) return;
+
+    const titleInput = document.getElementById('title');
+    const contentTextarea = document.getElementById('content');
+
+    // 监听内容变化
+    if (titleInput) {
+        titleInput.addEventListener('input', () => {
+            scheduleAutosave();
+        });
+    }
+
+    if (contentTextarea) {
+        contentTextarea.addEventListener('input', () => {
+            scheduleAutosave();
+        });
+    }
+
+    // 页面加载时检查草稿
+    checkForDraft();
+
+    // 页面卸载前保存草稿
+    window.addEventListener('beforeunload', () => {
+        if (hasUnsavedChanges()) {
+            saveDraftToStorage();
+        }
+    });
+}
+
+// 安排自动保存
+function scheduleAutosave() {
+    if (autosaveTimer) {
+        clearTimeout(autosaveTimer);
+    }
+
+    updateAutosaveStatus('saving');
+
+    autosaveTimer = setTimeout(() => {
+        saveDraftToStorage();
+    }, AUTOSAVE_DELAY);
+}
+
+// 保存草稿到 LocalStorage
+function saveDraftToStorage() {
+    const form = document.getElementById('editorForm');
+    if (!form) return;
+
+    const formData = new FormData(form);
+    const draft = {
+        title: formData.get('title') || '',
+        content: formData.get('content') || '',
+        category_id: formData.get('category_id') || '',
+        tags: formData.get('tags') || '',
+        access_level: formData.get('access_level') || 'public',
+        access_password: formData.get('access_password') || '',
+        saved_at: new Date().toISOString()
+    };
+
+    try {
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(draft));
+        lastSavedContent = JSON.stringify(draft);
+        updateAutosaveStatus('saved');
+        console.log('[Autosave] Draft saved');
+    } catch (e) {
+        console.error('[Autosave] Failed to save draft:', e);
+        updateAutosaveStatus('error');
+    }
+}
+
+// 检查是否有未保存的草稿
+function checkForDraft() {
+    try {
+        const draftJson = localStorage.getItem(AUTOSAVE_KEY);
+        if (!draftJson) return;
+
+        const draft = JSON.parse(draftJson);
+
+        // 检查草稿是否与当前内容不同
+        const currentTitle = document.getElementById('title').value;
+        const currentContent = document.getElementById('content').value;
+
+        if (draft.title === currentTitle && draft.content === currentContent) {
+            // 内容相同，移除草稿
+            localStorage.removeItem(AUTOSAVE_KEY);
+            return;
+        }
+
+        // 显示恢复提示
+        showDraftRecovery(draft);
+    } catch (e) {
+        console.error('[Autosave] Failed to check draft:', e);
+    }
+}
+
+// 显示草稿恢复提示
+function showDraftRecovery(draft) {
+    const recoveryDiv = document.getElementById('draftRecovery');
+    if (!recoveryDiv) return;
+
+    const savedTime = new Date(draft.saved_at);
+    const timeStr = formatTimeAgo(savedTime);
+
+    recoveryDiv.querySelector('.recovery-text').textContent =
+        `检测到 ${timeStr} 的未保存草稿，是否恢复？`;
+
+    recoveryDiv.style.display = 'block';
+
+    // 保存草稿数据到元素
+    recoveryDiv.dataset.draft = JSON.stringify(draft);
+}
+
+// 恢复草稿
+function recoverDraft() {
+    const recoveryDiv = document.getElementById('draftRecovery');
+    if (!recoveryDiv) return;
+
+    try {
+        const draft = JSON.parse(recoveryDiv.dataset.draft);
+
+        // 填充表单
+        document.getElementById('title').value = draft.title;
+        document.getElementById('content').value = draft.content;
+
+        if (draft.category_id) {
+            document.getElementById('category_id').value = draft.category_id;
+        }
+
+        if (draft.tags) {
+            document.getElementById('tags').value = draft.tags;
+        }
+
+        if (draft.access_level) {
+            document.getElementById('access_level').value = draft.access_level;
+        }
+
+        // 隐藏恢复提示
+        recoveryDiv.style.display = 'none';
+
+        // 触发 Quill 更新
+        if (window.quill) {
+            window.quill.root.innerHTML = draft.content;
+        }
+
+        updateAutosaveStatus('recovered');
+
+        // 3秒后更新状态为已保存
+        setTimeout(() => {
+            updateAutosaveStatus('saved');
+        }, 3000);
+
+        console.log('[Autosave] Draft recovered');
+    } catch (e) {
+        console.error('[Autosave] Failed to recover draft:', e);
+    }
+}
+
+// 丢弃草稿
+function discardDraft() {
+    try {
+        localStorage.removeItem(AUTOSAVE_KEY);
+
+        const recoveryDiv = document.getElementById('draftRecovery');
+        if (recoveryDiv) {
+            recoveryDiv.style.display = 'none';
+        }
+
+        updateAutosaveStatus('saved');
+        console.log('[Autosave] Draft discarded');
+    } catch (e) {
+        console.error('[Autosave] Failed to discard draft:', e);
+    }
+}
+
+// 检查是否有未保存的更改
+function hasUnsavedChanges() {
+    const form = document.getElementById('editorForm');
+    if (!form) return false;
+
+    const formData = new FormData(form);
+    const currentContent = {
+        title: formData.get('title') || '',
+        content: formData.get('content') || ''
+    };
+
+    return JSON.stringify(currentContent) !== lastSavedContent;
+}
+
+// 更新自动保存状态指示器
+function updateAutosaveStatus(status) {
+    const indicator = document.getElementById('autosaveIndicator');
+    if (!indicator) return;
+
+    const dot = indicator.querySelector('.indicator-dot');
+    const text = indicator.querySelector('.indicator-text');
+
+    // 移除所有状态类
+    indicator.classList.remove('status-saving', 'status-saved', 'status-error');
+    dot.classList.remove('dot-saving', 'dot-saved', 'dot-error');
+
+    switch (status) {
+        case 'saving':
+            indicator.classList.add('status-saving');
+            dot.classList.add('dot-saving');
+            text.textContent = '正在保存...';
+            break;
+        case 'saved':
+            indicator.classList.add('status-saved');
+            dot.classList.add('dot-saved');
+            text.textContent = '已保存';
+            break;
+        case 'error':
+            indicator.classList.add('status-error');
+            dot.classList.add('dot-error');
+            text.textContent = '保存失败';
+            break;
+        case 'recovered':
+            indicator.classList.add('status-saved');
+            dot.classList.add('dot-saved');
+            text.textContent = '已恢复草稿';
+            break;
+    }
+}
+
+// 格式化时间差
+function formatTimeAgo(date) {
+    const seconds = Math.floor((new Date() - date) / 1000);
+
+    if (seconds < 60) {
+        return `${seconds}秒前`;
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) {
+        return `${minutes}分钟前`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) {
+        return `${hours}小时前`;
+    }
+
+    const days = Math.floor(hours / 24);
+    return `${days}天前`;
+}
+
+// 文章发布成功后清除草稿
+function clearDraftAfterPublish() {
+    try {
+        localStorage.removeItem(AUTOSAVE_KEY);
+        console.log('[Autosave] Draft cleared after publish');
+    } catch (e) {
+        console.error('[Autosave] Failed to clear draft:', e);
+    }
+}
+
 // Publish and save article
 function togglePublish() {
     const checkbox = document.getElementById('is_published');
@@ -373,6 +793,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Check AI features status and show/hide accordingly
     checkAIFeaturesStatus();
+
+    // Initialize autosave
+    initAutosave();
 });
 
 // Check AI features status from server

@@ -2,6 +2,8 @@
 
 {% block title %}管理后台 - 我的博客{% endblock %}
 
+{% block page_type %}admin{% endblock %}
+
 {% block content %}
 <div class="container admin-dashboard">
     <div class="dashboard-header">
@@ -38,9 +40,13 @@
             </div>
         </div>
 
-        <div id="batchActionsBar" class="batch-actions-bar" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; align-items: center; gap: 1rem;">
+        <div id="batchActionsBar" class="batch-actions-bar" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; align-items: center; gap: 1rem; flex-wrap: wrap;">
             <span style="font-weight: 500;">已选择 <strong id="selectedCount">0</strong> 篇文章</span>
-            <button type="button" class="btn btn-sm btn-primary" onclick="showBatchCategoryModal()">批量设置分类</button>
+            <button type="button" class="btn btn-sm btn-success" onclick="showBatchPublishModal()">批量发布</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="showBatchUnpublishModal()">取消发布</button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="showBatchCategoryModal()">设置分类</button>
+            <button type="button" class="btn btn-sm btn-info" onclick="showBatchTagsModal()">添加标签</button>
+            <button type="button" class="btn btn-sm btn-warning" onclick="showBatchAccessModal()">访问权限</button>
             <button type="button" class="btn btn-sm btn-danger" onclick="showBatchDeleteModal()">批量删除</button>
             <button type="button" class="btn btn-sm" onclick="clearSelection()">取消选择</button>
         </div>
@@ -183,6 +189,59 @@
     </div>
 </div>
 
+<!-- Batch Tags Modal -->
+<div id="batchTagsModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>批量添加标签</h3>
+            <button type="button" class="btn-close" onclick="closeBatchTagsModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <form id="batchTagsForm">
+                <div class="form-group">
+                    <label for="batchTagsInput">标签（用逗号分隔）</label>
+                    <input type="text" id="batchTagsInput" name="tags" placeholder="标签1, 标签2, 标签3" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;">
+                    <small style="color: #666; display: block; margin-top: 0.5rem;">输入多个标签，用逗号分隔</small>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">确认添加</button>
+                    <button type="button" class="btn" onclick="closeBatchTagsModal()" style="flex: 1;">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Batch Access Modal -->
+<div id="batchAccessModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>批量设置访问权限</h3>
+            <button type="button" class="btn-close" onclick="closeBatchAccessModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <form id="batchAccessForm">
+                <div class="form-group">
+                    <label for="batchAccessLevel">访问权限</label>
+                    <select id="batchAccessLevel" name="access_level" onchange="togglePasswordField()" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;">
+                        <option value="public">公开</option>
+                        <option value="password">密码保护</option>
+                        <option value="private">私密</option>
+                    </select>
+                </div>
+                <div class="form-group" id="passwordFieldGroup" style="display: none; margin-top: 1rem;">
+                    <label for="batchAccessPassword">访问密码</label>
+                    <input type="text" id="batchAccessPassword" name="access_password" placeholder="输入访问密码" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;">
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">确认设置</button>
+                    <button type="button" class="btn" onclick="closeBatchAccessModal()" style="flex: 1;">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
 .modal {
     position: fixed;
@@ -226,6 +285,63 @@
 
 .batch-actions-bar {
     display: flex;
+}
+
+/* Button color variants */
+.btn-success {
+    background-color: #10b981;
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #059669;
+}
+
+.btn-secondary {
+    background-color: #6b7280;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #4b5563;
+}
+
+.btn-info {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.btn-info:hover {
+    background-color: #2563eb;
+}
+
+.btn-warning {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.btn-warning:hover {
+    background-color: #d97706;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.btn-close:hover {
+    background-color: #f3f4f6;
+    color: #1f2937;
 }
 </style>
 
@@ -419,5 +535,196 @@ function confirmBatchDelete() {
         alert('操作失败：' + error);
     });
 }
+
+// Batch publish/unpublish functions
+function showBatchPublishModal() {
+    if (selectedPosts.size === 0) {
+        alert('请先选择文章');
+        return;
+    }
+
+    if (confirm(`确定要发布 ${selectedPosts.size} 篇文章吗？`)) {
+        performBatchPublish(true);
+    }
+}
+
+function showBatchUnpublishModal() {
+    if (selectedPosts.size === 0) {
+        alert('请先选择文章');
+        return;
+    }
+
+    if (confirm(`确定要取消发布 ${selectedPosts.size} 篇文章吗？`)) {
+        performBatchPublish(false);
+    }
+}
+
+function performBatchPublish(publish) {
+    const postIds = Array.from(selectedPosts);
+
+    const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
+    fetch('/admin/batch-publish', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            post_ids: postIds,
+            publish: publish
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('操作失败：' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('操作失败：' + error);
+    });
+}
+
+// Batch tags functions
+function showBatchTagsModal() {
+    if (selectedPosts.size === 0) {
+        alert('请先选择文章');
+        return;
+    }
+
+    document.getElementById('batchTagsModal').style.display = 'flex';
+}
+
+function closeBatchTagsModal() {
+    document.getElementById('batchTagsModal').style.display = 'none';
+}
+
+// Batch access functions
+function showBatchAccessModal() {
+    if (selectedPosts.size === 0) {
+        alert('请先选择文章');
+        return;
+    }
+
+    document.getElementById('batchAccessModal').style.display = 'flex';
+}
+
+function closeBatchAccessModal() {
+    document.getElementById('batchAccessModal').style.display = 'none';
+}
+
+function togglePasswordField() {
+    const accessLevel = document.getElementById('batchAccessLevel').value;
+    const passwordField = document.getElementById('passwordFieldGroup');
+
+    if (accessLevel === 'password') {
+        passwordField.style.display = 'block';
+    } else {
+        passwordField.style.display = 'none';
+    }
+}
+
+// Add event listeners for new forms
+document.addEventListener('DOMContentLoaded', function() {
+    // Batch tags form
+    const batchTagsForm = document.getElementById('batchTagsForm');
+    if (batchTagsForm) {
+        batchTagsForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const tagsInput = document.getElementById('batchTagsInput').value;
+            const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t);
+            const postIds = Array.from(selectedPosts);
+
+            if (postIds.length === 0) {
+                alert('请先选择文章');
+                return;
+            }
+
+            if (tags.length === 0) {
+                alert('请输入至少一个标签');
+                return;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
+            fetch('/admin/batch-add-tags', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    post_ids: postIds,
+                    tags: tags
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    closeBatchTagsModal();
+                    location.reload();
+                } else {
+                    alert('操作失败：' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('操作失败：' + error);
+            });
+        });
+    }
+
+    // Batch access form
+    const batchAccessForm = document.getElementById('batchAccessForm');
+    if (batchAccessForm) {
+        batchAccessForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const accessLevel = document.getElementById('batchAccessLevel').value;
+            const accessPassword = document.getElementById('batchAccessPassword').value;
+            const postIds = Array.from(selectedPosts);
+
+            if (postIds.length === 0) {
+                alert('请先选择文章');
+                return;
+            }
+
+            if (accessLevel === 'password' && !accessPassword) {
+                alert('请输入访问密码');
+                return;
+            }
+
+            const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
+            fetch('/admin/batch-update-access', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    post_ids: postIds,
+                    access_level: accessLevel,
+                    access_password: accessPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    closeBatchAccessModal();
+                    location.reload();
+                } else {
+                    alert('操作失败：' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('操作失败：' + error);
+            });
+        });
+    }
+});
 </script>
 {% endblock %}

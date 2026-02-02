@@ -1,0 +1,53 @@
+/* Knowledge Base Extension Styles */
+
+.kb-toolbar {
+  position: absolute;
+  display: none;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 9999;
+  transform: translateX(-50%);
+}
+
+.kb-toolbar::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 8px 8px 0;
+  border-style: solid;
+  border-color: white transparent transparent transparent;
+}
+
+.kb-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.kb-btn:hover {
+  background: #f0f0f0;
+}
+
+.kb-notification {
+  animation: kb-slide-in 0.3s ease-out;
+}
+
+@keyframes kb-slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

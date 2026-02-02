@@ -337,13 +337,22 @@ def timeline():
     # Get user info
     user = get_user_by_id(session['user_id'])
 
-    # Get stats
+    # Get card stats
     all_cards = get_cards_by_user(session['user_id'])
+
+    # Get post stats
+    from models import get_posts_by_author
+    posts_result = get_posts_by_author(session['user_id'], include_drafts=True, per_page=10000)
+    all_posts = posts_result['posts']
+
+    # Combined stats
     stats = {
-        'total': len(all_cards),
+        'total': len(all_cards) + len(all_posts),
+        'cards': len(all_cards),
+        'posts': len(all_posts),
         'ideas': len([c for c in all_cards if c['status'] == 'idea']),
         'incubating': len([c for c in all_cards if c['status'] == 'incubating']),
-        'drafts': len([c for c in all_cards if c['status'] == 'draft'])
+        'drafts': len([c for c in all_cards if c['status'] == 'draft']) + len([p for p in all_posts if not p['is_published']])
     }
 
     return render_template('timeline.html',

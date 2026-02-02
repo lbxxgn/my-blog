@@ -2,12 +2,20 @@
 
 {% block title %}知识库时间线 - {{ SITE_NAME }}{% endblock %}
 
+{% block page_type %}timeline{% endblock %}
+
 {% block content %}
 <div class="timeline-container">
     <div class="timeline-header">
         <div class="timeline-stats">
             <span class="stat-item">
                 <strong>{{ stats.total }}</strong> 总计
+            </span>
+            <span class="stat-item">
+                <strong>{{ stats.cards }}</strong> 卡片
+            </span>
+            <span class="stat-item">
+                <strong>{{ stats.posts }}</strong> 文章
             </span>
             <span class="stat-item">
                 <strong>{{ stats.ideas }}</strong> 想法
@@ -31,10 +39,22 @@
     </div>
 
     <div class="timeline-filters">
-        <button class="filter-btn active" data-filter="all">全部</button>
-        <button class="filter-btn" data-filter="idea">想法</button>
-        <button class="filter-btn" data-filter="incubating">孵化中</button>
-        <button class="filter-btn" data-filter="draft">草稿</button>
+        <!-- 类型筛选 -->
+        <div class="filter-group">
+            <span class="filter-label">类型：</span>
+            <button class="filter-type-btn active" data-type="all">全部</button>
+            <button class="filter-type-btn" data-type="card">卡片</button>
+            <button class="filter-type-btn" data-type="post">文章</button>
+        </div>
+
+        <!-- 状态筛选 -->
+        <div class="filter-group">
+            <span class="filter-label">状态：</span>
+            <button class="filter-status-btn active" data-status="all">全部</button>
+            <button class="filter-status-btn" data-status="idea">想法</button>
+            <button class="filter-status-btn" data-status="incubating">孵化中</button>
+            <button class="filter-status-btn" data-status="draft">草稿</button>
+        </div>
     </div>
 
     <div class="timeline-items">
@@ -144,10 +164,27 @@
 .timeline-filters {
     margin-bottom: 30px;
     display: flex;
-    gap: 10px;
+    flex-direction: column;
+    gap: 15px;
 }
 
-.filter-btn {
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.filter-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+    min-width: 50px;
+}
+
+.filter-btn,
+.filter-type-btn,
+.filter-status-btn {
     padding: 10px 18px;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
@@ -159,19 +196,21 @@
     color: #666;
 }
 
-.filter-btn:hover {
-    background: #f5f5f5;
-    border-color: #007bff;
-    color: #007bff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.1);
+.filter-btn:hover,
+.filter-type-btn:hover,
+.filter-status-btn:hover {
+    border-color: #1976d2;
+    color: #1976d2;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
 }
 
-.filter-btn.active {
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+.filter-btn.active,
+.filter-type-btn.active,
+.filter-status-btn.active {
+    background: #1976d2;
+    border-color: #1976d2;
     color: white;
-    border-color: #0056b3;
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.25);
 }
 
 .timeline-items {
@@ -718,43 +757,69 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ==================== 筛选按钮功能 ====================
-    const filterBtns = document.querySelectorAll('.filter-btn');
+    const typeBtns = document.querySelectorAll('.filter-type-btn');
+    const statusBtns = document.querySelectorAll('.filter-status-btn');
     const timelineItems = document.querySelectorAll('.timeline-item');
 
-    filterBtns.forEach((btn, index) => {
-        btn.addEventListener('click', function() {
-            console.log('Filter button clicked:', this.getAttribute('data-filter'));
+    let currentTypeFilter = 'all';
+    let currentStatusFilter = 'all';
 
-            // 移除所有按钮的 active 类
-            filterBtns.forEach(b => b.classList.remove('active'));
+    // 类型筛选按钮事件
+    typeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // 移除所有类型按钮的 active 类
+            typeBtns.forEach(b => b.classList.remove('active'));
             // 添加当前按钮的 active 类
             this.classList.add('active');
 
-            const filter = this.getAttribute('data-filter');
-            console.log('Applying filter:', filter);
+            currentTypeFilter = this.getAttribute('data-type');
+            console.log('Type filter:', currentTypeFilter);
 
-            // 筛选项目
-            let visibleCount = 0;
-            timelineItems.forEach(item => {
-                const status = item.getAttribute('data-status');
-                const type = item.getAttribute('data-type');
-
-                console.log('Item status:', status, 'type:', type);
-
-                if (filter === 'all') {
-                    item.classList.remove('hidden');
-                    visibleCount++;
-                } else if (status === filter) {
-                    item.classList.remove('hidden');
-                    visibleCount++;
-                } else {
-                    item.classList.add('hidden');
-                }
-            });
-
-            console.log('Visible items after filter:', visibleCount);
+            applyFilters();
         });
     });
+
+    // 状态筛选按钮事件
+    statusBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            // 移除所有状态按钮的 active 类
+            statusBtns.forEach(b => b.classList.remove('active'));
+            // 添加当前按钮的 active 类
+            this.classList.add('active');
+
+            currentStatusFilter = this.getAttribute('data-status');
+            console.log('Status filter:', currentStatusFilter);
+
+            applyFilters();
+        });
+    });
+
+    // 应用筛选
+    function applyFilters() {
+        let visibleCount = 0;
+
+        timelineItems.forEach(item => {
+            const type = item.getAttribute('data-type');
+            const status = item.getAttribute('data-status');
+
+            // 类型筛选
+            const typeMatch = currentTypeFilter === 'all' || type === currentTypeFilter;
+
+            // 状态筛选
+            const statusMatch = currentStatusFilter === 'all' || status === currentStatusFilter;
+
+            // 同时满足类型和状态筛选
+            if (typeMatch && statusMatch) {
+                item.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+
+        console.log('Visible items:', visibleCount,
+                   '(Type:', currentTypeFilter, ', Status:', currentStatusFilter + ')');
+    }
 
     // 时区转换 - 将 UTC 时间转换为 UTC+8
     function convertToChinaTime(utcTimeString) {
