@@ -147,132 +147,132 @@
 </style>
 
     <main>
-    <!-- 移动端首页 -->
-    <div class="mobile-page" data-page="home" style="display: block;">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        {% block content %}{% endblock %}
-    </div>
-
-    <!-- 移动端发现页面 -->
-    <div class="mobile-page" data-page="discover" style="display: none;">
-        <div class="container" style="padding: 16px;">
-            <h2 style="margin-bottom: 16px; font-size: 20px;">发现</h2>
-
-            <!-- 搜索框 -->
-            <div class="form-group" style="margin-bottom: 20px;">
-                <form action="{{ url_for('search') }}" method="get">
-                    <input type="text" name="q" placeholder="搜索文章..." style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color);">
-                </form>
-            </div>
-
-            <!-- 热门标签 -->
-            {% if popular_tags %}
-            <div style="margin-bottom: 24px;">
-                <h3 style="font-size: 16px; margin-bottom: 12px;">🔥 热门标签</h3>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                    {% for tag in popular_tags %}
-                    <a href="{{ url_for('view_tag', tag_id=tag.id) }}" style="display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 20px; text-decoration: none; font-size: 14px;">
-                        #{{ tag.name }}
-                    </a>
+        <!-- 移动端首页 -->
+        <div class="mobile-page" data-page="home" style="display: block;">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
                     {% endfor %}
-                </div>
-            </div>
-            {% endif %}
+                {% endif %}
+            {% endwith %}
 
-            <!-- 分类浏览 -->
-            {% if categories %}
-            <div style="margin-bottom: 24px;">
-                <h3 style="font-size: 16px; margin-bottom: 12px;">📂 分类浏览</h3>
-                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
-                    {% for cat in categories %}
-                    <a href="{{ url_for('view_category', category_id=cat.id) }}" style="display: block; padding: 20px; background: var(--gradient-card); border-radius: 12px; text-align: center; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
-                        <div style="font-size: 24px; margin-bottom: 8px;">📁</div>
-                        <div style="font-weight: 600;">{{ cat.name }}</div>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
+            {% block content %}{% endblock %}
         </div>
-    </div>
 
-    <!-- 移动端我的文章页面 -->
-    <div class="mobile-page" data-page="my-posts" style="display: none;">
-        <div class="mobile-my-posts">
-            <h2 style="margin-bottom: 16px; font-size: 20px;">我的文章</h2>
+        <!-- 移动端发现页面 -->
+        <div class="mobile-page" data-page="discover" style="display: none;">
+            <div class="container" style="padding: 16px;">
+                <h2 style="margin-bottom: 16px; font-size: 20px;">发现</h2>
 
-            <div class="mobile-posts-tabs">
-                <button class="mobile-posts-tab active" data-tab="published">已发布</button>
-                <button class="mobile-posts-tab" data-tab="drafts">草稿</button>
-            </div>
+                <!-- 搜索框 -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <form action="{{ url_for('search') }}" method="get">
+                        <input type="text" name="q" placeholder="搜索文章..." style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    </form>
+                </div>
 
-            <div id="my-posts-list">
-                <!-- 文章列表将通过 JS 加载 -->
-                <p style="text-align: center; color: var(--text-secondary); padding: 40px 0;">
-                    {% if session.get('user_id') %}
-                    <a href="{{ url_for('admin_dashboard') }}" style="color: var(--primary-color);">去管理后台查看 →</a>
-                    {% else %}
-                    <a href="{{ url_for('login') }}" style="color: var(--primary-color);">登录后查看 →</a>
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-
-    <!-- 移动端个人中心页面 -->
-    <div class="mobile-page" data-page="profile" style="display: none;">
-        <div class="container" style="padding: 16px;">
-            <h2 style="margin-bottom: 20px; font-size: 20px;">个人中心</h2>
-
-            {% if session.get('user_id') %}
-            <div style="background: var(--gradient-card); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-                <div style="display: flex; align-items: center; gap: 16px;">
-                    <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #1abc9c 0%, #16a089 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px;">
-                        👤
-                    </div>
-                    <div>
-                        <div style="font-size: 18px; font-weight: 600;">{{ session.get('username', '用户') }}</div>
-                        <div style="color: var(--text-secondary); font-size: 14px;">{{ session.get('role', 'user') }}</div>
+                <!-- 热门标签 -->
+                {% if popular_tags %}
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 16px; margin-bottom: 12px;">🔥 热门标签</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        {% for tag in popular_tags %}
+                        <a href="{{ url_for('view_tag', tag_id=tag.id) }}" style="display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 20px; text-decoration: none; font-size: 14px;">
+                            #{{ tag.name }}
+                        </a>
+                        {% endfor %}
                     </div>
                 </div>
-            </div>
+                {% endif %}
 
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <a href="{{ url_for('admin_dashboard') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
-                    <span style="font-size: 24px;">📝</span>
-                    <span style="flex: 1;">文章管理</span>
-                    <span>→</span>
-                </a>
-                <a href="{{ url_for('change_password') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
-                    <span style="font-size: 24px;">🔐</span>
-                    <span style="flex: 1;">修改密码</span>
-                    <span>→</span>
-                </a>
-                <a href="{{ url_for('logout') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: #fef2f2; border-radius: 12px; text-decoration: none; color: #dc2626; border: 1px solid #fecaca;">
-                    <span style="font-size: 24px;">🚪</span>
-                    <span style="flex: 1;">退出登录</span>
-                    <span>→</span>
-                </a>
+                <!-- 分类浏览 -->
+                {% if categories %}
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 16px; margin-bottom: 12px;">📂 分类浏览</h3>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        {% for cat in categories %}
+                        <a href="{{ url_for('view_category', category_id=cat.id) }}" style="display: block; padding: 20px; background: var(--gradient-card); border-radius: 12px; text-align: center; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                            <div style="font-size: 24px; margin-bottom: 8px;">📁</div>
+                            <div style="font-weight: 600;">{{ cat.name }}</div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
-            {% else %}
-            <div style="text-align: center; padding: 60px 20px;">
-                <div style="font-size: 48px; margin-bottom: 16px;">👋</div>
-                <p style="margin-bottom: 24px; color: var(--text-secondary);">登录后可使用更多功能</p>
-                <a href="{{ url_for('login') }}" style="display: inline-block; padding: 14px 40px; background: linear-gradient(135deg, #1abc9c 0%, #16a089 100%); color: white; border-radius: 25px; text-decoration: none; font-size: 16px; font-weight: 600;">
-                    立即登录
-                </a>
-            </div>
-            {% endif %}
         </div>
-    </div>
-</main>
+
+        <!-- 移动端我的文章页面 -->
+        <div class="mobile-page" data-page="my-posts" style="display: none;">
+            <div class="mobile-my-posts">
+                <h2 style="margin-bottom: 16px; font-size: 20px;">我的文章</h2>
+
+                <div class="mobile-posts-tabs">
+                    <button class="mobile-posts-tab active" data-tab="published">已发布</button>
+                    <button class="mobile-posts-tab" data-tab="drafts">草稿</button>
+                </div>
+
+                <div id="my-posts-list">
+                    <!-- 文章列表将通过 JS 加载 -->
+                    <p style="text-align: center; color: var(--text-secondary); padding: 40px 0;">
+                        {% if session.get('user_id') %}
+                        <a href="{{ url_for('admin_dashboard') }}" style="color: var(--primary-color);">去管理后台查看 →</a>
+                        {% else %}
+                        <a href="{{ url_for('login') }}" style="color: var(--primary-color);">登录后查看 →</a>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 移动端个人中心页面 -->
+        <div class="mobile-page" data-page="profile" style="display: none;">
+            <div class="container" style="padding: 16px;">
+                <h2 style="margin-bottom: 20px; font-size: 20px;">个人中心</h2>
+
+                {% if session.get('user_id') %}
+                <div style="background: var(--gradient-card); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="width: 64px; height: 64px; background: linear-gradient(135deg, #1abc9c 0%, #16a089 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px;">
+                            👤
+                        </div>
+                        <div>
+                            <div style="font-size: 18px; font-weight: 600;">{{ session.get('username', '用户') }}</div>
+                            <div style="color: var(--text-secondary); font-size: 14px;">{{ session.get('role', 'user') }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <a href="{{ url_for('admin_dashboard') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                        <span style="font-size: 24px;">📝</span>
+                        <span style="flex: 1;">文章管理</span>
+                        <span>→</span>
+                    </a>
+                    <a href="{{ url_for('change_password') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                        <span style="font-size: 24px;">🔐</span>
+                        <span style="flex: 1;">修改密码</span>
+                        <span>→</span>
+                    </a>
+                    <a href="{{ url_for('logout') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: #fef2f2; border-radius: 12px; text-decoration: none; color: #dc2626; border: 1px solid #fecaca;">
+                        <span style="font-size: 24px;">🚪</span>
+                        <span style="flex: 1;">退出登录</span>
+                        <span>→</span>
+                    </a>
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 60px 20px;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">👋</div>
+                    <p style="margin-bottom: 24px; color: var(--text-secondary);">登录后可使用更多功能</p>
+                    <a href="{{ url_for('login') }}" style="display: inline-block; padding: 14px 40px; background: linear-gradient(135deg, #1abc9c 0%, #16a089 100%); color: white; border-radius: 25px; text-decoration: none; font-size: 16px; font-weight: 600;">
+                        立即登录
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
 
 <!-- 移动端底部导航 -->
 <nav class="mobile-bottom-nav">
