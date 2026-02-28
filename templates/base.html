@@ -6,6 +6,7 @@
     <meta name="csrf_token" content="{{ csrf_token() }}">
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=4.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile-weibo.css') }}?v=1.0">
     {% block head %}{% endblock %}
 </head>
 <body data-page="{% block page_type %}home{% endblock %}">
