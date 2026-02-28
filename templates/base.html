@@ -241,5 +241,67 @@
     <script src="{{ url_for('static', filename='js/lazyload.js') }}?v=1.0"></script>
 
     {% block scripts %}{% endblock %}
+
+<!-- 移动端快速发布编辑器 -->
+<div id="mobileEditorOverlay" class="mobile-editor-overlay"></div>
+<div id="mobileEditorPanel" class="mobile-editor-panel">
+    <div class="mobile-editor-header">
+        <button type="button" class="mobile-editor-close" id="mobileEditorClose">×</button>
+        <span class="mobile-editor-title">发布内容</span>
+        <button type="button" class="mobile-editor-publish" id="mobileEditorPublish" disabled>发布</button>
+    </div>
+    <div class="mobile-editor-content">
+        <input type="text" id="mobileEditorTitle" class="mobile-editor-textarea" placeholder="标题（可选）" style="min-height: auto; font-size: 18px; font-weight: 600; margin-bottom: 12px;">
+        <textarea id="mobileEditorTextarea" class="mobile-editor-textarea" placeholder="分享你的想法..."></textarea>
+        <div id="mobileEditorImages" class="mobile-editor-images"></div>
+        <div id="mobileEditorSelections" class="mobile-editor-selections" style="display: none;"></div>
+    </div>
+    <div class="mobile-editor-toolbar">
+        <button type="button" class="toolbar-btn" id="toolbarImage" title="添加图片">
+            <span class="toolbar-icon">📷</span>
+        </button>
+        <button type="button" class="toolbar-btn" id="toolbarTags" title="添加标签">
+            <span class="toolbar-icon">🏷️</span>
+        </button>
+        <button type="button" class="toolbar-btn" id="toolbarCategory" title="选择分类">
+            <span class="toolbar-icon">📂</span>
+        </button>
+        <button type="button" class="toolbar-btn" id="toolbarAccess" title="访问权限">
+            <span class="toolbar-icon">🌐</span>
+        </button>
+        <input type="file" id="mobileEditorImageInput" accept="image/*" multiple style="display: none;">
+    </div>
+</div>
+
+<!-- 标签选择器 -->
+<div id="tagsSelectorOverlay" class="selector-overlay"></div>
+<div id="tagsSelectorPanel" class="selector-panel">
+    <div class="selector-header">
+        <span class="selector-title">选择标签</span>
+        <button type="button" class="selector-close">×</button>
+    </div>
+    <div class="selector-search">
+        <input type="text" placeholder="搜索标签...">
+    </div>
+    <div class="selector-content" id="tagsSelectorContent"></div>
+</div>
+
+<!-- 分类选择器 -->
+<div id="categorySelectorOverlay" class="selector-overlay"></div>
+<div id="categorySelectorPanel" class="selector-panel">
+    <div class="selector-header">
+        <span class="selector-title">选择分类</span>
+        <button type="button" class="selector-close">×</button>
+    </div>
+    <div class="selector-content" id="categorySelectorContent"></div>
+</div>
+
+<script>
+// 将可用标签和分类数据传递给 JavaScript
+window.availableTags = {{ all_tags|safe if all_tags else '[]' }};
+window.availableCategories = {{ all_categories|safe if all_categories else '[]' }};
+</script>
+
+<script src="{{ url_for('static', filename='js/mobile-editor.js') }}?v=1.0"></script>
 </body>
 </html>
