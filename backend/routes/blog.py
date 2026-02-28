@@ -26,6 +26,7 @@ blog_bp = Blueprint('blog', __name__)
 @blog_bp.route('/')
 def index():
     """首页 - 列出所有已发布的文章"""
+    format = request.args.get('format', 'html')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
 
@@ -37,6 +38,39 @@ def index():
     categories = get_all_categories()
     popular_tags = get_popular_tags(limit=10)
 
+    # JSON 格式支持（用于无限滚动）
+    if format == 'json':
+        posts_list = []
+        for post in posts_data['posts']:
+            post_dict = dict(post) if hasattr(post, 'keys') else {}
+            if not post_dict and hasattr(post, '_asdict'):
+                post_dict = post._asdict()
+            if not post_dict:
+                post_dict = {
+                    'id': getattr(post, 'id', None),
+                    'title': getattr(post, 'title', ''),
+                    'content': getattr(post, 'content', ''),
+                    'category_name': getattr(post, 'category_name', None),
+                    'author_display_name': getattr(post, 'author_display_name', None),
+                    'created_at': getattr(post, 'created_at', None),
+                    'like_count': getattr(post, 'like_count', 0),
+                    'comment_count': getattr(post, 'comment_count', 0)
+                }
+
+            # 处理日期
+            created_at = post_dict.get('created_at')
+            if created_at and hasattr(created_at, 'isoformat'):
+                post_dict['created_at'] = created_at.isoformat()
+
+            posts_list.append(post_dict)
+
+        return jsonify({
+            'posts': posts_list,
+            'page': posts_data['page'],
+            'total_pages': posts_data['total_pages'],
+            'total': posts_data['total']
+        })
+
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
     end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
@@ -47,6 +81,12 @@ def index():
     page_range = list(range(page_start, page_end))
     show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
 
+    # 获取所有标签和分类供移动端使用
+    all_tags = get_all_tags()
+    import json
+    all_tags_json = json.dumps([{'id': t.get('id', t.id if hasattr(t, 'id') else None), 'name': t.get('name', t.name if hasattr(t, 'name') else '')} for t in all_tags])
+    all_categories_json = json.dumps([{'id': c.get('id', c.id if hasattr(c, 'id') else None), 'name': c.get('name', c.name if hasattr(c, 'name') else '')} for c in categories])
+
     return render_template('index.html',
                          posts=posts_data['posts'],
                          categories=categories,
@@ -55,7 +95,9 @@ def index():
                          start_item=start_item,
                          end_item=end_item,
                          page_range=page_range,
-                         show_ellipsis=show_ellipsis)
+                         show_ellipsis=show_ellipsis,
+                         all_tags=all_tags_json,
+                         all_categories=all_categories_json)
 
 
 @blog_bp.route('/post/<int:post_id>')

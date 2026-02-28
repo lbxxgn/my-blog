@@ -194,6 +194,34 @@ def excerpt_filter(value, max_length=200):
     from models import get_post_excerpt
     return get_post_excerpt(value, max_length)
 
+import re
+from datetime import datetime
+
+def extract_first_image(content):
+    """从内容中提取第一张图片"""
+    if not content:
+        return None
+    match = re.search(r'<img[^>]+src="([^"]+)"', str(content))
+    return match.group(1) if match else None
+
+def timeago_filter(date):
+    """时间格式化为相对时间"""
+    if not date:
+        return ''
+    if isinstance(date, str):
+        try:
+            if len(date) >= 10:
+                return date[:10]
+        except:
+            return str(date)[:10] if date else ''
+    if hasattr(date, 'strftime'):
+        return date.strftime('%Y-%m-%d')
+    return str(date)[:10] if date else ''
+
+# 注册过滤器
+app.jinja_env.filters['extract_first_image'] = extract_first_image
+app.jinja_env.filters['timeago'] = timeago_filter
+
 def allowed_file(filename):
     """检查文件扩展名是否允许"""
     return '.' in filename and \
