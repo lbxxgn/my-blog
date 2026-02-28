@@ -25,24 +25,51 @@
                     {% for post in posts %}
                         <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
                             <article class="post-card">
-                                <h2>{{ post.title }}</h2>
-                                <div class="post-meta">
-                                    {% if post.category_name %}
-                                    <span class="post-category">{{ post.category_name }}</span>
-                                    <span>·</span>
+                                {% set ns = namespace(cover_image=None) %}
+                                {% if post.content %}
+                                    {% set content_str = post.content|string %}
+                                    {% if '<img' in content_str %}
+                                        {% set img_start = content_str.find('src="') + 5 %}
+                                        {% set img_end = content_str.find('"', img_start) %}
+                                        {% if img_start > 4 and img_end > img_start %}
+                                            {% set ns.cover_image = content_str[img_start:img_end] %}
+                                        {% endif %}
                                     {% endif %}
-                                    {% if post.author_display_name or post.author_username %}
-                                    <span class="post-author">
-                                        <a href="{{ url_for('view_author', author_id=post.author_id) }}" style="color: inherit; text-decoration: none;">
-                                            👤 {{ post.author_display_name or post.author_username }}
-                                        </a>
-                                    </span>
-                                    <span>·</span>
-                                    {% endif %}
-                                    <time datetime="{{ post.created_at }}">{{ (post.created_at|localtime)[:10] }}</time>
+                                {% endif %}
+                                {% if ns.cover_image %}
+                                <div class="post-card-image">
+                                    <img src="{{ ns.cover_image }}" alt="" loading="lazy">
                                 </div>
-                                <div class="post-excerpt">
-                                    {{ post.content|excerpt }}
+                                {% else %}
+                                <div class="post-card-image">
+                                    <span class="post-card-image-placeholder">📝</span>
+                                </div>
+                                {% endif %}
+                                <div class="post-card-content">
+                                    <h2>{{ post.title }}</h2>
+                                    <div class="post-excerpt">{{ post.content|striptags|truncate(100) }}</div>
+                                    <div class="post-meta">
+                                        {% if post.category_name %}
+                                        <span class="post-category">{{ post.category_name }}</span>
+                                        {% endif %}
+                                        {% if post.author_display_name or post.author_username %}
+                                        <span>👤 {{ post.author_display_name or post.author_username }}</span>
+                                        {% endif %}
+                                        <time datetime="{{ post.created_at }}">{{ post.created_at|string|truncate(10, True, '') }}</time>
+                                    </div>
+                                </div>
+                                <div class="post-card-actions">
+                                    <button type="button" class="post-action-btn">
+                                        <span class="post-action-icon">❤️</span>
+                                        <span>0</span>
+                                    </button>
+                                    <button type="button" class="post-action-btn">
+                                        <span class="post-action-icon">💬</span>
+                                        <span>0</span>
+                                    </button>
+                                    <button type="button" class="post-action-btn">
+                                        <span class="post-action-icon">🔗</span>
+                                    </button>
                                 </div>
                             </article>
                         </a>
