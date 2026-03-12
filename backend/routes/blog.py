@@ -8,6 +8,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 import markdown2
 import bleach
 import logging
+import json
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -22,20 +24,102 @@ from models import (
 # 创建博客蓝图
 blog_bp = Blueprint('blog', __name__)
 
+IMAGE_SRC_PATTERN = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
+HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
+WHITESPACE_PATTERN = re.compile(r'\s+')
+
+
+def extract_post_image_urls(content, limit=9):
+    content_str = str(content or '')
+    return IMAGE_SRC_PATTERN.findall(content_str)[:limit]
+
+
+def extract_post_excerpt(content, limit=160):
+    text_content = HTML_TAG_PATTERN.sub(' ', str(content or ''))
+    normalized = WHITESPACE_PATTERN.sub(' ', text_content).strip()
+    return normalized[:limit]
+
+
+def determine_mobile_image_layout(image_count):
+    if image_count <= 1:
+        return 'single'
+    if image_count <= 4:
+        return 'grid-4'
+    if image_count <= 6:
+        return 'grid-6'
+    return 'grid-9'
+
+
+def build_post_card_payload(post):
+    post_dict = serialize_post_for_json(post)
+    image_urls = extract_post_image_urls(post_dict.get('content'))
+    post_dict['image_urls'] = image_urls
+    post_dict['image_count'] = len(image_urls)
+    post_dict['mobile_image_layout'] = determine_mobile_image_layout(len(image_urls))
+    post_dict['excerpt'] = extract_post_excerpt(post_dict.get('content'))
+    return post_dict
+
+
+def build_post_card_payloads(posts):
+    return [build_post_card_payload(post) for post in posts]
+
+
+def serialize_post_for_json(post):
+    """Serialize post rows for lightweight JSON responses."""
+    post_dict = dict(post) if hasattr(post, 'keys') else {}
+    if not post_dict and hasattr(post, '_asdict'):
+        post_dict = post._asdict()
+    if not post_dict:
+        post_dict = {
+            'id': getattr(post, 'id', None),
+            'title': getattr(post, 'title', ''),
+            'content': getattr(post, 'content', ''),
+            'category_name': getattr(post, 'category_name', None),
+            'created_at': getattr(post, 'created_at', None),
+            'is_published': getattr(post, 'is_published', True),
+            'access_level': getattr(post, 'access_level', 'public')
+        }
+
+    created_at = post_dict.get('created_at')
+    if created_at and hasattr(created_at, 'isoformat'):
+        post_dict['created_at'] = created_at.isoformat()
+
+    return post_dict
+
 
 @blog_bp.route('/')
 def index():
     """首页 - 列出所有已发布的文章"""
+    format = request.args.get('format', 'html')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
+    category_id = request.args.get('category', type=int)
+    if category_id is None:
+        category_id = request.args.get('category_id', type=int)
 
     # 验证 per_page
     if per_page not in [10, 20, 40, 80]:
         per_page = 20
 
-    posts_data = get_all_posts(include_drafts=False, page=page, per_page=per_page)
+    posts_data = get_all_posts(
+        include_drafts=False,
+        page=page,
+        per_page=per_page,
+        category_id=category_id
+    )
     categories = get_all_categories()
     popular_tags = get_popular_tags(limit=10)
+
+    # JSON 格式支持（用于无限滚动）
+    if format == 'json':
+        return jsonify({
+            'posts': build_post_card_payloads(posts_data['posts']),
+            'page': posts_data['page'],
+            'total_pages': posts_data['total_pages'],
+            'total': posts_data['total']
+        })
+
+    card_posts = build_post_card_payloads(posts_data['posts'])
 
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
@@ -47,15 +131,22 @@ def index():
     page_range = list(range(page_start, page_end))
     show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
 
+    # 获取所有标签和分类供移动端使用
+    all_tags = get_all_tags()
+    all_tags_json = json.dumps([{'id': t.get('id', t.id if hasattr(t, 'id') else None), 'name': t.get('name', t.name if hasattr(t, 'name') else '')} for t in all_tags])
+    all_categories_json = json.dumps([{'id': c.get('id', c.id if hasattr(c, 'id') else None), 'name': c.get('name', c.name if hasattr(c, 'name') else '')} for c in categories])
+
     return render_template('index.html',
-                         posts=posts_data['posts'],
+                         posts=card_posts,
                          categories=categories,
                          popular_tags=popular_tags,
                          pagination=posts_data,
                          start_item=start_item,
                          end_item=end_item,
                          page_range=page_range,
-                         show_ellipsis=show_ellipsis)
+                         show_ellipsis=show_ellipsis,
+                         all_tags=all_tags_json,
+                         all_categories=all_categories_json)
 
 
 @blog_bp.route('/post/<int:post_id>')
@@ -226,6 +317,16 @@ def view_category(category_id):
         category_id=category_id
     )
 
+    if request.args.get('format') == 'json':
+        return jsonify({
+            'posts': build_post_card_payloads(posts_data['posts']),
+            'page': posts_data['page'],
+            'total_pages': posts_data['total_pages'],
+            'total': posts_data['total']
+        })
+
+    card_posts = build_post_card_payloads(posts_data['posts'])
+
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
     end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
@@ -240,7 +341,7 @@ def view_category(category_id):
     categories = get_all_categories()
 
     return render_template('index.html',
-                         posts=posts_data['posts'],
+                         posts=card_posts,
                          category=category,
                          categories=categories,
                          pagination=posts_data,
@@ -248,6 +349,44 @@ def view_category(category_id):
                          end_item=end_item,
                          page_range=page_range,
                          show_ellipsis=show_ellipsis)
+
+
+@blog_bp.route('/mobile/my-posts')
+def mobile_my_posts():
+    """Return the current user's posts for the mobile tabbed view."""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+
+    tab = request.args.get('tab', 'published')
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
+    if per_page not in [5, 10, 20, 40]:
+        per_page = 10
+
+    if tab == 'drafts':
+        all_posts = get_posts_by_author(user_id, include_drafts=True, page=1, per_page=10000)
+        draft_posts = [post for post in all_posts['posts'] if not post.get('is_published')]
+        total = len(draft_posts)
+        start = (page - 1) * per_page
+        end = start + per_page
+        posts = draft_posts[start:end]
+        total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    else:
+        posts_data = get_posts_by_author(user_id, include_drafts=False, page=page, per_page=per_page)
+        posts = posts_data['posts']
+        total = posts_data['total']
+        total_pages = posts_data['total_pages']
+
+    return jsonify({
+        'success': True,
+        'tab': tab,
+        'posts': [serialize_post_for_json(post) for post in posts],
+        'page': page,
+        'total': total,
+        'total_pages': total_pages
+    })
 
 
 @blog_bp.route('/tag/<int:tag_id>')

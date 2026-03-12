@@ -3,6 +3,7 @@
 """
 
 import pytest
+from io import BytesIO
 from flask import session
 
 
@@ -67,6 +68,115 @@ class TestBlogRoutes:
         """测试带查询的搜索"""
         response = client.get('/search?q=Test')
         assert response.status_code == 200
+
+    def test_index_json_respects_category_filter(self, client, temp_db):
+        """测试首页 JSON 支持分类筛选"""
+        from models import create_category, create_post, create_user
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('jsonuser', generate_password_hash('TestPassword123!'), role='author')
+        category_id = create_category('Filtered')
+        other_category_id = create_category('Other')
+
+        create_post('Keep me', 'Category content', True, category_id, user_id)
+        create_post('Skip me', 'Other content', True, other_category_id, user_id)
+
+        response = client.get(f'/?format=json&category={category_id}')
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert len(data['posts']) == 1
+        assert data['posts'][0]['title'] == 'Keep me'
+        assert data['posts'][0]['category_name'] == 'Filtered'
+
+    def test_mobile_my_posts_requires_login(self, client):
+        """测试移动端我的文章接口需要登录"""
+        response = client.get('/mobile/my-posts')
+        assert response.status_code == 401
+
+    def test_mobile_my_posts_returns_published_and_drafts(self, client, test_admin_user, temp_db):
+        """测试移动端我的文章接口返回已发布和草稿数据"""
+        from models import create_post
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        create_post('Published mobile', 'Published content', True, None, test_admin_user['id'])
+        create_post('Draft mobile', 'Draft content', False, None, test_admin_user['id'])
+
+        published_response = client.get('/mobile/my-posts?tab=published')
+        drafts_response = client.get('/mobile/my-posts?tab=drafts')
+
+        assert published_response.status_code == 200
+        assert drafts_response.status_code == 200
+
+        published_data = published_response.get_json()
+        drafts_data = drafts_response.get_json()
+
+        assert published_data['success'] is True
+        assert any(post['title'] == 'Published mobile' for post in published_data['posts'])
+        assert all(post['is_published'] for post in published_data['posts'])
+
+        assert drafts_data['success'] is True
+        assert any(post['title'] == 'Draft mobile' for post in drafts_data['posts'])
+        assert all(not post['is_published'] for post in drafts_data['posts'])
+
+    def test_index_json_includes_mobile_image_metadata(self, client, temp_db):
+        """测试首页 JSON 返回移动端图片布局信息"""
+        from models import create_post, create_user
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('imageuser', generate_password_hash('TestPassword123!'), role='author')
+        content = '''
+            <p>图文内容</p>
+            <img src="/static/uploads/1.jpg" alt="">
+            <img src="/static/uploads/2.jpg" alt="">
+            <img src="/static/uploads/3.jpg" alt="">
+            <img src="/static/uploads/4.jpg" alt="">
+        '''
+        create_post('Image post', content, True, None, user_id)
+
+        response = client.get('/?format=json')
+        assert response.status_code == 200
+
+        data = response.get_json()
+        image_post = next(post for post in data['posts'] if post['title'] == 'Image post')
+        assert image_post['image_count'] == 4
+        assert image_post['mobile_image_layout'] == 'grid-4'
+        assert image_post['image_urls'] == [
+            '/static/uploads/1.jpg',
+            '/static/uploads/2.jpg',
+            '/static/uploads/3.jpg',
+            '/static/uploads/4.jpg'
+        ]
+        assert image_post['excerpt'] == '图文内容'
+
+    def test_admin_upload_accepts_png_image(self, client, test_admin_user):
+        """测试上传接口接受 PNG 图片"""
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        # 1x1 transparent PNG
+        png_bytes = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
+            b'\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDATx\x9cc\xf8\x0f'
+            b'\x00\x01\x01\x01\x00\x18\xdd\x8d\xb1\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+
+        response = client.post(
+            '/admin/upload',
+            data={'file': (BytesIO(png_bytes), 'tiny.png')},
+            content_type='multipart/form-data'
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['url'].startswith('/static/uploads/images/')
 
 
 class TestAdminRoutes:

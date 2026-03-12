@@ -10,6 +10,26 @@ import config
 # Setup logger
 logger = logging.getLogger(__name__)
 
+
+def _safe_replace_post_fts(cursor, post_id, title, content):
+    """Best-effort FTS sync that does not block the primary post write path."""
+    try:
+        cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+        cursor.execute(
+            'INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
+            (post_id, title, content)
+        )
+    except sqlite3.DatabaseError as exc:
+        logger.warning('Skipping posts_fts sync for post %s: %s', post_id, exc)
+
+
+def _safe_delete_post_fts(cursor, post_id):
+    """Best-effort FTS cleanup for environments with a damaged FTS index."""
+    try:
+        cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+    except sqlite3.DatabaseError as exc:
+        logger.warning('Skipping posts_fts delete for post %s: %s', post_id, exc)
+
 def get_db_connection(db_path=None):
     """
     创建数据库连接并配置优化设置
@@ -404,8 +424,7 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
     post_id = cursor.lastrowid
 
     # 手动更新FTS全文搜索索引（触发器已禁用以避免SQL逻辑错误）
-    cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
-                  (post_id, title, content))
+    _safe_replace_post_fts(cursor, post_id, title, content)
 
     conn.commit()
     conn.close()
@@ -440,9 +459,7 @@ def update_post(post_id, title, content, is_published, category_id=None, access_
         )
 
     # Manually update FTS (triggers are disabled)
-    cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
-    cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
-                  (post_id, title, content))
+    _safe_replace_post_fts(cursor, post_id, title, content)
 
     conn.commit()
     conn.close()
@@ -455,7 +472,7 @@ def delete_post(post_id):
     cursor.execute('DELETE FROM posts WHERE id = ?', (post_id,))
 
     # Manually delete from FTS (triggers are disabled)
-    cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+    _safe_delete_post_fts(cursor, post_id)
 
     conn.commit()
     conn.close()
