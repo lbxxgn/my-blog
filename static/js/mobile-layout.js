@@ -29,8 +29,8 @@
 
                 if (page === 'publish') {
                     e.preventDefault();
-                    if (typeof openMobileEditor === 'function') {
-                        openMobileEditor();
+                    if (typeof window.openMobileEditor === 'function') {
+                        window.openMobileEditor();
                     }
                     return;
                 }

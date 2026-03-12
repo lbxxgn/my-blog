@@ -109,30 +109,22 @@
     function createPostCard(post) {
         const article = document.createElement('article');
         article.className = 'post-card';
-
-        // 提取第一张图片作为封面
-        const coverImage = extractCoverImage(post.content);
+        const imageUrls = Array.isArray(post.image_urls) ? post.image_urls.slice(0, 9) : extractImageUrls(post.content);
+        const imageCount = imageUrls.length;
+        const imageLayout = post.mobile_image_layout || getMobileImageLayout(imageCount);
 
         article.innerHTML = `
             <a href="/post/${post.id}" class="post-card-link">
-                ${coverImage ? `
-                    <div class="post-card-image">
-                        <img src="${coverImage}" alt="" loading="lazy">
-                    </div>
-                ` : `
-                    <div class="post-card-image">
-                        <span class="post-card-image-placeholder">📝</span>
-                    </div>
-                `}
                 <div class="post-card-content">
                     <h2>${escapeHtml(post.title)}</h2>
-                    <div class="post-excerpt">${escapeHtml(post.excerpt || truncateContent(post.content, 100))}</div>
                     <div class="post-meta">
                         ${post.category_name ? `<span class="post-category">${escapeHtml(post.category_name)}</span>` : ''}
                         ${post.author_display_name ? `<span>👤 ${escapeHtml(post.author_display_name)}</span>` : ''}
                         <time>${formatDate(post.created_at)}</time>
                     </div>
+                    <div class="post-excerpt">${escapeHtml(post.excerpt || truncateContent(post.content, 100))}</div>
                 </div>
+                ${renderPostMedia(imageUrls, imageCount, imageLayout)}
                 <div class="post-card-actions">
                     <button type="button" class="post-action-btn">
                         <span class="post-action-icon">❤️</span>
@@ -152,11 +144,34 @@
         return article;
     }
 
-    function extractCoverImage(content) {
-        // 从内容中提取第一张图片
-        if (!content) return null;
-        const imgMatch = content.match(/<img[^>]+src="([^"]+)"/);
-        return imgMatch ? imgMatch[1] : null;
+    function renderPostMedia(imageUrls, imageCount, imageLayout) {
+        if (!imageUrls || imageUrls.length === 0) {
+            return '';
+        }
+
+        const items = imageUrls.map(url => `
+            <div class="post-card-media-item">
+                <img src="${escapeHtml(url)}" alt="" loading="lazy">
+            </div>
+        `).join('');
+
+        return `
+            <div class="post-card-media post-card-media--${imageLayout} post-card-media--count-${imageCount}">
+                ${items}
+            </div>
+        `;
+    }
+
+    function extractImageUrls(content) {
+        if (!content) return [];
+        return Array.from(content.matchAll(/<img[^>]+src="([^"]+)"/g)).map(match => match[1]).slice(0, 9);
+    }
+
+    function getMobileImageLayout(imageCount) {
+        if (imageCount <= 1) return 'single';
+        if (imageCount <= 4) return 'grid-4';
+        if (imageCount <= 6) return 'grid-6';
+        return 'grid-9';
     }
 
     function truncateContent(content, maxLength) {

@@ -21,7 +21,7 @@
     /**
      * 打开移动端编辑器
      */
-    window.openMobileEditor = function() {
+    function openMobileEditor() {
         const overlay = document.getElementById('mobileEditorOverlay');
         const panel = document.getElementById('mobileEditorPanel');
 
@@ -36,12 +36,13 @@
                 if (textarea) textarea.focus();
             }, 300);
         }
-    };
+    }
+    window.openMobileEditor = openMobileEditor;
 
     /**
      * 关闭移动端编辑器
      */
-    window.closeMobileEditor = function() {
+    function closeMobileEditor() {
         const overlay = document.getElementById('mobileEditorOverlay');
         const panel = document.getElementById('mobileEditorPanel');
 
@@ -50,7 +51,8 @@
             panel.classList.remove('show');
             document.body.style.overflow = '';
         }
-    };
+    }
+    window.closeMobileEditor = closeMobileEditor;
 
     /**
      * 初始化编辑器
@@ -152,7 +154,7 @@
         // 标签按钮
         const tagsBtn = document.getElementById('toolbarTags');
         if (tagsBtn) {
-            tagsBtn.addEventListener('click', openTagsSelector);
+            tagsBtn.addEventListener('click', openQuickTagInput);
         }
 
         // 分类按钮
@@ -166,6 +168,13 @@
         if (accessBtn) {
             accessBtn.addEventListener('click', toggleAccessLevel);
         }
+
+        const accessPill = document.getElementById('mobileEditorAccessPill');
+        if (accessPill) {
+            accessPill.addEventListener('click', toggleAccessLevel);
+        }
+
+        updateAccessPill();
     }
 
     /**
@@ -188,6 +197,7 @@
                 });
                 renderImages();
                 saveDraft();
+                updatePublishButton();
             };
             reader.readAsDataURL(file);
         });
@@ -235,6 +245,7 @@
                 selectedImages.splice(index, 1);
                 renderImages();
                 saveDraft();
+                updatePublishButton();
             });
         });
     }
@@ -251,6 +262,20 @@
                 }
             });
         });
+
+        const tagsInput = document.getElementById('tagsQuickInput');
+        if (tagsInput) {
+            tagsInput.addEventListener('input', function() {
+                renderTagsList(this.value);
+            });
+
+            tagsInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitQuickTagInput();
+                }
+            });
+        }
     }
 
     /**
@@ -259,61 +284,159 @@
     function openTagsSelector() {
         const overlay = document.getElementById('tagsSelectorOverlay');
         const panel = document.getElementById('tagsSelectorPanel');
+        const input = document.getElementById('tagsQuickInput');
 
         if (overlay && panel) {
             overlay.classList.add('show');
             panel.classList.add('show');
-            renderTagsList();
+            if (input) {
+                input.value = '';
+            }
+            renderTagsList('');
+
+            setTimeout(() => {
+                if (input) {
+                    input.focus();
+                }
+            }, 80);
         }
+    }
+
+    function openQuickTagInput() {
+        openTagsSelector();
+    }
+
+    function resolveTagByName(name, index) {
+        const allTags = window.availableTags || [];
+        const matchedTag = allTags.find(tag => String(tag.name || '').toLowerCase() === name.toLowerCase());
+        if (matchedTag) {
+            return matchedTag;
+        }
+
+        const newTag = {
+            id: Date.now() + index,
+            name
+        };
+
+        allTags.push(newTag);
+        window.availableTags = allTags;
+        return newTag;
+    }
+
+    function parseTagNames(rawValue) {
+        return Array.from(
+            new Set(
+                String(rawValue || '')
+                    .split(/[#,\s，]+/)
+                    .map(name => name.trim())
+                    .filter(Boolean)
+                    .slice(0, 10)
+            )
+        );
+    }
+
+    function mergeTagNames(tagNames) {
+        tagNames.forEach((name, index) => {
+            const exists = selectedTags.some(tag => String(tag.name || '').toLowerCase() === name.toLowerCase());
+            if (!exists) {
+                selectedTags.push(resolveTagByName(name, index));
+            }
+        });
+
+        renderSelections();
+        saveDraft();
+    }
+
+    function submitQuickTagInput() {
+        const input = document.getElementById('tagsQuickInput');
+        if (!input) {
+            return;
+        }
+
+        const names = parseTagNames(input.value);
+        if (names.length === 0) {
+            return;
+        }
+
+        mergeTagNames(names);
+        input.value = '';
+        renderTagsList('');
+        input.focus();
     }
 
     /**
      * 渲染标签列表
      */
-    function renderTagsList() {
+    function renderTagsList(query = '') {
         const container = document.getElementById('tagsSelectorContent');
         if (!container) return;
 
-        // 获取现有标签（从页面数据或 API）
         const allTags = window.availableTags || [];
+        const normalizedQuery = String(query || '').trim().toLowerCase();
+        const selectedTagIds = new Set(selectedTags.map(tag => tag.id));
+        const suggestedTags = allTags
+            .filter(tag => !selectedTagIds.has(tag.id))
+            .filter(tag => !normalizedQuery || String(tag.name || '').toLowerCase().includes(normalizedQuery))
+            .slice(0, 12);
 
-        let html = '';
+        let html = '<div class="selector-helper">回车可直接添加，点标签也能快速选中。</div>';
 
-        // 常用标签（已选的在前）
-        const selectedTagIds = selectedTags.map(t => t.id);
-        const recentTags = allTags.filter(t => selectedTagIds.includes(t.id));
-        const otherTags = allTags.filter(t => !selectedTagIds.includes(t.id));
-
-        if (recentTags.length > 0) {
-            html += '<div class="selector-section-title">常用标签</div>';
-            recentTags.forEach(tag => {
-                html += renderTagItem(tag, true);
-            });
+        if (normalizedQuery) {
+            const exactMatch = allTags.some(tag => String(tag.name || '').toLowerCase() === normalizedQuery);
+            if (!exactMatch) {
+                html += `
+                    <div class="selector-section-title">快速添加</div>
+                    <div class="selector-chip-grid">
+                        <button type="button" class="selector-chip create" data-create-tag="${escapeHtmlAttr(query)}">+ 创建 #${escapeHtml(query.trim())}</button>
+                    </div>
+                `;
+            }
         }
 
-        if (otherTags.length > 0) {
-            html += '<div class="selector-section-title">全部标签</div>';
-            otherTags.forEach(tag => {
-                html += renderTagItem(tag, false);
+        if (selectedTags.length > 0) {
+            html += '<div class="selector-section-title">已选标签</div><div class="selector-chip-grid">';
+            selectedTags.forEach(tag => {
+                html += renderTagChip(tag, true);
             });
+            html += '</div>';
         }
 
-        // 新建标签选项
-        html += `
-            <div class="selector-item" onclick="window.createNewTag && window.createNewTag()">
-                <span class="selector-item-name">+ 新建标签</span>
-            </div>
-        `;
+        html += '<div class="selector-section-title">推荐标签</div>';
+        if (suggestedTags.length > 0) {
+            html += '<div class="selector-chip-grid">';
+            suggestedTags.forEach(tag => {
+                html += renderTagChip(tag, false);
+            });
+            html += '</div>';
+        } else {
+            html += '<div class="selector-empty">没有匹配的推荐标签，直接回车就能创建。</div>';
+        }
 
         container.innerHTML = html;
 
-        // 绑定点击事件
-        container.querySelectorAll('.selector-item[data-tag-id]').forEach(item => {
+        container.querySelectorAll('[data-tag-id]').forEach(item => {
             item.addEventListener('click', function() {
-                const tagId = this.getAttribute('data-tag-id');
+                const tagId = Number(this.getAttribute('data-tag-id'));
                 if (tagId) {
-                    toggleTagSelection(parseInt(tagId));
+                    toggleTagSelection(tagId);
                 }
+            });
+        });
+
+        container.querySelectorAll('[data-create-tag]').forEach(item => {
+            item.addEventListener('click', function() {
+                const name = this.getAttribute('data-create-tag');
+                if (!name) {
+                    return;
+                }
+
+                mergeTagNames(parseTagNames(name));
+                const input = document.getElementById('tagsQuickInput');
+                if (input) {
+                    input.value = '';
+                    input.focus();
+                }
+                renderTagsList('');
             });
         });
     }
@@ -321,13 +444,11 @@
     /**
      * 渲染单个标签项
      */
-    function renderTagItem(tag, selected) {
-        const isSelected = selectedTags.some(t => t.id === tag.id);
+    function renderTagChip(tag, isSelected) {
         return `
-            <div class="selector-item ${isSelected ? 'selected' : ''}" data-tag-id="${tag.id}">
-                <span class="selector-item-name">#${tag.name}</span>
-                <span class="selector-item-check">${isSelected ? '✓' : ''}</span>
-            </div>
+            <button type="button" class="selector-chip ${isSelected ? 'active' : ''}" data-tag-id="${tag.id}">
+                #${escapeHtml(tag.name)}
+            </button>
         `;
     }
 
@@ -345,7 +466,8 @@
             selectedTags.push(tag);
         }
 
-        renderTagsList();
+        const currentQuery = document.getElementById('tagsQuickInput')?.value || '';
+        renderTagsList(currentQuery);
         renderSelections();
         saveDraft();
     }
@@ -473,12 +595,26 @@
 
         const btn = document.getElementById('toolbarAccess');
         if (btn) {
-            const icons = { public: '🌐', login: '🔒', private: '👁️' };
+            const icons = { public: '＋', login: '＋', private: '＋' };
             const icon = btn.querySelector('.toolbar-icon');
             if (icon) icon.textContent = icons[accessLevel];
         }
 
+        updateAccessPill();
         saveDraft();
+    }
+
+    function updateAccessPill() {
+        const pill = document.getElementById('mobileEditorAccessPill');
+        if (!pill) return;
+
+        const labels = {
+            public: '公开',
+            login: '登录可见',
+            private: '私密'
+        };
+
+        pill.textContent = labels[accessLevel] || '🌐 公开';
     }
 
     /**
@@ -487,15 +623,8 @@
     window.createNewTag = function() {
         const name = prompt('请输入新标签名称：');
         if (name && name.trim()) {
-            // 这里应该调用 API 创建标签
-            // 暂时先添加到本地
-            const newTag = { id: Date.now(), name: name.trim() };
-            if (!window.availableTags) window.availableTags = [];
-            window.availableTags.push(newTag);
-            selectedTags.push(newTag);
-            renderTagsList();
-            renderSelections();
-            saveDraft();
+            mergeTagNames(parseTagNames(name));
+            renderTagsList(document.getElementById('tagsQuickInput')?.value || '');
         }
     };
 
@@ -507,7 +636,7 @@
         const publishBtn = document.getElementById('mobileEditorPublish');
 
         if (textarea && publishBtn) {
-            const hasContent = textarea.value.trim().length > 0;
+            const hasContent = textarea.value.trim().length > 0 || selectedImages.length > 0;
             publishBtn.disabled = !hasContent;
         }
     }
@@ -575,6 +704,7 @@
             }
 
             renderSelections();
+            updateAccessPill();
             updatePublishButton();
         } catch (e) {
             console.warn('Failed to load draft:', e);
@@ -603,6 +733,7 @@
 
         renderSelections();
         renderImages();
+        updateAccessPill();
         updatePublishButton();
     }
 
@@ -613,22 +744,29 @@
         const title = document.getElementById('mobileEditorTitle')?.value || '';
         const content = document.getElementById('mobileEditorTextarea')?.value || '';
 
-        if (!content.trim()) {
-            alert('请输入内容');
+        if (!content.trim() && selectedImages.length === 0) {
+            alert('请输入内容或添加图片');
             return;
         }
 
         const publishBtn = document.getElementById('mobileEditorPublish');
         publishBtn.disabled = true;
-        publishBtn.textContent = '发布中...';
+        publishBtn.textContent = '发送中...';
 
         try {
+            const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content;
+            const uploadedImageUrls = await uploadSelectedImages(csrfToken, publishBtn);
+            const composedContent = composePostContent(content, uploadedImageUrls);
+
             // 构建 FormData
             const formData = new FormData();
-            formData.append('title', title || '无标题');
-            formData.append('content', content);
+            formData.append('title', title || buildTitleFromContent(composedContent));
+            formData.append('content', composedContent);
             formData.append('is_published', 'true');
             formData.append('access_level', accessLevel);
+            if (csrfToken) {
+                formData.append('csrf_token', csrfToken);
+            }
 
             if (selectedCategory) {
                 formData.append('category_id', selectedCategory.id);
@@ -637,12 +775,6 @@
             if (selectedTags.length > 0) {
                 formData.append('tags', selectedTags.map(t => t.name).join(', '));
             }
-
-            // 获取 CSRF token
-            const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content;
-
-            // 上传图片（如果有）- 这里简化处理，实际项目中需要先上传图片
-            // 然后将图片 URL 插入内容
 
             // 提交文章 - 使用 fetch API 提交到编辑器
             const response = await fetch('/admin/new', {
@@ -656,7 +788,7 @@
             if (response.ok) {
                 clearDraft();
                 closeMobileEditor();
-                alert('发布成功！');
+                alert('发送成功！');
                 // 刷新页面
                 window.location.reload();
             } else {
@@ -667,8 +799,124 @@
             console.error('Publish error:', error);
             alert('发布失败：' + (error.message || '未知错误'));
             publishBtn.disabled = false;
-            publishBtn.textContent = '发布';
+            publishBtn.textContent = '发送';
         }
+    }
+
+    async function uploadSelectedImages(csrfToken, publishBtn) {
+        if (selectedImages.length === 0) {
+            return [];
+        }
+
+        const uploadedUrls = [];
+
+        for (let index = 0; index < selectedImages.length; index++) {
+            const image = selectedImages[index];
+            const file = image.file || await dataUrlToFile(image.dataUrl, `mobile-image-${index + 1}.png`);
+
+            if (!file) {
+                throw new Error(`第 ${index + 1} 张图片无法读取，请重新选择`);
+            }
+
+            publishBtn.textContent = `上传图片 ${index + 1}/${selectedImages.length}`;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            if (csrfToken) {
+                formData.append('csrf_token', csrfToken);
+            }
+
+            const response = await fetch('/admin/upload', {
+                method: 'POST',
+                headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
+                body: formData
+            });
+
+            const payload = await parseJsonResponse(response);
+            if (!response.ok || !payload.success) {
+                throw new Error(payload.error || `第 ${index + 1} 张图片上传失败`);
+            }
+
+            const imageUrl = payload.url || payload.urls?.large || payload.urls?.original || payload.urls?.medium || payload.urls?.thumbnail;
+            if (!imageUrl) {
+                throw new Error(`第 ${index + 1} 张图片上传后没有返回可用地址`);
+            }
+
+            uploadedUrls.push(imageUrl);
+        }
+
+        publishBtn.textContent = '发送中...';
+        return uploadedUrls;
+    }
+
+    function composePostContent(content, imageUrls) {
+        const trimmedContent = String(content || '').trim();
+        if (!imageUrls || imageUrls.length === 0) {
+            return trimmedContent;
+        }
+
+        const imageMarkup = imageUrls.map(url => `<img src="${escapeHtmlAttr(url)}" alt="">`).join('\n');
+        return trimmedContent ? `${trimmedContent}\n\n${imageMarkup}` : imageMarkup;
+    }
+
+    async function dataUrlToFile(dataUrl, fallbackName) {
+        if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
+            return null;
+        }
+
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const mimeType = blob.type || 'image/png';
+        const extension = mimeType.split('/')[1] || 'png';
+        return new File([blob], fallbackName.replace(/\.\w+$/, `.${extension}`), { type: mimeType });
+    }
+
+    async function parseJsonResponse(response) {
+        const responseClone = response.clone();
+        try {
+            return await response.json();
+        } catch (error) {
+            const text = await responseClone.text();
+            return {
+                success: false,
+                error: text || '服务器返回了无法解析的响应'
+            };
+        }
+    }
+
+    function insertAtCursor(text) {
+        const textarea = document.getElementById('mobileEditorTextarea');
+        if (!textarea) return;
+
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        textarea.value = `${textarea.value.slice(0, start)}${text}${textarea.value.slice(end)}`;
+        textarea.selectionStart = textarea.selectionEnd = start + text.length;
+        textarea.focus();
+        saveDraft();
+        updatePublishButton();
+    }
+
+    function buildTitleFromContent(content) {
+        const normalized = String(content || '')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        return normalized ? normalized.slice(0, 28) : '无标题';
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeHtmlAttr(value) {
+        return escapeHtml(value);
     }
 
     // 暴露全局函数

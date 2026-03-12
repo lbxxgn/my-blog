@@ -9,6 +9,7 @@ import markdown2
 import bleach
 import logging
 import json
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,45 @@ from models import (
 
 # 创建博客蓝图
 blog_bp = Blueprint('blog', __name__)
+
+IMAGE_SRC_PATTERN = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
+HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
+WHITESPACE_PATTERN = re.compile(r'\s+')
+
+
+def extract_post_image_urls(content, limit=9):
+    content_str = str(content or '')
+    return IMAGE_SRC_PATTERN.findall(content_str)[:limit]
+
+
+def extract_post_excerpt(content, limit=160):
+    text_content = HTML_TAG_PATTERN.sub(' ', str(content or ''))
+    normalized = WHITESPACE_PATTERN.sub(' ', text_content).strip()
+    return normalized[:limit]
+
+
+def determine_mobile_image_layout(image_count):
+    if image_count <= 1:
+        return 'single'
+    if image_count <= 4:
+        return 'grid-4'
+    if image_count <= 6:
+        return 'grid-6'
+    return 'grid-9'
+
+
+def build_post_card_payload(post):
+    post_dict = serialize_post_for_json(post)
+    image_urls = extract_post_image_urls(post_dict.get('content'))
+    post_dict['image_urls'] = image_urls
+    post_dict['image_count'] = len(image_urls)
+    post_dict['mobile_image_layout'] = determine_mobile_image_layout(len(image_urls))
+    post_dict['excerpt'] = extract_post_excerpt(post_dict.get('content'))
+    return post_dict
+
+
+def build_post_card_payloads(posts):
+    return [build_post_card_payload(post) for post in posts]
 
 
 def serialize_post_for_json(post):
@@ -73,11 +113,13 @@ def index():
     # JSON 格式支持（用于无限滚动）
     if format == 'json':
         return jsonify({
-            'posts': [serialize_post_for_json(post) for post in posts_data['posts']],
+            'posts': build_post_card_payloads(posts_data['posts']),
             'page': posts_data['page'],
             'total_pages': posts_data['total_pages'],
             'total': posts_data['total']
         })
+
+    card_posts = build_post_card_payloads(posts_data['posts'])
 
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
@@ -95,7 +137,7 @@ def index():
     all_categories_json = json.dumps([{'id': c.get('id', c.id if hasattr(c, 'id') else None), 'name': c.get('name', c.name if hasattr(c, 'name') else '')} for c in categories])
 
     return render_template('index.html',
-                         posts=posts_data['posts'],
+                         posts=card_posts,
                          categories=categories,
                          popular_tags=popular_tags,
                          pagination=posts_data,
@@ -277,11 +319,13 @@ def view_category(category_id):
 
     if request.args.get('format') == 'json':
         return jsonify({
-            'posts': [serialize_post_for_json(post) for post in posts_data['posts']],
+            'posts': build_post_card_payloads(posts_data['posts']),
             'page': posts_data['page'],
             'total_pages': posts_data['total_pages'],
             'total': posts_data['total']
         })
+
+    card_posts = build_post_card_payloads(posts_data['posts'])
 
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
@@ -297,7 +341,7 @@ def view_category(category_id):
     categories = get_all_categories()
 
     return render_template('index.html',
-                         posts=posts_data['posts'],
+                         posts=card_posts,
                          category=category,
                          categories=categories,
                          pagination=posts_data,

@@ -9,6 +9,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from pathlib import Path
+import logging
 import os
 import sqlite3
 
@@ -30,12 +32,28 @@ from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 
 # 创建管理后台蓝图
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+logger = logging.getLogger(__name__)
 
 
 def allowed_file(filename):
     """检查文件扩展名是否允许"""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def build_upload_response(image_filename):
+    image_url = url_for('static', filename=f'uploads/images/{image_filename}')
+    return jsonify({
+        'success': True,
+        'url': image_url,
+        'urls': {
+            'thumbnail': image_url,
+            'medium': image_url,
+            'large': image_url,
+            'original': image_url
+        },
+        'filename': image_filename
+    })
 
 
 def validate_password_strength(password):
@@ -677,37 +695,40 @@ def upload_image():
     file_content = file.read()
     file.seek(0)  # 重置文件指针
 
-    # 验证实际文件类型和尺寸
+    file_size = len(file_content)
+    max_file_size = 50 * 1024 * 1024  # 50MB
+    if file_size > max_file_size:
+        return jsonify({'success': False, 'error': f'文件大小超过限制（最大{max_file_size//1024//1024}MB）'}), 400
+
+    secure_name = secure_filename(file.filename)
+    file_type = secure_name.rsplit('.', 1)[1].lower() if '.' in secure_name else None
+
+    # 验证实际文件类型和尺寸；如果 Pillow 缺失，则降级为扩展名校验
     try:
         from PIL import Image
         import io
 
         img = Image.open(io.BytesIO(file_content))
-        file_type = img.format.lower() if img.format else None
+        detected_type = img.format.lower() if img.format else file_type
 
-        # 验证文件类型
-        allowed_types = ['jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff']
-        if file_type not in allowed_types:
-            return jsonify({'success': False, 'error': f'无效的图片文件类型: {file_type}'}), 400
+        allowed_types = ['jpeg', 'jpg', 'png', 'gif', 'bmp', 'webp', 'tiff']
+        if detected_type not in allowed_types:
+            return jsonify({'success': False, 'error': f'无效的图片文件类型: {detected_type}'}), 400
 
-        # 验证图片尺寸
         width, height = img.size
         max_dimension = 8192
         if width > max_dimension or height > max_dimension:
             return jsonify({'success': False, 'error': f'图片尺寸过大，最大允许{max_dimension}x{max_dimension}'}), 400
 
-        # 验证文件大小
-        file_size = len(file_content)
-        max_file_size = 50 * 1024 * 1024  # 50MB
-        if file_size > max_file_size:
-            return jsonify({'success': False, 'error': f'文件大小超过限制（最大{max_file_size//1024//1024}MB）'}), 400
-    except Exception as e:
+        file_type = 'jpg' if detected_type == 'jpeg' else detected_type
+    except ImportError:
+        logger.warning('Pillow is not installed; skipping deep image validation and optimization')
+    except Exception:
         return jsonify({'success': False, 'error': '图片文件损坏或格式错误'}), 400
 
     # 生成安全的文件名
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    secure_name = secure_filename(file.filename)
-    ext = secure_name.rsplit('.', 1)[1].lower() if '.' in secure_name else file_type
+    ext = file_type or 'png'
     random_suffix = os.urandom(4).hex()
     base_filename = f"{timestamp}_{random_suffix}"
 
@@ -738,43 +759,13 @@ def upload_image():
             # 删除原始文件
             os.remove(original_path)
 
-            # 返回所有尺寸的URL
-            return jsonify({
-                'success': True,
-                'urls': {
-                    'thumbnail': url_for('static', filename=f'uploads/images/{Path(result).name}') if sizes.get('thumbnail') else url_for('static', filename=f'uploads/images/{Path(result).name}'),
-                    'medium': url_for('static', filename=f'uploads/images/{Path(result).name}') if sizes.get('medium') else url_for('static', filename=f'uploads/images/{Path(result).name}'),
-                    'large': url_for('static', filename=f'uploads/images/{Path(result).name}') if sizes.get('large') else url_for('static', filename=f'uploads/images/{Path(result).name}'),
-                    'original': url_for('static', filename=f'uploads/images/{Path(result).name}')
-                },
-                'filename': f"{base_filename}.webp"
-            })
+            return build_upload_response(Path(result).name)
         else:
-            # 优化失败，返回原始文件URL
-            return jsonify({
-                'success': True,
-                'urls': {
-                    'thumbnail': url_for('static', filename=f'uploads/{secure_name}'),
-                    'medium': url_for('static', filename=f'uploads/{secure_name}'),
-                    'large': url_for('static', filename=f'uploads/{secure_name}'),
-                    'original': url_for('static', filename=f'uploads/{secure_name}')
-                },
-                'filename': secure_name
-            })
+            return build_upload_response(original_path.name)
 
     except Exception as e:
         logger.error(f'Error processing image: {e}')
-        # 图片处理失败，返回原始文件
-        return jsonify({
-            'success': True,
-            'urls': {
-                'thumbnail': url_for('static', filename=f'uploads/{secure_name}'),
-                'medium': url_for('static', filename=f'uploads/{secure_name}'),
-                'large': url_for('static', filename=f'uploads/{secure_name}'),
-                'original': url_for('static', filename=f'uploads/{secure_name}')
-            },
-            'filename': secure_name
-        })
+        return build_upload_response(original_path.name)
 
 
 # =============================================================================
