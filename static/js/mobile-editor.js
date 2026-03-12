@@ -355,7 +355,7 @@
      */
     function openCategorySelector() {
         const overlay = document.getElementById('categorySelectorOverlay');
-        const panel = document.getElementById('categorySelectorPanel';
+        const panel = document.getElementById('categorySelectorPanel');
 
         if (overlay && panel) {
             overlay.classList.add('show');
@@ -645,7 +645,7 @@
             // 然后将图片 URL 插入内容
 
             // 提交文章 - 使用 fetch API 提交到编辑器
-            const response = await fetch('/admin/editor', {
+            const response = await fetch('/admin/new', {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrfToken

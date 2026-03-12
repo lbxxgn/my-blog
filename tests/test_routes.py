@@ -68,6 +68,60 @@ class TestBlogRoutes:
         response = client.get('/search?q=Test')
         assert response.status_code == 200
 
+    def test_index_json_respects_category_filter(self, client, temp_db):
+        """测试首页 JSON 支持分类筛选"""
+        from models import create_category, create_post, create_user
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('jsonuser', generate_password_hash('TestPassword123!'), role='author')
+        category_id = create_category('Filtered')
+        other_category_id = create_category('Other')
+
+        create_post('Keep me', 'Category content', True, category_id, user_id)
+        create_post('Skip me', 'Other content', True, other_category_id, user_id)
+
+        response = client.get(f'/?format=json&category={category_id}')
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert len(data['posts']) == 1
+        assert data['posts'][0]['title'] == 'Keep me'
+        assert data['posts'][0]['category_name'] == 'Filtered'
+
+    def test_mobile_my_posts_requires_login(self, client):
+        """测试移动端我的文章接口需要登录"""
+        response = client.get('/mobile/my-posts')
+        assert response.status_code == 401
+
+    def test_mobile_my_posts_returns_published_and_drafts(self, client, test_admin_user, temp_db):
+        """测试移动端我的文章接口返回已发布和草稿数据"""
+        from models import create_post
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        create_post('Published mobile', 'Published content', True, None, test_admin_user['id'])
+        create_post('Draft mobile', 'Draft content', False, None, test_admin_user['id'])
+
+        published_response = client.get('/mobile/my-posts?tab=published')
+        drafts_response = client.get('/mobile/my-posts?tab=drafts')
+
+        assert published_response.status_code == 200
+        assert drafts_response.status_code == 200
+
+        published_data = published_response.get_json()
+        drafts_data = drafts_response.get_json()
+
+        assert published_data['success'] is True
+        assert any(post['title'] == 'Published mobile' for post in published_data['posts'])
+        assert all(post['is_published'] for post in published_data['posts'])
+
+        assert drafts_data['success'] is True
+        assert any(post['title'] == 'Draft mobile' for post in drafts_data['posts'])
+        assert all(not post['is_published'] for post in drafts_data['posts'])
+
 
 class TestAdminRoutes:
     """管理后台路由测试"""

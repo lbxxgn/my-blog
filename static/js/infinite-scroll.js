@@ -70,17 +70,11 @@
         try {
             currentPage++;
 
-            // 获取当前分类（如果有）
-            const loadMoreBtn = document.getElementById('load-more');
-            const categoryId = loadMoreBtn?.getAttribute('data-category') || '';
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('page', currentPage);
+            currentUrl.searchParams.set('format', 'json');
 
-            // 构建 URL
-            let url = `/?page=${currentPage}&format=json`;
-            if (categoryId) {
-                url += `&category=${categoryId}`;
-            }
-
-            const response = await fetch(url);
+            const response = await fetch(`${currentUrl.pathname}?${currentUrl.searchParams.toString()}`);
             const data = await response.json();
 
             if (data.posts && data.posts.length > 0) {

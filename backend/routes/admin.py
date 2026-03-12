@@ -141,9 +141,7 @@ def new_post():
 
         # 更新AI历史记录
         try:
-            from models import DATABASE_URL
-            db_path = DATABASE_URL.replace('sqlite:///', '')
-            conn = sqlite3.connect(db_path)
+            conn = get_db_connection()
             cursor = conn.cursor()
 
             cursor.execute('''
