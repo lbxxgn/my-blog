@@ -38,6 +38,12 @@ db/*.db
 logs/*.log
 logs/*.log.*
 !logs/.gitkeep
+server-test.log
+
+# Test coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
 
 # System files
 .DS_Store

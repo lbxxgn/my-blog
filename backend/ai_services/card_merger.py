@@ -151,20 +151,35 @@ tag1, tag2, tag3
         outline = ''
 
         # Extract title
+        body_lines = lines
         for i, line in enumerate(lines):
             if line.strip().startswith('# '):
                 title = line.strip().replace('# ', '').strip()
-                content = '\n'.join(lines[i+1:]).strip()
+                body_lines = lines[i + 1:]
+                content = '\n'.join(body_lines).strip()
                 break
 
-        # Extract outline if present
-        if '## 大纲' in content or '## Outline' in content:
-            parts = content.split('## ')[-1]
-            if '\n\n' in parts:
-                outline_parts = parts.split('\n\n')[0]
-                outline = outline_parts.strip()
-                content = content.replace('## 大纲\n' + outline + '\n\n', '')
-                content = content.replace('## Outline\n' + outline + '\n\n', '')
+        sections = {}
+        current_heading = None
+        current_lines = []
+
+        for line in body_lines:
+            stripped = line.strip()
+            if stripped.startswith('## '):
+                if current_heading is not None:
+                    sections[current_heading] = '\n'.join(current_lines).strip()
+                current_heading = stripped[3:].strip().lower()
+                current_lines = []
+            elif current_heading is not None:
+                current_lines.append(line)
+
+        if current_heading is not None:
+            sections[current_heading] = '\n'.join(current_lines).strip()
+
+        outline = sections.get('大纲', sections.get('outline', ''))
+        parsed_content = sections.get('正文内容', sections.get('content'))
+        if parsed_content:
+            content = parsed_content
 
         return {
             'title': title,
