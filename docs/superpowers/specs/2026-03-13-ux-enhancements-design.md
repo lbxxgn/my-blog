@@ -212,6 +212,10 @@ CREATE TABLE drafts (
 CREATE INDEX idx_drafts_user_post ON drafts(user_id, post_id);
 CREATE INDEX idx_drafts_user_updated ON drafts(user_id, updated_at DESC);
 CREATE INDEX idx_drafts_post ON drafts(post_id);  -- 查询某文章的所有草稿
+CREATE INDEX idx_drafts_device ON drafts(user_id, device_info, updated_at);  -- 冲突检测查询
+
+-- 唯一约束：确保每个用户+文章只有1个当前草稿
+CREATE UNIQUE INDEX idx_drafts_unique ON drafts(user_id, post_id);
 ```
 
 #### 2.2.2 草稿版本策略
@@ -936,7 +940,8 @@ class ImageOptimizationQueue:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)
                 cls._instance.executor = ThreadPoolExecutor(max_workers=4)
-                cls._instance.queue = []
+                from queue import Queue
+                cls._instance.queue = Queue()  # 线程安全的队列
                 cls._instance.processing = False
             return cls._instance
 
@@ -950,12 +955,12 @@ class ImageOptimizationQueue:
 
     def _process_queue(self):
         """处理队列中的图片"""
-        if not self.queue:
+        if self.queue.empty():
             self.processing = False
             return
 
         self.processing = True
-        image_path = self.queue.pop(0)
+        image_path = self.queue.get()  # 线程安全获取
 
         # 提交到线程池
         self.executor.submit(self._optimize_image, image_path)
@@ -1392,11 +1397,12 @@ class AssetVersionManager:
 
     def _calculate_sri(self, file_path: Path) -> str:
         """计算Subresource Integrity哈希（sha384）"""
+        import base64
         sha384 = hashlib.sha384()
         with open(file_path, 'rb') as f:
             for chunk in iter(lambda: f.read(4096), b''):
                 sha384.update(chunk)
-        return f'sha384-{sha384.digest().base64()}'
+        return f'sha384-{base64.b64encode(sha384.digest()).decode()}'
 
     def _version_filename(self, file_path: Path, file_hash: str) -> str:
         """生成版本化文件名"""
@@ -1504,13 +1510,14 @@ app.asset_manager = AssetVersionManager(app.static_folder)
 # 注册模板助手
 register_template_helpers(app)
 
-# 开发环境：自动重新生成
+# 开发环境：自动重新生成（仅当manifest不存在时）
 if app.config.get('DEBUG'):
-    @app.before_request
+    @app.before_first_request
     def auto_regenerate_assets():
-        """每次请求前检查manifest是否过期"""
-        # 生产环境不要启用！
-        app.asset_manager.regenerate()
+        """启动时检查manifest是否存在，不存在则生成"""
+        import os
+        if not os.path.exists(app.asset_manager.manifest_file):
+            app.asset_manager.regenerate()
 ```
 
 #### 4.3.4 模板使用
@@ -2028,7 +2035,195 @@ curl http://localhost:5001/ | grep -o 'css/style\.[a-f0-9]\+\.css'
 
 ---
 
-## 11. 总结
+## 11. 配置管理
+
+**集中化配置常量**（避免魔法数字）
+
+```python
+# backend/config.py 新增配置项
+
+# 草稿同步配置
+DRAFT_AUTO_SAVE_INTERVAL = 30  # 秒
+DRAFT_RETENTION_DAYS = 30      # 草稿保留天数
+DRAFT_SYNC_RETRY_ATTEMPTS = 3  # 失败重试次数
+
+# 图片优化配置
+IMAGE_OPTIMIZATION_WORKERS = 4      # 后台线程数
+IMAGE_OPTIMIZATION_TIMEOUT = 120    # 单个任务超时（秒）
+IMAGE_QUALITY = 85                  # WebP质量
+IMAGE_CLEANUP_DAYS = 7              # 原图保留天数（0=不删除）
+
+# 缓存配置
+ASSET_MANIFEST_REGENERATE = False   # 生产环境禁止自动重新生成
+
+# 快捷键配置
+SHORTCUT_HINT_AUTOFADE_DELAY = 3000  # 毫秒
+SHORTCUT_HINT_Z_INDEX = 1000
+```
+
+---
+
+## 12. 监控和日志
+
+### 12.1 日志策略
+
+**草稿同步监控**:
+```python
+logger.info('草稿已保存', extra={
+    'user_id': user_id,
+    'post_id': post_id,
+    'device': device_info,
+    'draft_id': draft_id
+})
+
+logger.warning('草稿冲突检测', extra={
+    'current_device': current_device,
+    'conflicting_device': other_device,
+    'time_diff': time_diff_seconds
+})
+```
+
+**图片优化监控**:
+```python
+logger.info('图片优化完成', extra={
+    'original_path': image_path,
+    'original_size': original_size,
+    'optimized_size': optimized_size,
+    'compression_ratio': compression_ratio,
+    'duration_seconds': duration
+})
+
+logger.error('图片优化失败', extra={
+    'image_path': image_path,
+    'error': str(error)
+})
+```
+
+**关键指标**:
+- 草稿冲突率（冲突数 / 保存次数）
+- 图片优化成功率（成功数 / 总数）
+- 平均图片压缩率
+- 资源版本生成耗时
+
+### 12.2 错误追踪
+
+**前端错误上报**:
+```javascript
+// 捕获草稿同步失败
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason?.message?.includes('draft')) {
+    // 上报到后端日志系统
+    fetch('/api/log-error', {
+      method: 'POST',
+      body: JSON.stringify({
+        error: event.reason.stack,
+        context: 'draft-sync'
+      })
+    });
+  }
+});
+```
+
+---
+
+## 13. 回滚策略
+
+### 13.1 数据库迁移回滚
+
+**草稿表回滚**:
+```python
+# backend/migrations/rollback_drafts.py
+def rollback_drafts_migration():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('DROP TABLE IF EXISTS drafts')
+    cursor.execute('DROP INDEX IF EXISTS idx_drafts_user_post')
+    cursor.execute('DROP INDEX IF EXISTS idx_drafts_user_updated')
+    cursor.execute('DROP INDEX IF EXISTS idx_drafts_device')
+    cursor.execute('DROP INDEX IF EXISTS idx_drafts_unique')
+    conn.commit()
+    conn.close()
+```
+
+**图片优化表回滚**:
+```python
+# backend/migrations/rollback_image_optimization.py
+def rollback_image_optimization_migration():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('DROP TABLE IF EXISTS optimized_images')
+    cursor.execute('DROP INDEX IF EXISTS idx_optimized_status')
+    cursor.execute('DROP INDEX IF EXISTS idx_optimized_original')
+    conn.commit()
+    conn.close()
+```
+
+### 13.2 功能开关
+
+**使用feature flags控制功能启用**:
+```python
+# backend/config.py
+FEATURE_DRAFT_SYNC = os.getenv('ENABLE_DRAFT_SYNC', 'true').lower() == 'true'
+FEATURE_IMAGE_OPTIMIZATION = os.getenv('ENABLE_IMAGE_OPTIMIZATION', 'true').lower() == 'true'
+FEATURE_ASSET_VERSIONING = os.getenv('ENABLE_ASSET_VERSIONING', 'true').lower() == 'true'
+
+# 在代码中检查
+if FEATURE_DRAFT_SYNC:
+    # 草稿同步逻辑
+```
+
+### 13.3 回滚检查清单
+
+**出现问题时**:
+- [ ] 检查日志文件 (`logs/app.log`, `logs/error.log`)
+- [ ] 禁用相关feature flag
+- [ ] 重启应用服务器
+- [ ] 如需数据库回滚，执行回滚脚本
+- [ ] 验证基本功能正常
+- [ ] 通知用户（如影响数据）
+
+---
+
+## 14. 性能基准测试
+
+### 14.1 基线测量
+
+**图片优化效果**:
+```bash
+# 测试脚本
+python tests/benchmark_image_optimization.py
+
+# 预期结果
+原图平均大小: 2.1 MB
+优化后平均: 315 KB
+压缩率: 85%
+处理时间: 1.2秒/图
+```
+
+**页面加载速度**:
+```bash
+# 使用Lighthouse
+npx lighthouse http://localhost:5001 --view
+
+# 预期改进
+当前: Lighthouse score 65
+优化后: Lighthouse score 85+
+```
+
+### 14.2 数据库性能
+
+**草稿查询性能**:
+```sql
+-- 添加索引前后对比
+EXPLAIN QUERY PLAN SELECT * FROM drafts
+WHERE user_id = 1 AND post_id = 123;
+
+-- 预期: 使用 idx_drafts_unique (O(1))
+```
+
+---
+
+## 15. 总结
 
 本设计采用**渐进式增强**策略，确保：
 
@@ -2037,15 +2232,27 @@ curl http://localhost:5001/ | grep -o 'css/style\.[a-f0-9]\+\.css'
 ✅ **可维护性高** - 代码改动小，符合现有架构
 ✅ **向后兼容** - 不影响现有功能
 ✅ **可扩展性强** - 为未来功能预留接口
+✅ **可观测性** - 完善的日志和监控
+✅ **可回滚性** - 明确的回滚策略
 
 **预期收益**:
 - 编辑效率提升 **40%**（快捷键 + 草稿同步）
 - 页面加载速度提升 **60%**（图片优化 + 缓存）
 - 用户体验满意度提升 **35%**（综合）
 
+**修复说明（v1.1）**:
+- ✅ 添加草稿表唯一约束和device_info索引
+- ✅ 修复ImageOptimizationQueue线程安全问题（使用queue.Queue）
+- ✅ 修复SRI计算语法错误（添加base64导入）
+- ✅ 优化开发环境性能（只在manifest不存在时生成）
+- ✅ 添加配置管理章节
+- ✅ 添加监控和日志策略
+- ✅ 添加回滚策略
+- ✅ 添加性能基准测试方法
+
 ---
 
-**文档版本**: 1.0
+**文档版本**: 1.1
 **最后更新**: 2026-03-13
 **设计者**: Claude (Sonnet 4.6)
-**审核状态**: 待审核
+**审核状态**: ✅ 已通过代码审查，待用户最终确认
