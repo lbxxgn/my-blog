@@ -85,3 +85,6 @@ static/uploads/*
 # Git worktrees
 .worktrees/
 worktrees/
+
+# Asset version manifest
+static/manifest.json

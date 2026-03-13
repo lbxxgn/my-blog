@@ -69,6 +69,12 @@ from models import (
 from auth_decorators import login_required
 
 # =============================================================================
+# 静态资源版本管理导入
+# =============================================================================
+from utils.asset_version import AssetVersionManager
+from utils.template_helpers import register_template_helpers
+
+# =============================================================================
 # Flask应用初始化
 # =============================================================================
 app = Flask(__name__,
@@ -78,6 +84,12 @@ app = Flask(__name__,
 # 基础配置
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+# =============================================================================
+# 初始化静态资源版本管理器
+# =============================================================================
+app.asset_manager = AssetVersionManager(app.static_folder)
+register_template_helpers(app)
 
 # =============================================================================
 # CSRF保护配置
@@ -255,6 +267,15 @@ app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
 csrf.exempt(knowledge_base_bp)
 # 对登录路由应用速率限制
 limiter.limit("5 per minute")(app.view_functions['auth.login'])
+
+# =============================================================================
+# 开发环境：启动时检查manifest
+# =============================================================================
+@app.before_first_request
+def auto_regenerate_assets():
+    """启动时检查manifest是否存在，不存在则生成"""
+    if not app.asset_manager.manifest_file.exists():
+        app.asset_manager.regenerate()
 
 # =============================================================================
 # 兼容性endpoint别名（保持旧模板的url_for调用正常工作）
