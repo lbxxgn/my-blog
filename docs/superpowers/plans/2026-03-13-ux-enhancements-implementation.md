@@ -154,7 +154,7 @@ Update `registerEditorShortcuts()` function:
 
 ```javascript
 function registerEditorShortcuts() {
-    // 现有快捷键...
+    // Ctrl+S (保存), Ctrl+Shift+S (保存草稿), Ctrl+P (预览), ESC (关闭) 已在上文定义
 
     // 新增编辑器快捷键
     const quillEditor = document.querySelector('.ql-editor');
@@ -301,7 +301,7 @@ git commit -m "feat: enhance keyboard shortcuts with hints and global shortcuts
 - Add ShortcutHint component with auto-fade
 - Add Ctrl+N for new post, Ctrl+Shift+N for quick note
 - Add ESC to close modals
-- Add editor shortcuts: Ctrl+B (bold), Ctrl+I (italic), etc.
+- Add editor shortcuts: Ctrl+B (bold), Ctrl+I (italic), Ctrl+Shift+K (code), Ctrl+Alt+L (bullet list), Ctrl+Alt+O (numbered list)
 - Add responsive CSS styles
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
@@ -978,6 +978,86 @@ git commit -m "feat: add database migrations for draft sync and image optimizati
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
 
+- [ ] **Step 6: Create rollback migration scripts**
+
+Create `backend/migrations/rollback_drafts.py`:
+
+```python
+"""回滚drafts表"""
+import sqlite3
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent))
+
+import config
+
+def rollback():
+    """执行回滚"""
+    db_path = config.DATABASE_URL.replace('sqlite:///', '')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('DROP TABLE IF EXISTS drafts')
+        cursor.execute('DROP INDEX IF EXISTS idx_drafts_user_post')
+        cursor.execute('DROP INDEX IF EXISTS idx_drafts_user_updated')
+        cursor.execute('DROP INDEX IF EXISTS idx_drafts_post')
+        cursor.execute('DROP INDEX IF EXISTS idx_drafts_device')
+        cursor.execute('DROP INDEX IF EXISTS idx_drafts_unique')
+
+        conn.commit()
+        print("✅ Drafts表已回滚")
+
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ 回滚失败: {e}")
+        raise
+    finally:
+        conn.close()
+
+if __name__ == '__main__':
+    rollback()
+```
+
+Create `backend/migrations/rollback_image_optimization.py`:
+
+```python
+"""回滚optimized_images表"""
+import sqlite3
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent))
+
+import config
+
+def rollback():
+    """执行回滚"""
+    db_path = config.DATABASE_URL.replace('sqlite:///', '')
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('DROP TABLE IF EXISTS optimized_images')
+        cursor.execute('DROP INDEX IF EXISTS idx_optimized_status')
+        cursor.execute('DROP INDEX IF EXISTS idx_optimized_original')
+        cursor.execute('DROP INDEX IF EXISTS idx_optimized_hash')
+
+        conn.commit()
+        print("✅ Optimized_images表已回滚")
+
+    except Exception as e:
+        conn.rollback()
+        print(f"❌ 回滚失败: {e}")
+        raise
+    finally:
+        conn.close()
+
+if __name__ == '__main__':
+    rollback()
+```
+
 ---
 
 ### Task 5: Draft Sync Backend API
@@ -1322,7 +1402,7 @@ curl http://localhost:5001/api/drafts?post_id=123
 - [ ] **Step 5: Commit draft backend**
 
 ```bash
-git add backend/models/draft.py backend/routes/drafts.py backend/app.py
+git add backend/models/draft.py backend/routes/drafts.py backend/app.py backend/migrations/rollback_drafts.py backend/migrations/rollback_image_optimization.py
 git commit -m "feat: implement draft sync backend API
 
 - Add draft model with transaction support
@@ -1330,6 +1410,7 @@ git commit -m "feat: implement draft sync backend API
 - Implement conflict detection and resolution
 - Add UPSERT for atomic draft updates
 - Include device info for multi-device sync
+- Add rollback migration scripts for safe deployment
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
@@ -2418,9 +2499,17 @@ Create `docs/deployment/ux-enhancements-checklist.md`:
 ## Rollback Plan
 
 If issues occur:
-1. Disable feature flags in config
+1. Disable feature flags in config (add to config.py):
+   ```python
+   FEATURE_DRAFT_SYNC = False
+   FEATURE_IMAGE_OPTIMIZATION = False
+   ```
 2. Restart application
-3. If database issues: run rollback migrations
+3. If database issues: run rollback migrations:
+   ```bash
+   python backend/migrations/rollback_drafts.py
+   python backend/migrations/rollback_image_optimization.py
+   ```
 4. Restore database from backup if needed
 ```
 
