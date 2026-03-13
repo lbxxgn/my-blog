@@ -118,6 +118,26 @@ document.addEventListener('DOMContentLoaded', () => {
         showShortcutHelp();
     }, '显示快捷键帮助');
 
+    shortcutHandler.register('ctrl+n', () => {
+        const newPostBtn = document.querySelector('a[href*="/admin/new"], a[href*="/new"]');
+        if (newPostBtn) {
+            window.location.href = newPostBtn.href;
+        }
+    }, '新建文章');
+
+    shortcutHandler.register('ctrl+shift+n', () => {
+        const quickNoteBtn = document.querySelector('a[href*="quick_note"]');
+        if (quickNoteBtn) {
+            window.location.href = quickNoteBtn.href;
+        }
+    }, '快速记事');
+
+    shortcutHandler.register('esc', () => {
+        // 关闭所有模态框
+        const modals = document.querySelectorAll('.shortcut-help-modal, .modal, [role="dialog"]');
+        modals.forEach(modal => modal.remove());
+    }, '关闭弹窗');
+
     // 根据页面类型注册特定快捷键
     switch (currentPage) {
         case 'editor':
@@ -173,8 +193,8 @@ function registerEditorShortcuts() {
     }, '关闭编辑器');
 
     // 格式化快捷键（Quill编辑器）
-    const editor = document.querySelector('.ql-editor');
-    if (editor) {
+    const quillEditor = document.querySelector('.ql-editor');
+    if (quillEditor) {
         // Quill已经处理了大部分编辑快捷键
         // 这里添加一些自定义的
         shortcutHandler.register('ctrl+d', () => {
@@ -182,6 +202,46 @@ function registerEditorShortcuts() {
             const date = new Date().toLocaleDateString('zh-CN');
             insertAtCursor(date);
         }, '插入日期');
+
+        shortcutHandler.register('ctrl+b', () => {
+            quillEditor.focus();
+            document.execCommand('bold');
+        }, '加粗');
+
+        shortcutHandler.register('ctrl+i', () => {
+            quillEditor.focus();
+            document.execCommand('italic');
+        }, '斜体');
+
+        shortcutHandler.register('ctrl+shift+k', () => {
+            const quill = window.quill;
+            if (quill) {
+                const range = quill.getSelection();
+                if (range) {
+                    quill.insertText(range.index, range.length, '`', 'user');
+                }
+            }
+        }, '插入代码');
+
+        shortcutHandler.register('ctrl+alt+l', () => {
+            const quill = window.quill;
+            if (quill) {
+                const range = quill.getSelection();
+                if (range) {
+                    quill.formatLine(range.index, 1, 'list', 'bullet');
+                }
+            }
+        }, '无序列表');
+
+        shortcutHandler.register('ctrl+alt+o', () => {
+            const quill = window.quill;
+            if (quill) {
+                const range = quill.getSelection();
+                if (range) {
+                    quill.formatLine(range.index, 1, 'list', 'ordered');
+                }
+            }
+        }, '有序列表');
     }
 }
 
@@ -698,3 +758,97 @@ style.textContent = `
 `;
 
 document.head.appendChild(style);
+
+/**
+ * 快捷键提示组件
+ */
+class ShortcutHint {
+    constructor() {
+        this.hintElement = null;
+        this.autoFadeTimer = null;
+        this.init();
+    }
+
+    init() {
+        // 检查用户是否已关闭提示
+        if (sessionStorage.getItem('shortcutHintDismissed') === 'true') {
+            return;
+        }
+
+        this.createHintElement();
+        this.show();
+    }
+
+    createHintElement() {
+        const hint = document.createElement('div');
+        hint.id = 'shortcutHint';
+        hint.className = 'shortcut-hint';
+        hint.innerHTML = `
+            <div class="hint-header">
+                <span>⌨️ 快捷键提示</span>
+                <button class="hint-close" onclick="window.shortcutHint.hide()">×</button>
+            </div>
+            <div class="hint-body">
+                ${this.getCurrentPageShortcuts()}
+            </div>
+        `;
+        document.body.appendChild(hint);
+        this.hintElement = hint;
+    }
+
+    getCurrentPageShortcuts() {
+        const pageType = document.body.dataset.page || 'home';
+        const shortcuts = {
+            'home': [
+                { keys: ['Ctrl', 'K'], desc: '快速搜索' },
+                { keys: ['Ctrl', 'N'], desc: '新建文章' },
+                { keys: ['Ctrl', '/'], desc: '查看更多' }
+            ],
+            'editor': [
+                { keys: ['Ctrl', 'S'], desc: '保存文章' },
+                { keys: ['Ctrl', 'P'], desc: '切换预览' },
+                { keys: ['ESC'], desc: '关闭编辑器' }
+            ],
+            'admin': [
+                { keys: ['Ctrl', 'N'], desc: '新建文章' },
+                { keys: ['Ctrl', 'K'], desc: '快速搜索' },
+                { keys: ['Ctrl', '/'], desc: '查看更多' }
+            ]
+        };
+
+        const pageShortcuts = shortcuts[pageType] || shortcuts['home'];
+        return pageShortcuts.map(s => `
+            <div class="hint-item">
+                ${s.keys.map(k => `<kbd>${k}</kbd>`).join(' + ')}
+                <span>${s.desc}</span>
+            </div>
+        `).join('');
+    }
+
+    show() {
+        if (!this.hintElement) return;
+        this.hintElement.style.display = 'block';
+
+        // 3秒后自动淡出
+        this.autoFadeTimer = setTimeout(() => {
+            this.hide();
+        }, 3000);
+    }
+
+    hide() {
+        if (!this.hintElement) return;
+        this.hintElement.style.opacity = '0';
+        setTimeout(() => {
+            if (this.hintElement) {
+                this.hintElement.style.display = 'none';
+            }
+        }, 300);
+
+        sessionStorage.setItem('shortcutHintDismissed', 'true');
+    }
+}
+
+// 页面加载后初始化
+document.addEventListener('DOMContentLoaded', () => {
+    window.shortcutHint = new ShortcutHint();
+});
