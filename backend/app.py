@@ -281,6 +281,28 @@ def auto_regenerate_assets():
     if not app.asset_manager.manifest_file.exists():
         app.asset_manager.regenerate()
 
+    # 恢复未完成的图片优化任务
+    try:
+        from backend.models import get_db_connection
+        from backend.tasks.image_optimization_task import queue_image_optimization
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT original_path FROM optimized_images
+            WHERE status = 'pending'
+            ORDER BY created_at ASC
+        ''')
+        pending = cursor.fetchall()
+        conn.close()
+
+        if pending:
+            for row in pending:
+                queue_image_optimization(row['original_path'])
+            logger.info(f'恢复了 {len(pending)} 个待优化任务')
+    except Exception as e:
+        logger.warning(f'恢复待优化任务失败: {e}')
+
 # =============================================================================
 # 兼容性endpoint别名（保持旧模板的url_for调用正常工作）
 # =============================================================================

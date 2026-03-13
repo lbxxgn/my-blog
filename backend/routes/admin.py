@@ -56,6 +56,50 @@ def build_upload_response(image_filename):
     })
 
 
+@admin_bp.route('/image-status/<int:optimization_id>')
+@login_required
+def image_optimization_status(optimization_id):
+    """查询图片优化状态"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT status, thumbnail_path, medium_path, large_path,
+                   original_size, optimized_size
+            FROM optimized_images
+            WHERE id = ?
+        ''', (optimization_id,))
+        result = cursor.fetchone()
+        conn.close()
+
+        if not result:
+            return jsonify({'success': False, 'error': '未找到优化记录'}), 404
+
+        compression_ratio = 0
+        if result['original_size'] and result['optimized_size']:
+            compression_ratio = (1 - result['optimized_size'] / result['original_size']) * 100
+
+        # 转换相对路径为URL
+        def path_to_url(path):
+            if not path:
+                return None
+            return url_for('static', filename=path.replace(str(UPLOAD_FOLDER.parent) + '/', '').replace('\\', '/'))
+
+        return jsonify({
+            'success': True,
+            'status': result['status'],
+            'sizes': {
+                'thumbnail': path_to_url(result['thumbnail_path']),
+                'medium': path_to_url(result['medium_path']),
+                'large': path_to_url(result['large_path'])
+            } if result['status'] == 'completed' else None,
+            'compression_ratio': compression_ratio
+        })
+    except Exception as e:
+        logger.error(f'Error fetching optimization status: {e}')
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def validate_password_strength(password):
     """
     验证密码强度
@@ -744,27 +788,37 @@ def upload_image():
     except Exception as e:
         return jsonify({'success': False, 'error': f'文件保存失败: {str(e)}'}), 500
 
-    # 优化图片并生成多种尺寸
+    # 记录到数据库并触发后台优化
     try:
-        from image_processor import generate_image_sizes, optimize_image
+        from image_processor import get_image_hash
+        from tasks.image_optimization_task import queue_image_optimization
 
-        # 生成多种尺寸
-        sizes = generate_image_sizes(str(original_path), str(images_dir))
+        image_hash = get_image_hash(str(original_path))
 
-        # 优化原始图片（替换为WebP）
-        optimized_path = f"{images_dir / base_filename}.webp"
-        success, result = optimize_image(str(original_path), optimized_path)
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO optimized_images (original_path, original_hash, status)
+            VALUES (?, ?, 'pending')
+        ''', (str(original_path), image_hash))
+        optimization_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
 
-        if success:
-            # 删除原始文件
-            os.remove(original_path)
+        # 触发后台优化
+        queue_image_optimization(str(original_path))
 
-            return build_upload_response(Path(result).name)
-        else:
-            return build_upload_response(original_path.name)
+        # 立即返回原图URL
+        return jsonify({
+            'success': True,
+            'url': url_for('static', filename=f'uploads/images/{original_path.name}'),
+            'optimization_id': optimization_id,
+            'status': 'pending'
+        })
 
     except Exception as e:
-        logger.error(f'Error processing image: {e}')
+        logger.error(f'Error queueing image optimization: {e}')
+        # 降级：立即返回原图
         return build_upload_response(original_path.name)
 
 
