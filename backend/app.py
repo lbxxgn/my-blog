@@ -243,6 +243,7 @@ def allowed_file(filename):
 # 注册蓝图
 # =============================================================================
 from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp
+from routes.drafts import drafts_bp
 
 # 注册认证蓝图
 app.register_blueprint(auth_bp)
@@ -261,6 +262,9 @@ app.register_blueprint(ai_bp)
 
 # 注册知识库蓝图
 app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
+
+# 注册草稿同步蓝图
+app.register_blueprint(drafts_bp)
 
 # 为知识库 API 端点豁免 CSRF 保护
 # 浏览器扩展无法处理 CSRF token
