@@ -186,7 +186,10 @@ function registerEditorShortcuts() {
     }, 'AI生成标签');
 
     // 关闭编辑器
-    shortcutHandler.register('esc', () => {
+    shortcutHandler.register('esc', (event) => {
+        // Prevent conflict with global ESC handler
+        event.stopPropagation();
+
         if (confirm('确定要离开编辑器吗？未保存的内容将丢失。')) {
             window.history.back();
         }
@@ -798,6 +801,7 @@ class ShortcutHint {
 
     getCurrentPageShortcuts() {
         const pageType = document.body.dataset.page || 'home';
+        // Note: shortcuts object is defined in code, not user input, so innerHTML is safe here
         const shortcuts = {
             'home': [
                 { keys: ['Ctrl', 'K'], desc: '快速搜索' },
@@ -837,6 +841,13 @@ class ShortcutHint {
 
     hide() {
         if (!this.hintElement) return;
+
+        // Clear the auto-fade timer
+        if (this.autoFadeTimer) {
+            clearTimeout(this.autoFadeTimer);
+            this.autoFadeTimer = null;
+        }
+
         this.hintElement.style.opacity = '0';
         setTimeout(() => {
             if (this.hintElement) {
