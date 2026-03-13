@@ -2424,7 +2424,7 @@ img.loaded {
     position: fixed;
     bottom: 20px;
     right: 20px;
-    background: var(--card-bg, rgba(255, 255, 255, 0.95));
+    background: var(--bg-color, rgba(255, 255, 255, 0.95));
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
