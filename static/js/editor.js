@@ -210,6 +210,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Move insert index forward
                             insertIndex += 2;
                             successCount++;
+
+                            // Start polling for optimization if optimization_id is provided
+                            if (data.optimization_id) {
+                                pollImageOptimization(data.optimization_id, data.url, insertIndex - 2);
+                            }
                         } else {
                             failedCount++;
                             failedFiles.push(`${file.name}: ${data.error}`);
@@ -414,5 +419,100 @@ document.addEventListener('DOMContentLoaded', function() {
             ? '<span class="ai-spinner"></span><span>' + message + '</span>'
             : message;
         aiStatus.style.display = 'flex';
+    }
+
+    // 轮询图片优化状态
+    function pollImageOptimization(optimizationId, originalUrl, insertIndex) {
+        const maxAttempts = 10;
+        let attempts = 0;
+
+        const poll = setInterval(async () => {
+            attempts++;
+
+            try {
+                const response = await fetch(`/admin/image-status/${optimizationId}`);
+                const result = await response.json();
+
+                if (result.status === 'completed') {
+                    clearInterval(poll);
+                    updateImageToOptimized(originalUrl, result.sizes, result.compression_ratio, insertIndex);
+                    console.log(`✓ 图片已优化，大小减少${result.compression_ratio.toFixed(0)}%`);
+
+                } else if (result.status === 'failed') {
+                    clearInterval(poll);
+                    console.warn('图片优化失败，继续使用原图');
+                }
+
+            } catch (error) {
+                console.error('查询优化状态失败:', error);
+            }
+
+            if (attempts >= maxAttempts) {
+                clearInterval(poll);
+            }
+        }, 2000); // 每2秒查询一次
+    }
+
+    // 更新为优化后的图片
+    function updateImageToOptimized(originalUrl, sizes, compressionRatio, insertIndex) {
+        if (!window.quill) return;
+
+        const editor = window.quill.root;
+
+        // 找到刚插入的图片
+        const images = editor.querySelectorAll('img');
+        let targetImage = null;
+
+        for (let img of images) {
+            if (img.src.includes(originalUrl) || img.src === originalUrl) {
+                targetImage = img;
+                break;
+            }
+        }
+
+        if (targetImage && sizes) {
+            // 创建响应式图片
+            targetImage.srcset = `
+                ${sizes.thumbnail} 150w,
+                ${sizes.medium} 600w,
+                ${sizes.large} 1200w
+            `.trim().replace(/\s+/g, ' ');
+
+            targetImage.sizes = '(max-width: 600px) 150px, (max-width: 1200px) 600px, 1200w';
+            targetImage.src = sizes.medium; // 默认使用中等尺寸
+
+            // 显示优化徽章
+            showOptimizationBadge(targetImage, compressionRatio);
+        }
+    }
+
+    // 显示优化徽章
+    function showOptimizationBadge(imgElement, compressionRatio) {
+        const badge = document.createElement('div');
+        badge.className = 'image-optimized-badge';
+        badge.textContent = `✓ 已优化 ${compressionRatio.toFixed(0)}%`;
+        badge.style.cssText = `
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0, 200, 0, 0.9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 10;
+            pointer-events: none;
+        `;
+
+        imgElement.style.position = imgElement.style.position || 'relative';
+
+        // 插入徽章到图片的父元素
+        if (imgElement.parentNode) {
+            imgElement.parentNode.style.position = 'relative';
+            imgElement.parentNode.appendChild(badge);
+        }
+
+        // 3秒后移除
+        setTimeout(() => badge.remove(), 3000);
     }
 });
