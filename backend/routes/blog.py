@@ -157,6 +157,27 @@ def view_post(post_id):
         flash('文章不存在', 'error')
         return redirect(url_for('blog.index'))
 
+    # 准备面包屑数据
+    breadcrumb = [
+        {'title': '首页', 'url': url_for('blog.index')}
+    ]
+
+    # 如果有分类，添加分类层级
+    if post.get('category_id'):
+        category = get_category_by_id(post['category_id'])
+
+        if category:
+            breadcrumb.append({
+                'title': category['name'],
+                'url': url_for('blog.view_category', category_id=category['id'])
+            })
+
+    # 当前文章（无链接）
+    breadcrumb.append({
+        'title': post['title'],
+        'url': None
+    })
+
     # 检查访问权限
     session_passwords = session.get('unlocked_posts', {})
 
@@ -223,7 +244,7 @@ def view_post(post_id):
     # 生成完整的文章URL用于分享
     post_url = url_for('blog.view_post', post_id=post_id, _external=True)
 
-    return render_template('post.html', post=post, comments=comments, post_url=post_url)
+    return render_template('post.html', post=post, comments=comments, post_url=post_url, breadcrumb=breadcrumb)
 
 
 @blog_bp.route('/post/<int:post_id>/verify-password', methods=['POST'])

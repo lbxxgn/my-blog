@@ -1,0 +1,37 @@
+{% macro breadcrumb(items) %}
+{% if items %}
+<nav class="breadcrumb" aria-label="面包屑导航">
+  {% for item in items %}
+    {% if item.url %}
+      <a href="{{ item.url }}">{{ item.title }}</a>
+    {% else %}
+      <span class="current">{{ item.title }}</span>
+    {% endif %}
+
+    {% if not loop.last %}
+      <span class="separator" aria-hidden="true">&gt;</span>
+    {% endif %}
+  {% endfor %}
+</nav>
+
+<!-- 结构化数据 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {% for item in items %}
+    {
+      "@type": "ListItem",
+      "position": {{ loop.index }},
+      "name": "{{ item.title }}",
+      {% if item.url %}
+      "item": "{{ request.url_root.rstrip('/') }}{{ item.url }}"
+      {% endif %}
+    }{{ "," if not loop.last }}
+    {% endfor %}
+  ]
+}
+</script>
+{% endif %}
+{% endmacro %}
