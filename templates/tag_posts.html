@@ -16,8 +16,15 @@
     {% if posts %}
     <div class="posts-list">
         {% for post in posts %}
-        <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
-            <article class="post-card">
+        <article class="post-card">
+            <!-- 编辑按钮（仅自己的文章显示） -->
+            {% if session.user_id and post.author_id == session.user_id %}
+            <a href="{{ url_for('edit_post', post_id=post.id) }}" class="post-edit-btn" aria-label="编辑文章">
+                ✏️
+            </a>
+            {% endif %}
+
+            <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
                 <h2>{{ post.title }}</h2>
                 <div class="post-meta">
                     <span>{{ (post.created_at|localtime)[:10] }}</span>
@@ -26,8 +33,8 @@
                     {% endif %}
                 </div>
                 <p class="post-excerpt">{{ post.content[:200] }}...</p>
-            </article>
-        </a>
+            </a>
+        </article>
         {% endfor %}
     </div>
 
@@ -54,4 +61,63 @@
     </div>
     {% endif %}
 </main>
+
+<style>
+/* 编辑按钮样式 */
+.post-card {
+    position: relative; /* 为编辑按钮定位 */
+}
+
+.post-edit-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: white;
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 6px;
+    font-size: 16px;
+    color: var(--text-color, #333);
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+}
+
+.post-edit-btn:hover {
+    background: var(--primary-color, #1abc9c);
+    color: white;
+    border-color: var(--primary-color, #1abc9c);
+    transform: scale(1.05);
+}
+
+.post-edit-btn:active {
+    transform: scale(0.95);
+}
+
+/* 调整卡片链接，避免与编辑按钮重叠 */
+.post-card-link {
+    display: block;
+    padding-right: 50px; /* 为编辑按钮留出空间 */
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .post-edit-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+        top: 10px;
+        right: 10px;
+    }
+
+    .post-card-link {
+        padding-right: 55px;
+    }
+}
+</style>
 {% endblock %}
