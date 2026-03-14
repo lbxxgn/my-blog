@@ -755,7 +755,7 @@ def upload_image():
         img = Image.open(io.BytesIO(file_content))
         detected_type = img.format.lower() if img.format else file_type
 
-        allowed_types = ['jpeg', 'jpg', 'png', 'gif', 'bmp', 'webp', 'tiff']
+        allowed_types = ['jpeg', 'jpg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'mpo', 'heic', 'heif']
         if detected_type not in allowed_types:
             return jsonify({'success': False, 'error': f'无效的图片文件类型: {detected_type}'}), 400
 
@@ -764,7 +764,23 @@ def upload_image():
         if width > max_dimension or height > max_dimension:
             return jsonify({'success': False, 'error': f'图片尺寸过大，最大允许{max_dimension}x{max_dimension}'}), 400
 
-        file_type = 'jpg' if detected_type == 'jpeg' else detected_type
+        # MPO/HEIC/HEIF 格式统一转换为 JPEG
+        if detected_type in ['mpo', 'heic', 'heif']:
+            # 转换为RGB模式（如果需要）并保存为JPEG
+            if img.mode in ('RGBA', 'P', 'LA'):
+                img = img.convert('RGB')
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            # 重新编码为JPEG到内存
+            jpeg_buffer = io.BytesIO()
+            img.save(jpeg_buffer, format='JPEG', quality=95)
+            file_content = jpeg_buffer.getvalue()
+            file_type = 'jpg'
+            detected_type = 'jpeg'
+            logger.info(f"Converted {detected_type} to JPEG")
+        else:
+            file_type = 'jpg' if detected_type == 'jpeg' else detected_type
     except ImportError:
         logger.warning('Pillow is not installed; skipping deep image validation and optimization')
     except Exception:
