@@ -222,10 +222,15 @@
 
         return `
             <article class="post-card" style="position: relative;">
-                <!-- 编辑按钮 - 优雅圆形设计 -->
-                <a href="${editHref}" class="my-post-edit-btn" aria-label="编辑文章">
-                    ✎
-                </a>
+                <!-- 操作按钮组 -->
+                <div class="my-post-actions">
+                    <button class="my-post-delete-btn" onclick="confirmDeletePost(${post.id}, '${escapeHtml(post.title || '无标题')}')" aria-label="删除文章">
+                        🗑
+                    </button>
+                    <a href="${editHref}" class="my-post-edit-btn" aria-label="编辑文章">
+                        ✎
+                    </a>
+                </div>
 
                 <a href="${href}" class="post-card-link">
                     <div class="post-card-image">
@@ -298,6 +303,110 @@
         document.body.classList.remove('mobile-layout-active');
     }
 
+    /**
+     * 确认删除文章
+     */
+    function confirmDeletePost(postId, postTitle) {
+        // 创建确认对话框
+        const modal = document.createElement('div');
+        modal.className = 'delete-confirm-modal';
+        modal.innerHTML = `
+            <div class="delete-confirm-content">
+                <div class="delete-confirm-icon">🗑</div>
+                <h3>确认删除文章</h3>
+                <p>确定要删除文章《${postTitle}》吗？</p>
+                <p class="delete-confirm-warning">此操作无法撤销</p>
+                <div class="delete-confirm-actions">
+                    <button class="delete-confirm-btn delete-confirm-btn-cancel" onclick="closeDeleteModal()">取消</button>
+                    <button class="delete-confirm-btn delete-confirm-btn-confirm" onclick="deletePost(${postId})">确认删除</button>
+                </div>
+            </div>
+        `;
+
+        // 点击背景关闭
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeDeleteModal();
+            }
+        });
+
+        document.body.appendChild(modal);
+
+        // 添加淡入动画
+        setTimeout(() => {
+            modal.classList.add('show');
+        }, 10);
+
+        // 保存 modal 引用以便关闭
+        window.deleteModal = modal;
+    }
+
+    /**
+     * 关闭删除确认对话框
+     */
+    function closeDeleteModal() {
+        if (window.deleteModal) {
+            window.deleteModal.classList.remove('show');
+            setTimeout(() => {
+                window.deleteModal.remove();
+                window.deleteModal = null;
+            }, 300);
+        }
+    }
+
+    /**
+     * 删除文章
+     */
+    async function deletePost(postId) {
+        try {
+            const response = await fetch(`/admin/delete/${postId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // 关确认对话框
+                closeDeleteModal();
+
+                // 显示成功提示
+                showToast('文章已删除');
+
+                // 重新加载文章列表
+                loadMyPosts(currentMyPostsTab);
+            } else {
+                alert('删除失败：' + (data.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('Failed to delete post:', error);
+            alert('删除失败，请稍后重试');
+        }
+    }
+
+    /**
+     * 显示提示消息
+     */
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast-message';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 2000);
+    }
+
     // 暴露全局函数
     window.MobileLayout = {
         setActiveNavItem,
@@ -305,5 +414,10 @@
         scrollToTop,
         loadMyPosts
     };
+
+    // 暴露删除相关函数到全局
+    window.confirmDeletePost = confirmDeletePost;
+    window.closeDeleteModal = closeDeleteModal;
+    window.deletePost = deletePost;
 
 })();

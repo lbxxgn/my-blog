@@ -303,10 +303,18 @@ def delete_post_route(post_id):
     """删除文章"""
     post = get_post_by_id(post_id)
     if post is None:
+        if request.headers.get('Content-Type') == 'application/json':
+            return jsonify({'success': False, 'error': '文章不存在'}), 404
         flash('文章不存在', 'error')
         return redirect(url_for('admin.admin_dashboard'))
 
     delete_post(post_id)
+
+    # 如果是 AJAX 请求，返回 JSON
+    if request.headers.get('Content-Type') == 'application/json' or \
+       request.headers.get('Accept') == 'application/json':
+        return jsonify({'success': True, 'message': '文章已删除'})
+
     flash('文章已删除', 'success')
     return redirect(url_for('admin.admin_dashboard'))
 
