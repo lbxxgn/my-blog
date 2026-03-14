@@ -1,7 +1,7 @@
 """草稿同步API路由"""
 from flask import Blueprint, request, jsonify, session
 from functools import wraps
-from backend.models.draft import save_draft, get_drafts, get_draft, resolve_conflict, delete_draft
+from models.draft import save_draft, get_drafts, get_draft, resolve_conflict, delete_draft
 
 drafts_bp = Blueprint('drafts', __name__)
 

@@ -15,9 +15,12 @@ def static_file(filename: str) -> str:
         return url_for('static', filename=filename)
 
     asset_manager = current_app.asset_manager
-    versioned_path = asset_manager.get_versioned_path(filename)
+    # 获取文件hash作为版本号（查询参数）
+    if filename in asset_manager.manifest:
+        file_hash = asset_manager.manifest[filename]['hash']
+        return url_for('static', filename=filename) + f'?v={file_hash}'
 
-    return url_for('static', filename=versioned_path)
+    return url_for('static', filename=filename)
 
 def static_file_with_integrity(filename: str) -> Dict[str, Optional[str]]:
     """
@@ -33,11 +36,16 @@ def static_file_with_integrity(filename: str) -> Dict[str, Optional[str]]:
         return {'url': url_for('static', filename=filename), 'integrity': None}
 
     asset_manager = current_app.asset_manager
-    versioned_path = asset_manager.get_versioned_path(filename)
     integrity = asset_manager.get_integrity(filename)
 
+    # 获取文件hash作为版本号（查询参数）
+    url = url_for('static', filename=filename)
+    if filename in asset_manager.manifest:
+        file_hash = asset_manager.manifest[filename]['hash']
+        url += f'?v={file_hash}'
+
     return {
-        'url': url_for('static', filename=versioned_path),
+        'url': url,
         'integrity': integrity
     }
 

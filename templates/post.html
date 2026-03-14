@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% from "components/breadcrumb.html" import breadcrumb %}
+{% from "components/breadcrumb.html" import breadcrumb as render_breadcrumb %}
 
 {% block title %}{{ post.title }} - 我的博客{% endblock %}
 
@@ -148,7 +148,7 @@ header {
 <div class="container">
     <article class="post-full">
         <!-- 面包屑导航 -->
-        {{ breadcrumb(breadcrumb) }}
+        {{ render_breadcrumb(breadcrumb) }}
 
         <!-- 文章标题和元信息 -->
         <header class="post-header">

@@ -46,7 +46,7 @@ class AssetVersionManager:
                 try:
                     rel_path = str(file_path.relative_to(self.static_folder))
                     file_hash = self._calculate_hash(file_path)
-                    versioned_name = self._version_filename(file_path, file_hash)
+                    versioned_name = self._version_filename(rel_path, file_hash)
 
                     manifest[rel_path] = {
                         'hash': file_hash,
@@ -54,7 +54,7 @@ class AssetVersionManager:
                         'integrity': self._calculate_sri(file_path)
                     }
 
-                    logger.debug(f'{rel_path} -> {versioned}')
+                    logger.debug(f'{rel_path} -> {versioned_name}')
 
                 except Exception as e:
                     logger.error(f'处理文件{file_path}失败: {e}')
@@ -78,12 +78,19 @@ class AssetVersionManager:
                 sha384.update(chunk)
         return f'sha384-{base64.b64encode(sha384.digest()).decode()}'
 
-    def _version_filename(self, file_path: Path, file_hash: str) -> str:
+    def _version_filename(self, relative_path: str, file_hash: str) -> str:
         """生成版本化文件名"""
-        path = Path(file_path)
+        path = Path(relative_path)
         stem = path.stem
         suffix = path.suffix
-        return f'{stem}.{file_hash}{suffix}'
+        # 保留原始路径结构（相对于static文件夹）
+        parent = path.parent
+        versioned_filename = f'{stem}.{file_hash}{suffix}'
+        if parent == Path('.'):
+            return versioned_filename
+        else:
+            # 返回相对于static文件夹的路径
+            return str(parent / versioned_filename)
 
     def _save_manifest(self, manifest: Dict):
         """保存manifest文件"""

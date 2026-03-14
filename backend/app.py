@@ -275,7 +275,6 @@ limiter.limit("5 per minute")(app.view_functions['auth.login'])
 # =============================================================================
 # 开发环境：启动时检查manifest
 # =============================================================================
-@app.before_first_request
 def auto_regenerate_assets():
     """启动时检查manifest是否存在，不存在则生成"""
     if not app.asset_manager.manifest_file.exists():
@@ -283,8 +282,8 @@ def auto_regenerate_assets():
 
     # 恢复未完成的图片优化任务
     try:
-        from backend.models import get_db_connection
-        from backend.tasks.image_optimization_task import queue_image_optimization
+        from models import get_db_connection
+        from tasks.image_optimization_task import queue_image_optimization
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -623,6 +622,8 @@ def init():
 if __name__ == '__main__':
     init_db()
     create_admin_user()
+    # 启动时初始化资源和恢复任务
+    auto_regenerate_assets()
     # macOS ControlCenter often uses port 5000, so we use 5001
     port = int(os.environ.get('PORT', 5001))
     app.run(debug=DEBUG, host='0.0.0.0', port=port)
