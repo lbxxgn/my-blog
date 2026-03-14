@@ -773,8 +773,20 @@ class ShortcutHint {
     }
 
     init() {
+        // 调试：在控制台输出设备检测信息
+        if (window.location.search.includes('debug=1')) {
+            console.log('=== 快捷键调试信息 ===');
+            console.log('用户代理:', navigator.userAgent);
+            console.log('屏幕宽度:', window.innerWidth);
+            console.log('触摸支持:', 'ontouchstart' in window);
+            console.log('最大触摸点:', navigator.maxTouchPoints);
+            console.log('检测为移动设备:', this.isMobileDevice());
+            console.log('======================');
+        }
+
         // 检查是否为移动设备，移动端不显示快捷键提示
         if (this.isMobileDevice()) {
+            console.log('✓ 检测到移动设备，已隐藏快捷键提示');
             return;
         }
 
@@ -792,14 +804,28 @@ class ShortcutHint {
      * @returns {boolean}
      */
     isMobileDevice() {
-        // 方法1：检查用户代理字符串
+        // 方法1：检查用户代理字符串（最可靠）
         const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-        const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+
+        // 检测 iPhone（包括所有型号）
+        if (/iPhone/.test(userAgent)) {
+            return true;
+        }
+
+        // 检测 iPad（包括 iPad Pro）
+        if (/iPad/.test(userAgent) || (/Macintosh/.test(userAgent) && navigator.maxTouchPoints > 1)) {
+            // iPad 在 iOS 13+ 会报告为 Macintosh，需要额外检查触摸支持
+            return true;
+        }
+
+        // 检测其他移动设备
+        const mobileRegex = /Android|webOS|iPod|BlackBerry|IEMobile|Opera Mini/i;
         if (mobileRegex.test(userAgent)) {
             return true;
         }
 
         // 方法2：检查屏幕宽度（小于768px认为是移动设备）
+        // iPhone 16 Plus 的逻辑宽度约为 430px
         if (window.innerWidth && window.innerWidth < 768) {
             return true;
         }
@@ -810,6 +836,8 @@ class ShortcutHint {
             navigator.maxTouchPoints > 0 ||
             navigator.msMaxTouchPoints > 0
         );
+
+        // 有触摸且屏幕宽度小于1024px（包括 iPad 和大屏手机）
         if (hasTouchScreen && window.innerWidth < 1024) {
             return true;
         }
