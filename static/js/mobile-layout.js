@@ -202,9 +202,9 @@
 
         return `
             <article class="post-card" style="position: relative;">
-                <!-- 编辑按钮 -->
+                <!-- 编辑按钮 - 优雅圆形设计 -->
                 <a href="${editHref}" class="my-post-edit-btn" aria-label="编辑文章">
-                    ✏️
+                    ✎
                 </a>
 
                 <a href="${href}" class="post-card-link">
