@@ -773,6 +773,11 @@ class ShortcutHint {
     }
 
     init() {
+        // 检查是否为移动设备，移动端不显示快捷键提示
+        if (this.isMobileDevice()) {
+            return;
+        }
+
         // 检查用户是否已关闭提示
         if (sessionStorage.getItem('shortcutHintDismissed') === 'true') {
             return;
@@ -780,6 +785,36 @@ class ShortcutHint {
 
         this.createHintElement();
         this.show();
+    }
+
+    /**
+     * 检测是否为移动设备
+     * @returns {boolean}
+     */
+    isMobileDevice() {
+        // 方法1：检查用户代理字符串
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+        if (mobileRegex.test(userAgent)) {
+            return true;
+        }
+
+        // 方法2：检查屏幕宽度（小于768px认为是移动设备）
+        if (window.innerWidth && window.innerWidth < 768) {
+            return true;
+        }
+
+        // 方法3：检查触摸支持（移动设备通常支持触摸）
+        const hasTouchScreen = (
+            'ontouchstart' in window ||
+            navigator.maxTouchPoints > 0 ||
+            navigator.msMaxTouchPoints > 0
+        );
+        if (hasTouchScreen && window.innerWidth < 1024) {
+            return true;
+        }
+
+        return false;
     }
 
     createHintElement() {
