@@ -185,6 +185,8 @@
                 return;
             }
 
+            // 添加 posts-list 类以启用卡片间距
+            container.className = 'posts-list';
             container.innerHTML = data.posts.map(renderMyPostItem).join('');
         } catch (error) {
             console.error('Failed to load my posts:', error);
