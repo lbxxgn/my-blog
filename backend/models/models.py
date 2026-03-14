@@ -673,10 +673,15 @@ def create_category(name):
         return None
 
 def get_all_categories():
-    """Get all categories with proper connection management"""
+    """Get all categories with proper connection management and post counts"""
     with get_db_context() as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM categories ORDER BY name')
+        cursor.execute('''
+            SELECT c.*,
+                   (SELECT COUNT(*) FROM posts WHERE category_id = c.id AND is_published = 1) as post_count
+            FROM categories c
+            ORDER BY c.name
+        ''')
         categories = [dict(row) for row in cursor.fetchall()]
         return categories
 

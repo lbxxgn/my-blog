@@ -266,6 +266,66 @@ def clear_session():
     return jsonify({'success': True, 'message': 'Session已清除'})
 
 
+@blog_bp.route('/archive')
+def archive():
+    """
+    文章归档 - 按时间筛选文章
+    支持:
+    - days: 最近N天的文章 (7/30/90/365)
+    - year: 指定年份
+    - month: 指定月份
+    """
+    from models import get_db_connection
+    from flask import render_template
+
+    days = request.args.get('days', type=int)
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # 构建查询条件
+    where_conditions = ["is_published = 1"]
+    params = []
+
+    if days:
+        where_conditions.append(f"created_at >= datetime('now', '-{days} days')")
+
+    if year:
+        where_conditions.append("strftime('%Y', created_at) = ?")
+        params.append(str(year))
+
+        if month:
+            where_conditions.append("strftime('%m', created_at) = ?")
+            params.append(f"{month:02d}")
+
+    where_clause = " AND ".join(where_conditions)
+
+    query = f'''
+        SELECT * FROM posts
+        WHERE {where_clause}
+        ORDER BY created_at DESC
+    '''
+
+    cursor.execute(query, params)
+    posts = cursor.fetchall()
+    conn.close()
+
+    # 生成标题
+    title = "文章归档"
+    if days:
+        title = f"最近{days}天"
+    elif year and month:
+        title = f"{year}年{month}月"
+    elif year:
+        title = f"{year}年"
+    else:
+        title = "全部归档"
+
+    return render_template('archive.html', posts=posts, title=title)
+
+
 @blog_bp.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
     """添加评论"""

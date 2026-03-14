@@ -163,28 +163,34 @@
         <!-- 移动端发现页面 -->
         <div class="mobile-page" data-page="discover" style="display: none;">
             <div class="container" style="padding: 16px;">
-                <h2 style="margin-bottom: 16px; font-size: 20px;">发现</h2>
+                <h2 style="margin-bottom: 12px; font-size: 20px;">🔍 探索</h2>
 
                 <!-- 搜索框 -->
                 <div class="form-group" style="margin-bottom: 20px;">
-                    <form action="{{ url_for('search') }}" method="get">
-                        <input type="text" name="q" placeholder="搜索文章..." style="width: 100%; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border-color);">
+                    <form action="{{ url_for('search') }}" method="get" style="position: relative;">
+                        <input type="text" name="q" placeholder="搜索文章标题或内容..."
+                               style="width: 100%; padding: 14px 40px 14px 16px; border-radius: 12px; border: 1px solid var(--border-color); font-size: 16px;">
+                        <button type="submit" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 20px; color: var(--primary-color);">
+                            🔍
+                        </button>
                     </form>
                 </div>
 
-                <!-- 热门标签 -->
-                {% if popular_tags %}
-                <div style="margin-bottom: 24px;">
-                    <h3 style="font-size: 16px; margin-bottom: 12px;">🔥 热门标签</h3>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                        {% for tag in popular_tags %}
-                        <a href="{{ url_for('view_tag', tag_id=tag.id) }}" style="display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 20px; text-decoration: none; font-size: 14px;">
-                            #{{ tag.name }}
+                <!-- 快速筛选 -->
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">快速筛选</h3>
+                    <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;">
+                        <a href="/" style="flex: 0 0 auto; padding: 8px 16px; background: var(--code-bg, #f6f8fa); border-radius: 16px; text-decoration: none; font-size: 14px; color: var(--text-color); white-space: nowrap;">
+                            🕐 最新
                         </a>
-                        {% endfor %}
+                        <a href="/archive?days=7" style="flex: 0 0 auto; padding: 8px 16px; background: var(--code-bg, #f6f8fa); border-radius: 16px; text-decoration: none; font-size: 14px; color: var(--text-color); white-space: nowrap;">
+                            📅 本周
+                        </a>
+                        <a href="/archive?days=30" style="flex: 0 0 auto; padding: 8px 16px; background: var(--code-bg, #f6f8fa); border-radius: 16px; text-decoration: none; font-size: 14px; color: var(--text-color); white-space: nowrap;">
+                            📅 本月
+                        </a>
                     </div>
                 </div>
-                {% endif %}
 
                 <!-- 分类浏览 -->
                 {% if categories %}
@@ -192,14 +198,43 @@
                     <h3 style="font-size: 16px; margin-bottom: 12px;">📂 分类浏览</h3>
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
                         {% for cat in categories %}
-                        <a href="{{ url_for('view_category', category_id=cat.id) }}" style="display: block; padding: 20px; background: var(--gradient-card); border-radius: 12px; text-align: center; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                        <a href="{{ url_for('view_category', category_id=cat.id) }}"
+                           style="display: block; padding: 20px; background: var(--gradient-card); border-radius: 12px; text-align: center; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
                             <div style="font-size: 24px; margin-bottom: 8px;">📁</div>
-                            <div style="font-weight: 600;">{{ cat.name }}</div>
+                            <div style="font-weight: 600; font-size: 14px;">{{ cat.name }}</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                                {{ cat.post_count if cat.post_count else '-' }} 篇
+                            </div>
                         </a>
                         {% endfor %}
                     </div>
                 </div>
                 {% endif %}
+
+                <!-- 热门标签 -->
+                {% if popular_tags %}
+                <div style="margin-bottom: 24px;">
+                    <h3 style="font-size: 16px; margin-bottom: 12px;">🔥 热门标签</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        {% for tag in popular_tags %}
+                        <a href="{{ url_for('view_tag', tag_id=tag.id) }}"
+                           style="display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 20px; text-decoration: none; font-size: 14px;">
+                            #{{ tag.name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <a href="/tags" style="font-size: 13px; color: var(--primary-color); text-decoration: none;">
+                            查看全部标签 →
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- 搜索提示 -->
+                <div style="text-align: center; padding: 20px 0; color: var(--text-secondary); font-size: 13px;">
+                    💡 提示：可以使用上方搜索框查找文章
+                </div>
             </div>
         </div>
 

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}
+{{ title }} - 我的博客
+{% endblock %}
+
+{% block content %}
+<div class="container main-layout">
+    <div class="content-wrapper">
+        <div class="main-content">
+            <div class="archive-header">
+                <h1>{{ title }}</h1>
+
+                <!-- 时间筛选选项 -->
+                <div class="archive-filter">
+                    <a href="/" class="filter-btn active">最新</a>
+                    <a href="/archive?days=7" class="filter-btn">📅 最近7天</a>
+                    <a href="/archive?days=30" class="filter-btn">📅 最近30天</a>
+                    <a href="/archive?days=90" class="filter-btn">📅 最近90天</a>
+                </div>
+            </div>
+
+            <!-- 文章列表 -->
+            <div class="posts-list">
+                {% if posts %}
+                    {% for post in posts %}
+                    <a href="{{ url_for('blog.view_post', post_id=post['id']) }}" class="post-card-link">
+                        <article class="post-card">
+                            {% if post.featured_image %}
+                            <div class="post-card-image">
+                                <img src="{{ post.featured_image }}" alt="{{ post.title }}">
+                            </div>
+                            {% endif %}
+
+                            <div class="post-card-content">
+                                <h2>{{ post.title }}</h2>
+
+                                <div class="post-meta">
+                                    <span class="post-date">{{ post.created_at[:10] if post.created_at else '' }}</span>
+                                    {% if post.category_name %}
+                                    <span class="post-category">{{ post.category_name }}</span>
+                                    {% endif %}
+                                    {% if post.tags %}
+                                    <span class="post-tags">
+                                        {% for tag in post.tags[:3] %}
+                                        <span class="tag">#{{ tag.name }}</span>
+                                        {% endfor %}
+                                        {% if post.tags|length > 3 %}
+                                        <span class="more-tags">+{{ post.tags|length - 3 }}</span>
+                                        {% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="post-excerpt">
+                                    {{ post.content|striptags|truncate(200) }}
+                                </div>
+                            </div>
+                        </article>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <p>该时间段内没有文章</p>
+                        <a href="/">返回首页</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.archive-header {
+    margin-bottom: 30px;
+}
+
+.archive-header h1 {
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+
+.archive-filter {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.filter-btn {
+    padding: 10px 20px;
+    background: var(--code-bg, #f6f8fa);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 20px;
+    text-decoration: none;
+    color: var(--text-color, #333);
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover,
+.filter-btn.active {
+    background: var(--primary-color, #1abc9c);
+    color: white;
+    border-color: var(--primary-color, #1abc9c);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary, #999);
+}
+
+@media (max-width: 768px) {
+    .archive-filter {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 8px;
+    }
+
+    .filter-btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+}
+</style>
+{% endblock %}
