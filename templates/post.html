@@ -104,8 +104,49 @@ header {
     font-size: 0.9rem;
 }
 
+/* 移动端返回按钮 */
+.mobile-back-btn {
+    display: none; /* 桌面端隐藏 */
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1000;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 50%;
+    font-size: 24px;
+    color: var(--text-color, #333);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+}
+
+.mobile-back-btn:hover {
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: scale(1.05);
+}
+
+.mobile-back-btn:active {
+    transform: scale(0.95);
+}
+
 /* 移动端优化 */
 @media (max-width: 768px) {
+    .mobile-back-btn {
+        display: flex; /* 移动端显示 */
+    }
+
+    .post-header {
+        padding-top: 60px; /* 为返回按钮留出空间 */
+    }
+
     .post-header .post-meta {
         flex-direction: column;
         align-items: flex-start;
@@ -145,6 +186,11 @@ header {
 {% block content %}
 <div class="container">
     <article class="post-full">
+        <!-- 移动端返回按钮 -->
+        <button class="mobile-back-btn" onclick="history.back()" aria-label="返回上一页">
+            ←
+        </button>
+
         <!-- 文章标题和元信息 -->
         <header class="post-header">
             <h1>{{ post.title }}</h1>
