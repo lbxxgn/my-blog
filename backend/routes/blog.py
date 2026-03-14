@@ -29,9 +29,90 @@ HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
 WHITESPACE_PATTERN = re.compile(r'\s+')
 
 
-def extract_post_image_urls(content, limit=9):
+def get_optimized_image_url(original_url, size='medium'):
+    """
+    将原图URL转换为优化后的URL
+
+    Args:
+        original_url: 原图URL，例如 /static/uploads/images/xxx.jpg
+        size: 尺寸类型 'thumbnail' | 'medium' | 'large'
+
+    Returns:
+        优化后的URL，如果不存在则返回原图URL
+    """
+    try:
+        # 确保是uploads/images目录下的图片
+        if '/uploads/images/' not in original_url:
+            return original_url
+
+        # 验证size参数（防止SQL注入）
+        valid_sizes = ['thumbnail', 'medium', 'large']
+        if size not in valid_sizes:
+            logger.warning(f"Invalid size parameter: {size}, using 'medium'")
+            size = 'medium'
+
+        # 从URL构建完整文件路径
+        # /static/uploads/images/xxx.jpg -> /path/to/project/static/uploads/images/xxx.jpg
+        from pathlib import Path
+        project_root = Path(__file__).parent.parent
+        full_path = project_root / original_url.lstrip('/')
+
+        # 查询数据库获取优化后的图片路径
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 根据请求的尺寸选择字段（使用白名单验证过的size）
+        size_field = f'{size}_path'
+
+        cursor.execute('''
+            SELECT {}, status
+            FROM optimized_images
+            WHERE original_path = ?
+            AND status = 'completed'
+        '''.format(size_field), (str(full_path),))
+
+        result = cursor.fetchone()
+        conn.close()
+
+        if result and result[0]:
+            # 将绝对路径转换为URL
+            optimized_path = result[0]
+            if optimized_path.startswith(project_root.as_posix()):
+                url_path = optimized_path[len(project_root.as_posix()):].lstrip('/')
+                optimized_url = f"/{url_path}"
+                logger.debug(f"Converted {original_url} -> {optimized_url}")
+                return optimized_url
+
+        # 如果没有找到优化版本，返回原图
+        logger.debug(f"No optimized version found for {original_url}")
+        return original_url
+
+    except Exception as e:
+        logger.warning(f"Error converting image URL: {e}")
+        return original_url
+
+
+def extract_post_image_urls(content, limit=9, use_optimized=True, size='medium'):
+    """
+    提取文章内容中的图片URL
+
+    Args:
+        content: 文章内容（HTML）
+        limit: 最多提取多少张图片
+        use_optimized: 是否使用优化后的图片
+        size: 当use_optimized=True时，指定使用哪个尺寸 (thumbnail/medium/large)
+
+    Returns:
+        图片URL列表
+    """
     content_str = str(content or '')
-    return IMAGE_SRC_PATTERN.findall(content_str)[:limit]
+    image_urls = IMAGE_SRC_PATTERN.findall(content_str)[:limit]
+
+    if use_optimized:
+        # 将原图URL转换为优化后的URL
+        image_urls = [get_optimized_image_url(url, size) for url in image_urls]
+
+    return image_urls
 
 
 def extract_post_excerpt(content, limit=160):
