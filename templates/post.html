@@ -108,7 +108,7 @@ header {
 .mobile-back-btn {
     display: none; /* 桌面端隐藏 */
     position: fixed;
-    top: 16px;
+    top: 70px; /* 调整位置，避免遮挡标题 */
     left: 16px;
     z-index: 1000;
     width: 44px;
@@ -144,7 +144,12 @@ header {
     }
 
     .post-header {
-        padding-top: 60px; /* 为返回按钮留出空间 */
+        padding-top: 20px; /* 正常的上边距 */
+    }
+
+    /* 隐藏底部的返回首页链接，避免重复 */
+    .post-navigation {
+        display: none;
     }
 
     .post-header .post-meta {
