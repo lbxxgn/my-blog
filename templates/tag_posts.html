@@ -14,6 +14,14 @@
     </div>
 
     {% if posts %}
+    <!-- 调试信息 -->
+    <div style="background: #fff3cd; padding: 10px; margin-bottom: 20px; border-radius: 6px; font-size: 13px;">
+        <strong>🔍 调试信息：</strong><br>
+        当前登录用户ID: <code>{{ session.user_id }}</code><br>
+        标签名称: <code>{{ tag.name }}</code><br>
+        文章数量: <code>{{ posts|length }}</code>
+    </div>
+
     <div class="posts-list">
         {% for post in posts %}
         <article class="post-card">
@@ -34,6 +42,12 @@
                 </div>
                 <p class="post-excerpt">{{ post.content[:200] }}...</p>
             </a>
+
+            <!-- 调试信息（每篇文章） -->
+            <div style="background: #e3f2fd; padding: 8px; margin-top: 10px; border-radius: 4px; font-size: 12px; color: #666;">
+                文章ID: {{ post.id }} | 作者ID: {{ post.author_id }} |
+                {% if session.user_id == post.author_id %}✅ 是您的文章{% else %}❌ 不是您的文章{% endif %}
+            </div>
         </article>
         {% endfor %}
     </div>
