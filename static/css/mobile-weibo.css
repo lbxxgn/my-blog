@@ -132,8 +132,13 @@
     .posts-list {
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 20px;  /* 增加卡片间距从12px到20px */
         padding: 16px 0;
+    }
+
+    /* 为"我的文章"页面单独设置更大的间距 */
+    .mobile-my-posts .posts-list {
+        gap: 24px;  /* 更大的间距，更舒适 */
     }
 
     .post-card {
