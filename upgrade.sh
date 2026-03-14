@@ -35,19 +35,23 @@ LOG_FILE="$BACKUP_DIR/upgrade.log"
 
 # 日志函数
 log() {
-    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1" | tee -a "$LOG_FILE"
+    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+    [ -f "$LOG_FILE" ] && echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
+    echo -e "${RED}[ERROR]${NC} $1"
+    [ -f "$LOG_FILE" ] && echo "[ERROR] $1" >> "$LOG_FILE"
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+    [ -f "$LOG_FILE" ] && echo "[WARNING] $1" >> "$LOG_FILE"
 }
 
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1" | tee -a "$LOG_FILE"
+    echo -e "${BLUE}[INFO]${NC} $1"
+    [ -f "$LOG_FILE" ] && echo "[INFO] $1" >> "$LOG_FILE"
 }
 
 # 创建备份目录
@@ -405,11 +409,15 @@ main() {
 EOF
     echo -e "${NC}"
 
+    # 0. 创建备份目录（必须先创建，否则日志无法写入）
+    mkdir -p "$BACKUP_DIR"
+    touch "$LOG_FILE"
+
     log "开始升级流程..."
     log "日志文件: $LOG_FILE"
 
     # 1. 创建备份
-    create_backup_dir || exit 1
+    log "创建备份目录: $BACKUP_DIR"
     backup_database || exit 1
     backup_static_assets || true
     backup_uploads || true
