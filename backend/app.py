@@ -54,6 +54,8 @@ from flask_limiter.util import get_remote_address
 # 日志系统导入
 # =============================================================================
 from logger import setup_logging, log_login, log_operation, log_error, log_sql
+import logging
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # 数据模型导入
