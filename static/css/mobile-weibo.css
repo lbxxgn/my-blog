@@ -19,6 +19,11 @@
         display: none !important;
     }
 
+    /* 隐藏汉堡菜单按钮（移动端无用） */
+    .hamburger {
+        display: none !important;
+    }
+
     /* 调整主内容区域，为底部导航留出空间 */
     main {
         padding-bottom: 70px;
