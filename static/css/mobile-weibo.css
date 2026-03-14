@@ -949,3 +949,42 @@
         font-size: 20px;
     }
 }
+
+/* 移动端"我的文章"编辑按钮 */
+.my-post-edit-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 8px;
+    font-size: 18px;
+    color: var(--text-color, #333);
+    text-decoration: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transition: all 0.2s;
+}
+
+.my-post-edit-btn:hover {
+    background: var(--primary-color, #1abc9c);
+    color: white;
+    border-color: var(--primary-color, #1abc9c);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.my-post-edit-btn:active {
+    transform: scale(0.95);
+}
+
+/* 为编辑按钮留出空间，避免与内容重叠 */
+.my-post-edit-btn + .post-card-link {
+    padding-right: 55px;
+    display: block;
+}

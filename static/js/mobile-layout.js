@@ -198,10 +198,16 @@
         const status = post.is_published ? '已发布' : '草稿';
         const access = formatAccess(post.access_level);
         const href = `/post/${post.id}`;
+        const editHref = `/admin/edit/${post.id}`;
 
         return `
-            <a href="${href}" class="post-card-link">
-                <article class="post-card">
+            <article class="post-card" style="position: relative;">
+                <!-- 编辑按钮 -->
+                <a href="${editHref}" class="my-post-edit-btn" aria-label="编辑文章">
+                    ✏️
+                </a>
+
+                <a href="${href}" class="post-card-link">
                     <div class="post-card-image">
                         <span class="post-card-image-placeholder">${post.is_published ? '📝' : '📄'}</span>
                     </div>
@@ -215,8 +221,8 @@
                             <time>${formatDate(post.created_at)}</time>
                         </div>
                     </div>
-                </article>
-            </a>
+                </a>
+            </article>
         `;
     }
 
