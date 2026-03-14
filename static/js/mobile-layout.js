@@ -60,6 +60,11 @@
      * 切换页面
      */
     function switchPage(page) {
+        // 只在移动端执行页面切换
+        if (window.innerWidth > 768) {
+            return;
+        }
+
         // 隐藏所有页面
         document.querySelectorAll('.mobile-page').forEach(p => {
             p.style.display = 'none';
@@ -127,8 +132,11 @@
             }
         });
 
-        // 监听 hash 变化
+        // 监听 hash 变化（只在移动端执行页面切换）
         window.addEventListener('hashchange', function() {
+            if (window.innerWidth > 768) {
+                return; // 桌面端不处理 hash 变化
+            }
             const hash = window.location.hash.slice(1) || 'home';
             if (hash !== currentPage && ['home', 'discover', 'my-posts', 'profile'].includes(hash)) {
                 setActiveNavItem(hash);
@@ -136,11 +144,20 @@
             }
         });
 
-        // 初始化 hash
+        // 初始化 hash（只在移动端执行）
         const initialHash = window.location.hash.slice(1);
-        if (initialHash && ['home', 'discover', 'my-posts', 'profile'].includes(initialHash)) {
+        if (initialHash && window.innerWidth <= 768 && ['home', 'discover', 'my-posts', 'profile'].includes(initialHash)) {
             setActiveNavItem(initialHash);
             switchPage(initialHash);
+        } else if (window.innerWidth <= 768) {
+            // 移动端没有 hash 时，确保显示首页
+            setActiveNavItem('home');
+            switchPage('home');
+        } else {
+            // 桌面端清除 hash，避免干扰
+            if (window.location.hash) {
+                history.replaceState(null, '', ' ');
+            }
         }
     }
 
