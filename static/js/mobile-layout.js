@@ -25,10 +25,11 @@
 
         navItems.forEach(item => {
             item.addEventListener('click', function(e) {
+                e.preventDefault(); // 阻止默认的 hash 跳转行为
+
                 const page = this.getAttribute('data-page');
 
                 if (page === 'publish') {
-                    e.preventDefault();
                     if (typeof window.openMobileEditor === 'function') {
                         window.openMobileEditor();
                     }
@@ -75,9 +76,6 @@
         if (targetPage) {
             targetPage.style.display = 'block';
         }
-
-        // 更新 URL hash
-        history.pushState(null, '', `#${page}`);
 
         if (page === 'my-posts') {
             loadMyPosts(currentMyPostsTab);
@@ -133,28 +131,23 @@
         });
 
         // 监听 hash 变化（只在移动端执行页面切换）
+        // 注意：移除了自动根据 hash 切换页面的逻辑，避免之前访问过的 hash 影响首页显示
         window.addEventListener('hashchange', function() {
-            if (window.innerWidth > 768) {
-                return; // 桌面端不处理 hash 变化
-            }
-            const hash = window.location.hash.slice(1) || 'home';
-            if (hash !== currentPage && ['home', 'discover', 'my-posts', 'profile'].includes(hash)) {
-                setActiveNavItem(hash);
-                switchPage(hash);
+            // 清除 hash，保持在首页
+            if (window.location.hash && window.location.hash !== '#home') {
+                history.replaceState(null, '', ' ');
             }
         });
 
-        // 初始化 hash（只在移动端执行）
-        const initialHash = window.location.hash.slice(1);
-        if (initialHash && window.innerWidth <= 768 && ['home', 'discover', 'my-posts', 'profile'].includes(initialHash)) {
-            setActiveNavItem(initialHash);
-            switchPage(initialHash);
-        } else if (window.innerWidth <= 768) {
-            // 移动端没有 hash 时，确保显示首页
+        // 初始化：确保移动端始终显示首页
+        if (window.innerWidth <= 768) {
             setActiveNavItem('home');
-            switchPage('home');
+            // 清除任何非首页的 hash
+            if (window.location.hash && window.location.hash !== '#home') {
+                history.replaceState(null, '', ' ');
+            }
         } else {
-            // 桌面端清除 hash，避免干扰
+            // 桌面端清除 hash
             if (window.location.hash) {
                 history.replaceState(null, '', ' ');
             }
