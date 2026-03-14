@@ -25,16 +25,24 @@
 
         navItems.forEach(item => {
             item.addEventListener('click', function(e) {
-                e.preventDefault(); // 阻止默认的 hash 跳转行为
-
                 const page = this.getAttribute('data-page');
 
                 if (page === 'publish') {
+                    e.preventDefault();
                     if (typeof window.openMobileEditor === 'function') {
                         window.openMobileEditor();
                     }
                     return;
                 }
+
+                // 如果点击的是首页按钮，且当前不在首页 URL，跳转到首页
+                if (page === 'home' && window.location.pathname !== '/') {
+                    // 让默认链接行为生效，跳转到首页
+                    return;
+                }
+
+                // 阻止默认行为，使用 JavaScript 切换页面
+                e.preventDefault();
 
                 if (page !== currentPage) {
                     setActiveNavItem(page);
