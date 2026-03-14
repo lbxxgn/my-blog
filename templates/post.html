@@ -172,6 +172,104 @@ header {
         width: 100%;
         justify-content: center;
     }
+
+    /* 移动端评论区精简 */
+    .comments-section {
+        margin-top: 1.5rem;
+        padding: 1rem;
+    }
+
+    .comments-section h3 {
+        font-size: 16px;
+        margin-bottom: 0.75rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .comments-section h3::after {
+        content: '▼';
+        font-size: 12px;
+        transition: transform 0.2s;
+    }
+
+    .comments-section.collapsed h3::after {
+        transform: rotate(-90deg);
+    }
+
+    /* 折叠时隐藏评论内容 */
+    .comments-section.collapsed .comments-list,
+    .comments-section.collapsed .comment-form {
+        display: none;
+    }
+
+    /* 折叠时显示提示 */
+    .comments-section.collapsed::after {
+        content: '点击展开评论';
+        display: block;
+        text-align: center;
+        padding: 1rem;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+
+    .comment {
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        background: var(--code-bg, #f6f8fa);
+        border-radius: 6px;
+    }
+
+    .comment-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        font-size: 13px;
+    }
+
+    .comment-date {
+        font-size: 11px;
+        color: var(--text-secondary);
+    }
+
+    .comment-content {
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .comment-form {
+        margin-top: 1rem;
+        padding: 0;
+    }
+
+    .comment-form h4 {
+        font-size: 15px;
+        margin-bottom: 0.75rem;
+    }
+
+    .comment-form .form-group {
+        margin-bottom: 0.75rem;
+    }
+
+    .comment-form label {
+        font-size: 13px;
+        margin-bottom: 0.25rem;
+    }
+
+    .comment-form input,
+    .comment-form textarea {
+        font-size: 14px;
+        padding: 0.6rem;
+    }
+
+    .comment-form button {
+        width: 100%;
+        padding: 0.75rem;
+        font-size: 15px;
+    }
 }
 
 /* 确保文章内容中的标题也不固定 */
@@ -318,4 +416,26 @@ header {
 <script src="{{ url_for('static', filename='js/lightbox.js') }}?v=2.0"></script>
 <!-- Code Copy -->
 <script src="{{ url_for('static', filename='js/code-copy.js') }}?v=1.1"></script>
+
+<!-- 移动端评论区折叠功能 -->
+<script>
+(function() {
+    // 只在移动端启用折叠功能
+    if (window.innerWidth <= 768) {
+        const commentsSection = document.querySelector('.comments-section');
+        if (commentsSection) {
+            // 默认折叠评论区
+            commentsSection.classList.add('collapsed');
+
+            // 点击标题展开/折叠
+            const title = commentsSection.querySelector('h3');
+            if (title) {
+                title.addEventListener('click', function() {
+                    commentsSection.classList.toggle('collapsed');
+                });
+            }
+        }
+    }
+})();
+</script>
 {% endblock %}
