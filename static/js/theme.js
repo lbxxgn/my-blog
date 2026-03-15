@@ -1,6 +1,17 @@
 // Theme switching
 document.addEventListener('DOMContentLoaded', function() {
     const themeToggle = document.getElementById('themeToggle');
+
+    // 如果主题切换按钮不存在，直接返回（移动端可能没有）
+    if (!themeToggle) {
+        // 仍然应用保存的主题
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-theme');
+        }
+        return;
+    }
+
     const themeIcon = themeToggle.querySelector('.theme-toggle-icon');
     const themeText = themeToggle.querySelector('.theme-toggle-text');
 
