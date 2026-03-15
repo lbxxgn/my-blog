@@ -12,8 +12,20 @@
     document.addEventListener('DOMContentLoaded', function() {
         // 延迟初始化，确保页面完全加载
         setTimeout(function() {
+            console.log('[InfiniteScroll] DOM loaded, window width:', window.innerWidth);
+            const container = document.getElementById('posts-container');
+            console.log('[InfiniteScroll] posts-container exists:', !!container);
+
+            // 在移动端或者存在posts-container时初始化
             if (window.innerWidth <= 768) {
+                console.log('[InfiniteScroll] Mobile detected, initializing...');
                 initInfiniteScroll();
+            } else if (container && container.children.length > 0) {
+                // 桌面端也支持无限滚动（如果容器存在且有内容）
+                console.log('[InfiniteScroll] Desktop with posts-container, initializing...');
+                initInfiniteScroll();
+            } else {
+                console.log('[InfiniteScroll] Skipped initialization (no posts-container or empty)');
             }
         }, 100);
     });
@@ -46,26 +58,50 @@
 
     function createLoadIndicator() {
         const container = document.getElementById('posts-container');
-        if (!container) return;
+        if (!container) {
+            console.error('[InfiniteScroll] posts-container not found!');
+            return;
+        }
+
+        // 如果已经存在，先删除
+        const existing = document.getElementById('loadMoreIndicator');
+        if (existing) {
+            existing.remove();
+        }
 
         const indicator = document.createElement('div');
         indicator.id = 'loadMoreIndicator';
         indicator.className = 'load-more-indicator';
         indicator.style.display = 'none';
+        indicator.style.marginTop = '20px';
+        indicator.style.padding = '20px';
+        indicator.style.textAlign = 'center';
+        indicator.style.color = '#666';
         indicator.innerHTML = `
-            <span class="spinner"></span>
-            <span>加载中...</span>
+            <span class="spinner" style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></span>
+            <span style="margin-left: 10px;">加载中...</span>
         `;
-        container.parentNode.appendChild(indicator);
+
+        // 添加到容器后面
+        container.appendChild(indicator);
+        console.log('[InfiniteScroll] Load indicator created and appended');
     }
 
     function setupObserver() {
         const indicator = document.getElementById('loadMoreIndicator');
-        if (!indicator) return;
+        if (!indicator) {
+            console.error('[InfiniteScroll] Load indicator not found for observer!');
+            return;
+        }
+
+        console.log('[InfiniteScroll] Setting up observer...');
 
         observer = new IntersectionObserver(function(entries) {
             entries.forEach(entry => {
+                console.log('[InfiniteScroll] Observer callback - isIntersecting:', entry.isIntersecting, 'isLoading:', isLoading, 'hasMore:', hasMore);
+
                 if (entry.isIntersecting && !isLoading && hasMore) {
+                    console.log('[InfiniteScroll] Triggering loadMorePosts...');
                     loadMorePosts();
                 }
             });
@@ -74,6 +110,7 @@
         });
 
         observer.observe(indicator);
+        console.log('[InfiniteScroll] Observer setup complete, now observing indicator');
     }
 
     async function loadMorePosts() {

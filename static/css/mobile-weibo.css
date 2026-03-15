@@ -1196,3 +1196,9 @@
     opacity: 1;
     transform: translateX(-50%) translateY(0);
 }
+
+/* 无限滚动加载指示器动画 */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
