@@ -72,18 +72,38 @@
         const indicator = document.createElement('div');
         indicator.id = 'loadMoreIndicator';
         indicator.className = 'load-more-indicator';
-        indicator.style.display = 'none';
+
+        // 设置样式，使其可见（用于调试）
+        indicator.style.display = 'flex';
+        indicator.style.alignItems = 'center';
+        indicator.style.justifyContent = 'center';
         indicator.style.marginTop = '20px';
         indicator.style.padding = '20px';
         indicator.style.textAlign = 'center';
         indicator.style.color = '#666';
+        indicator.style.fontSize = '14px';
+        indicator.style.minHeight = '60px';
+        indicator.style.backgroundColor = '#f0f0f0';
+        indicator.style.borderRadius = '8px';
         indicator.innerHTML = `
             <span class="spinner" style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></span>
-            <span style="margin-left: 10px;">加载中...</span>
+            <span style="margin-left: 10px;">下拉加载更多</span>
         `;
 
         // 添加到容器后面
         container.appendChild(indicator);
+
+        // 调试：输出位置信息
+        setTimeout(() => {
+            const rect = indicator.getBoundingClientRect();
+            console.log('[InfiniteScroll] Indicator position:', {
+                top: rect.top,
+                bottom: rect.bottom,
+                windowHeight: window.innerHeight,
+                isInViewport: rect.top < window.innerHeight && rect.bottom > 0
+            });
+        }, 100);
+
         console.log('[InfiniteScroll] Load indicator created and appended');
     }
 
@@ -98,19 +118,28 @@
 
         observer = new IntersectionObserver(function(entries) {
             entries.forEach(entry => {
-                console.log('[InfiniteScroll] Observer callback - isIntersecting:', entry.isIntersecting, 'isLoading:', isLoading, 'hasMore:', hasMore);
+                const rect = indicator.getBoundingClientRect();
+                console.log('[InfiniteScroll] Observer callback:', {
+                    isIntersecting: entry.isIntersecting,
+                    isLoading: isLoading,
+                    hasMore: hasMore,
+                    indicatorTop: rect.top,
+                    indicatorBottom: rect.bottom,
+                    windowHeight: window.innerHeight,
+                    distanceToBottom: rect.top - window.innerHeight
+                });
 
                 if (entry.isIntersecting && !isLoading && hasMore) {
-                    console.log('[InfiniteScroll] Triggering loadMorePosts...');
+                    console.log('[InfiniteScroll] ✅ Triggering loadMorePosts...');
                     loadMorePosts();
                 }
             });
         }, {
-            rootMargin: '100px'
+            rootMargin: '200px'  // 增加到200px，更容易触发
         });
 
         observer.observe(indicator);
-        console.log('[InfiniteScroll] Observer setup complete, now observing indicator');
+        console.log('[InfiniteScroll] Observer setup complete, now observing indicator with rootMargin=200px');
     }
 
     async function loadMorePosts() {
