@@ -94,6 +94,32 @@ app.asset_manager = AssetVersionManager(app.static_folder)
 register_template_helpers(app)
 
 # =============================================================================
+# HTTP缓存优化：为静态文件添加缓存头
+# =============================================================================
+@app.after_request
+def add_cache_headers_to_static_files(response):
+    """为静态文件响应添加缓存头，提升加载性能"""
+    # 只处理静态文件请求
+    if not request.path.startswith('/static/'):
+        return response
+
+    # 提取文件名
+    filename = request.path.split('/static/')[-1]
+
+    # 根据文件类型设置缓存策略
+    if filename.endswith(('.css', '.js')):
+        # CSS/JS文件：长期缓存（1年）
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    elif filename.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg')):
+        # 图片文件：中期缓存（1周）
+        response.headers['Cache-Control'] = 'public, max-age=604800'
+    elif filename.endswith(('.woff', '.woff2', '.ttf', '.eot')):
+        # 字体文件：长期缓存
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+
+    return response
+
+# =============================================================================
 # CSRF保护配置
 # =============================================================================
 csrf = CSRFProtect(app)

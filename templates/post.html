@@ -417,6 +417,32 @@ header {
 <!-- Code Copy -->
 <script src="{{ url_for('static', filename='js/code-copy.js') }}?v=1.1"></script>
 
+<!-- 响应式图片优化 -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const contentImages = document.querySelectorAll('.post-content img');
+
+    contentImages.forEach(function(img) {
+        const originalSrc = img.src;
+        // 添加懒加载属性
+        img.loading = 'lazy';
+
+        // 如果是本地图片，尝试使用优化版本
+        if (originalSrc.includes('/uploads/')) {
+            // 构建不同尺寸URL
+            const base = originalSrc.substring(0, originalSrc.lastIndexOf('.'));
+            const ext = originalSrc.substring(originalSrc.lastIndexOf('.'));
+
+            const srcset = `${base}_thumbnail.webp 400w, ${base}_medium.webp 800w, ${base}_large.webp 1200w`;
+            const sizes = '(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px';
+
+            img.setAttribute('srcset', srcset);
+            img.setAttribute('sizes', sizes);
+        }
+    });
+});
+</script>
+
 <!-- 移动端评论区折叠功能 -->
 <script>
 (function() {

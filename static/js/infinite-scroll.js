@@ -9,42 +9,39 @@
     let currentPage = 1;
     let observer = null;
 
-    document.addEventListener('DOMContentLoaded', function() {
-        // 延迟初始化，确保页面完全加载
-        setTimeout(function() {
-            console.log('[InfiniteScroll] DOM loaded, window width:', window.innerWidth);
-            const container = document.getElementById('posts-container');
-            console.log('[InfiniteScroll] posts-container exists:', !!container);
+    // 常量
+    const MOBILE_BREAKPOINT = 768;
+    const DEBUG = false;
 
-            // 在移动端或者存在posts-container时初始化
-            if (window.innerWidth <= 768) {
-                console.log('[InfiniteScroll] Mobile detected, initializing...');
-                initInfiniteScroll();
-            } else if (container && container.children.length > 0) {
-                // 桌面端也支持无限滚动（如果容器存在且有内容）
-                console.log('[InfiniteScroll] Desktop with posts-container, initializing...');
-                initInfiniteScroll();
-            } else {
-                console.log('[InfiniteScroll] Skipped initialization (no posts-container or empty)');
-            }
-        }, 100);
+    function debug(...args) {
+        if (DEBUG) console.log('[InfiniteScroll]', ...args);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('posts-container');
+
+        // 在移动端或者存在posts-container时初始化
+        if (window.innerWidth <= MOBILE_BREAKPOINT) {
+            initInfiniteScroll();
+        } else if (container && container.children.length > 0) {
+            initInfiniteScroll();
+        }
     });
 
     // 监听窗口大小变化
     window.addEventListener('resize', function() {
-        if (window.innerWidth <= 768 && !observer) {
+        if (window.innerWidth <= MOBILE_BREAKPOINT && !observer) {
             initInfiniteScroll();
         }
     });
 
     function initInfiniteScroll() {
-        console.log('[InfiniteScroll] Initializing...');
+        debug('Initializing...');
 
         // 隐藏桌面端的加载更多按钮
         const loadMoreBtn = document.getElementById('load-more');
         if (loadMoreBtn) {
             loadMoreBtn.style.display = 'none';
-            console.log('[InfiniteScroll] Hidden load-more button');
         }
 
         // 创建加载指示器
@@ -53,7 +50,7 @@
         // 设置 Intersection Observer
         setupObserver();
 
-        console.log('[InfiniteScroll] Initialized successfully');
+        debug('Initialized successfully');
     }
 
     function createLoadIndicator() {
@@ -72,39 +69,15 @@
         const indicator = document.createElement('div');
         indicator.id = 'loadMoreIndicator';
         indicator.className = 'load-more-indicator';
-
-        // 设置样式，使其可见（用于调试）
-        indicator.style.display = 'flex';
-        indicator.style.alignItems = 'center';
-        indicator.style.justifyContent = 'center';
-        indicator.style.marginTop = '20px';
-        indicator.style.padding = '20px';
-        indicator.style.textAlign = 'center';
-        indicator.style.color = '#666';
-        indicator.style.fontSize = '14px';
-        indicator.style.minHeight = '60px';
-        indicator.style.backgroundColor = '#f0f0f0';
-        indicator.style.borderRadius = '8px';
         indicator.innerHTML = `
-            <span class="spinner" style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></span>
-            <span style="margin-left: 10px;">下拉加载更多</span>
+            <span class="spinner"></span>
+            <span class="load-more-text">下拉加载更多</span>
         `;
 
         // 添加到容器后面
         container.appendChild(indicator);
 
-        // 调试：输出位置信息
-        setTimeout(() => {
-            const rect = indicator.getBoundingClientRect();
-            console.log('[InfiniteScroll] Indicator position:', {
-                top: rect.top,
-                bottom: rect.bottom,
-                windowHeight: window.innerHeight,
-                isInViewport: rect.top < window.innerHeight && rect.bottom > 0
-            });
-        }, 100);
-
-        console.log('[InfiniteScroll] Load indicator created and appended');
+        debug('Load indicator created and appended');
     }
 
     function setupObserver() {
@@ -114,41 +87,36 @@
             return;
         }
 
-        console.log('[InfiniteScroll] Setting up observer...');
+        debug('Setting up observer...');
 
         observer = new IntersectionObserver(function(entries) {
             entries.forEach(entry => {
-                const rect = indicator.getBoundingClientRect();
-                console.log('[InfiniteScroll] Observer callback:', {
+                debug('Observer callback:', {
                     isIntersecting: entry.isIntersecting,
                     isLoading: isLoading,
-                    hasMore: hasMore,
-                    indicatorTop: rect.top,
-                    indicatorBottom: rect.bottom,
-                    windowHeight: window.innerHeight,
-                    distanceToBottom: rect.top - window.innerHeight
+                    hasMore: hasMore
                 });
 
                 if (entry.isIntersecting && !isLoading && hasMore) {
-                    console.log('[InfiniteScroll] ✅ Triggering loadMorePosts...');
+                    debug('Triggering loadMorePosts');
                     loadMorePosts();
                 }
             });
         }, {
-            rootMargin: '200px'  // 增加到200px，更容易触发
+            rootMargin: '200px'
         });
 
         observer.observe(indicator);
-        console.log('[InfiniteScroll] Observer setup complete, now observing indicator with rootMargin=200px');
+        debug('Observer setup complete');
     }
 
     async function loadMorePosts() {
         if (isLoading || !hasMore) {
-            console.log('[InfiniteScroll] Skipping load: isLoading=' + isLoading + ', hasMore=' + hasMore);
+            debug('Skipping load: isLoading=' + isLoading + ', hasMore=' + hasMore);
             return;
         }
 
-        console.log('[InfiniteScroll] Loading page ' + (currentPage + 1));
+        debug('Loading page', currentPage + 1);
         isLoading = true;
         showLoadingIndicator();
 
@@ -160,20 +128,18 @@
             currentUrl.searchParams.set('format', 'json');
 
             const url = `${currentUrl.pathname}?${currentUrl.searchParams.toString()}`;
-            console.log('[InfiniteScroll] Fetching: ' + url);
+            debug('Fetching:', url);
 
             const response = await fetch(url);
             const data = await response.json();
 
-            console.log('[InfiniteScroll] Response:', data);
-
             if (data.posts && data.posts.length > 0) {
                 appendPosts(data.posts);
                 hasMore = currentPage < data.total_pages;
-                console.log('[InfiniteScroll] Loaded ' + data.posts.length + ' posts, hasMore=' + hasMore);
+                debug('Loaded', data.posts.length, 'posts, hasMore=', hasMore);
             } else {
                 hasMore = false;
-                console.log('[InfiniteScroll] No more posts');
+                debug('No more posts');
             }
         } catch (error) {
             console.error('[InfiniteScroll] Failed to load more posts:', error);
@@ -195,12 +161,11 @@
         // 获取加载指示器
         const indicator = document.getElementById('loadMoreIndicator');
 
-        console.log('[InfiniteScroll] Starting to append ' + posts.length + ' posts');
+        debug('Appending', posts.length, 'posts');
 
         // 如果指示器存在，将新文章插入到指示器之前
         // 否则直接添加到容器末尾
         posts.forEach((post, index) => {
-            console.log('[InfiniteScroll] Appending post ' + (index + 1) + '/' + posts.length + ':', post.id);
             const card = createPostCard(post);
 
             if (indicator) {
@@ -208,21 +173,12 @@
             } else {
                 container.appendChild(card);
             }
-
-            // 验证插入是否成功
-            if (index === posts.length - 1) {
-                console.log('[InfiniteScroll] Last post inserted. Container children count:', container.children.length);
-                console.log('[InfiniteScroll] Container HTML structure (first 500 chars):', container.innerHTML.substring(0, 500));
-            }
         });
 
-        console.log('[InfiniteScroll] ✅ Appended ' + posts.length + ' posts before indicator');
+        debug('Appended', posts.length, 'posts');
     }
 
     function createPostCard(post) {
-        // 调试：记录正在创建的文章卡片
-        console.log('[InfiniteScroll] Creating card for post:', post.id, post.title);
-
         const article = document.createElement('article');
         article.className = 'post-card';
         const imageUrls = Array.isArray(post.image_urls) ? post.image_urls.slice(0, 9) : extractImageUrls(post.content);
@@ -244,10 +200,8 @@
                     ${renderPostMedia(imageUrls, imageCount, imageLayout)}
                 </a>
             `;
-            console.log('[InfiniteScroll] ✅ Card created successfully for post:', post.id);
         } catch (error) {
-            console.error('[InfiniteScroll] ❌ Error creating card for post:', post.id, error);
-            console.error('[InfiniteScroll] Post data:', post);
+            console.error('[InfiniteScroll] Error creating card for post:', post.id, error);
         }
 
         return article;
@@ -368,7 +322,13 @@
             hasMore = true;
             isLoading = false;
         },
-        loadMore: loadMorePosts
+        loadMore: loadMorePosts,
+        destroy: function() {
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+        }
     };
 
 })();
