@@ -108,15 +108,15 @@ header {
 .mobile-back-btn {
     display: none; /* 桌面端隐藏 */
     position: fixed;
-    top: 70px; /* 调整位置，避免遮挡标题 */
+    top: 16px; /* 固定在左上角 */
     left: 16px;
     z-index: 1000;
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     background: rgba(255, 255, 255, 0.95);
     border: 1px solid var(--border-color, #e0e0e0);
     border-radius: 50%;
-    font-size: 24px;
+    font-size: 20px;
     color: var(--text-color, #333);
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -125,6 +125,7 @@ header {
     justify-content: center;
     padding: 0;
     line-height: 1;
+    font-weight: bold;
 }
 
 .mobile-back-btn:hover {
@@ -290,7 +291,7 @@ header {
 <div class="container">
     <article class="post-full">
         <!-- 移动端返回按钮 -->
-        <button class="mobile-back-btn" onclick="history.back()" aria-label="返回上一页">
+        <button class="mobile-back-btn" onclick="history.back()" aria-label="返回">
             ←
         </button>
 
