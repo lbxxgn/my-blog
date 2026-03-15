@@ -10,16 +10,29 @@
     let observer = null;
 
     document.addEventListener('DOMContentLoaded', function() {
-        if (window.innerWidth <= 768) {
+        // 延迟初始化，确保页面完全加载
+        setTimeout(function() {
+            if (window.innerWidth <= 768) {
+                initInfiniteScroll();
+            }
+        }, 100);
+    });
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', function() {
+        if (window.innerWidth <= 768 && !observer) {
             initInfiniteScroll();
         }
     });
 
     function initInfiniteScroll() {
+        console.log('[InfiniteScroll] Initializing...');
+
         // 隐藏桌面端的加载更多按钮
         const loadMoreBtn = document.getElementById('load-more');
         if (loadMoreBtn) {
             loadMoreBtn.style.display = 'none';
+            console.log('[InfiniteScroll] Hidden load-more button');
         }
 
         // 创建加载指示器
@@ -27,6 +40,8 @@
 
         // 设置 Intersection Observer
         setupObserver();
+
+        console.log('[InfiniteScroll] Initialized successfully');
     }
 
     function createLoadIndicator() {
@@ -62,8 +77,12 @@
     }
 
     async function loadMorePosts() {
-        if (isLoading || !hasMore) return;
+        if (isLoading || !hasMore) {
+            console.log('[InfiniteScroll] Skipping load: isLoading=' + isLoading + ', hasMore=' + hasMore);
+            return;
+        }
 
+        console.log('[InfiniteScroll] Loading page ' + (currentPage + 1));
         isLoading = true;
         showLoadingIndicator();
 
@@ -74,17 +93,24 @@
             currentUrl.searchParams.set('page', currentPage);
             currentUrl.searchParams.set('format', 'json');
 
-            const response = await fetch(`${currentUrl.pathname}?${currentUrl.searchParams.toString()}`);
+            const url = `${currentUrl.pathname}?${currentUrl.searchParams.toString()}`;
+            console.log('[InfiniteScroll] Fetching: ' + url);
+
+            const response = await fetch(url);
             const data = await response.json();
+
+            console.log('[InfiniteScroll] Response:', data);
 
             if (data.posts && data.posts.length > 0) {
                 appendPosts(data.posts);
                 hasMore = currentPage < data.total_pages;
+                console.log('[InfiniteScroll] Loaded ' + data.posts.length + ' posts, hasMore=' + hasMore);
             } else {
                 hasMore = false;
+                console.log('[InfiniteScroll] No more posts');
             }
         } catch (error) {
-            console.error('Failed to load more posts:', error);
+            console.error('[InfiniteScroll] Failed to load more posts:', error);
             currentPage--; // 回退页码
         } finally {
             isLoading = false;
@@ -125,19 +151,6 @@
                     <div class="post-excerpt">${escapeHtml(post.excerpt || truncateContent(post.content, 100))}</div>
                 </div>
                 ${renderPostMedia(imageUrls, imageCount, imageLayout)}
-                <div class="post-card-actions">
-                    <button type="button" class="post-action-btn">
-                        <span class="post-action-icon">❤️</span>
-                        <span>${post.like_count || 0}</span>
-                    </button>
-                    <button type="button" class="post-action-btn">
-                        <span class="post-action-icon">💬</span>
-                        <span>${post.comment_count || 0}</span>
-                    </button>
-                    <button type="button" class="post-action-btn">
-                        <span class="post-action-icon">🔗</span>
-                    </button>
-                </div>
             </a>
         `;
 
