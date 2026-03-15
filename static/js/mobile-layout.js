@@ -359,10 +359,12 @@
      */
     async function deletePost(postId) {
         try {
+            const csrfToken = document.querySelector('meta[name="csrf_token"]')?.getAttribute('content') || '';
             const response = await fetch(`/admin/delete/${postId}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 }
             });
 
