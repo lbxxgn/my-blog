@@ -210,17 +210,14 @@
     }
 
     function createPostCard(post) {
-        // 创建链接元素作为容器（与模板结构一致）
-        const link = document.createElement('a');
-        link.href = `/post/${post.id}`;
-        link.className = 'post-card-link';
-
+        const article = document.createElement('article');
+        article.className = 'post-card';
         const imageUrls = Array.isArray(post.image_urls) ? post.image_urls.slice(0, 9) : extractImageUrls(post.content);
         const imageCount = imageUrls.length;
         const imageLayout = post.mobile_image_layout || getMobileImageLayout(imageCount);
 
-        link.innerHTML = `
-            <article class="post-card">
+        article.innerHTML = `
+            <a href="/post/${post.id}" class="post-card-link">
                 <div class="post-card-content">
                     <h2>${escapeHtml(post.title)}</h2>
                     <div class="post-meta">
@@ -231,10 +228,10 @@
                     <div class="post-excerpt">${escapeHtml(post.excerpt || truncateContent(post.content, 100))}</div>
                 </div>
                 ${renderPostMedia(imageUrls, imageCount, imageLayout)}
-            </article>
+            </a>
         `;
 
-        return link;
+        return article;
     }
 
     function renderPostMedia(imageUrls, imageCount, imageLayout) {
