@@ -192,10 +192,21 @@
         const container = document.getElementById('posts-container');
         if (!container) return;
 
+        // 获取加载指示器
+        const indicator = document.getElementById('loadMoreIndicator');
+
+        // 如果指示器存在，将新文章插入到指示器之前
+        // 否则直接添加到容器末尾
         posts.forEach(post => {
             const card = createPostCard(post);
-            container.appendChild(card);
+            if (indicator) {
+                container.insertBefore(card, indicator);
+            } else {
+                container.appendChild(card);
+            }
         });
+
+        console.log('[InfiniteScroll] Appended ' + posts.length + ' posts before indicator');
     }
 
     function createPostCard(post) {
@@ -304,16 +315,23 @@
         if (indicator) {
             indicator.style.display = 'flex';
             indicator.innerHTML = `
-                <span class="spinner"></span>
-                <span>加载中...</span>
+                <span class="spinner" style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></span>
+                <span style="margin-left: 10px;">加载中...</span>
             `;
         }
     }
 
     function hideLoadingIndicator() {
         const indicator = document.getElementById('loadMoreIndicator');
-        if (indicator && hasMore) {
-            indicator.style.display = 'none';
+        if (indicator) {
+            // 保持指示器可见，这样观察器可以继续监控
+            // 只有在没有更多内容时才改变文字
+            if (hasMore) {
+                indicator.innerHTML = `
+                    <span style="display: inline-block; width: 20px; height: 20px;"></span>
+                    <span style="margin-left: 10px;">下拉加载更多</span>
+                `;
+            }
         }
     }
 
