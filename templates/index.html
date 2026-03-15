@@ -44,10 +44,9 @@
                                     <div class="post-card-media-item">
                                         <img
                                             src="{{ image_url }}"
-                                            srcset="{{ image_url|replace('medium', 'thumbnail') }} 400w,
-                                                    {{ image_url }} 800w,
-                                                    {{ image_url|replace('medium', 'large') }} 1200w"
-                                            sizes="(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px"
+                                            srcset="{{ image_url }} 400w,
+                                                    {{ image_url }} 800w"
+                                            sizes="(max-width: 600px) 400px, 800px"
                                             alt=""
                                             loading="lazy">
                                     </div>

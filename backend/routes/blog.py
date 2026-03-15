@@ -133,7 +133,8 @@ def determine_mobile_image_layout(image_count):
 
 def build_post_card_payload(post):
     post_dict = serialize_post_for_json(post)
-    image_urls = extract_post_image_urls(post_dict.get('content'))
+    # 信息流使用缩略图尺寸以提升加载速度
+    image_urls = extract_post_image_urls(post_dict.get('content'), size='thumbnail')
     post_dict['image_urls'] = image_urls
     post_dict['image_count'] = len(image_urls)
     post_dict['mobile_image_layout'] = determine_mobile_image_layout(len(image_urls))
