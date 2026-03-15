@@ -195,41 +195,60 @@
         // 获取加载指示器
         const indicator = document.getElementById('loadMoreIndicator');
 
+        console.log('[InfiniteScroll] Starting to append ' + posts.length + ' posts');
+
         // 如果指示器存在，将新文章插入到指示器之前
         // 否则直接添加到容器末尾
-        posts.forEach(post => {
+        posts.forEach((post, index) => {
+            console.log('[InfiniteScroll] Appending post ' + (index + 1) + '/' + posts.length + ':', post.id);
             const card = createPostCard(post);
+
             if (indicator) {
                 container.insertBefore(card, indicator);
             } else {
                 container.appendChild(card);
             }
+
+            // 验证插入是否成功
+            if (index === posts.length - 1) {
+                console.log('[InfiniteScroll] Last post inserted. Container children count:', container.children.length);
+                console.log('[InfiniteScroll] Container HTML structure (first 500 chars):', container.innerHTML.substring(0, 500));
+            }
         });
 
-        console.log('[InfiniteScroll] Appended ' + posts.length + ' posts before indicator');
+        console.log('[InfiniteScroll] ✅ Appended ' + posts.length + ' posts before indicator');
     }
 
     function createPostCard(post) {
+        // 调试：记录正在创建的文章卡片
+        console.log('[InfiniteScroll] Creating card for post:', post.id, post.title);
+
         const article = document.createElement('article');
         article.className = 'post-card';
         const imageUrls = Array.isArray(post.image_urls) ? post.image_urls.slice(0, 9) : extractImageUrls(post.content);
         const imageCount = imageUrls.length;
         const imageLayout = post.mobile_image_layout || getMobileImageLayout(imageCount);
 
-        article.innerHTML = `
-            <a href="/post/${post.id}" class="post-card-link">
-                <div class="post-card-content">
-                    <h2>${escapeHtml(post.title)}</h2>
-                    <div class="post-meta">
-                        ${post.category_name ? `<span class="post-category">${escapeHtml(post.category_name)}</span>` : ''}
-                        ${post.author_display_name ? `<span>👤 ${escapeHtml(post.author_display_name)}</span>` : ''}
-                        <time>${formatDate(post.created_at)}</time>
+        try {
+            article.innerHTML = `
+                <a href="/post/${post.id}" class="post-card-link">
+                    <div class="post-card-content">
+                        <h2>${escapeHtml(post.title)}</h2>
+                        <div class="post-meta">
+                            ${post.category_name ? `<span class="post-category">${escapeHtml(post.category_name)}</span>` : ''}
+                            ${post.author_display_name ? `<span>👤 ${escapeHtml(post.author_display_name)}</span>` : ''}
+                            <time>${formatDate(post.created_at)}</time>
+                        </div>
+                        <div class="post-excerpt">${escapeHtml(post.excerpt || truncateContent(post.content, 100))}</div>
                     </div>
-                    <div class="post-excerpt">${escapeHtml(post.excerpt || truncateContent(post.content, 100))}</div>
-                </div>
-                ${renderPostMedia(imageUrls, imageCount, imageLayout)}
-            </a>
-        `;
+                    ${renderPostMedia(imageUrls, imageCount, imageLayout)}
+                </a>
+            `;
+            console.log('[InfiniteScroll] ✅ Card created successfully for post:', post.id);
+        } catch (error) {
+            console.error('[InfiniteScroll] ❌ Error creating card for post:', post.id, error);
+            console.error('[InfiniteScroll] Post data:', post);
+        }
 
         return article;
     }
