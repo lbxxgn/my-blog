@@ -24,6 +24,27 @@ SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-productio
 # SQLite数据库路径
 DATABASE_URL = os.environ.get('DATABASE_URL') or f'sqlite:///{BASE_DIR}/db/simple_blog.db'
 
+
+def get_db_path():
+    """获取数据库文件路径"""
+    return DATABASE_URL.replace('sqlite:///', '')
+
+
+def get_backup_path():
+    """获取数据库备份路径（动态生成最新的备份文件）"""
+    import glob
+
+    db_dir = Path(get_db_path()).parent
+    backup_files = glob.glob(str(db_dir / 'simple_blog.db.backup.*'))
+
+    if backup_files:
+        # 返回最新的备份文件
+        latest_backup = max(backup_files)
+        return latest_backup
+
+    # 如果没有备份文件，返回默认路径
+    return str(db_dir / 'simple_blog.db.backup.latest')
+
 # =============================================================================
 # 网站设置
 # =============================================================================
@@ -45,8 +66,8 @@ SITE_AUTHOR = os.environ.get('SITE_AUTHOR') or '管理员'
 UPLOAD_FOLDER = BASE_DIR / 'static' / 'uploads'
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
-# 允许的图片文件扩展名
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+# 允许的图片文件扩展名（包含iPhone的HEIC格式）
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'}
 
 # 最大上传文件大小（100MB）
 # 注意：这是全局限制，对单个请求生效

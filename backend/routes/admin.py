@@ -42,10 +42,12 @@ def allowed_file(filename):
 
 
 def build_upload_response(image_filename):
-    image_url = url_for('static', filename=f'uploads/images/{image_filename}')
+    # 使用绝对URL确保移动端兼容性
+    image_url = f"/static/uploads/images/{image_filename}"
     return jsonify({
         'success': True,
         'url': image_url,
+        'original_url': image_url,
         'urls': {
             'thumbnail': image_url,
             'medium': image_url,
@@ -832,10 +834,15 @@ def upload_image():
         # 触发后台优化
         queue_image_optimization(str(original_path))
 
-        # 立即返回原图URL
+        # 立即返回原图URL（使用绝对路径确保兼容性）
+        image_url = f"/static/uploads/images/{original_path.name}"
+        logger.info(f"Image uploaded: {original_path.name}, URL: {image_url}")
+
         return jsonify({
             'success': True,
-            'url': url_for('static', filename=f'uploads/images/{original_path.name}'),
+            'url': image_url,
+            'filename': original_path.name,
+            'original_url': image_url,
             'optimization_id': optimization_id,
             'status': 'pending'
         })
@@ -1218,3 +1225,129 @@ def delete_user_route(user_id):
         flash('用户删除失败', 'error')
 
     return redirect(url_for('admin.user_list'))
+
+
+# =============================================================================
+# 移动端专用蓝图（无CSRF保护）
+# =============================================================================
+mobile_bp = Blueprint('mobile', __name__)
+
+
+@mobile_bp.route('/upload', methods=['POST'])
+def mobile_upload_image():
+    """
+    移动端专用图片上传接口
+
+    特点:
+        - 无需CSRF token（适合移动端）
+        - 无需登录认证（方便第三方应用）
+        - 返回绝对URL路径
+        - 支持HEIC格式自动转换
+        - 详细的错误信息
+    """
+    # 检查文件是否存在
+    if 'file' not in request.files:
+        return jsonify({
+            'success': False,
+            'error': '没有文件上传',
+            'message': '请选择要上传的图片文件'
+        }), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({
+            'success': False,
+            'error': '未选择文件',
+            'message': '文件名为空'
+        }), 400
+
+    # 验证文件扩展名
+    if not allowed_file(file.filename):
+        allowed_list = ', '.join(ALLOWED_EXTENSIONS)
+        return jsonify({
+            'success': False,
+            'error': f'不支持的文件类型',
+            'message': f'支持的文件类型: {allowed_list}'
+        }), 400
+
+    # 读取文件内容
+    file_content = file.read()
+    file_size = len(file_content)
+    max_file_size = 50 * 1024 * 1024  # 50MB
+
+    if file_size > max_file_size:
+        return jsonify({
+            'success': False,
+            'error': f'文件大小超过限制',
+            'message': f'最大允许{max_file_size//1024//1024}MB'
+        }), 400
+
+    # 获取安全文件名
+    secure_name = secure_filename(file.filename)
+    file_type = secure_name.rsplit('.', 1)[1].lower() if '.' in secure_name else 'jpg'
+
+    logger.info(f"Mobile upload request: filename={file.filename}, size={file_size}, type={file_type}")
+
+    # 验证和处理图片
+    try:
+        from PIL import Image
+        import io
+
+        # 验证图片文件
+        img = Image.open(io.BytesIO(file_content))
+        detected_type = img.format.lower() if img.format else file_type
+
+        # 处理HEIC/HEIF格式（转换为JPEG）
+        if detected_type in ['heic', 'heif']:
+            logger.info(f"Converting HEIC to JPEG")
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+
+            # 重新编码为JPEG
+            jpeg_buffer = io.BytesIO()
+            img.save(jpeg_buffer, format='JPEG', quality=95)
+            file_content = jpeg_buffer.getvalue()
+            file_type = 'jpg'
+
+        # 保存文件
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        random_suffix = os.urandom(4).hex()
+        base_filename = f"{timestamp}_{random_suffix}"
+
+        images_dir = UPLOAD_FOLDER / 'images'
+        images_dir.mkdir(exist_ok=True)
+
+        original_path = images_dir / f"{base_filename}.{file_type}"
+
+        with open(original_path, 'wb') as f:
+            f.write(file_content)
+
+        # 生成绝对URL（重要：移动端需要完整的URL路径）
+        image_url = f"/static/uploads/images/{original_path.name}"
+
+        logger.info(f"Mobile upload successful: {original_path.name}, URL: {image_url}")
+
+        # 返回详细的响应，确保移动端可以正确解析
+        return jsonify({
+            'success': True,
+            'url': image_url,
+            'filename': original_path.name,
+            'original_url': image_url,
+            'message': '上传成功',
+            'file_size': len(file_content)
+        })
+
+    except ImportError:
+        logger.error('PIL not installed for mobile upload')
+        return jsonify({
+            'success': False,
+            'error': '服务器配置错误',
+            'message': '图片处理功能不可用'
+        }), 500
+    except Exception as e:
+        logger.error(f'Mobile upload error: {e}')
+        return jsonify({
+            'success': False,
+            'error': f'上传失败: {str(e)}',
+            'message': '图片处理过程中发生错误'
+        }), 500

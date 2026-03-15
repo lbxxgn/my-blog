@@ -423,21 +423,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const contentImages = document.querySelectorAll('.post-content img');
 
     contentImages.forEach(function(img) {
-        const originalSrc = img.src;
         // 添加懒加载属性
-        img.loading = 'lazy';
+        if (!img.hasAttribute('loading')) {
+            img.loading = 'lazy';
+        }
 
-        // 如果是本地图片，尝试使用优化版本
-        if (originalSrc.includes('/uploads/')) {
-            // 构建不同尺寸URL
-            const base = originalSrc.substring(0, originalSrc.lastIndexOf('.'));
-            const ext = originalSrc.substring(originalSrc.lastIndexOf('.'));
+        // 检查是否有本地上传的图片（使用优化的WebP版本）
+        const originalSrc = img.src;
+        if (originalSrc.includes('/static/uploads/images/')) {
+            // 提取文件名（不含扩展名）
+            const filename = originalSrc.split('/').pop().replace(/\.[^/.]+$/, '');
 
-            const srcset = `${base}_thumbnail.webp 400w, ${base}_medium.webp 800w, ${base}_large.webp 1200w`;
-            const sizes = '(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px';
-
-            img.setAttribute('srcset', srcset);
-            img.setAttribute('sizes', sizes);
+            // 尝试使用优化的WebP版本
+            fetch(`/static/uploads/optimized/${filename}_medium.webp`, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        // WebP版本存在，使用srcset
+                        const webpBase = `/static/uploads/optimized/${filename}`;
+                        img.srcset = `${webpBase}_thumbnail.webp 400w, ${webpBase}_medium.webp 800w, ${webpBase}_large.webp 1200w`;
+                        img.sizes = '(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px';
+                    }
+                })
+                .catch(() => {
+                    // 优化版本不存在，保持原图
+                    console.debug('WebP version not available for:', originalSrc);
+                });
         }
     });
 });

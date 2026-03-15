@@ -58,6 +58,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 # =============================================================================
+# 注册HEIC格式支持（iPhone图片）
+# =============================================================================
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+    logger.info('HEIC/HEIF format support enabled for iPhone images')
+except ImportError:
+    logger.info('pillow-heif not installed, HEIC/HEIF support disabled')
+
+# =============================================================================
 # 数据模型导入
 # =============================================================================
 from models import (
@@ -294,9 +304,17 @@ app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
 # 注册草稿同步蓝图
 app.register_blueprint(drafts_bp)
 
+# 注册移动端蓝图
+from routes.admin import mobile_bp
+app.register_blueprint(mobile_bp, url_prefix='/mobile')
+
 # 为知识库 API 端点豁免 CSRF 保护
 # 浏览器扩展无法处理 CSRF token
 csrf.exempt(knowledge_base_bp)
+
+# 为移动端上传端点豁免 CSRF 保护
+# 移动端应用无法处理 CSRF token
+csrf.exempt(mobile_bp)
 # 对登录路由应用速率限制
 limiter.limit("5 per minute")(app.view_functions['auth.login'])
 
