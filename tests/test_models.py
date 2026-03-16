@@ -22,7 +22,7 @@ class TestUserModels:
 
     def test_create_user(self, temp_db):
         """测试创建用户"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user(
             username='testuser',
             password_hash=password_hash,
@@ -36,7 +36,7 @@ class TestUserModels:
 
     def test_get_user_by_username(self, temp_db):
         """测试通过用户名获取用户"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         create_user('testuser', password_hash, role='author')
 
         user = get_user_by_username('testuser')
@@ -46,7 +46,7 @@ class TestUserModels:
 
     def test_get_user_by_id(self, temp_db):
         """测试通过ID获取用户"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('testuser', password_hash, role='author')
 
         user = get_user_by_id(user_id)
@@ -55,7 +55,7 @@ class TestUserModels:
 
     def test_update_user(self, temp_db):
         """测试更新用户"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('testuser', password_hash, role='author')
 
         update_user(user_id, display_name='Updated Name', bio='Updated bio')
@@ -66,7 +66,7 @@ class TestUserModels:
 
     def test_delete_user(self, temp_db):
         """测试删除用户"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('testuser', password_hash, role='author')
 
         result = delete_user(user_id)
@@ -312,7 +312,7 @@ class TestBrowserExtensionAPI:
 
     def test_generate_api_key(self, temp_db):
         """测试生成API密钥"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('apikeyuser', password_hash, role='author')
 
         api_key = generate_api_key(user_id)
@@ -322,7 +322,7 @@ class TestBrowserExtensionAPI:
 
     def test_validate_api_key_valid(self, temp_db):
         """测试验证有效的API密钥"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('validateuser', password_hash, role='author')
         api_key = generate_api_key(user_id)
 
@@ -346,7 +346,7 @@ class TestBrowserExtensionAPI:
 
     def test_create_card(self, temp_db):
         """测试创建知识库卡片"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('carduser', password_hash, role='author')
 
         card_id = create_card(
@@ -363,7 +363,7 @@ class TestBrowserExtensionAPI:
 
     def test_create_card_with_defaults(self, temp_db):
         """测试使用默认值创建卡片"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('carduser2', password_hash, role='author')
 
         card_id = create_card(
@@ -376,7 +376,7 @@ class TestBrowserExtensionAPI:
 
     def test_get_cards_by_user(self, temp_db):
         """测试获取用户卡片"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('carduser3', password_hash, role='author')
 
         # Create multiple cards
@@ -389,7 +389,7 @@ class TestBrowserExtensionAPI:
 
     def test_get_cards_by_user_with_status(self, temp_db):
         """测试按状态获取用户卡片"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('carduser4', password_hash, role='author')
 
         create_card(user_id, 'Card 1', 'Content 1', status='idea')
@@ -404,7 +404,7 @@ class TestBrowserExtensionAPI:
 
     def test_create_annotation(self, temp_db):
         """测试创建标注"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('annouser', password_hash, role='author')
 
         annotation_id = create_annotation(
@@ -422,7 +422,7 @@ class TestBrowserExtensionAPI:
 
     def test_create_annotation_with_defaults(self, temp_db):
         """测试使用默认值创建标注"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('annouser2', password_hash, role='author')
 
         annotation_id = create_annotation(
@@ -438,7 +438,7 @@ class TestBrowserExtensionAPI:
 
     def test_get_annotations_by_url(self, temp_db):
         """测试获取URL的标注"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('annouser3', password_hash, role='author')
 
         # Create multiple annotations for same URL
@@ -451,7 +451,7 @@ class TestBrowserExtensionAPI:
 
     def test_get_annotations_by_url_empty(self, temp_db):
         """测试获取不存在的URL的标注"""
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('annouser4', password_hash, role='author')
 
         annotations = get_annotations_by_url(user_id, 'https://example.com/nonexistent')

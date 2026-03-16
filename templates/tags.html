@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}全部标签 - {{ config['BLOG_NAME'] }}{% endblock %}
+
+{% block content %}
+<main class="container">
+    <h1 style="margin-bottom: 2rem;">全部标签</h1>
+
+    {% if tags %}
+    <div class="tags-cloud">
+        {% for tag in tags %}
+        <a href="{{ url_for('view_tag', tag_id=tag.id) }}" class="tag-cloud-item">
+            #{{ tag.name }}
+            <span class="tag-count">({{ tag.post_count }})</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <style>
+        .tags-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin: 2rem 0;
+        }
+
+        .tag-cloud-item {
+            display: inline-block;
+            padding: 0.75rem 1.25rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+
+        .tag-cloud-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .tag-count {
+            opacity: 0.8;
+            font-size: 0.9em;
+            margin-left: 0.25rem;
+        }
+    </style>
+
+    {% else %}
+    <div style="text-align: center; padding: 3rem 1rem; color: #666;">
+        <p>暂无标签</p>
+    </div>
+    {% endif %}
+</main>
+{% endblock %}

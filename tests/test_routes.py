@@ -74,7 +74,7 @@ class TestBlogRoutes:
         from models import create_category, create_post, create_user
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('jsonuser', generate_password_hash('TestPassword123!'), role='author')
+        user_id = create_user('jsonuser', generate_password_hash('TestPassword123!', method='pbkdf2:sha256'), role='author')
         category_id = create_category('Filtered')
         other_category_id = create_category('Other')
 
@@ -128,7 +128,7 @@ class TestBlogRoutes:
         from models import create_post, create_user
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('imageuser', generate_password_hash('TestPassword123!'), role='author')
+        user_id = create_user('imageuser', generate_password_hash('TestPassword123!', method='pbkdf2:sha256'), role='author')
         content = '''
             <p>图文内容</p>
             <img src="/static/uploads/1.jpg" alt="">
@@ -254,7 +254,7 @@ class TestCategoryTagRoutes:
         from werkzeug.security import generate_password_hash
 
         # 创建测试数据
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('testuser', password_hash, role='author')
         category_id = create_category('Technology')
         create_post('Test', 'Content', True, category_id, user_id)
@@ -268,7 +268,7 @@ class TestCategoryTagRoutes:
         from werkzeug.security import generate_password_hash
 
         # 创建测试数据
-        password_hash = generate_password_hash('TestPassword123!')
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
         user_id = create_user('testuser', password_hash, role='author')
         post_id = create_post('Test', 'Content', True, None, user_id)
         tag_id = create_tag('python')
@@ -311,7 +311,7 @@ class TestKnowledgeBaseRoutes:
         from werkzeug.security import generate_password_hash
 
         # Create user with API key
-        password_hash = generate_password_hash('TestPass123!')
+        password_hash = generate_password_hash('TestPass123!', method='pbkdf2:sha256')
         user_id = create_user('extuser', password_hash, role='author')
         api_key = generate_api_key(user_id)
 
@@ -349,7 +349,7 @@ class TestKnowledgeBaseRoutes:
         from models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('extuser2', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('extuser2', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         api_key = generate_api_key(user_id)
 
         response = client.post('/knowledge_base/api/plugin/sync-annotations',
@@ -378,7 +378,7 @@ class TestKnowledgeBaseRoutes:
         from models import create_user, generate_api_key, create_annotation
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('extuser3', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('extuser3', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         api_key = generate_api_key(user_id)
 
         # Create a test annotation
@@ -438,7 +438,7 @@ class TestKnowledgeBaseRoutes:
         from models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('extuser4', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('extuser4', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         api_key = generate_api_key(user_id)
 
         response = client.post('/knowledge_base/api/plugin/submit',
@@ -459,7 +459,7 @@ class TestKnowledgeBaseRoutes:
         from models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('extuser5', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('extuser5', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         api_key = generate_api_key(user_id)
 
         # Missing URL
@@ -479,7 +479,7 @@ class TestKnowledgeBaseRoutes:
         from models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('extuser6', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('extuser6', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         api_key = generate_api_key(user_id)
 
         response = client.get('/knowledge_base/api/plugin/annotations',
@@ -495,7 +495,7 @@ class TestKnowledgeBaseRoutes:
         from models import create_user, generate_api_key, create_card
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('extuser7', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('extuser7', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         api_key = generate_api_key(user_id)
 
         # Create some test cards
@@ -517,7 +517,7 @@ class TestKnowledgeBaseRoutes:
         from models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('extuser8', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('extuser8', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         api_key = generate_api_key(user_id)
 
         # Create content larger than 1MB
@@ -542,7 +542,7 @@ class TestKnowledgeBaseRoutes:
         from models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('extuser9', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('extuser9', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         api_key = generate_api_key(user_id)
 
         response = client.post('/knowledge_base/api/plugin/sync-annotations',
@@ -570,7 +570,7 @@ class TestKnowledgeBaseRoutes:
         from models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('extuser10', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('extuser10', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         api_key = generate_api_key(user_id)
 
         response = client.post('/knowledge_base/api/plugin/sync-annotations',

@@ -338,7 +338,7 @@ class TestPostCardImagePayload:
         from backend.models import create_user, create_post
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('imguser', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('imguser', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
 
         content = '''
         <p>文章内容</p>
@@ -367,7 +367,7 @@ class TestPostCardImagePayload:
         from backend.models import create_user, create_post
         from werkzeug.security import generate_password_hash
 
-        user_id = create_user('imguser2', generate_password_hash('TestPass123!'), role='author')
+        user_id = create_user('imguser2', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
         content = '<p>纯文本文章，没有图片</p>'
 
         post_id = create_post(

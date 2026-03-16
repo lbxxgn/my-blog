@@ -2540,3 +2540,76 @@ img.loaded {
 
 
 /* PC端信息流样式已移至 pc-feed.css */
+
+/* ========================================
+   PC端隐藏移动端专属元素
+   ======================================== */
+
+/* 默认隐藏移动端底部导航 */
+.mobile-bottom-nav {
+    display: none !important;
+}
+
+/* 默认隐藏移动端编辑器 */
+.mobile-editor-overlay,
+.mobile-editor-panel {
+    display: none !important;
+}
+
+/* 默认隐藏移动端选择器 */
+.selector-overlay,
+.selector-panel {
+    display: none !important;
+}
+
+/* 移动端返回按钮 */
+.mobile-back-button {
+    display: none !important;
+}
+
+/* 在移动端（宽度≤768px）时显示这些元素 */
+@media (max-width: 768px) {
+    .mobile-bottom-nav {
+        display: flex !important;
+    }
+
+    .mobile-editor-overlay.show,
+    .mobile-editor-panel.show {
+        display: block !important;
+    }
+
+    .selector-panel.show {
+        display: block !important;
+    }
+
+    .mobile-back-button {
+        display: block !important;
+    }
+}
+/* ========================================
+   管理后台页面隐藏移动端导航
+   ======================================== */
+
+/* 在编辑页面和管理页面隐藏移动端底部导航 */
+body[data-page="editor"] .mobile-bottom-nav,
+body[data-page*="admin"] .mobile-bottom-nav {
+    display: none !important;
+}
+
+/* 在编辑页面隐藏移动端快速发布按钮 */
+body[data-page="editor"] .publish-btn,
+body[data-page*="admin"] .publish-btn {
+    display: none !important;
+}
+
+/* PC端（宽度>768px）隐藏所有移动端底部导航 */
+@media (min-width: 769px) {
+    .mobile-bottom-nav {
+        display: none !important;
+    }
+    
+    /* 隐藏移动端快速发布相关的浮动按钮 */
+    .mobile-page[data-page="home"] .publish-btn {
+        display: none !important;
+    }
+}

@@ -361,7 +361,7 @@ class TestCommentManagement:
         })
 
         # 创建评论
-        user_id = create_user('commenter', generate_password_hash('pass123'), role='author')
+        user_id = create_user('commenter', generate_password_hash('pass123', method='pbkdf2:sha256'), role='author')
         post_id = create_post('Test Post', 'Content', True, None, test_admin_user['id'])
         comment_id = create_comment(post_id, user_id, 'Test comment')
 
@@ -380,7 +380,7 @@ class TestCommentManagement:
         })
 
         # 创建评论
-        user_id = create_user('commenter2', generate_password_hash('pass123'), role='author')
+        user_id = create_user('commenter2', generate_password_hash('pass123', method='pbkdf2:sha256'), role='author')
         post_id = create_post('Test Post', 'Content', True, None, test_admin_user['id'])
         comment_id = create_comment(post_id, user_id, 'Delete me')
 

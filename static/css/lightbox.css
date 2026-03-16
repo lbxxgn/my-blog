@@ -150,6 +150,66 @@
     display: block;
 }
 
+/* 工具栏 */
+.lightbox-toolbar {
+    position: fixed;
+    top: 2rem;
+    left: 2rem;
+    display: flex;
+    gap: 0.75rem;
+    z-index: 10001;
+    align-items: center;
+}
+
+/* 查看原图按钮 */
+.lightbox-original-btn {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: white;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+}
+
+.lightbox-original-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.05);
+}
+
+.lightbox-original-btn.showing-original {
+    background-color: rgba(16, 185, 129, 0.3);
+    border-color: rgba(16, 185, 129, 0.6);
+}
+
+/* 下载按钮 */
+.lightbox-download-btn {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: white;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+}
+
+.lightbox-download-btn:hover {
+    background-color: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.6);
+    transform: scale(1.05);
+}
+
 /* 文章内容中可点击的图片 - 样式已在style.css中定义 */
 
 /* 暗色主题适配 */
@@ -204,6 +264,19 @@
         font-size: 0.875rem;
         max-width: 90vw;
         padding: 0.5rem 1rem;
+    }
+
+    .lightbox-toolbar {
+        top: 1rem;
+        left: 1rem;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .lightbox-original-btn,
+    .lightbox-download-btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
     }
 }
 

@@ -329,7 +329,7 @@ def test_admin_user(temp_db):
     from models import create_user
     from werkzeug.security import generate_password_hash
     
-    password_hash = generate_password_hash('TestPassword123!')
+    password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
     user_id = create_user(
         username='test_admin',
         password_hash=password_hash,
@@ -357,7 +357,7 @@ def test_user(temp_db):
     from models import create_user
     from werkzeug.security import generate_password_hash
     
-    password_hash = generate_password_hash('UserPassword123!')
+    password_hash = generate_password_hash('UserPassword123!', method='pbkdf2:sha256')
     user_id = create_user(
         username='test_user',
         password_hash=password_hash,

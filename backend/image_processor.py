@@ -119,9 +119,22 @@ def generate_image_sizes(image_path: str, output_dir: str) -> dict:
         # 确保输出目录存在
         os.makedirs(output_dir, exist_ok=True)
 
-        # 计算图片哈希作为文件名（避免重复）
-        img_hash = get_image_hash(image_path)
-        base_path = os.path.join(output_dir, img_hash)
+        # 从原始文件名中提取hash（格式：timestamp_hash.ext）
+        # 使用与原图相同的hash，以便能找到对应的原图文件
+        filename = os.path.basename(image_path)
+        if '_' in filename:
+            # 提取时间戳和hash之间的部分，或者文件名的基础部分
+            parts = filename.rsplit('.', 1)[0]  # 去掉扩展名
+            if '_' in parts:
+                # 使用最后一个下划线后的部分作为hash
+                file_hash = parts.rsplit('_', 1)[-1]
+            else:
+                # 如果没有下划线，使用内容MD5
+                file_hash = get_image_hash(image_path)
+        else:
+            file_hash = get_image_hash(image_path)
+
+        base_path = os.path.join(output_dir, file_hash)
 
         result = {
             'original': image_path,

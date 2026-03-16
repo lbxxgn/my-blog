@@ -597,6 +597,34 @@ def view_tag(tag_id):
                          show_ellipsis=show_ellipsis)
 
 
+@blog_bp.route('/tags')
+def list_all_tags():
+    """显示所有标签页面"""
+    # 获取所有标签
+    tags = get_all_tags()
+
+    # 为每个标签获取文章数量
+    import sqlite3
+    from flask import current_app
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    for tag in tags:
+        cursor.execute('''
+            SELECT COUNT(*) FROM post_tags
+            WHERE tag_id = ?
+        ''', (tag['id'],))
+        tag['post_count'] = cursor.fetchone()[0]
+
+    conn.close()
+
+    # 按文章数量降序排序，标签名升序
+    tags.sort(key=lambda x: (-x['post_count'], x['name']))
+
+    return render_template('tags.html', tags=tags)
+
+
 @blog_bp.route('/search')
 def search():
     """搜索文章"""
