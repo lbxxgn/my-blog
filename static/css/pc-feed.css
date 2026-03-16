@@ -1,0 +1,80 @@
+/* PC端信息流专用样式 */
+/* 适用于屏幕宽度 >= 769px */
+
+/* PC端信息流图片展示 - 动态自适应布局 */
+@media (min-width: 769px) {
+    /* 重置所有定位和宽高比限制 */
+    .posts-list .post-card-media-item {
+        position: static !important;
+        aspect-ratio: auto !important;
+        width: auto !important;
+        height: auto !important;
+    }
+
+    /* 单张图片 - 占满可用宽度，高度自适应 */
+    .posts-list .post-card-media--single .post-card-media-item {
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    /* 2张图片 - grid自动分配宽度，每张占50% */
+    .posts-list .post-card-media--count-2 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    /* 3张图片 - grid自动分配宽度，每张占33.33% */
+    .posts-list .post-card-media--count-3 {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+
+    /* 4张图片 - 2x2网格 */
+    .posts-list .post-card-media--grid-4 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    /* 6张图片 - 3x2网格 */
+    .posts-list .post-card-media--grid-6 {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+
+    /* 9张图片 - 3x3网格 */
+    .posts-list .post-card-media--grid-9 {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+
+    /* 图片item容器 - 由grid自动控制尺寸 */
+    .posts-list .post-card-media--count-2 .post-card-media-item,
+    .posts-list .post-card-media--count-3 .post-card-media-item,
+    .posts-list .post-card-media--grid-4 .post-card-media-item,
+    .posts-list .post-card-media--grid-6 .post-card-media-item,
+    .posts-list .post-card-media--grid-9 .post-card-media-item {
+        min-width: 200px; /* 最小宽度保证图片不会太小 */
+        min-height: 200px; /* 最小高度保证视觉效果 */
+    }
+
+    /* 图片样式 - 完全填充容器，保持宽高比 */
+    .posts-list .post-card-media-item img {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100% !important;
+        max-height: 100% !important;
+        object-fit: cover !important;
+        position: static !important;
+        margin: 0 !important;
+        float: none !important;
+        display: block !important;
+    }
+}
+
+/* 隐藏移动端专属元素 */
+@media (min-width: 769px) {
+    .bottom-nav,
+    .mobile-back-button {
+        display: none !important;
+    }
+}

@@ -2539,23 +2539,4 @@ img.loaded {
 }
 
 
-/* PC端信息流图片大小限制 - 桌面端优化 */
-@media (min-width: 769px) {
-    /* 限制信息流图片区域的最大宽度 */
-    .posts-list .post-card-media {
-        max-width: 600px;
-        margin: 0 auto; /* 居中显示 */
-    }
-    
-    /* 限制单张图片的大小 */
-    .posts-list .post-card-media--single .post-card-media-item {
-        max-width: 500px;
-        max-height: 360px;
-    }
-    
-    /* 限制多张图片时每张的大小 */
-    .posts-list .post-card-media:not(.post-card-media--single) .post-card-media-item {
-        max-width: 250px;
-        max-height: 250px;
-    }
-}
+/* PC端信息流样式已移至 pc-feed.css */
