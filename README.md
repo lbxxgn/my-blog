@@ -96,12 +96,18 @@ simple-blog/
 └── docs/               # 文档
 ```
 
-## 文档
+## 📚 文档
 
-- [完整启动指南](STARTUP.md)
-- [数据库迁移](MIGRATION.md)
-- [系统部署](SYSTEMD_DEPLOYMENT.md)
-- [浏览器扩展](browser-extension/README.md)
+### 快速开始
+- [快速启动](docs/startup.md) - 环境配置和启动
+- [快速升级](QUICKSTART.md) - 一行命令升级
+
+### 部署运维
+- [部署指南](DEPLOYMENT.md) - 完整部署文档
+
+### 更多文档
+- [完整文档索引](docs/) - 所有文档的导航中心
+- [API文档](docs/api-documentation.md) - REST API参考
 
 ## 开发
 
@@ -121,7 +127,7 @@ python backend/app.py
 项目支持多种部署方式：
 
 - **开发环境**：直接运行 `python backend/app.py`
-- **生产环境**：使用 systemd 服务（参考 [SYSTEMD_DEPLOYMENT.md](SYSTEMD_DEPLOYMENT.md)）
+- **生产环境**：使用 systemd 服务（参考 [部署指南](DEPLOYMENT.md)）
 - **Docker**：（待实现）
 
 ## 环境变量
