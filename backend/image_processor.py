@@ -23,7 +23,8 @@ MAX_HEIGHT = 1440  # 最大高度
 IMAGE_SIZES = {
     'thumbnail': (150, 150),
     'medium': (600, 400),
-    'large': (1200, 800)
+    'large': (1200, 800),
+    'feed': (1920, 1280)  # 信息流专用尺寸
 }
 
 
@@ -126,7 +127,8 @@ def generate_image_sizes(image_path: str, output_dir: str) -> dict:
             'original': image_path,
             'thumbnail': None,
             'medium': None,
-            'large': None
+            'large': None,
+            'feed': None
         }
 
         # 打开原始图片

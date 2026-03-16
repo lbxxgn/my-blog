@@ -35,7 +35,7 @@ def get_optimized_image_url(original_url, size='medium'):
 
     Args:
         original_url: 原图URL，例如 /static/uploads/images/xxx.jpg
-        size: 尺寸类型 'thumbnail' | 'medium' | 'large'
+        size: 尺寸类型 'thumbnail' | 'medium' | 'large' | 'feed'
 
     Returns:
         优化后的URL，如果不存在则返回原图URL
@@ -46,7 +46,7 @@ def get_optimized_image_url(original_url, size='medium'):
             return original_url
 
         # 验证size参数（防止SQL注入）
-        valid_sizes = ['thumbnail', 'medium', 'large']
+        valid_sizes = ['thumbnail', 'medium', 'large', 'feed']
         if size not in valid_sizes:
             logger.warning(f"Invalid size parameter: {size}, using 'medium'")
             size = 'medium'
@@ -100,7 +100,7 @@ def extract_post_image_urls(content, limit=9, use_optimized=True, size='medium')
         content: 文章内容（HTML）
         limit: 最多提取多少张图片
         use_optimized: 是否使用优化后的图片
-        size: 当use_optimized=True时，指定使用哪个尺寸 (thumbnail/medium/large)
+        size: 当use_optimized=True时，指定使用哪个尺寸 (thumbnail/medium/large/feed)
 
     Returns:
         图片URL列表
@@ -133,8 +133,8 @@ def determine_mobile_image_layout(image_count):
 
 def build_post_card_payload(post):
     post_dict = serialize_post_for_json(post)
-    # 信息流使用缩略图尺寸以提升加载速度
-    image_urls = extract_post_image_urls(post_dict.get('content'), size='thumbnail')
+    # 信息流使用feed尺寸以提供更好的视觉效果
+    image_urls = extract_post_image_urls(post_dict.get('content'), size='feed')
     post_dict['image_urls'] = image_urls
     post_dict['image_count'] = len(image_urls)
     post_dict['mobile_image_layout'] = determine_mobile_image_layout(len(image_urls))
