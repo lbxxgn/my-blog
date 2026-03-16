@@ -611,11 +611,27 @@ main {
 
 /* Images */
 .post-content img {
-    max-width: 100%;
+    max-width: 800px; /* 限制最大宽度，避免图片过大 */
     height: auto;
     border-radius: 4px;
-    margin: 1.5rem 0;
+    margin: 1.5rem auto; /* 居中显示 */
     display: block;
+    cursor: zoom-in; /* 提示可点击放大 */
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    object-fit: contain;
+}
+
+/* 响应式图片大小 */
+@media (max-width: 768px) {
+    .post-content img {
+        max-width: 100%; /* 移动端完全自适应 */
+    }
+}
+
+/* 图片hover效果 */
+.post-content img:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Blockquotes */

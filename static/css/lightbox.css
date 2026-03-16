@@ -150,16 +150,7 @@
     display: block;
 }
 
-/* 文章内容中可点击的图片 */
-.post-content img {
-    cursor: zoom-in;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.post-content img:hover {
-    transform: scale(1.02);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
+/* 文章内容中可点击的图片 - 样式已在style.css中定义 */
 
 /* 暗色主题适配 */
 @media (prefers-color-scheme: dark) {
