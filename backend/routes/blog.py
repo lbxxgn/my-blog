@@ -34,27 +34,52 @@ def get_optimized_image_url(original_url, size='medium'):
     将原图URL转换为优化后的URL
 
     Args:
-        original_url: 原图URL，例如 /static/uploads/images/xxx.jpg
+        original_url: 原图URL，例如 /static/uploads/images/xxx.jpg 或 /static/uploads/optimized/xxx_medium.webp
         size: 尺寸类型 'thumbnail' | 'medium' | 'large' | 'feed'
 
     Returns:
         优化后的URL，如果不存在则返回原图URL
     """
     try:
-        # 确保是uploads/images目录下的图片
-        if '/uploads/images/' not in original_url:
-            return original_url
-
         # 验证size参数（防止SQL注入）
         valid_sizes = ['thumbnail', 'medium', 'large', 'feed']
         if size not in valid_sizes:
             logger.warning(f"Invalid size parameter: {size}, using 'medium'")
             size = 'medium'
 
+        from pathlib import Path
+        import re
+        # __file__ 是 /path/to/backend/routes/blog.py
+        # 需要3次parent才能到达项目根目录
+        project_root = Path(__file__).parent.parent.parent
+
+        # 处理optimized路径的图片（例如 xxx_medium.webp -> xxx_feed.webp）
+        if '/uploads/optimized/' in original_url:
+            # 提取图片哈希值
+            # 例如: /static/uploads/optimized/632da1f5f5f9291f6f5c729351b78c47_medium.webp
+            match = re.search(r'/([a-f0-9]{32})_(?:thumbnail|medium|large|feed)\.webp', original_url)
+            if match:
+                image_hash = match.group(1)
+                # 构建新的URL
+                new_url = f"/static/uploads/optimized/{image_hash}_{size}.webp"
+
+                # 检查文件是否存在
+                file_path = project_root / new_url.lstrip('/')
+                logger.debug(f"Checking optimized image: project_root={project_root}, new_url={new_url}, file_path={file_path}, exists={file_path.exists()}")
+                if file_path.exists():
+                    logger.debug(f"Converted optimized image {original_url} -> {new_url}")
+                    return new_url
+                else:
+                    logger.debug(f"Optimized image not found: {new_url}, returning original")
+                    return original_url
+            return original_url
+
+        # 处理原始图片路径
+        if '/uploads/images/' not in original_url:
+            return original_url
+
         # 从URL构建完整文件路径
         # /static/uploads/images/xxx.jpg -> /path/to/project/static/uploads/images/xxx.jpg
-        from pathlib import Path
-        project_root = Path(__file__).parent.parent
         full_path = project_root / original_url.lstrip('/')
 
         # 查询数据库获取优化后的图片路径
