@@ -8,14 +8,15 @@
 
 import sys
 import re
-import sqlite3
 from pathlib import Path
 
 # 添加后端目录到路径
 backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
-from config import DATABASE_URL
+from utils.image_cleanup import get_db_connection, print_cleanup_report
+from config import get_backup_path
+from models import get_db_context
 
 
 def extract_and_clean_invalid_images():
@@ -132,22 +133,9 @@ def main():
 
     report = extract_and_clean_invalid_images()
 
-    print('\n' + '='*60)
-    print('📊 清理完成报告')
-    print('='*60)
-    print(f'扫描文章数: {report["total_posts"]}')
-    print(f'清理文章数: {report["cleaned_posts"]}')
-    print(f'删除图片总数: {report["total_removed"]}')
-
-    if report['errors']:
-        print(f'\n⚠️  错误: {len(report["errors"])}')
-        for error in report['errors']:
-            print(f'   - {error}')
-
-    print('='*60)
+    print_cleanup_report(report, "快速清理完成报告")
     print(f'\n✅ 清理完成！')
-    print(f'💡 提示：数据库备份保存在: /Users/gn/simple-blog/db/simple_blog.db.backup.20260315_124428')
-    print(f'💡 如需恢复：cp /Users/gn/simple-blog/db/simple_blog.db.backup.20260315_124428 /Users/gn/simple-blog/db/simple_blog.db')
+    print(f'💡 提示：数据库备份保存在: {get_backup_path()}')
 
 
 if __name__ == '__main__':
