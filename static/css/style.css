@@ -611,7 +611,8 @@ main {
 
 /* Images */
 .post-content img {
-    max-width: 800px; /* 限制最大宽度，避免图片过大 */
+    /* 智能响应式宽度：最大800px，但根据页面大小自动调整 */
+    max-width: min(800px, 90vw); /* 800px和视口宽度90%之间取较小值 */
     height: auto;
     border-radius: 4px;
     margin: 1.5rem auto; /* 居中显示 */
@@ -621,10 +622,25 @@ main {
     object-fit: contain;
 }
 
-/* 响应式图片大小 */
+/* 超大屏幕优化 */
+@media (min-width: 1400px) {
+    .post-content img {
+        max-width: min(1000px, 85vw); /* 大屏幕适当增大，但保持合理比例 */
+    }
+}
+
+/* 平板和中等屏幕 */
+@media (min-width: 769px) and (max-width: 1399px) {
+    .post-content img {
+        max-width: min(800px, 90vw); /* 标准桌面屏幕 */
+    }
+}
+
+/* 移动端优化 */
 @media (max-width: 768px) {
     .post-content img {
         max-width: 100%; /* 移动端完全自适应 */
+        margin: 1rem auto; /* 移动端间距稍小 */
     }
 }
 
