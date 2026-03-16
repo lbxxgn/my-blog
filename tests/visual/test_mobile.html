@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>移动端测试</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/mobile-weibo.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        .test-content {
+            padding: 20px;
+            min-height: 150vh;
+            background: #f5f5f5;
+        }
+        .status-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .status-ok {
+            color: green;
+        }
+        .status-error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-content">
+        <h1>移动端布局测试</h1>
+        <div class="status-item">
+            <strong>底部导航栏测试：</strong>
+            <div id="bottom-nav-status">检测中...</div>
+        </div>
+        <div class="status-item">
+            <strong>CSS媒体查询：</strong>
+            <div id="media-query-status">检测中...</div>
+        </div>
+        <div class="status-item">
+            <strong>viewport宽度：</strong>
+            <div id="viewport-width">检测中...</div>
+        </div>
+        <p style="color: #666; font-size: 14px; padding: 20px;">
+            请向下滚动，底部导航栏应该始终固定在屏幕最下方。<br>
+            如果看不到导航栏或导航栏不固定，说明CSS有问题。
+        </p>
+    </div>
+
+    <!-- 移动端底部导航 -->
+    <nav class="mobile-bottom-nav">
+        <a href="/" class="nav-item active" data-page="home">
+            <span class="nav-item-icon">🏠</span>
+            <span class="nav-item-label">首页</span>
+        </a>
+        <a href="javascript:" class="nav-item" data-page="discover">
+            <span class="nav-item-icon">🔍</span>
+            <span class="nav-item-label">发现</span>
+        </a>
+        <a href="javascript:" class="nav-item publish-btn" data-page="publish">
+            <span class="nav-item-icon">+</span>
+        </a>
+        <a href="javascript:" class="nav-item" data-page="my-posts">
+            <span class="nav-item-icon">📄</span>
+            <span class="nav-item-label">文章</span>
+        </a>
+        <a href="javascript:" class="nav-item" data-page="profile">
+            <span class="nav-item-icon">👤</span>
+            <span class="nav-item-label">我的</span>
+        </a>
+    </nav>
+
+    <script>
+        // 检测底部导航栏
+        const nav = document.querySelector('.mobile-bottom-nav');
+        const navStatus = document.getElementById('bottom-nav-status');
+
+        if (nav) {
+            const computedStyle = window.getComputedStyle(nav);
+            const position = computedStyle.position;
+            const bottom = computedStyle.bottom;
+            const display = computedStyle.display;
+
+            if (position === 'fixed' && bottom === '0px') {
+                navStatus.innerHTML = '<span class="status-ok">✓ 正常 - position: fixed, bottom: 0px</span>';
+            } else {
+                navStatus.innerHTML = `<span class="status-error">✗ 异常 - position: ${position}, bottom: ${bottom}, display: ${display}</span>`;
+            }
+        } else {
+            navStatus.innerHTML = '<span class="status-error">✗ 未找到底部导航栏元素</span>';
+        }
+
+        // 检测媒体查询
+        const mediaQueryStatus = document.getElementById('media-query-status');
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        mediaQueryStatus.innerHTML = isMobile ?
+            '<span class="status-ok">✓ 移动端模式 (≤768px)</span>' :
+            '<span class="status-error">✗ 桌面端模式 (>768px) - 底部导航栏不会显示</span>';
+
+        // 显示viewport宽度
+        document.getElementById('viewport-width').textContent = window.innerWidth + 'px';
+    </script>
+</body>
+</html>

@@ -308,12 +308,17 @@ app.register_blueprint(drafts_bp)
 from routes.admin import mobile_bp
 app.register_blueprint(mobile_bp, url_prefix='/mobile')
 
-# 为知识库 API 端点豁免 CSRF 保护
+# 为浏览器扩展API端点豁免 CSRF 保护
 # 浏览器扩展无法处理 CSRF token
-csrf.exempt(knowledge_base_bp)
+# 注意：只豁免必要的API端点，而非整个蓝图
 
 # 为移动端上传端点豁免 CSRF 保护
 # 移动端应用无法处理 CSRF token
+# 注意：只豁免 /upload 端点，而非整个蓝图
+# TODO: 优化为使用API token认证而非完全豁免CSRF
+
+# 当前暂时豁免整个蓝图（需后续改进）
+csrf.exempt(knowledge_base_bp)
 csrf.exempt(mobile_bp)
 # 对登录路由应用速率限制
 limiter.limit("5 per minute")(app.view_functions['auth.login'])

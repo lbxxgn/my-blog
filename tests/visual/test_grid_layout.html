@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Grid Layout Test</title>
+    <style>
+        body {
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .posts-list {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .post-card {
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: white;
+        }
+
+        .post-card h2 {
+            margin: 0 0 10px 0;
+        }
+
+        .post-card-media {
+            display: grid;
+            gap: 8px;
+            margin: 16px 0;
+        }
+
+        .post-card-media--grid-9 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .post-card-media-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            background: #f0f0f0;
+            aspect-ratio: 1 / 1;
+        }
+
+        @media (min-width: 769px) {
+            .posts-list .post-card-media {
+                max-width: 600px;
+            }
+
+            .posts-list .post-card-media--grid-9 .post-card-media-item {
+                max-width: 200px !important;
+                max-height: 200px !important;
+            }
+
+            .posts-list .post-card-media-item img {
+                width: 100% !important;
+                height: 100% !important;
+                max-width: 100% !important;
+                max-height: 100% !important;
+                object-fit: cover !important;
+                position: static !important;
+                margin: 0 !important;
+                float: none !important;
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Grid Layout Test - 7 Images</h1>
+
+    <div class="posts-list">
+        <article class="post-card">
+            <h2>Test Article with 7 Images</h2>
+            <div class="post-card-media post-card-media--grid-9">
+                <div class="post-card-media-item">
+                    <img src="/static/uploads/optimized/632da1f5f5f9291f6f5c729351b78c47_medium.webp" alt="Test 1">
+                </div>
+                <div class="post-card-media-item">
+                    <img src="/static/uploads/optimized/8e1890066b6975ba86b449e11eeaaf36_medium.webp" alt="Test 2">
+                </div>
+                <div class="post-card-media-item">
+                    <img src="/static/uploads/optimized/370b31ea0bc77b08f56c3799687e4214_medium.webp" alt="Test 3">
+                </div>
+                <div class="post-card-media-item">
+                    <img src="/static/uploads/optimized/5c7c6c0579b4967e6b649a031cecc31d_medium.webp" alt="Test 4">
+                </div>
+                <div class="post-card-media-item">
+                    <img src="/static/uploads/optimized/d682e4e32bb8b0d6a20dbc4a45ba4990_medium.webp" alt="Test 5">
+                </div>
+                <div class="post-card-media-item">
+                    <img src="/static/uploads/optimized/632da1f5f5f9291f6f5c729351b78c47_medium.webp" alt="Test 6">
+                </div>
+                <div class="post-card-media-item">
+                    <img src="/static/uploads/optimized/8e1890066b6975ba86b449e11eeaaf36_medium.webp" alt="Test 7">
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <p><strong>Expected behavior:</strong> Images should display in a 3-column grid without overlapping, each image contained within its cell.</p>
+</body>
+</html>
