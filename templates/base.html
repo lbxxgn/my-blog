@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf_token" content="{{ csrf_token() }}">
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
-    <link rel="stylesheet" href="{{ static_file('css/style.css') }}">
+    <link rel="stylesheet" href="{{ static_file('css/style.css') }}" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="{{ static_file('css/style.css') }}"></noscript>
     <link rel="stylesheet" href="{{ static_file('css/mobile-weibo.css') }}">
     {% block head %}{% endblock %}
 </head>
