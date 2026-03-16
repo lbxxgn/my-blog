@@ -228,6 +228,35 @@
         height: 100%;
         object-fit: cover;
         display: block;
+        max-width: 100%; /* 确保不超出容器 */
+    }
+
+    /* PC端信息流图片大小限制 */
+    @media (min-width: 769px) {
+        .posts-list .post-card-media {
+            max-width: 600px; /* 限制媒体区域最大宽度 */
+        }
+
+        .posts-list .post-card-media-item {
+            max-width: 300px; /* 单张图片最大300px */
+            max-height: 300px;
+        }
+
+        /* 单张图片时适当增大 */
+        .posts-list .post-card-media--single .post-card-media-item {
+            max-width: 500px;
+            max-height: 360px;
+        }
+
+        /* 多张图片时缩小 */
+        .posts-list .post-card-media--count-2 .post-card-media-item,
+        .posts-list .post-card-media--count-3 .post-card-media-item,
+        .posts-list .post-card-media--grid-4 .post-card-media-item,
+        .posts-list .post-card-media--grid-6 .post-card-media-item,
+        .posts-list .post-card-media--grid-9 .post-card-media-item {
+            max-width: 250px;
+            max-height: 250px;
+        }
     }
 
     .post-meta {
