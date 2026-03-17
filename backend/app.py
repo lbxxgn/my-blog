@@ -317,9 +317,10 @@ app.register_blueprint(mobile_bp, url_prefix='/mobile')
 # 注意：只豁免 /upload 端点，而非整个蓝图
 # TODO: 优化为使用API token认证而非完全豁免CSRF
 
-# 当前暂时豁免整个蓝图（需后续改进）
-csrf.exempt(knowledge_base_bp)
-csrf.exempt(mobile_bp)
+# 仅豁免真正需要跨端调用的接口
+csrf.exempt(app.view_functions['knowledge_base.plugin_submit'])
+csrf.exempt(app.view_functions['knowledge_base.sync_annotations'])
+csrf.exempt(app.view_functions['mobile.mobile_upload_image'])
 # 对登录路由应用速率限制
 limiter.limit("5 per minute")(app.view_functions['auth.login'])
 
@@ -608,6 +609,9 @@ def cards_ai_merge():
 def convert_card_to_post(card_id):
     """卡片转文章别名（兼容旧客户端）"""
     return app.view_functions['knowledge_base.convert_card_to_post'](card_id)
+
+csrf.exempt(app.view_functions['plugin_submit'])
+csrf.exempt(app.view_functions['plugin_sync_annotations'])
 
 # AI endpoints
 @app.route('/admin/ai/history')

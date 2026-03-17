@@ -537,6 +537,22 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Timeline page loaded');
     console.log('Filter buttons:', document.querySelectorAll('.filter-btn').length);
     console.log('Timeline items:', document.querySelectorAll('.timeline-item').length);
+    const csrfToken = window.getCsrfToken ? window.getCsrfToken() : '';
+
+    function notifyTimeline(message, type = 'success') {
+        if (window.showAppToast) {
+            window.showAppToast(message, type);
+            return;
+        }
+        console[type === 'error' ? 'error' : 'log'](message);
+    }
+
+    function redirectToLogin() {
+        notifyTimeline('登录已过期，请重新登录后重试', 'error');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 600);
+    }
 
     // ==================== 编辑卡片功能 ====================
     const modal = document.getElementById('editModal');
@@ -575,16 +591,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('editStatus').value = card.status || 'idea';
                         modal.style.display = 'block';
                     } else {
-                        alert('获取卡片详情失败: ' + data.error);
+                        notifyTimeline('获取卡片详情失败: ' + data.error, 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     if (error.message === '请先登录') {
-                        alert('登录已过期，请重新登录后重试');
-                        window.location.href = '/login';
+                        redirectToLogin();
                     } else {
-                        alert('获取卡片详情失败: ' + error.message);
+                        notifyTimeline('获取卡片详情失败: ' + error.message, 'error');
                     }
                 });
         });
@@ -624,7 +639,8 @@ document.addEventListener('DOMContentLoaded', function() {
             method: 'PUT',
             credentials: 'same-origin',  // 确保发送cookies
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             },
             body: JSON.stringify(data)
         })
@@ -640,20 +656,19 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             if (data.success) {
-                alert('保存成功！');
+                notifyTimeline('保存成功');
                 modal.style.display = 'none';
-                location.reload(); // 刷新页面以显示更新
+                setTimeout(() => window.location.reload(), 500);
             } else {
-                alert('保存失败: ' + data.error);
+                notifyTimeline('保存失败: ' + data.error, 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
             if (error.message === '请先登录') {
-                alert('登录已过期，请重新登录后重试');
-                window.location.href = '/login';
+                redirectToLogin();
             } else {
-                alert('保存失败: ' + error.message);
+                notifyTimeline('保存失败: ' + error.message, 'error');
             }
         });
     });
@@ -673,7 +688,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     method: 'POST',
                     credentials: 'same-origin',  // 确保发送cookies
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
                     }
                 })
                 .then(response => {
@@ -688,19 +704,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(data => {
                     if (data.success) {
-                        alert('转换成功！卡片已转换为文章。');
-                        location.reload(); // 刷新页面以显示更新
+                        notifyTimeline('转换成功，正在打开文章编辑页');
+                        setTimeout(() => {
+                            window.location.href = `/admin/edit/${data.post_id}`;
+                        }, 450);
                     } else {
-                        alert('转换失败: ' + data.error);
+                        notifyTimeline('转换失败: ' + data.error, 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     if (error.message === '请先登录') {
-                        alert('登录已过期，请重新登录后重试');
-                        window.location.href = '/login';
+                        redirectToLogin();
                     } else {
-                        alert('转换失败: ' + error.message);
+                        notifyTimeline('转换失败: ' + error.message, 'error');
                     }
                 });
             }
@@ -717,12 +734,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // 确认删除
             if (confirm(`确定要删除卡片 "${cardTitle}" 吗？\n\n此操作不可恢复！`)) {
                 console.log('删除卡片 ID:', cardId);
+                const timelineItem = this.closest('.timeline-item');
 
                 fetch(`/knowledge_base/api/cards/${cardId}`, {
                     method: 'DELETE',
                     credentials: 'same-origin',  // 确保发送cookies
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
                     }
                 })
                 .then(response => {
@@ -737,19 +756,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(data => {
                     if (data.success) {
-                        alert('删除成功！');
-                        location.reload(); // 刷新页面以显示更新
+                        notifyTimeline('删除成功');
+                        if (timelineItem) {
+                            timelineItem.remove();
+                        }
                     } else {
-                        alert('删除失败: ' + data.error);
+                        notifyTimeline('删除失败: ' + data.error, 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     if (error.message === '请先登录') {
-                        alert('登录已过期，请重新登录后重试');
-                        window.location.href = '/login';
+                        redirectToLogin();
                     } else {
-                        alert('删除失败: ' + error.message);
+                        notifyTimeline('删除失败: ' + error.message, 'error');
                     }
                 });
             }

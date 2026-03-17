@@ -380,11 +380,11 @@
                 // 重新加载文章列表
                 loadMyPosts(currentMyPostsTab);
             } else {
-                alert('删除失败：' + (data.error || '未知错误'));
+                showToast('删除失败：' + (data.error || '未知错误'));
             }
         } catch (error) {
             console.error('Failed to delete post:', error);
-            alert('删除失败，请稍后重试');
+            showToast('删除失败，请稍后重试');
         }
     }
 

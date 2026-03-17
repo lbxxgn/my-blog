@@ -348,6 +348,18 @@
 <script>
 let selectedPosts = new Set();
 
+function notifyDashboard(message, type = 'success') {
+    if (window.showAppToast) {
+        window.showAppToast(message, type);
+        return;
+    }
+    console[type === 'error' ? 'error' : 'log'](message);
+}
+
+function reloadAfterToast(delay = 650) {
+    setTimeout(() => window.location.reload(), delay);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Batch category form
     document.getElementById('batchCategoryForm').addEventListener('submit', function(e) {
@@ -357,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const postIds = Array.from(selectedPosts);
 
         if (postIds.length === 0) {
-            alert('请先选择文章');
+            notifyDashboard('请先选择文章', 'error');
             return;
         }
 
@@ -378,14 +390,14 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(data.message);
-                location.reload();
+                notifyDashboard(data.message);
+                reloadAfterToast();
             } else {
-                alert('操作失败：' + data.message);
+                notifyDashboard('操作失败：' + data.message, 'error');
             }
         })
         .catch(error => {
-            alert('操作失败：' + error);
+            notifyDashboard('操作失败：' + error, 'error');
         });
     });
 });
@@ -477,7 +489,7 @@ function clearSelection() {
 
 function showBatchCategoryModal() {
     if (selectedPosts.size === 0) {
-        alert('请先选择文章');
+        notifyDashboard('请先选择文章', 'error');
         return;
     }
 
@@ -490,7 +502,7 @@ function closeBatchCategoryModal() {
 
 function showBatchDeleteModal() {
     if (selectedPosts.size === 0) {
-        alert('请先选择文章');
+        notifyDashboard('请先选择文章', 'error');
         return;
     }
 
@@ -506,7 +518,7 @@ function confirmBatchDelete() {
     const postIds = Array.from(selectedPosts);
 
     if (postIds.length === 0) {
-        alert('请先选择文章');
+        notifyDashboard('请先选择文章', 'error');
         return;
     }
 
@@ -525,21 +537,22 @@ function confirmBatchDelete() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            closeBatchDeleteModal();
+            notifyDashboard(data.message);
+            reloadAfterToast();
         } else {
-            alert('操作失败：' + data.message);
+            notifyDashboard('操作失败：' + data.message, 'error');
         }
     })
     .catch(error => {
-        alert('操作失败：' + error);
+        notifyDashboard('操作失败：' + error, 'error');
     });
 }
 
 // Batch publish/unpublish functions
 function showBatchPublishModal() {
     if (selectedPosts.size === 0) {
-        alert('请先选择文章');
+        notifyDashboard('请先选择文章', 'error');
         return;
     }
 
@@ -550,7 +563,7 @@ function showBatchPublishModal() {
 
 function showBatchUnpublishModal() {
     if (selectedPosts.size === 0) {
-        alert('请先选择文章');
+        notifyDashboard('请先选择文章', 'error');
         return;
     }
 
@@ -577,21 +590,21 @@ function performBatchPublish(publish) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            notifyDashboard(data.message);
+            reloadAfterToast();
         } else {
-            alert('操作失败：' + data.message);
+            notifyDashboard('操作失败：' + data.message, 'error');
         }
     })
     .catch(error => {
-        alert('操作失败：' + error);
+        notifyDashboard('操作失败：' + error, 'error');
     });
 }
 
 // Batch tags functions
 function showBatchTagsModal() {
     if (selectedPosts.size === 0) {
-        alert('请先选择文章');
+        notifyDashboard('请先选择文章', 'error');
         return;
     }
 
@@ -605,7 +618,7 @@ function closeBatchTagsModal() {
 // Batch access functions
 function showBatchAccessModal() {
     if (selectedPosts.size === 0) {
-        alert('请先选择文章');
+        notifyDashboard('请先选择文章', 'error');
         return;
     }
 
@@ -640,12 +653,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const postIds = Array.from(selectedPosts);
 
             if (postIds.length === 0) {
-                alert('请先选择文章');
+                notifyDashboard('请先选择文章', 'error');
                 return;
             }
 
             if (tags.length === 0) {
-                alert('请输入至少一个标签');
+                notifyDashboard('请输入至少一个标签', 'error');
                 return;
             }
 
@@ -664,15 +677,15 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(data.message);
+                    notifyDashboard(data.message);
                     closeBatchTagsModal();
-                    location.reload();
+                    reloadAfterToast();
                 } else {
-                    alert('操作失败：' + data.message);
+                    notifyDashboard('操作失败：' + data.message, 'error');
                 }
             })
             .catch(error => {
-                alert('操作失败：' + error);
+                notifyDashboard('操作失败：' + error, 'error');
             });
         });
     }
@@ -688,12 +701,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const postIds = Array.from(selectedPosts);
 
             if (postIds.length === 0) {
-                alert('请先选择文章');
+                notifyDashboard('请先选择文章', 'error');
                 return;
             }
 
             if (accessLevel === 'password' && !accessPassword) {
-                alert('请输入访问密码');
+                notifyDashboard('请输入访问密码', 'error');
                 return;
             }
 
@@ -713,15 +726,15 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(data.message);
+                    notifyDashboard(data.message);
                     closeBatchAccessModal();
-                    location.reload();
+                    reloadAfterToast();
                 } else {
-                    alert('操作失败：' + data.message);
+                    notifyDashboard('操作失败：' + data.message, 'error');
                 }
             })
             .catch(error => {
-                alert('操作失败：' + error);
+                notifyDashboard('操作失败：' + error, 'error');
             });
         });
     }

@@ -241,12 +241,21 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const csrfToken = window.getCsrfToken ? window.getCsrfToken() : '';
     const cardsList = document.querySelectorAll('.card-item');
     const checkboxes = document.querySelectorAll('.card-checkbox');
     const aiMergeBtn = document.getElementById('ai-merge-btn');
     const mergeBtn = document.getElementById('merge-btn');
     const postTitle = document.getElementById('post-title');
     const postContent = document.getElementById('post-content');
+
+    function notifyIncubator(message, type = 'success') {
+        if (window.showAppToast) {
+            window.showAppToast(message, type);
+            return;
+        }
+        console[type === 'error' ? 'error' : 'log'](message);
+    }
 
     // Card selection
     checkboxes.forEach(checkbox => {
@@ -291,7 +300,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .map(cb => parseInt(cb.value));
 
         if (selectedCards.length < 2) {
-            alert('请至少选择2张卡片');
+            notifyIncubator('请至少选择2张卡片', 'error');
             return;
         }
 
@@ -302,7 +311,10 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch('/knowledge_base/api/cards/ai-merge', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({
                     card_ids: selectedCards,
                     merge_style: 'comprehensive'
@@ -312,13 +324,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (data.success) {
-                alert(`AI合并完成！已创建文章草稿。\n\n使用tokens: ${data.tokens_used || 0}`);
-                window.location.href = `/admin/edit/${data.post_id}`;
+                notifyIncubator(`AI合并完成，正在打开草稿（tokens: ${data.tokens_used || 0}）`);
+                setTimeout(() => {
+                    window.location.href = `/admin/edit/${data.post_id}`;
+                }, 450);
             } else {
-                alert('合并失败：' + data.error);
+                notifyIncubator('合并失败：' + data.error, 'error');
             }
         } catch (error) {
-            alert('合并失败：' + error.message);
+            notifyIncubator('合并失败：' + error.message, 'error');
         }
     });
 
@@ -328,14 +342,17 @@ document.addEventListener('DOMContentLoaded', function() {
             .map(cb => parseInt(cb.value));
 
         if (selectedCards.length < 2) {
-            alert('请至少选择2张卡片');
+            notifyIncubator('请至少选择2张卡片', 'error');
             return;
         }
 
         try {
             const response = await fetch('/knowledge_base/api/cards/merge', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
                 body: JSON.stringify({
                     card_ids: selectedCards,
                     action: 'create_post'
@@ -345,13 +362,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (data.success) {
-                alert('卡片已合并到文章！');
-                window.location.href = `/admin/edit/${data.post_id}`;
+                notifyIncubator('卡片已合并，正在打开文章草稿');
+                setTimeout(() => {
+                    window.location.href = `/admin/edit/${data.post_id}`;
+                }, 450);
             } else {
-                alert('合并失败：' + data.error);
+                notifyIncubator('合并失败：' + data.error, 'error');
             }
         } catch (error) {
-            alert('合并失败：' + error.message);
+            notifyIncubator('合并失败：' + error.message, 'error');
         }
     });
 
@@ -359,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('generate-outline-btn').addEventListener('click', function() {
         const content = postContent.value;
         if (!content.trim()) {
-            alert('请先选择或输入内容');
+            notifyIncubator('请先选择或输入内容', 'error');
             return;
         }
 
