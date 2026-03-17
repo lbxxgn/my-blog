@@ -16,6 +16,7 @@
 
 - [数据库迁移](migration.md) - 数据库结构变更和迁移
 - [升级指南](upgrade.md) - 功能升级步骤
+- [Passkey 升级手册](passkey-upgrade.md) - 快捷登录功能升级说明
 
 ## 🧪 测试文档
 
@@ -25,6 +26,7 @@
 ## 🔒 安全
 
 - [安全修复报告](security-fixes.md) - 已完成的安全修复
+- [Passkey 操作手册](passkey-operations.md) - Face ID / Touch ID 快捷登录使用说明
 
 ## 📚 API文档
 

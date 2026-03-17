@@ -1,0 +1,296 @@
+(function() {
+    'use strict';
+
+    const STORAGE_KEY = 'passkey:last-used';
+
+    function decodeBase64Url(value) {
+        const padded = value.replace(/-/g, '+').replace(/_/g, '/')
+            + '='.repeat((4 - value.length % 4) % 4);
+        const binary = atob(padded);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    function encodeBase64Url(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+    }
+
+    function prepareCreationOptions(options) {
+        const publicKey = { ...options };
+        publicKey.challenge = decodeBase64Url(publicKey.challenge);
+        publicKey.user = { ...publicKey.user, id: decodeBase64Url(publicKey.user.id) };
+
+        if (Array.isArray(publicKey.excludeCredentials)) {
+            publicKey.excludeCredentials = publicKey.excludeCredentials.map(item => ({
+                ...item,
+                id: decodeBase64Url(item.id),
+            }));
+        }
+
+        return publicKey;
+    }
+
+    function prepareRequestOptions(options) {
+        const publicKey = { ...options };
+        publicKey.challenge = decodeBase64Url(publicKey.challenge);
+
+        if (Array.isArray(publicKey.allowCredentials)) {
+            publicKey.allowCredentials = publicKey.allowCredentials.map(item => ({
+                ...item,
+                id: decodeBase64Url(item.id),
+            }));
+        }
+
+        return publicKey;
+    }
+
+    function serializeRegistrationCredential(credential) {
+        return {
+            id: credential.id,
+            rawId: encodeBase64Url(credential.rawId),
+            type: credential.type,
+            authenticatorAttachment: credential.authenticatorAttachment || null,
+            clientExtensionResults: credential.getClientExtensionResults
+                ? credential.getClientExtensionResults()
+                : {},
+            response: {
+                clientDataJSON: encodeBase64Url(credential.response.clientDataJSON),
+                attestationObject: encodeBase64Url(credential.response.attestationObject),
+                transports: credential.response.getTransports
+                    ? credential.response.getTransports()
+                    : [],
+            },
+        };
+    }
+
+    function serializeAuthenticationCredential(credential) {
+        return {
+            id: credential.id,
+            rawId: encodeBase64Url(credential.rawId),
+            type: credential.type,
+            authenticatorAttachment: credential.authenticatorAttachment || null,
+            clientExtensionResults: credential.getClientExtensionResults
+                ? credential.getClientExtensionResults()
+                : {},
+            response: {
+                clientDataJSON: encodeBase64Url(credential.response.clientDataJSON),
+                authenticatorData: encodeBase64Url(credential.response.authenticatorData),
+                signature: encodeBase64Url(credential.response.signature),
+                userHandle: credential.response.userHandle
+                    ? encodeBase64Url(credential.response.userHandle)
+                    : null,
+            },
+        };
+    }
+
+    async function jsonFetch(url, options) {
+        const response = await fetch(url, {
+            credentials: 'same-origin',
+            ...options,
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) {
+            throw new Error(data.error || data.message || '请求失败');
+        }
+        return data;
+    }
+
+    function showToast(message, type) {
+        if (window.showAppToast) {
+            window.showAppToast(message, type);
+            return;
+        }
+        window.alert(message);
+    }
+
+    function isIpHostname(hostname) {
+        if (!hostname) return false;
+        if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) return true;
+        return hostname.includes(':');
+    }
+
+    function getHostAdvice() {
+        const { hostname, port, pathname } = window.location;
+        if (hostname === 'localhost') {
+            return { valid: true, recommendedUrl: '' };
+        }
+
+        if (isIpHostname(hostname)) {
+            const suffix = port ? `:${port}` : '';
+            return {
+                valid: false,
+                recommendedUrl: `http://localhost${suffix}${pathname}`,
+                message: 'Passkey 在本地开发时请使用 localhost 打开，不要直接用 127.0.0.1 或局域网 IP。',
+            };
+        }
+
+        return { valid: true, recommendedUrl: '' };
+    }
+
+    async function getCapabilitySummary() {
+        const summary = {
+            supported: Boolean(window.PublicKeyCredential && navigator.credentials),
+            platformAuthenticator: false,
+            conditionalMediation: false,
+            remembered: getRememberedPasskeyState(),
+        };
+
+        if (!summary.supported) {
+            return summary;
+        }
+
+        try {
+            if (typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
+                summary.platformAuthenticator = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+            }
+        } catch (error) {
+            summary.platformAuthenticator = false;
+        }
+
+        try {
+            if (typeof PublicKeyCredential.isConditionalMediationAvailable === 'function') {
+                summary.conditionalMediation = await PublicKeyCredential.isConditionalMediationAvailable();
+            }
+        } catch (error) {
+            summary.conditionalMediation = false;
+        }
+
+        return summary;
+    }
+
+    function rememberPasskeyState(data = {}) {
+        try {
+            const payload = {
+                host: window.location.host,
+                path: window.location.pathname,
+                updatedAt: new Date().toISOString(),
+                ...data,
+            };
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (error) {
+            // Ignore localStorage failures
+        }
+    }
+
+    function clearRememberedPasskeyState() {
+        try {
+            window.localStorage.removeItem(STORAGE_KEY);
+        } catch (error) {
+            // Ignore localStorage failures
+        }
+    }
+
+    function getRememberedPasskeyState() {
+        try {
+            const raw = window.localStorage.getItem(STORAGE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (parsed.host !== window.location.host) {
+                return null;
+            }
+            return parsed;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    async function registerPasskey({ beginUrl, finishUrl, csrfToken, deviceName }) {
+        if (!window.PublicKeyCredential || !navigator.credentials) {
+            throw new Error('当前浏览器不支持 Passkey');
+        }
+
+        const beginData = await jsonFetch(beginUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({}),
+        });
+
+        const credential = await navigator.credentials.create({
+            publicKey: prepareCreationOptions(beginData.options),
+        });
+
+        const payload = serializeRegistrationCredential(credential);
+        const result = await jsonFetch(finishUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({
+                credential: payload,
+                device_name: deviceName || '',
+            }),
+        });
+        rememberPasskeyState({
+            registered: true,
+            deviceName: deviceName || '',
+        });
+        return result;
+    }
+
+    async function authenticateWithPasskey({ beginUrl, finishUrl, csrfToken, next, mediation = 'optional' }) {
+        if (!window.PublicKeyCredential || !navigator.credentials) {
+            throw new Error('当前浏览器不支持 Passkey');
+        }
+
+        const beginData = await jsonFetch(beginUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({}),
+        });
+
+        const credential = await navigator.credentials.get({
+            publicKey: prepareRequestOptions(beginData.options),
+            mediation,
+        });
+
+        if (!credential) {
+            return null;
+        }
+
+        const payload = serializeAuthenticationCredential(credential);
+        const result = await jsonFetch(finishUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+            },
+            body: JSON.stringify({
+                credential: payload,
+                next: next || '',
+            }),
+        });
+        rememberPasskeyState({
+            authenticated: true,
+        });
+        return result;
+    }
+
+    window.PasskeyAuth = {
+        isSupported() {
+            return Boolean(window.PublicKeyCredential && navigator.credentials);
+        },
+        getCapabilitySummary,
+        getHostAdvice,
+        getRememberedPasskeyState,
+        clearRememberedPasskeyState,
+        registerPasskey,
+        authenticateWithPasskey,
+        showToast,
+    };
+})();

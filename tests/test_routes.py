@@ -5,6 +5,7 @@
 import pytest
 from io import BytesIO
 from flask import session
+from types import SimpleNamespace
 
 
 class TestAuthRoutes:
@@ -44,6 +45,125 @@ class TestAuthRoutes:
         # 再退出
         response = client.get('/logout', follow_redirects=True)
         assert response.status_code == 200
+
+    def test_change_password_page_shows_passkey_section(self, client, test_admin_user):
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.get('/change-password')
+        assert response.status_code == 200
+        assert '快捷登录' in response.get_data(as_text=True)
+
+    def test_passkey_register_begin_requires_login(self, client):
+        response = client.post('/passkeys/register/begin', json={})
+        assert response.status_code in (302, 401)
+
+    def test_passkey_register_begin_returns_options(self, client, test_admin_user):
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.post('/passkeys/register/begin', json={})
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['options']['rp']['name']
+        assert data['options']['challenge']
+
+    def test_passkey_register_finish_stores_passkey(self, client, test_admin_user, monkeypatch):
+        from models import get_user_passkeys
+        import routes.auth as auth_module
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+        client.post('/passkeys/register/begin', json={})
+
+        monkeypatch.setattr(auth_module, 'verify_registration_response', lambda **kwargs: SimpleNamespace(
+            credential_id=b'test-credential',
+            credential_public_key=b'test-public-key',
+            sign_count=1,
+            credential_device_type=SimpleNamespace(value='multi_device'),
+            credential_backed_up=True,
+        ))
+
+        response = client.post('/passkeys/register/finish', json={
+            'credential': {
+                'id': 'dGVzdC1jcmVkZW50aWFs',
+                'rawId': 'dGVzdC1jcmVkZW50aWFs',
+                'response': {},
+                'type': 'public-key',
+            },
+            'device_name': 'My Mac',
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+
+        passkeys = get_user_passkeys(test_admin_user['id'])
+        assert len(passkeys) == 1
+        assert passkeys[0]['device_name'] == 'My Mac'
+
+    def test_passkey_authenticate_finish_logs_user_in(self, client, test_admin_user, monkeypatch):
+        from models import create_user_passkey
+        import routes.auth as auth_module
+
+        create_user_passkey(
+            user_id=test_admin_user['id'],
+            credential_id=b'test-credential',
+            public_key=b'test-public-key',
+            sign_count=5,
+            device_name='Test iPhone',
+            transports=['internal'],
+        )
+
+        client.post('/passkeys/authenticate/begin', json={})
+
+        monkeypatch.setattr(auth_module, 'verify_authentication_response', lambda **kwargs: SimpleNamespace(
+            new_sign_count=6,
+            credential_device_type=SimpleNamespace(value='multi_device'),
+            credential_backed_up=True,
+        ))
+
+        response = client.post('/passkeys/authenticate/finish', json={
+            'credential': {
+                'id': 'dGVzdC1jcmVkZW50aWFs',
+                'rawId': 'dGVzdC1jcmVkZW50aWFs',
+                'response': {},
+                'type': 'public-key',
+            }
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+
+        with client.session_transaction() as sess:
+            assert sess['user_id'] == test_admin_user['id']
+
+    def test_passkey_delete_removes_bound_device(self, client, test_admin_user):
+        from models import create_user_passkey, get_user_passkeys
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        passkey_id = create_user_passkey(
+            user_id=test_admin_user['id'],
+            credential_id=b'another-credential',
+            public_key=b'another-public-key',
+            device_name='Old Mac',
+        )
+
+        response = client.delete(f'/passkeys/{passkey_id}')
+        assert response.status_code == 200
+        assert get_user_passkeys(test_admin_user['id']) == []
 
 
 class TestBlogRoutes:

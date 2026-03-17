@@ -73,6 +73,24 @@ def temp_db():
         ''')
 
         conn.execute('''
+            CREATE TABLE IF NOT EXISTS user_passkeys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                credential_id BLOB NOT NULL UNIQUE,
+                public_key BLOB NOT NULL,
+                sign_count INTEGER DEFAULT 0,
+                device_name TEXT,
+                transports TEXT,
+                credential_device_type TEXT,
+                backup_eligible BOOLEAN DEFAULT 0,
+                backup_state BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used_at TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        ''')
+
+        conn.execute('''
             CREATE TABLE IF NOT EXISTS posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,

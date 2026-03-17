@@ -1,6 +1,7 @@
 import sqlite3
 import logging
 import os
+import json
 from pathlib import Path
 from contextlib import contextmanager
 import sys
@@ -233,6 +234,25 @@ def init_db(db_path=None):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Create passkeys table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_passkeys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            credential_id BLOB NOT NULL UNIQUE,
+            public_key BLOB NOT NULL,
+            sign_count INTEGER DEFAULT 0,
+            device_name TEXT,
+            transports TEXT,
+            credential_device_type TEXT,
+            backup_eligible BOOLEAN DEFAULT 0,
+            backup_state BOOLEAN DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_used_at TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     ''')
 
@@ -1624,6 +1644,105 @@ def get_user_by_id(user_id):
     user = cursor.fetchone()
     conn.close()
     return dict(user) if user else None
+
+
+def get_user_passkeys(user_id):
+    """获取用户已绑定的 Passkey 列表"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, user_id, credential_id, sign_count, device_name, transports,
+               credential_device_type, backup_eligible, backup_state,
+               created_at, last_used_at
+        FROM user_passkeys
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+    ''', (user_id,))
+    rows = []
+    for row in cursor.fetchall():
+        item = dict(row)
+        item['transports'] = json.loads(item['transports']) if item.get('transports') else []
+        rows.append(item)
+    conn.close()
+    return rows
+
+
+def get_passkey_by_credential_id(credential_id):
+    """根据 credential_id 获取 Passkey"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT *
+        FROM user_passkeys
+        WHERE credential_id = ?
+    ''', (credential_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    item = dict(row)
+    item['transports'] = json.loads(item['transports']) if item.get('transports') else []
+    return item
+
+
+def create_user_passkey(user_id, credential_id, public_key, sign_count=0,
+                        device_name=None, transports=None, credential_device_type=None,
+                        backup_eligible=False, backup_state=False):
+    """为用户绑定新的 Passkey"""
+    transports_json = json.dumps(transports or [], ensure_ascii=False)
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute('''
+                INSERT INTO user_passkeys (
+                    user_id, credential_id, public_key, sign_count,
+                    device_name, transports, credential_device_type,
+                    backup_eligible, backup_state, last_used_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (
+                user_id,
+                credential_id,
+                public_key,
+                sign_count,
+                device_name,
+                transports_json,
+                credential_device_type,
+                int(bool(backup_eligible)),
+                int(bool(backup_state)),
+            ))
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            return None
+
+
+def update_user_passkey_usage(passkey_id, sign_count,
+                              credential_device_type=None, backup_state=None):
+    """更新 Passkey 的使用状态"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE user_passkeys
+            SET sign_count = ?,
+                credential_device_type = COALESCE(?, credential_device_type),
+                backup_state = COALESCE(?, backup_state),
+                last_used_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (
+            sign_count,
+            credential_device_type,
+            int(bool(backup_state)) if backup_state is not None else None,
+            passkey_id,
+        ))
+        return cursor.rowcount > 0
+
+
+def delete_user_passkey(passkey_id, user_id):
+    """删除用户的 Passkey"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM user_passkeys WHERE id = ? AND user_id = ?', (passkey_id, user_id))
+        return cursor.rowcount > 0
 
 
 def get_all_users():
