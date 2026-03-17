@@ -622,6 +622,13 @@ main {
     object-fit: contain;
 }
 
+.post-content p > img,
+.post-content p > a > img,
+.post-content > a > img {
+    margin-left: auto;
+    margin-right: auto;
+}
+
 /* 超大屏幕优化 */
 @media (min-width: 1400px) {
     .post-content img {
@@ -2422,13 +2429,17 @@ img.loaded {
 .post-content a[href*="/uploads/"] {
     border-bottom: none;
     text-decoration: none;
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin: 1.5rem auto;
 }
 
 .post-content a img {
     max-width: 100%;
     height: auto;
     display: block;
-    margin: 1.5rem 0;
+    margin: 0 auto;
 }
 
 /* AI推荐文章链接样式 */
