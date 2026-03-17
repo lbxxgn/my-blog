@@ -629,6 +629,20 @@ main {
     margin-right: auto;
 }
 
+.post-content .post-media-block {
+    text-align: center;
+}
+
+.post-content .post-media-block > a[href$=".jpg"],
+.post-content .post-media-block > a[href$=".jpeg"],
+.post-content .post-media-block > a[href$=".png"],
+.post-content .post-media-block > a[href$=".gif"],
+.post-content .post-media-block > a[href$=".webp"],
+.post-content .post-media-block > a[href*="/uploads/"] {
+    margin-left: auto;
+    margin-right: auto;
+}
+
 /* 超大屏幕优化 */
 @media (min-width: 1400px) {
     .post-content img {

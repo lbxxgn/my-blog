@@ -424,6 +424,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const contentImages = document.querySelectorAll('.post-content img');
 
     contentImages.forEach(function(img) {
+        const parentParagraph = img.closest('p');
+        const imageLink = img.closest('a');
+        const paragraphText = parentParagraph
+            ? parentParagraph.textContent.replace(/\s+/g, '').trim()
+            : '';
+
+        if (parentParagraph && !paragraphText) {
+            parentParagraph.classList.add('post-media-block');
+        } else if (imageLink && imageLink.parentElement === document.querySelector('.post-content')) {
+            imageLink.classList.add('post-media-block');
+        }
+
         // 添加懒加载属性
         if (!img.hasAttribute('loading')) {
             img.loading = 'lazy';
