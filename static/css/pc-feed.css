@@ -1,80 +1,67 @@
-/* PC端信息流专用样式 */
-/* 适用于屏幕宽度 >= 769px */
+/* PC 端首页信息流专用样式
+   只作用于首页/分类首页的 feed 容器，避免影响正文页和其他列表页 */
 
-/* PC端信息流图片展示 - 动态自适应布局 */
 @media (min-width: 769px) {
-    /* 重置所有定位和宽高比限制 */
-    .posts-list .post-card-media-item {
-        position: static !important;
-        aspect-ratio: auto !important;
-        width: auto !important;
-        height: auto !important;
+    .feed-posts-list {
+        gap: 1.25rem;
     }
 
-    /* 单张图片 - 占满可用宽度，高度自适应 */
-    .posts-list .post-card-media--single .post-card-media-item {
-        max-width: 100% !important;
-        width: 100% !important;
+    .feed-posts-list .post-card {
+        padding: 2rem;
     }
 
-    /* 2张图片 - grid自动分配宽度，每张占50% */
-    .posts-list .post-card-media--count-2 {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
+    .feed-posts-list .post-card-content {
+        padding: 0;
     }
 
-    /* 3张图片 - grid自动分配宽度，每张占33.33% */
-    .posts-list .post-card-media--count-3 {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+    .feed-posts-list .post-card-media {
+        display: grid;
+        gap: 14px;
+        width: min(100%, 640px);
+        margin-top: 1.25rem;
     }
 
-    /* 4张图片 - 2x2网格 */
-    .posts-list .post-card-media--grid-4 {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
+    .feed-posts-list .post-card-media--single {
+        grid-template-columns: minmax(0, 1fr);
     }
 
-    /* 6张图片 - 3x2网格 */
-    .posts-list .post-card-media--grid-6 {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+    .feed-posts-list .post-card-media--count-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: min(100%, 560px);
     }
 
-    /* 9张图片 - 3x3网格 */
-    .posts-list .post-card-media--grid-9 {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+    .feed-posts-list .post-card-media--count-3,
+    .feed-posts-list .post-card-media--grid-6,
+    .feed-posts-list .post-card-media--grid-9 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: min(100%, 640px);
     }
 
-    /* 图片item容器 - 由grid自动控制尺寸 */
-    .posts-list .post-card-media--count-2 .post-card-media-item,
-    .posts-list .post-card-media--count-3 .post-card-media-item,
-    .posts-list .post-card-media--grid-4 .post-card-media-item,
-    .posts-list .post-card-media--grid-6 .post-card-media-item,
-    .posts-list .post-card-media--grid-9 .post-card-media-item {
-        min-width: 200px; /* 最小宽度保证图片不会太小 */
-        min-height: 200px; /* 最小高度保证视觉效果 */
+    .feed-posts-list .post-card-media--grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: min(100%, 560px);
     }
 
-    /* 图片样式 - 完全填充容器，保持宽高比 */
-    .posts-list .post-card-media-item img {
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
-        object-fit: cover !important;
-        position: static !important;
-        margin: 0 !important;
-        float: none !important;
-        display: block !important;
+    .feed-posts-list .post-card-media-item {
+        overflow: hidden;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.06);
+        aspect-ratio: 1 / 1;
     }
-}
 
-/* 隐藏移动端专属元素 */
-@media (min-width: 769px) {
-    .bottom-nav,
-    .mobile-back-button {
-        display: none !important;
+    .feed-posts-list .post-card-media--single .post-card-media-item {
+        aspect-ratio: 16 / 10;
+    }
+
+    .feed-posts-list .post-card-media--count-2 .post-card-media-item,
+    .feed-posts-list .post-card-media--count-3 .post-card-media-item {
+        aspect-ratio: 0.94 / 1;
+    }
+
+    .feed-posts-list .post-card-media-item img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
     }
 }

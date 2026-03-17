@@ -186,11 +186,17 @@ class TestBlogRoutes:
         """测试首页"""
         response = client.get('/')
         assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'data-page="home"' in html
+        assert 'mobile-bottom-nav' in html
     
     def test_view_post(self, client, test_post):
         """测试查看文章"""
         response = client.get(f'/post/{test_post["id"]}')
         assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'mobile-bottom-nav' not in html
+        assert 'data-page="discover"' not in html
     
     def test_search_page(self, client):
         """测试搜索页面"""

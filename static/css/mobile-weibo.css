@@ -282,48 +282,6 @@
     }
 }
 
-/* PC端信息流图片大小限制 */
-@media (min-width: 769px) {
-    .posts-list .post-card-media {
-        max-width: 600px;
-    }
-
-    /* 重置post-card-media-item的position */
-    .posts-list .post-card-media-item {
-        position: static !important;
-        aspect-ratio: auto !important;
-    }
-
-    /* 单张图片时适当增大 */
-    .posts-list .post-card-media--single .post-card-media-item {
-        max-width: 500px !important;
-        max-height: 360px !important;
-    }
-
-    /* 多张图片时限制大小 */
-    .posts-list .post-card-media--count-2 .post-card-media-item,
-    .posts-list .post-card-media--count-3 .post-card-media-item,
-    .posts-list .post-card-media--grid-4 .post-card-media-item,
-    .posts-list .post-card-media--grid-6 .post-card-media-item,
-    .posts-list .post-card-media--grid-9 .post-card-media-item {
-        max-width: 200px !important;
-        max-height: 200px !important;
-    }
-
-    /* 强制覆盖内联样式的width/height */
-    .posts-list .post-card-media-item img {
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
-        object-fit: cover !important;
-        position: static !important;
-        margin: 0 !important;
-        float: none !important;
-        display: block !important;
-    }
-}
-
 /* 下拉刷新指示器 */
 .pull-refresh-indicator {
     position: fixed;

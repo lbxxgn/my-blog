@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block page_type %}home{% endblock %}
+
 {% block title %}
 {% if category %}{{ category.name }} - {% endif %}首页 - 我的博客
 {% endblock %}
@@ -21,7 +23,7 @@
             {% endif %}
 
             {% if posts %}
-                <div id="posts-container" class="posts-list">
+                <div id="posts-container" class="posts-list feed-posts-list">
                     {% for post in posts %}
                         <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
                             <article class="post-card">

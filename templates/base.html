@@ -15,7 +15,10 @@
     <link rel="stylesheet" href="{{ static_file('css/pc-feed.css') }}" media="(min-width: 769px)">
     {% block head %}{% endblock %}
 </head>
-<body data-page="{% block page_type %}home{% endblock %}">
+{% set current_page_type %}{% block page_type %}site{% endblock %}{% endset %}
+{% set current_page_type = current_page_type|trim or 'site' %}
+{% set mobile_shell_enabled = current_page_type == 'home' %}
+<body data-page="{{ current_page_type }}">
     <header>
         <nav>
             <h1><a href="{{ url_for('index') }}">{{ site_name }}</a></h1>
@@ -153,17 +156,20 @@
 </style>
 
     <main>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if mobile_shell_enabled %}
         <!-- 移动端首页 -->
         <div class="mobile-page" data-page="home" style="display: block;">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-
+        {% endif %}
             {% block content %}{% endblock %}
+        {% if mobile_shell_enabled %}
         </div>
 
         <!-- 移动端发现页面 -->
@@ -313,8 +319,10 @@
                 {% endif %}
             </div>
         </div>
+        {% endif %}
     </main>
 
+{% if mobile_shell_enabled %}
 <!-- 移动端底部导航 -->
 <nav class="mobile-bottom-nav">
     <a href="/" class="nav-item active" data-page="home">
@@ -337,6 +345,7 @@
         <span class="nav-item-label">我的</span>
     </a>
 </nav>
+{% endif %}
 
     <footer>
         <p>&copy; 2025 我的博客. All rights reserved.</p>
@@ -424,6 +433,7 @@
 
     {% block scripts %}{% endblock %}
 
+{% if mobile_shell_enabled %}
 <!-- 移动端快速发布编辑器 -->
 <div id="mobileEditorOverlay" class="mobile-editor-overlay"></div>
 <div id="mobileEditorPanel" class="mobile-editor-panel">
@@ -544,5 +554,6 @@ window.showAppToast = function(message, type = 'success') {
 </script>
 
 <script src="{{ static_file('js/mobile-editor.js') }}"></script>
+{% endif %}
 </body>
 </html>
