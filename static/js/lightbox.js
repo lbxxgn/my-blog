@@ -419,23 +419,39 @@
                             console.log(`已切换到原图: ${data.original_url}`);
                         };
                         tempImg.onerror = function() {
-                            alert('原图文件存在但无法加载。\n\n可能的原因：\n1. 文件权限问题\n2. 文件路径错误\n\n您可以：\n1. 使用下载按钮保存当前显示的优化图片\n2. 联系管理员检查文件权限');
+                            if (window.showAppToast) {
+                                window.showAppToast('原图存在但无法加载，请先保存当前优化图', 'error');
+                            } else {
+                                alert('原图文件存在但无法加载。\n\n可能的原因：\n1. 文件权限问题\n2. 文件路径错误\n\n您可以：\n1. 使用下载按钮保存当前显示的优化图片\n2. 联系管理员检查文件权限');
+                            }
                             if (loading) loading.style.display = 'none';
                         };
                         tempImg.src = data.original_url;
                     } else {
                         // 原图不存在
-                        alert('原图文件不存在。\n\n这可能是因为：\n1. 图片是最近上传的，使用了新的命名规则\n2. 原图文件已被删除\n\n您可以：\n1. 使用下载按钮保存当前显示的优化图片\n2. 重新上传图片以生成新的优化版本');
+                        if (window.showAppToast) {
+                            window.showAppToast('原图文件不存在，请使用当前优化图或重新上传', 'error');
+                        } else {
+                            alert('原图文件不存在。\n\n这可能是因为：\n1. 图片是最近上传的，使用了新的命名规则\n2. 原图文件已被删除\n\n您可以：\n1. 使用下载按钮保存当前显示的优化图片\n2. 重新上传图片以生成新的优化版本');
+                        }
                         if (loading) loading.style.display = 'none';
                     }
                 } catch (error) {
                     console.error('获取原图URL失败:', error);
-                    alert('无法获取原图信息。\n\n请检查网络连接或稍后再试。');
+                    if (window.showAppToast) {
+                        window.showAppToast('无法获取原图信息，请稍后再试', 'error');
+                    } else {
+                        alert('无法获取原图信息。\n\n请检查网络连接或稍后再试。');
+                    }
                     if (loading) loading.style.display = 'none';
                 }
             } else {
                 // 无法从URL中提取hash
-                alert('无法识别图片格式。\n\n请使用下载按钮保存当前显示的图片。');
+                if (window.showAppToast) {
+                    window.showAppToast('无法识别图片格式，请先下载当前图片', 'error');
+                } else {
+                    alert('无法识别图片格式。\n\n请使用下载按钮保存当前显示的图片。');
+                }
                 if (loading) loading.style.display = 'none';
             }
         } else {
@@ -491,7 +507,11 @@
                 link.click();
                 document.body.removeChild(link);
 
-                alert('下载已开始。如果图片在新标签页中打开，请右键保存图片。');
+                if (window.showAppToast) {
+                    window.showAppToast('下载已开始，如打开新标签页请右键保存图片');
+                } else {
+                    alert('下载已开始。如果图片在新标签页中打开，请右键保存图片。');
+                }
             });
     }
 

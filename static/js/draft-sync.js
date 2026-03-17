@@ -130,6 +130,29 @@ class DraftSyncManager {
             modal.remove();
         };
 
+        modal.querySelectorAll('.recover-draft').forEach(button => {
+            button.addEventListener('click', async () => {
+                const draftId = button.closest('.draft-option')?.dataset.draftId;
+                if (!draftId) return;
+
+                try {
+                    const draft = await this.loadServerDraft(draftId);
+                    this.applyDraftData(draft);
+                    this.currentDraftId = draft.id;
+                    this.showNotification('已恢复服务器草稿', 'success');
+                    modal.remove();
+                } catch (error) {
+                    this.showNotification('恢复草稿失败: ' + error.message, 'error');
+                }
+            });
+        });
+
+        modal.querySelector('.recover-local')?.addEventListener('click', () => {
+            this.applyDraftData(localDraft);
+            this.showNotification('已恢复本地草稿', 'success');
+            modal.remove();
+        });
+
         document.body.appendChild(modal);
     }
 
@@ -221,7 +244,9 @@ class DraftSyncManager {
             if (result.success) {
                 this.showNotification(result.message, 'success');
                 if (action === 'keep_other') {
-                    location.reload();
+                    const draft = await this.loadServerDraft(otherDraftId);
+                    this.applyDraftData(draft);
+                    this.currentDraftId = draft.id;
                 }
             }
         } catch (error) {
@@ -291,6 +316,51 @@ class DraftSyncManager {
 
     getCsrfToken() {
         return document.querySelector('meta[name="csrf_token"]')?.getAttribute('content');
+    }
+
+    async loadServerDraft(draftId) {
+        const response = await fetch(`/api/drafts/${draftId}`);
+        const result = await response.json();
+
+        if (!result.success || !result.draft) {
+            throw new Error(result.error || '草稿不存在');
+        }
+
+        return result.draft;
+    }
+
+    applyDraftData(draft) {
+        if (!draft) return;
+
+        const titleInput = document.getElementById('title');
+        const contentTextarea = document.getElementById('content');
+        const categorySelect = document.getElementById('category');
+        const tagsInput = document.getElementById('tags');
+        const saveStatus = document.getElementById('saveStatus');
+
+        if (titleInput) titleInput.value = draft.title || '';
+        if (contentTextarea) contentTextarea.value = draft.content || '';
+
+        if (categorySelect) {
+            categorySelect.value = draft.category_id != null ? String(draft.category_id) : '';
+        }
+
+        if (tagsInput) {
+            const tags = Array.isArray(draft.tags) ? draft.tags : [];
+            tagsInput.value = tags.join(', ');
+        }
+
+        this.saveToLocalStorage({
+            title: titleInput?.value || '',
+            content: contentTextarea?.value || '',
+            category_id: categorySelect?.value || null,
+            tags: this.getTags()
+        });
+
+        if (saveStatus) {
+            saveStatus.textContent = '已恢复草稿';
+            saveStatus.className = 'save-status saved';
+        }
     }
 
     saveToLocalStorage(data) {

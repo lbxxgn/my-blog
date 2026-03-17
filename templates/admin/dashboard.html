@@ -360,6 +360,37 @@ function reloadAfterToast(delay = 650) {
     setTimeout(() => window.location.reload(), delay);
 }
 
+function getSelectedPostRows() {
+    return Array.from(selectedPosts)
+        .map(postId => document.querySelector(`tr[data-post-id="${postId}"]`))
+        .filter(Boolean);
+}
+
+function updateRowCategory(row, categoryName) {
+    const cell = row?.children?.[2];
+    if (!cell) return;
+
+    if (categoryName) {
+        cell.innerHTML = `<span class="post-category">${categoryName}</span>`;
+    } else {
+        cell.innerHTML = '<span style="color: #999;">未分类</span>';
+    }
+}
+
+function updateRowStatus(row, isPublished) {
+    const cell = row?.children?.[3];
+    if (!cell) return;
+
+    cell.innerHTML = isPublished
+        ? '<span class="status published">已发布</span>'
+        : '<span class="status draft">草稿</span>';
+}
+
+function removeSelectedRows() {
+    getSelectedPostRows().forEach(row => row.remove());
+    clearSelection();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Batch category form
     document.getElementById('batchCategoryForm').addEventListener('submit', function(e) {
@@ -391,7 +422,11 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 notifyDashboard(data.message);
-                reloadAfterToast();
+                const selectedOption = document.getElementById('batchCategorySelect').selectedOptions[0];
+                const categoryName = categoryId === '' ? '' : (selectedOption?.textContent || '');
+                getSelectedPostRows().forEach(row => updateRowCategory(row, categoryName));
+                closeBatchCategoryModal();
+                clearSelection();
             } else {
                 notifyDashboard('操作失败：' + data.message, 'error');
             }
@@ -539,7 +574,7 @@ function confirmBatchDelete() {
         if (data.success) {
             closeBatchDeleteModal();
             notifyDashboard(data.message);
-            reloadAfterToast();
+            removeSelectedRows();
         } else {
             notifyDashboard('操作失败：' + data.message, 'error');
         }
@@ -591,7 +626,8 @@ function performBatchPublish(publish) {
     .then(data => {
         if (data.success) {
             notifyDashboard(data.message);
-            reloadAfterToast();
+            getSelectedPostRows().forEach(row => updateRowStatus(row, publish));
+            clearSelection();
         } else {
             notifyDashboard('操作失败：' + data.message, 'error');
         }
@@ -679,7 +715,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     notifyDashboard(data.message);
                     closeBatchTagsModal();
-                    reloadAfterToast();
+                    document.getElementById('batchTagsInput').value = '';
+                    clearSelection();
                 } else {
                     notifyDashboard('操作失败：' + data.message, 'error');
                 }
@@ -728,7 +765,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     notifyDashboard(data.message);
                     closeBatchAccessModal();
-                    reloadAfterToast();
+                    document.getElementById('batchAccessPassword').value = '';
+                    clearSelection();
                 } else {
                     notifyDashboard('操作失败：' + data.message, 'error');
                 }

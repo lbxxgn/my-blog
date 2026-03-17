@@ -139,8 +139,13 @@
     }
 
     async function performRefresh() {
-        // 刷新页面内容
-        // 这里简单重载页面，实际项目中可以 AJAX 刷新
+        if (window.InfiniteScroll && typeof window.InfiniteScroll.refresh === 'function') {
+            const refreshed = await window.InfiniteScroll.refresh();
+            if (refreshed) {
+                return;
+            }
+        }
+
         window.location.reload();
     }
 

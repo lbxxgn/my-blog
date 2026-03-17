@@ -299,6 +299,15 @@ function registerAdminShortcuts() {
 
     // 刷新列表
     shortcutHandler.register('ctrl+r', () => {
+        if (window.InfiniteScroll && typeof window.InfiniteScroll.refresh === 'function') {
+            window.InfiniteScroll.refresh().then(refreshed => {
+                if (!refreshed) {
+                    location.reload();
+                }
+            });
+            return;
+        }
+
         location.reload();
     }, '刷新页面');
 }
@@ -325,6 +334,15 @@ function registerTimelineShortcuts() {
 
     // 刷新
     shortcutHandler.register('ctrl+r', () => {
+        if (window.InfiniteScroll && typeof window.InfiniteScroll.refresh === 'function') {
+            window.InfiniteScroll.refresh().then(refreshed => {
+                if (!refreshed) {
+                    location.reload();
+                }
+            });
+            return;
+        }
+
         location.reload();
     }, '刷新时间线');
 }

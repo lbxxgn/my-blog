@@ -893,12 +893,25 @@
                 closeMobileEditor();
                 setEditorStatus('');
                 showToast('发送成功');
-                setTimeout(() => {
-                    if (destinationUrl) {
+
+                if (destinationUrl) {
+                    setTimeout(() => {
                         window.location.href = destinationUrl;
-                        return;
-                    }
-                    window.location.reload();
+                    }, 500);
+                    return;
+                }
+
+                const refreshed = window.InfiniteScroll && typeof window.InfiniteScroll.refresh === 'function'
+                    ? await window.InfiniteScroll.refresh()
+                    : false;
+
+                if (refreshed) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+
+                setTimeout(() => {
+                    window.location.href = '/';
                 }, 500);
             } else {
                 const error = await response.text();

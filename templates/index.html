@@ -443,9 +443,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const title = document.getElementById('noteTitle').value.trim();
         const content = document.getElementById('noteContent').value.trim();
+        const csrfToken = window.getCsrfToken ? window.getCsrfToken() : '';
 
         if (!content) {
-            alert('请输入内容');
+            window.showAppToast ? window.showAppToast('请输入内容', 'error') : alert('请输入内容');
             return;
         }
 
@@ -459,6 +460,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({
                     title: title,
@@ -471,18 +473,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 // 显示成功提示
                 closeModal();
-                alert('✅ 记事保存成功！');
+                window.showAppToast ? window.showAppToast('记事保存成功') : alert('✅ 记事保存成功！');
 
                 // 可选：跳转到时间线查看
                 // window.location.href = '/knowledge_base/timeline';
             } else {
-                alert('❌ 保存失败：' + (data.error || '未知错误'));
+                window.showAppToast
+                    ? window.showAppToast('保存失败：' + (data.error || '未知错误'), 'error')
+                    : alert('❌ 保存失败：' + (data.error || '未知错误'));
                 submitBtn.disabled = false;
                 submitBtn.textContent = '保存';
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('❌ 保存失败，请重试');
+            window.showAppToast ? window.showAppToast('保存失败，请重试', 'error') : alert('❌ 保存失败，请重试');
             submitBtn.disabled = false;
             submitBtn.textContent = '保存';
         }

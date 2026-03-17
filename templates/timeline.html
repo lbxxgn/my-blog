@@ -554,6 +554,51 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 600);
     }
 
+    function getTimelineStatusLabel(status) {
+        const labels = {
+            idea: '想法',
+            incubating: '孵化中',
+            draft: '草稿',
+            published: '已发布'
+        };
+        return labels[status] || status;
+    }
+
+    function updateTimelineItem(cardId, nextData) {
+        const item = document.querySelector(`.edit-btn[data-id="${cardId}"]`)?.closest('.timeline-item');
+        if (!item) {
+            return;
+        }
+
+        item.dataset.status = nextData.status;
+
+        const badge = item.querySelector('.badge');
+        if (badge) {
+            badge.className = `badge badge-${nextData.status}`;
+            badge.textContent = getTimelineStatusLabel(nextData.status);
+        }
+
+        let titleEl = item.querySelector('.item-title');
+        if (nextData.title) {
+            if (!titleEl) {
+                titleEl = document.createElement('h3');
+                titleEl.className = 'item-title';
+                const body = item.querySelector('.item-body');
+                item.querySelector('.item-content').insertBefore(titleEl, body);
+            }
+            titleEl.textContent = nextData.title;
+        } else if (titleEl) {
+            titleEl.remove();
+        }
+
+        const body = item.querySelector('.item-body');
+        if (body) {
+            body.textContent = nextData.content.length > 200
+                ? `${nextData.content.slice(0, 200)}...`
+                : nextData.content;
+        }
+    }
+
     // ==================== 编辑卡片功能 ====================
     const modal = document.getElementById('editModal');
     const editForm = document.getElementById('editForm');
@@ -657,8 +702,12 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             if (data.success) {
                 notifyTimeline('保存成功');
+                updateTimelineItem(cardId, data ? {
+                    title: document.getElementById('editTitle').value,
+                    content: document.getElementById('editContent').value,
+                    status: document.getElementById('editStatus').value
+                } : null);
                 modal.style.display = 'none';
-                setTimeout(() => window.location.reload(), 500);
             } else {
                 notifyTimeline('保存失败: ' + data.error, 'error');
             }

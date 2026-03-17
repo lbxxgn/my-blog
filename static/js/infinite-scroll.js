@@ -53,6 +53,13 @@
         debug('Initialized successfully');
     }
 
+    function buildFeedUrl(page = 1) {
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set('page', page);
+        currentUrl.searchParams.set('format', 'json');
+        return `${currentUrl.pathname}?${currentUrl.searchParams.toString()}`;
+    }
+
     function createLoadIndicator() {
         const container = document.getElementById('posts-container');
         if (!container) {
@@ -123,11 +130,7 @@
         try {
             currentPage++;
 
-            const currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('page', currentPage);
-            currentUrl.searchParams.set('format', 'json');
-
-            const url = `${currentUrl.pathname}?${currentUrl.searchParams.toString()}`;
+            const url = buildFeedUrl(currentPage);
             debug('Fetching:', url);
 
             const response = await fetch(url);
@@ -316,6 +319,57 @@
         }
     }
 
+    async function refreshPosts() {
+        const container = document.getElementById('posts-container');
+        if (!container) {
+            return false;
+        }
+
+        try {
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+
+            const response = await fetch(buildFeedUrl(1), {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`刷新失败: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const posts = Array.isArray(data.posts) ? data.posts : [];
+
+            container.innerHTML = '';
+            currentPage = 1;
+            hasMore = currentPage < (data.total_pages || 1);
+            isLoading = false;
+
+            if (posts.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>还没有发布任何文章。</p></div>';
+                return true;
+            }
+
+            posts.forEach(post => {
+                container.appendChild(createPostCard(post));
+            });
+
+            if (hasMore) {
+                createLoadIndicator();
+                setupObserver();
+            }
+
+            return true;
+        } catch (error) {
+            console.error('[InfiniteScroll] Failed to refresh posts:', error);
+            return false;
+        }
+    }
+
     window.InfiniteScroll = {
         reset: function() {
             currentPage = 1;
@@ -323,6 +377,7 @@
             isLoading = false;
         },
         loadMore: loadMorePosts,
+        refresh: refreshPosts,
         destroy: function() {
             if (observer) {
                 observer.disconnect();

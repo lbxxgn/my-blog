@@ -316,7 +316,7 @@ def view_post(post_id):
         attributes={
             'a': ['href', 'title', 'rel'],
             'img': ['src', 'alt', 'title', 'width', 'height'],
-            '*': ['class', 'style']
+            '*': ['class']
         },
         strip_comments=False
     )
