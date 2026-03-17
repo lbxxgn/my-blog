@@ -371,19 +371,17 @@
     --mobile-editor-text: rgba(29, 33, 41, 0.96);
     --mobile-editor-text-muted: rgba(29, 33, 41, 0.56);
     --mobile-editor-text-soft: rgba(29, 33, 41, 0.36);
-    --mobile-editor-surface:
-        radial-gradient(circle at top right, rgba(233, 177, 90, 0.16), transparent 28%),
-        linear-gradient(180deg, rgba(252, 249, 244, 0.98) 0%, rgba(245, 239, 231, 0.99) 100%);
-    --mobile-editor-overlay: rgba(231, 223, 212, 0.72);
-    --mobile-editor-border-weak: rgba(58, 45, 28, 0.08);
+    --mobile-editor-surface: #fbf8f3;
+    --mobile-editor-overlay: rgba(244, 238, 229, 0.76);
+    --mobile-editor-border-weak: rgba(58, 45, 28, 0.06);
     --mobile-editor-border-strong: rgba(58, 45, 28, 0.12);
-    --mobile-editor-meta-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(242, 235, 226, 0.92) 100%);
-    --mobile-editor-pill-surface: rgba(255, 255, 255, 0.68);
+    --mobile-editor-meta-surface: rgba(251, 248, 243, 0.94);
+    --mobile-editor-pill-surface: rgba(255, 255, 255, 0.88);
     --mobile-editor-pill-border: rgba(58, 45, 28, 0.1);
     --mobile-editor-pill-text: rgba(29, 33, 41, 0.74);
     --mobile-editor-image-surface: rgba(58, 45, 28, 0.06);
-    --mobile-editor-toolbar-surface: linear-gradient(180deg, rgba(247, 241, 232, 0.94) 0%, rgba(242, 235, 226, 0.98) 100%);
-    --mobile-editor-toolbar-shadow: 0 -8px 40px rgba(66, 48, 25, 0.12);
+    --mobile-editor-toolbar-surface: rgba(251, 248, 243, 0.96);
+    --mobile-editor-toolbar-shadow: none;
     --mobile-editor-button-text: rgba(255, 255, 255, 0.92);
 }
 
@@ -462,8 +460,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 8px 18px 14px;
+    padding: 8px 20px 12px;
     border-bottom: 1px solid var(--mobile-editor-border-weak);
+    background: transparent;
 }
 
 .mobile-editor-close {
@@ -501,13 +500,13 @@
     background: linear-gradient(135deg, rgba(155, 103, 34, 0.92) 0%, rgba(194, 135, 51, 0.92) 100%);
     color: var(--mobile-editor-button-text);
     border: none;
-    padding: 12px 20px;
-    border-radius: 12px;
-    font-size: 17px;
+    padding: 10px 18px;
+    border-radius: 16px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    min-width: 96px;
-    box-shadow: 0 10px 24px rgba(105, 65, 18, 0.24);
+    min-width: 84px;
+    box-shadow: 0 8px 18px rgba(105, 65, 18, 0.16);
 }
 
 .mobile-editor-publish:disabled {
@@ -519,7 +518,7 @@
 .mobile-editor-content {
     flex: 1;
     overflow-y: auto;
-    padding: 22px 18px 12px;
+    padding: 22px 20px 10px;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -531,14 +530,15 @@
     width: 100%;
     min-height: 320px;
     border: none;
-    font-size: 21px;
-    line-height: 1.7;
+    font-size: 20px;
+    line-height: 1.75;
     font-family: inherit;
     resize: none;
     outline: none;
     background: transparent;
     color: var(--mobile-editor-text);
     caret-color: #d4a15d;
+    padding: 0;
 }
 
 .mobile-editor-textarea::placeholder {
@@ -609,10 +609,9 @@
 .mobile-editor-meta {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 10px 18px 8px;
+    gap: 8px;
+    padding: 8px 20px 6px;
     border-top: 1px solid var(--mobile-editor-border-weak);
-    border-bottom: 1px solid var(--mobile-editor-border-weak);
     background: var(--mobile-editor-meta-surface);
 }
 
@@ -698,8 +697,8 @@
     background: var(--mobile-editor-pill-surface);
     color: var(--mobile-editor-pill-text);
     border-radius: 999px;
-    padding: 10px 16px;
-    font-size: 14px;
+    padding: 8px 15px;
+    font-size: 13px;
     font-weight: 500;
     line-height: 1;
 }
@@ -708,7 +707,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 18px calc(env(safe-area-inset-bottom, 0) + 12px);
+    padding: 8px 24px calc(env(safe-area-inset-bottom, 0) + 8px);
+    border-top: 1px solid var(--mobile-editor-border-weak);
     background: var(--mobile-editor-toolbar-surface);
     box-shadow: var(--mobile-editor-toolbar-shadow);
 }
@@ -717,12 +717,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
+    width: 42px;
+    height: 42px;
     border: none;
     background: none;
     color: var(--mobile-editor-pill-text);
-    font-size: 27px;
+    font-size: 25px;
     cursor: pointer;
     border-radius: 50%;
     transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
@@ -741,8 +741,8 @@
 }
 
 .toolbar-icon svg {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     stroke: currentColor;
     stroke-width: 1.8;
     stroke-linecap: round;
