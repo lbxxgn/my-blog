@@ -862,7 +862,7 @@
 
             // 构建 FormData
             const formData = new FormData();
-            formData.append('title', title || buildTitleFromContent(composedContent));
+            formData.append('title', title || buildTitleFromContent(composedContent, uploadedImageUrls.length));
             formData.append('content', composedContent);
             formData.append('is_published', 'true');
             formData.append('access_level', accessLevel);
@@ -1022,13 +1022,38 @@
         updatePublishButton();
     }
 
-    function buildTitleFromContent(content) {
+    function buildTitleFromContent(content, imageCount = 0) {
         const normalized = String(content || '')
+            .replace(/<img[^>]*>/gi, ' ')
             .replace(/<[^>]+>/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
+        const fallbackDate = formatMobilePostDate();
 
-        return normalized ? normalized.slice(0, 28) : '无标题';
+        if (!normalized) {
+            return imageCount > 0
+                ? `图片随记 · ${fallbackDate}`
+                : `移动随记 · ${fallbackDate}`;
+        }
+
+        const titleCandidate = normalized
+            .replace(/[。！？!?.，,、；;：:]+$/, '')
+            .slice(0, 24)
+            .trim();
+
+        if (titleCandidate.length >= 6) {
+            return titleCandidate;
+        }
+
+        return `${titleCandidate || '移动随记'} · ${fallbackDate}`;
+    }
+
+    function formatMobilePostDate() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     function escapeHtml(value) {
