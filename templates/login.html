@@ -27,6 +27,10 @@
                 <label for="password">密码</label>
                 <input type="password" id="password" name="password" autocomplete="current-password" required>
             </div>
+            <label style="display: flex; align-items: center; gap: 10px; margin: 0.5rem 0 1rem; color: var(--text-secondary); font-size: 0.95rem;">
+                <input type="checkbox" id="rememberDevice" name="remember_device" value="1">
+                <span>信任这台设备 {{ remember_device_days }} 天，减少重复登录</span>
+            </label>
             <button type="submit" class="btn btn-primary">登录</button>
         </form>
         <div style="margin-top: 1rem;">
@@ -44,6 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const hint = document.getElementById('passkeyLoginHint');
     const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content || '';
     const next = new URLSearchParams(window.location.search).get('next') || '';
+    const rememberDevice = document.getElementById('rememberDevice');
     const hostAdvice = window.PasskeyAuth ? window.PasskeyAuth.getHostAdvice() : { valid: true };
 
     function setHint(message, type = 'info') {
@@ -91,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 finishUrl: "{{ url_for('auth.passkey_authenticate_finish') }}",
                 csrfToken,
                 next,
+                rememberDevice: Boolean(rememberDevice?.checked),
                 mediation: 'conditional',
             }).then(result => {
                 if (!result) {
@@ -118,6 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 finishUrl: "{{ url_for('auth.passkey_authenticate_finish') }}",
                 csrfToken,
                 next,
+                rememberDevice: Boolean(rememberDevice?.checked),
             });
             if (!result) {
                 status.textContent = '你还没有选择用于登录的 Passkey';

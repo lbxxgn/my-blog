@@ -24,6 +24,17 @@ class TestAuthRoutes:
         }, follow_redirects=True)
         
         assert response.status_code == 200
+
+    def test_login_with_remember_device_sets_permanent_session(self, client, test_admin_user):
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password'],
+            'remember_device': '1',
+        })
+
+        with client.session_transaction() as sess:
+            assert sess['_permanent'] is True
+            assert sess['remember_device'] is True
     
     def test_login_failure(self, client):
         """测试登录失败"""
@@ -136,7 +147,8 @@ class TestAuthRoutes:
                 'rawId': 'dGVzdC1jcmVkZW50aWFs',
                 'response': {},
                 'type': 'public-key',
-            }
+            },
+            'remember_device': True,
         })
 
         assert response.status_code == 200
@@ -145,6 +157,7 @@ class TestAuthRoutes:
 
         with client.session_transaction() as sess:
             assert sess['user_id'] == test_admin_user['id']
+            assert sess['_permanent'] is True
 
     def test_passkey_delete_removes_bound_device(self, client, test_admin_user):
         from models import create_user_passkey, get_user_passkeys

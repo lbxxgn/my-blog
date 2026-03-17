@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 # =============================================================================
@@ -70,6 +71,10 @@ PASSKEY_ALLOWED_ORIGINS = [
     for origin in os.environ.get('PASSKEY_ALLOWED_ORIGINS', '').split(',')
     if origin.strip()
 ]
+
+# 受信任设备的登录有效期（天）
+REMEMBER_DEVICE_DAYS = int(os.environ.get('REMEMBER_DEVICE_DAYS', 90))
+PERMANENT_SESSION_LIFETIME = timedelta(days=REMEMBER_DEVICE_DAYS)
 
 # =============================================================================
 # 文件上传配置

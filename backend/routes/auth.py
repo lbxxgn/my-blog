@@ -170,7 +170,11 @@ def _serialize_passkey(passkey):
     }
 
 
-def _complete_login(user):
+def _parse_remember_device(value):
+    return str(value).lower() in ('1', 'true', 'on', 'yes')
+
+
+def _complete_login(user, remember_device=False):
     try:
         session.regenerate()
     except AttributeError:
@@ -179,7 +183,8 @@ def _complete_login(user):
     session['user_id'] = user['id']
     session['username'] = user['username']
     session['role'] = user.get('role', 'author')
-    session.permanent = False
+    session['remember_device'] = bool(remember_device)
+    session.permanent = bool(remember_device)
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -189,15 +194,16 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        remember_device = _parse_remember_device(request.form.get('remember_device'))
 
         if not username or not password:
             flash('请输入用户名和密码', 'error')
             log_login(username or 'Unknown', success=False, error_msg='字段为空')
-            return render_template('login.html')
+            return render_template('login.html', passkey_context=_passkey_context())
 
         user = get_user_by_username(username)
         if user and check_password_hash(user['password_hash'], password):
-            _complete_login(user)
+            _complete_login(user, remember_device=remember_device)
             flash(f'欢迎回来，{user["username"]}！', 'success')
 
             # 记录成功登录
@@ -369,6 +375,7 @@ def passkey_authenticate_finish():
     payload = request.get_json() or {}
     credential = payload.get('credential')
     challenge = session.get('passkey_authentication_challenge')
+    remember_device = _parse_remember_device(payload.get('remember_device'))
 
     if not credential or not challenge:
         return jsonify({'success': False, 'error': '缺少登录上下文，请重试'}), 400
@@ -400,7 +407,7 @@ def passkey_authenticate_finish():
     if not user or not user.get('is_active', 1):
         return jsonify({'success': False, 'error': '用户不可用'}), 403
 
-    _complete_login(user)
+    _complete_login(user, remember_device=remember_device)
     update_user_passkey_usage(
         passkey['id'],
         verification.new_sign_count,

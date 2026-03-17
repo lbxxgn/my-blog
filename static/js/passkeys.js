@@ -240,7 +240,7 @@
         return result;
     }
 
-    async function authenticateWithPasskey({ beginUrl, finishUrl, csrfToken, next, mediation = 'optional' }) {
+    async function authenticateWithPasskey({ beginUrl, finishUrl, csrfToken, next, rememberDevice = false, mediation = 'optional' }) {
         if (!window.PublicKeyCredential || !navigator.credentials) {
             throw new Error('当前浏览器不支持 Passkey');
         }
@@ -273,6 +273,7 @@
             body: JSON.stringify({
                 credential: payload,
                 next: next || '',
+                remember_device: rememberDevice,
             }),
         });
         rememberPasskeyState({

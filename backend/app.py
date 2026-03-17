@@ -41,7 +41,8 @@ from pathlib import Path
 # =============================================================================
 from config import (SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS,
                     MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION,
-                    SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT)
+                    SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT,
+                    PERMANENT_SESSION_LIFETIME, REMEMBER_DEVICE_DAYS)
 
 # =============================================================================
 # 安全相关导入
@@ -155,6 +156,7 @@ from config import SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKI
 app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
 app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
 app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
+app.config['PERMANENT_SESSION_LIFETIME'] = PERMANENT_SESSION_LIFETIME
 
 # =============================================================================
 # 模板上下文处理器
@@ -165,7 +167,8 @@ def inject_site_settings():
     return dict(
         site_name=SITE_NAME,
         site_description=SITE_DESCRIPTION,
-        site_author=SITE_AUTHOR
+        site_author=SITE_AUTHOR,
+        remember_device_days=REMEMBER_DEVICE_DAYS,
     )
 
 # =============================================================================
