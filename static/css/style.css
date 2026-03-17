@@ -611,8 +611,9 @@ main {
 
 /* Images */
 .post-content img {
-    /* 智能响应式宽度：最大800px，但根据页面大小自动调整 */
-    max-width: min(800px, 90vw); /* 800px和视口宽度90%之间取较小值 */
+    width: auto;
+    /* 正文里的单张图片默认按“居中插图”展示，不铺满正文版心 */
+    max-width: min(680px, 100%);
     height: auto;
     border-radius: 4px;
     margin: 1.5rem auto; /* 居中显示 */
@@ -631,6 +632,7 @@ main {
 
 .post-content .post-media-block {
     text-align: center;
+    margin: 1.75rem auto;
 }
 
 .post-content .post-media-block > a[href$=".jpg"],
@@ -641,19 +643,21 @@ main {
 .post-content .post-media-block > a[href*="/uploads/"] {
     margin-left: auto;
     margin-right: auto;
+    width: fit-content;
+    max-width: 100%;
 }
 
 /* 超大屏幕优化 */
 @media (min-width: 1400px) {
     .post-content img {
-        max-width: min(1000px, 85vw); /* 大屏幕适当增大，但保持合理比例 */
+        max-width: min(760px, 100%);
     }
 }
 
 /* 平板和中等屏幕 */
 @media (min-width: 769px) and (max-width: 1399px) {
     .post-content img {
-        max-width: min(800px, 90vw); /* 标准桌面屏幕 */
+        max-width: min(680px, 100%);
     }
 }
 
