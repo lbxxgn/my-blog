@@ -217,8 +217,8 @@
         const category = post.category_name ? `<span class="post-category">${escapeHtml(post.category_name)}</span>` : '';
         const status = post.is_published ? '已发布' : '草稿';
         const access = formatAccess(post.access_level);
-        const href = `/post/${post.id}`;
         const editHref = `/admin/edit/${post.id}`;
+        const href = post.is_published ? `/post/${post.id}` : editHref;
 
         return `
             <article class="post-card" style="position: relative;">

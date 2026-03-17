@@ -40,6 +40,10 @@ def api_key_required(f):
     """API密钥认证装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        if 'user_id' in session:
+            g.user_id = session['user_id']
+            return f(*args, **kwargs)
+
         from models import validate_api_key
 
         api_key = request.headers.get('X-API-Key')
@@ -88,7 +92,7 @@ def plugin_submit():
     data = request.get_json()
     title = data.get('title', 'Untitled')
     content = data.get('content', '')
-    source_url = data.get('source_url', '')
+    source_url = data.get('source_url') or data.get('url', '')
     tags = data.get('tags', [])
     annotation_type = data.get('annotation_type', 'capture')
     create_as_post = data.get('create_as_post', True)  # 默认创建文章
@@ -166,9 +170,6 @@ def sync_annotations():
     url = data.get('url', '')
     annotations = data.get('annotations', [])
 
-    if not url:
-        return jsonify({'success': False, 'error': 'URL is required'}), 400
-
     if not annotations:
         return jsonify({'success': False, 'error': 'No annotations provided'}), 400
 
@@ -176,6 +177,10 @@ def sync_annotations():
         annotation_ids = []
 
         for ann in annotations:
+            annotation_url = url or ann.get('url', '')
+            if not annotation_url:
+                return jsonify({'success': False, 'error': 'URL is required'}), 400
+
             # Validate annotation data
             errors = validate_annotation_data(ann)
             if errors:
@@ -184,8 +189,8 @@ def sync_annotations():
             # Create annotation
             ann_id = create_annotation(
                 user_id=g.user_id,
-                source_url=url,
-                annotation_text=ann.get('text', ''),
+                source_url=annotation_url,
+                annotation_text=ann.get('text') or ann.get('selection', ''),
                 xpath=ann.get('xpath', ''),
                 color=ann.get('color', 'yellow'),
                 note=ann.get('note', ''),
@@ -382,6 +387,20 @@ def incubator():
 # 卡片管理 API
 # =============================================================================
 
+@knowledge_base_bp.route('/api/cards', methods=['GET'])
+@login_required
+def card_list():
+    """获取当前用户的卡片列表。"""
+    status = request.args.get('status')
+    limit = request.args.get('limit', type=int)
+
+    cards = get_cards_by_user(session['user_id'], status=status, limit=limit)
+    return jsonify({
+        'success': True,
+        'cards': cards,
+        'count': len(cards)
+    })
+
 @knowledge_base_bp.route('/api/cards/<int:card_id>', methods=['GET', 'PUT', 'DELETE'])
 @login_required
 def card_detail(card_id):
@@ -483,7 +502,7 @@ def generate_card_tags():
     user_ai_config = get_user_ai_config(session['user_id'])
 
     if not user_ai_config or not user_ai_config.get('ai_tag_generation_enabled', False):
-        return jsonify({'success': False, 'error': 'AI标签生成功能未启用'}), 400
+        return jsonify({'success': False, 'error': 'AI标签生成功能未启用'}), 503
 
     try:
         # Generate tags using existing TagGenerator
@@ -513,8 +532,8 @@ def generate_card_tags():
             return jsonify({'success': False, 'error': '标签生成失败'}), 500
 
     except ValueError as e:
-        # Configuration errors should return 400
-        return jsonify({'success': False, 'error': str(e)}), 400
+        # AI service unavailable or not configured
+        return jsonify({'success': False, 'error': str(e)}), 503
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -574,7 +593,8 @@ def convert_card_to_post(card_id):
         return jsonify({'success': False, 'error': '卡片不存在'}), 404
 
     # 检查权限
-    if card['user_id'] != g.user.id and g.user.role != 'admin':
+    current_user_id = session.get('user_id')
+    if card['user_id'] != current_user_id:
         return jsonify({'success': False, 'error': '无权操作此卡片'}), 403
 
     try:
@@ -591,13 +611,13 @@ def convert_card_to_post(card_id):
             content=card['content'],
             is_published=True,
             category_id=category_id,
-            author_id=g.user.id
+            author_id=current_user_id
         )
 
         # 删除原卡片
         delete_card(card_id)
 
-        log_operation(g.user.id, 'card_convert',
+        log_operation(current_user_id, 'card_convert',
                       f'卡片转换为文章', f'卡片ID: {card_id}, 文章ID: {post_id}')
 
         return jsonify({

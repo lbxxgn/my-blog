@@ -11,6 +11,8 @@
     let selectedImages = [];
     let accessLevel = 'public';
     let draftKey = 'mobile_editor_draft';
+    let isPublishing = false;
+    let editorStatusTimer = null;
 
     // 初始化
     document.addEventListener('DOMContentLoaded', function() {
@@ -55,28 +57,117 @@
     window.closeMobileEditor = closeMobileEditor;
 
     /**
+     * 判断当前是否有可恢复的草稿内容
+     */
+    function hasMeaningfulDraftContent() {
+        const textarea = document.getElementById('mobileEditorTextarea');
+        const title = document.getElementById('mobileEditorTitle');
+
+        return Boolean(
+            (textarea && textarea.value.trim().length > 0) ||
+            (title && title.value.trim().length > 0) ||
+            selectedImages.length > 0 ||
+            selectedTags.length > 0 ||
+            selectedCategory ||
+            accessLevel !== 'public'
+        );
+    }
+
+    /**
+     * 关闭编辑器时保留现场，避免误丢草稿
+     */
+    function dismissEditor() {
+        if (isPublishing) {
+            showToast('正在发送，请稍候', 'error');
+            setEditorStatus('正在发送，请稍候...', 'info', { persistent: true });
+            return;
+        }
+
+        if (hasMeaningfulDraftContent()) {
+            saveDraft();
+        } else {
+            clearDraft();
+        }
+        closeMobileEditor();
+    }
+
+    function setEditorStatus(message, type = 'info', options = {}) {
+        const statusEl = document.getElementById('mobileEditorStatus');
+        if (!statusEl) return;
+
+        if (editorStatusTimer) {
+            clearTimeout(editorStatusTimer);
+            editorStatusTimer = null;
+        }
+
+        statusEl.textContent = message || '';
+        statusEl.classList.remove('is-error', 'is-success', 'show');
+
+        if (type === 'error') {
+            statusEl.classList.add('is-error');
+        } else if (type === 'success') {
+            statusEl.classList.add('is-success');
+        }
+
+        if (message) {
+            statusEl.classList.add('show');
+        }
+
+        if (message && !options.persistent) {
+            const duration = options.duration || 2200;
+            editorStatusTimer = setTimeout(() => {
+                statusEl.textContent = '';
+                statusEl.classList.remove('is-error', 'is-success', 'show');
+                editorStatusTimer = null;
+            }, duration);
+        }
+    }
+
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = 'toast-message';
+        if (type === 'error') {
+            toast.classList.add('is-error');
+        }
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 2200);
+    }
+
+    function setPublishButtonState(label, disabled = true) {
+        const publishBtn = document.getElementById('mobileEditorPublish');
+        if (!publishBtn) return;
+
+        publishBtn.disabled = disabled;
+        publishBtn.textContent = label;
+    }
+
+    function resetPublishButton() {
+        const publishBtn = document.getElementById('mobileEditorPublish');
+        if (!publishBtn) return;
+
+        publishBtn.textContent = '发送';
+        updatePublishButton();
+    }
+
+    /**
      * 初始化编辑器
      */
     function initMobileEditor() {
         // 关闭按钮
         const closeBtn = document.getElementById('mobileEditorClose');
         if (closeBtn) {
-            closeBtn.addEventListener('click', function() {
-                const textarea = document.getElementById('mobileEditorTextarea');
-                const title = document.getElementById('mobileEditorTitle');
-                const hasContent = (textarea && textarea.value.trim().length > 0) ||
-                                   (title && title.value.trim().length > 0);
-
-                if (hasContent) {
-                    if (confirm('确定要关闭吗？未保存的内容将丢失。')) {
-                        clearDraft();
-                        closeMobileEditor();
-                    }
-                } else {
-                    clearDraft();
-                    closeMobileEditor();
-                }
-            });
+            closeBtn.addEventListener('click', dismissEditor);
         }
 
         // 点击遮罩关闭
@@ -84,20 +175,7 @@
         if (overlay) {
             overlay.addEventListener('click', function(e) {
                 if (e.target === overlay) {
-                    const textarea = document.getElementById('mobileEditorTextarea');
-                    const title = document.getElementById('mobileEditorTitle');
-                    const hasContent = (textarea && textarea.value.trim().length > 0) ||
-                                       (title && title.value.trim().length > 0);
-
-                    if (hasContent) {
-                        if (confirm('确定要关闭吗？未保存的内容将丢失。')) {
-                            clearDraft();
-                            closeMobileEditor();
-                        }
-                    } else {
-                        clearDraft();
-                        closeMobileEditor();
-                    }
+                    dismissEditor();
                 }
             });
         }
@@ -106,6 +184,9 @@
         const textarea = document.getElementById('mobileEditorTextarea');
         if (textarea) {
             textarea.addEventListener('input', function() {
+                if (!isPublishing) {
+                    setEditorStatus('');
+                }
                 saveDraft();
                 updatePublishButton();
             });
@@ -115,6 +196,9 @@
         const titleInput = document.getElementById('mobileEditorTitle');
         if (titleInput) {
             titleInput.addEventListener('input', function() {
+                if (!isPublishing) {
+                    setEditorStatus('');
+                }
                 saveDraft();
             });
         }
@@ -183,6 +267,10 @@
     function handleImageSelect(e) {
         const files = e.target.files;
         if (!files || files.length === 0) return;
+
+        if (!isPublishing) {
+            setEditorStatus('');
+        }
 
         // 限制最多9张图片
         const remaining = 9 - selectedImages.length;
@@ -637,7 +725,7 @@
 
         if (textarea && publishBtn) {
             const hasContent = textarea.value.trim().length > 0 || selectedImages.length > 0;
-            publishBtn.disabled = !hasContent;
+            publishBtn.disabled = isPublishing || !hasContent;
         }
     }
 
@@ -674,7 +762,15 @@
             if (!draftData) return;
 
             const draft = JSON.parse(draftData);
-            if (!draft || !draft.content) return;
+            const hasDraftState = draft && (
+                String(draft.title || '').trim().length > 0 ||
+                String(draft.content || '').trim().length > 0 ||
+                (Array.isArray(draft.images) && draft.images.length > 0) ||
+                (Array.isArray(draft.tags) && draft.tags.length > 0) ||
+                draft.category ||
+                (draft.accessLevel && draft.accessLevel !== 'public')
+            );
+            if (!hasDraftState) return;
 
             // 检查草稿是否过期（24小时）
             if (Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) {
@@ -741,22 +837,28 @@
      * 发布文章
      */
     async function publishPost() {
+        if (isPublishing) {
+            return;
+        }
+
         const title = document.getElementById('mobileEditorTitle')?.value || '';
         const content = document.getElementById('mobileEditorTextarea')?.value || '';
 
         if (!content.trim() && selectedImages.length === 0) {
-            alert('请输入内容或添加图片');
+            setEditorStatus('至少输入一点内容，或带上一张图片。', 'error');
+            showToast('请输入内容或添加图片', 'error');
             return;
         }
 
-        const publishBtn = document.getElementById('mobileEditorPublish');
-        publishBtn.disabled = true;
-        publishBtn.textContent = '发送中...';
+        isPublishing = true;
+        setPublishButtonState('发送中...');
+        setEditorStatus('正在整理内容...', 'info', { persistent: true });
 
         try {
             const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content;
-            const uploadedImageUrls = await uploadSelectedImages(csrfToken, publishBtn);
+            const uploadedImageUrls = await uploadSelectedImages(csrfToken);
             const composedContent = composePostContent(content, uploadedImageUrls);
+            setEditorStatus('正在发送内容...', 'info', { persistent: true });
 
             // 构建 FormData
             const formData = new FormData();
@@ -786,24 +888,33 @@
             });
 
             if (response.ok) {
+                const destinationUrl = response.redirected ? response.url : null;
                 clearDraft();
                 closeMobileEditor();
-                alert('发送成功！');
-                // 刷新页面
-                window.location.reload();
+                setEditorStatus('');
+                showToast('发送成功');
+                setTimeout(() => {
+                    if (destinationUrl) {
+                        window.location.href = destinationUrl;
+                        return;
+                    }
+                    window.location.reload();
+                }, 500);
             } else {
                 const error = await response.text();
                 throw new Error(error || '发布失败');
             }
         } catch (error) {
             console.error('Publish error:', error);
-            alert('发布失败：' + (error.message || '未知错误'));
-            publishBtn.disabled = false;
-            publishBtn.textContent = '发送';
+            setEditorStatus(error.message || '发布失败，请稍后重试。', 'error', { persistent: true });
+            showToast(`发布失败：${error.message || '未知错误'}`, 'error');
+        } finally {
+            isPublishing = false;
+            resetPublishButton();
         }
     }
 
-    async function uploadSelectedImages(csrfToken, publishBtn) {
+    async function uploadSelectedImages(csrfToken) {
         if (selectedImages.length === 0) {
             return [];
         }
@@ -818,7 +929,8 @@
                 throw new Error(`第 ${index + 1} 张图片无法读取，请重新选择`);
             }
 
-            publishBtn.textContent = `上传图片 ${index + 1}/${selectedImages.length}`;
+            setPublishButtonState(`上传中 ${index + 1}/${selectedImages.length}`);
+            setEditorStatus(`正在上传第 ${index + 1} 张图片，共 ${selectedImages.length} 张`, 'info', { persistent: true });
 
             const formData = new FormData();
             formData.append('file', file);
@@ -845,7 +957,7 @@
             uploadedUrls.push(imageUrl);
         }
 
-        publishBtn.textContent = '发送中...';
+        setPublishButtonState('发送中...');
         return uploadedUrls;
     }
 

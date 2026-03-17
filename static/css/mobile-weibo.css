@@ -623,6 +623,32 @@
     gap: 12px;
 }
 
+.mobile-editor-status {
+    flex: 1;
+    min-height: 18px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.44);
+    opacity: 0;
+    transform: translateY(3px);
+    transition: opacity 0.2s ease, transform 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mobile-editor-status.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.mobile-editor-status.is-error {
+    color: #ff8f8f;
+}
+
+.mobile-editor-status.is-success {
+    color: #8fe3c8;
+}
+
 .mobile-editor-meta-spacer {
     flex: 1;
     min-height: 1px;
@@ -1238,6 +1264,11 @@
 .toast-message.show {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
+}
+
+.toast-message.is-error {
+    background: linear-gradient(135deg, rgba(232, 93, 117, 0.96) 0%, rgba(201, 61, 86, 0.96) 100%);
+    box-shadow: 0 4px 20px rgba(201, 61, 86, 0.32);
 }
 
 /* 无限滚动加载指示器动画 */

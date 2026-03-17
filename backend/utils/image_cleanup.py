@@ -9,17 +9,24 @@ import re
 import sqlite3
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict
-import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
 from datetime import datetime, timedelta
 import json
 import os
 
+try:
+    import requests
+except ImportError:  # pragma: no cover - 依赖可选
+    requests = None
+
 
 # 从 routes/blog.py 复用的图片提取正则
-IMAGE_SRC_PATTERN = re.compile(r'<img[^>]+src=["\']([^"\']+)["\'][^>]*>', re.IGNORECASE)
-IMG_TAG_PATTERN = re.compile(r'<img[^>]*src=["\'][^"\']+["\'][^>]*>', re.IGNORECASE)
+IMAGE_SRC_PATTERN = re.compile(
+    r'<img[^>]+src=(?:"([^"]+)"|\'([^\']+)\'|([^>\s]+))[^>]*>',
+    re.IGNORECASE
+)
+IMG_TAG_PATTERN = re.compile(r'<img[^>]*src=(?:"[^"]+"|\'[^\']+\'|[^>\s]+)[^>]*>', re.IGNORECASE)
 
 
 def get_db_connection():
@@ -66,7 +73,10 @@ def extract_images_from_content(content: str) -> List[Tuple[str, str]]:
     if not content:
         return []
 
-    matches = IMAGE_SRC_PATTERN.findall(content)
+    matches = [
+        next((value for value in match if value), '')
+        for match in IMAGE_SRC_PATTERN.findall(content)
+    ]
     img_tags = IMG_TAG_PATTERN.findall(content)
 
     return list(zip(img_tags, matches))
@@ -118,6 +128,8 @@ def check_image_url(url: str, timeout: int = 5,
 
     # 外部URL检查
     if url.startswith('http') and check_external:
+        if requests is None:
+            return False, 'requests 未安装，无法检查外部链接'
         try:
             response = requests.head(url, timeout=timeout, allow_redirects=True)
             if response.status_code == 200:

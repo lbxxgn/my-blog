@@ -659,7 +659,7 @@ def update_user_password(user_id, new_password_hash):
         cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
         return cursor.rowcount > 0
 
-def create_category(name):
+def create_category(name, slug=None):
     """Create a new category - refactored to use context manager"""
     try:
         with get_db_context() as conn:
@@ -993,8 +993,18 @@ def search_posts(query, include_drafts=False, page=1, per_page=20):
         'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
     }
 
-def create_comment(post_id, author_name, author_email, content):
+def create_comment(post_id, author_name, author_email=None, content=None):
     """Create a new comment"""
+    if content is None:
+        content = author_email
+        author_email = ''
+
+        if isinstance(author_name, int):
+            author = get_user_by_id(author_name)
+            author_name = author['username'] if author else f'user-{author_name}'
+        else:
+            author_name = str(author_name)
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -1027,6 +1037,52 @@ def get_comments_by_post(post_id, include_hidden=False):
     comments = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return comments
+
+
+def ensure_optimized_images_table():
+    """确保图片优化追踪表存在。"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS optimized_images (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_path TEXT NOT NULL,
+                original_hash TEXT,
+                thumbnail_path TEXT,
+                medium_path TEXT,
+                large_path TEXT,
+                original_size INTEGER,
+                optimized_size INTEGER,
+                status TEXT DEFAULT 'pending',
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP
+            )
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_optimized_status
+            ON optimized_images(status)
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_optimized_original
+            ON optimized_images(original_path)
+        ''')
+
+
+def create_optimized_image_record(original_path, status='pending', original_hash=None):
+    """创建图片优化追踪记录。"""
+    ensure_optimized_images_table()
+
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            '''
+            INSERT INTO optimized_images (original_path, original_hash, status)
+            VALUES (?, ?, ?)
+            ''',
+            (original_path, original_hash, status)
+        )
+        return cursor.lastrowid
 
 def get_all_comments(include_hidden=False):
     """Get all comments"""
@@ -1076,7 +1132,8 @@ def delete_comment(comment_id):
 # Cards Model Functions
 # =============================================================================
 
-def create_card(user_id, title, content, tags=None, status='idea', source='web', linked_article_id=None):
+def create_card(user_id, title, content, tags=None, status='idea', source='web',
+                linked_article_id=None, url=None, source_url=None, **kwargs):
     """
     创建新卡片
 
@@ -1088,6 +1145,7 @@ def create_card(user_id, title, content, tags=None, status='idea', source='web',
         status (str): 状态 (idea/draft/incubating/published)
         source (str): 来源 (web/plugin/voice/mobile)
         linked_article_id (int, optional): 关联的文章ID
+        url/source_url: 兼容旧调用，当前仅接收不单独存储
 
     Returns:
         int: 新创建卡片的ID

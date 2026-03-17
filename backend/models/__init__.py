@@ -57,6 +57,8 @@ __all__ = [
     'get_all_comments',
     'update_comment_visibility',
     'delete_comment',
+    'ensure_optimized_images_table',
+    'create_optimized_image_record',
 
     # User functions
     'get_user_by_username',

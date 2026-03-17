@@ -417,9 +417,14 @@ def admin_dashboard():
     """管理后台首页别名（兼容模板）"""
     return app.view_functions['admin.admin_dashboard']()
 
-@app.route('/admin/new')
+@app.route('/admin/new', methods=['GET', 'POST'])
 def new_post():
     """新建文章别名（兼容模板）"""
+    return app.view_functions['admin.new_post']()
+
+@app.route('/new', methods=['GET', 'POST'])
+def legacy_new_post():
+    """历史新建文章入口别名（兼容旧链接和旧测试）"""
     return app.view_functions['admin.new_post']()
 
 @app.route('/admin/users')
@@ -541,6 +546,68 @@ def edit_user(user_id):
 def delete_user_route(user_id):
     """删除用户别名（兼容模板）"""
     return app.view_functions['admin.delete_user_route'](user_id)
+
+# Knowledge base API aliases
+@app.route('/api/plugin/submit', methods=['POST'])
+def plugin_submit():
+    """浏览器插件提交别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.plugin_submit']()
+
+@app.route('/api/plugin/sync-annotations', methods=['POST'])
+def plugin_sync_annotations():
+    """浏览器插件标注同步别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.sync_annotations']()
+
+@app.route('/api/plugin/annotations', methods=['GET'])
+def plugin_annotations():
+    """浏览器插件标注查询别名（兼容旧客户端）"""
+    if not request.args.get('url'):
+        return jsonify({
+            'success': True,
+            'annotations': [],
+            'count': 0
+        })
+    return app.view_functions['knowledge_base.get_annotations']()
+
+@app.route('/api/plugin/recent', methods=['GET'])
+def plugin_recent():
+    """浏览器插件最近记录别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.get_recent_captures']()
+
+@app.route('/api/cards', methods=['GET'])
+def cards_list():
+    """卡片列表别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.card_list']()
+
+@app.route('/api/cards/<int:card_id>', methods=['GET', 'PUT', 'DELETE'])
+def card_detail(card_id):
+    """卡片详情别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.card_detail'](card_id)
+
+@app.route('/api/cards/<int:card_id>/status', methods=['PUT'])
+def card_status(card_id):
+    """卡片状态更新别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.card_status'](card_id)
+
+@app.route('/api/cards/merge', methods=['POST'])
+def cards_merge():
+    """卡片合并别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.merge_cards']()
+
+@app.route('/api/cards/generate-tags', methods=['POST'])
+def cards_generate_tags():
+    """卡片标签生成别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.generate_card_tags']()
+
+@app.route('/api/cards/ai-merge', methods=['POST'])
+def cards_ai_merge():
+    """AI卡片合并别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.ai_merge_cards']()
+
+@app.route('/api/card/<int:card_id>/convert-to-post', methods=['POST'])
+def convert_card_to_post(card_id):
+    """卡片转文章别名（兼容旧客户端）"""
+    return app.view_functions['knowledge_base.convert_card_to_post'](card_id)
 
 # AI endpoints
 @app.route('/admin/ai/history')

@@ -5,7 +5,7 @@
 导入导出、用户管理等功能。
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -13,6 +13,7 @@ from pathlib import Path
 import logging
 import os
 import sqlite3
+import shutil
 
 from models import (
     get_all_posts, get_post_by_id, create_post, update_post, delete_post,
@@ -24,7 +25,7 @@ from models import (
     update_comment_visibility, delete_comment,
     search_posts, get_posts_by_author,
     get_user_by_username, get_user_by_id, create_user, update_user, delete_user, get_all_users,
-    get_db_connection
+    get_db_connection, create_optimized_image_record
 )
 from auth_decorators import login_required, can_manage_users
 from logger import log_operation, log_error, log_sql
@@ -33,6 +34,36 @@ from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 # 创建管理后台蓝图
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 logger = logging.getLogger(__name__)
+
+
+def get_request_data():
+    """同时兼容 JSON 和表单提交。"""
+    data = request.get_json(silent=True)
+    if data is not None:
+        return data
+
+    form = request.form
+    if not form:
+        return {}
+
+    normalized = {}
+    for key in form.keys():
+        values = form.getlist(key)
+        normalized[key] = values if len(values) > 1 else form.get(key)
+    return normalized
+
+
+def normalize_post_ids(raw_value):
+    """把单值/列表形式的文章ID统一转为整型列表。"""
+    if raw_value is None:
+        return []
+    values = raw_value if isinstance(raw_value, list) else [raw_value]
+    result = []
+    for value in values:
+        if value in (None, ''):
+            continue
+        result.append(int(value))
+    return result
 
 
 def allowed_file(filename):
@@ -330,8 +361,8 @@ def batch_update_category():
 
     conn = None
     try:
-        data = request.get_json()
-        post_ids = data.get('post_ids', [])
+        data = get_request_data()
+        post_ids = normalize_post_ids(data.get('post_ids'))
         category_id = data.get('category_id')
 
         log_operation(user_id, username, '批量更新分类',
@@ -419,8 +450,8 @@ def batch_delete():
 
     conn = None
     try:
-        data = request.get_json()
-        post_ids = data.get('post_ids', [])
+        data = get_request_data()
+        post_ids = normalize_post_ids(data.get('post_ids'))
 
         log_operation(user_id, username, '批量删除文章',
                     f'文章ID: {post_ids}')
@@ -487,9 +518,14 @@ def batch_publish():
 
     conn = None
     try:
-        data = request.get_json()
-        post_ids = data.get('post_ids', [])
-        publish = data.get('publish', True)  # True=发布, False=取消发布
+        data = get_request_data()
+        post_ids = normalize_post_ids(data.get('post_ids'))
+        publish = data.get('publish')
+        if publish is None:
+            action = data.get('action', 'publish')
+            publish = action != 'unpublish'
+        elif isinstance(publish, str):
+            publish = publish.lower() in ('1', 'true', 'yes', 'publish')
 
         log_operation(user_id, username, '批量发布/取消发布',
                     f'文章ID: {post_ids}, 操作: {"发布" if publish else "取消发布"}')
@@ -557,9 +593,14 @@ def batch_add_tags():
 
     conn = None
     try:
-        data = request.get_json()
-        post_ids = data.get('post_ids', [])
+        data = get_request_data()
+        post_ids = normalize_post_ids(data.get('post_ids'))
         tags = data.get('tags', [])  # 标签列表
+        tag_ids = data.get('tag_ids', [])
+        if not isinstance(tags, list):
+            tags = [tag.strip() for tag in str(tags).split(',') if tag.strip()] if tags else []
+        if not isinstance(tag_ids, list):
+            tag_ids = [tag_ids] if tag_ids else []
 
         log_operation(user_id, username, '批量添加标签',
                     f'文章ID: {post_ids}, 标签: {tags}')
@@ -567,11 +608,18 @@ def batch_add_tags():
         if not post_ids:
             return jsonify({'success': False, 'message': '未选择任何文章'}), 400
 
-        if not tags:
-            return jsonify({'success': False, 'message': '未指定任何标签'}), 400
-
         conn = get_db_connection()
         cursor = conn.cursor()
+
+        if not tags and tag_ids:
+            for tag_id in tag_ids:
+                cursor.execute('SELECT name FROM tags WHERE id = ?', (int(tag_id),))
+                tag = cursor.fetchone()
+                if tag:
+                    tags.append(tag['name'] if 'name' in tag.keys() else tag[0])
+
+        if not tags:
+            return jsonify({'success': False, 'message': '未指定任何标签'}), 400
 
         updated_count = 0
         errors = []
@@ -586,8 +634,7 @@ def batch_add_tags():
 
                     if not tag:
                         # 创建新标签
-                        cursor.execute('INSERT INTO tags (name, slug) VALUES (?, ?)',
-                                     (tag_name, tag_name.lower().replace(' ', '-')))
+                        cursor.execute('INSERT INTO tags (name) VALUES (?)', (tag_name,))
                         tag_id = cursor.lastrowid
                     else:
                         tag_id = tag[0]
@@ -644,10 +691,10 @@ def batch_update_access():
 
     conn = None
     try:
-        data = request.get_json()
-        post_ids = data.get('post_ids', [])
-        access_level = data.get('access_level', 'public')  # public, password, private
-        access_password = data.get('access_password', '')  # 仅当access_level为password时使用
+        data = get_request_data()
+        post_ids = normalize_post_ids(data.get('post_ids'))
+        access_level = data.get('access_level') or data.get('access') or 'public'  # public, password, private
+        access_password = data.get('access_password') or data.get('password') or ''  # 仅当access_level为password时使用
 
         log_operation(user_id, username, '批量更新访问权限',
                     f'文章ID: {post_ids}, 权限: {access_level}')
@@ -820,16 +867,11 @@ def upload_image():
         from tasks.image_optimization_task import queue_image_optimization
 
         image_hash = get_image_hash(str(original_path))
-
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO optimized_images (original_path, original_hash, status)
-            VALUES (?, ?, 'pending')
-        ''', (str(original_path), image_hash))
-        optimization_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
+        optimization_id = create_optimized_image_record(
+            original_path=str(original_path),
+            original_hash=image_hash,
+            status='pending'
+        )
 
         # 触发后台优化
         queue_image_optimization(str(original_path))
@@ -988,13 +1030,18 @@ def export_markdown():
     try:
         from export import export_all_posts_to_markdown
         count, path = export_all_posts_to_markdown()
-        flash(f'成功导出 {count} 篇文章到 {path}', 'success')
         log_operation(session.get('user_id'), session.get('username'), f'导出 {count} 篇文章为 Markdown')
+        archive_path = shutil.make_archive(path, 'zip', root_dir=path)
+        return send_file(
+            archive_path,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f'{os.path.basename(path)}.zip'
+        )
     except Exception as e:
         flash(f'导出失败: {str(e)}', 'error')
         log_error(e, context='Export to markdown')
-
-    return redirect(url_for('admin.export_page'))
+        return redirect(url_for('admin.export_page'))
 
 
 @admin_bp.route('/export/json')
@@ -1004,13 +1051,17 @@ def export_json():
     try:
         from export import export_to_json
         count, path = export_to_json()
-        flash(f'成功导出 {count} 篇文章到 {path}', 'success')
         log_operation(session.get('user_id'), session.get('username'), f'导出 {count} 篇文章为 JSON')
+        return send_file(
+            path,
+            mimetype='application/json',
+            as_attachment=True,
+            download_name=os.path.basename(path)
+        )
     except Exception as e:
         flash(f'导出失败: {str(e)}', 'error')
         log_error(e, context='Export to JSON')
-
-    return redirect(url_for('admin.export_page'))
+        return redirect(url_for('admin.export_page'))
 
 
 @admin_bp.route('/import')
