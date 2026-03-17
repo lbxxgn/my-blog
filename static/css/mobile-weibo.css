@@ -710,12 +710,12 @@
     align-items: center;
     justify-content: space-between;
     align-self: center;
-    width: calc(100% - 24px);
-    max-width: 420px;
-    padding: 8px 24px calc(env(safe-area-inset-bottom, 0) + 6px);
-    margin: 8px 12px calc(env(safe-area-inset-bottom, 0) + 4px);
+    width: calc(100% - 52px);
+    max-width: 360px;
+    padding: 7px 18px calc(env(safe-area-inset-bottom, 0) + 5px);
+    margin: 8px 26px calc(env(safe-area-inset-bottom, 0) + 4px);
     border: 1px solid var(--mobile-editor-toolbar-border);
-    border-radius: 26px;
+    border-radius: 24px;
     background: var(--mobile-editor-toolbar-surface);
     box-shadow: var(--mobile-editor-toolbar-shadow);
     backdrop-filter: blur(16px);
@@ -725,12 +725,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 42px;
-    height: 42px;
+    width: 38px;
+    height: 38px;
     border: none;
     background: none;
     color: var(--mobile-editor-pill-text);
-    font-size: 25px;
+    font-size: 23px;
     cursor: pointer;
     border-radius: 50%;
     transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
@@ -753,8 +753,8 @@
 }
 
 .toolbar-icon svg {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     stroke: currentColor;
     stroke-width: 1.8;
     stroke-linecap: round;
