@@ -19,10 +19,10 @@
     <div id="draftRecovery" class="draft-recovery" style="display: none;">
         <div class="draft-recovery-content">
             <span class="recovery-icon">💾</span>
-            <span class="recovery-text">检测到未保存的草稿，是否恢复？</span>
+            <span class="recovery-text">发现较新的草稿，需要时可以恢复。</span>
             <div class="recovery-actions">
                 <button type="button" class="btn btn-sm btn-primary" onclick="recoverDraft()">恢复</button>
-                <button type="button" class="btn btn-sm btn-secondary" onclick="discardDraft()">丢弃</button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="discardDraft()">忽略</button>
             </div>
         </div>
     </div>
@@ -136,6 +136,120 @@
             </div>
         </div>
     </form>
+
+    <section class="editor-assist-dock" id="editorAssistDock">
+        <div class="assist-dock-header">
+            <div>
+                <h3>辅助工具</h3>
+                <p>默认收起，需要时再展开，不打断写作节奏。</p>
+            </div>
+            <div class="assist-dock-summary">
+                <span class="assist-summary-item">草稿：<strong id="draftHealthState">未修改</strong></span>
+                <span class="assist-summary-item">图片：<strong id="draftHealthImages">0 张</strong></span>
+            </div>
+        </div>
+
+        <div class="assist-toolbar">
+            <button type="button" class="assist-toggle ai-feature" data-panel-target="ai">
+                AI 整理
+            </button>
+            <button type="button" class="assist-toggle" data-panel-target="draft">
+                草稿状态
+            </button>
+            <button type="button" class="assist-toggle" data-panel-target="history">
+                历史卡片/笔记
+            </button>
+            <button type="button" class="assist-toggle" data-panel-target="image">
+                图片工作台
+            </button>
+        </div>
+
+        <div class="assist-panel-stack">
+            <section class="editor-workbench-card assist-panel ai-feature" data-panel-name="ai" hidden>
+                <div class="workbench-card-header">
+                    <div>
+                        <h3>AI 整理助手</h3>
+                        <p>自动建议标题、摘要、标签、分类和记录类型。</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="aiOrganizeBtn">AI 整理内容</button>
+                </div>
+                <div id="aiOrganizeStatus" class="save-status"></div>
+                <div id="aiSuggestionPanel" class="ai-suggestion-panel" hidden>
+                    <div class="ai-suggestion-grid">
+                        <div class="suggestion-block">
+                            <span class="suggestion-label">建议标题</span>
+                            <div class="suggestion-value" id="suggestedTitle">-</div>
+                        </div>
+                        <div class="suggestion-block">
+                            <span class="suggestion-label">建议类型</span>
+                            <div class="suggestion-value" id="suggestedType">-</div>
+                        </div>
+                        <div class="suggestion-block">
+                            <span class="suggestion-label">建议分类</span>
+                            <div class="suggestion-value" id="suggestedCategory">-</div>
+                        </div>
+                        <div class="suggestion-block suggestion-block-wide">
+                            <span class="suggestion-label">建议摘要</span>
+                            <div class="suggestion-value" id="suggestedSummary">-</div>
+                        </div>
+                        <div class="suggestion-block suggestion-block-wide">
+                            <span class="suggestion-label">建议标签</span>
+                            <div class="suggestion-tags" id="suggestedTags"></div>
+                        </div>
+                    </div>
+                    <div class="suggestion-actions">
+                        <button type="button" class="btn btn-primary" id="applyAiSuggestions">应用全部建议</button>
+                        <button type="button" class="btn btn-secondary" id="insertAiSummary">插入摘要到正文开头</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="editor-workbench-card assist-panel" data-panel-name="draft" hidden>
+                <div class="workbench-card-header">
+                    <div>
+                        <h3>草稿与同步</h3>
+                        <p>需要时再看本地备份、服务器草稿和同步状态。</p>
+                    </div>
+                </div>
+                <div class="draft-health-grid">
+                    <div class="draft-health-item">
+                        <span class="draft-health-label">本地备份</span>
+                        <strong id="draftHealthLocal">尚未备份</strong>
+                    </div>
+                    <div class="draft-health-item">
+                        <span class="draft-health-label">服务器草稿</span>
+                        <strong id="draftHealthServer">尚未同步</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="editor-workbench-card assist-panel" data-panel-name="history" hidden>
+                <div class="workbench-card-header">
+                    <div>
+                        <h3>插入历史卡片/笔记</h3>
+                        <p>复用以前的想法和笔记，不用重复写。</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="openHistoryNotes">刷新资料</button>
+                </div>
+                <div class="history-notes-inline">
+                    <input type="search" id="historyNotesSearch" placeholder="搜索历史卡片、快速记事、知识点">
+                    <div id="historyNotesList" class="history-notes-list"></div>
+                </div>
+            </section>
+
+            <section class="editor-workbench-card assist-panel" data-panel-name="image" hidden>
+                <div class="workbench-card-header">
+                    <div>
+                        <h3>图片工作台</h3>
+                        <p>排序、设为首图、添加图注或移除图片。</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="syncImageWorkbench">刷新</button>
+                </div>
+                <div id="imageWorkbenchEmpty" class="workbench-empty">正文里还没有图片，上传后会出现在这里。</div>
+                <div id="imageWorkbenchList" class="image-workbench-list"></div>
+            </section>
+        </div>
+    </section>
 </div>
 
 <!-- Link Quill CSS from CDN -->
@@ -147,6 +261,256 @@
     display: flex;
     gap: 1.5rem;
     align-items: flex-start;
+}
+
+.editor-assist-dock {
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    padding-top: 1.1rem;
+}
+
+.assist-dock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.9rem;
+}
+
+.assist-dock-header h3 {
+    margin: 0 0 0.25rem;
+    font-size: 0.98rem;
+}
+
+.assist-dock-header p {
+    margin: 0;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.88rem;
+}
+
+.assist-dock-summary {
+    display: flex;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.88rem;
+}
+
+.assist-toolbar {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.9rem;
+}
+
+.assist-toggle {
+    border: 1px solid var(--border-color, #d1d5db);
+    background: var(--card-bg, #fff);
+    color: var(--text-color, #1f2937);
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.assist-toggle:hover,
+.assist-toggle.is-active {
+    border-color: var(--primary-color, #10b981);
+    color: var(--primary-color, #10b981);
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.assist-panel-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.assist-panel[hidden] {
+    display: none !important;
+}
+
+.editor-workbench-card {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 14px;
+    background: var(--card-bg, #fff);
+    padding: 1rem 1.1rem;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.05);
+}
+
+.workbench-card-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 0.9rem;
+}
+
+.workbench-card-header h3 {
+    margin: 0 0 0.25rem;
+    font-size: 1rem;
+}
+
+.workbench-card-header p {
+    margin: 0;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.draft-health-grid,
+.ai-suggestion-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+
+.draft-health-item,
+.suggestion-block {
+    background: var(--code-bg, #f8fafc);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 0.85rem 0.95rem;
+}
+
+.draft-health-label,
+.suggestion-label {
+    display: block;
+    margin-bottom: 0.45rem;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.8rem;
+}
+
+.suggestion-block-wide {
+    grid-column: 1 / -1;
+}
+
+.suggestion-value {
+    color: var(--text-color, #111827);
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+
+.suggestion-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.suggestion-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.suggestion-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.history-notes-inline input {
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 10px;
+    margin-bottom: 0.85rem;
+}
+
+.history-notes-list,
+.image-workbench-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.history-note-item,
+.image-workbench-item {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 0.85rem;
+    background: var(--code-bg, #f8fafc);
+}
+
+.history-note-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 0.4rem;
+}
+
+.history-note-title {
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+}
+
+.history-note-preview {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 0.8rem;
+}
+
+.history-note-actions,
+.image-workbench-actions,
+.image-workbench-order {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.workbench-empty {
+    padding: 0.85rem;
+    border-radius: 12px;
+    background: var(--code-bg, #f8fafc);
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.92rem;
+}
+
+.image-workbench-thumb {
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    background: rgba(15, 23, 42, 0.06);
+}
+
+.image-workbench-note {
+    width: 100%;
+    min-height: 78px;
+    resize: vertical;
+    margin: 0.65rem 0;
+    border: 1px solid var(--border-color, #d1d5db);
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+}
+
+.image-workbench-item.is-cover {
+    border-color: rgba(16, 185, 129, 0.45);
+    box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+
+.image-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(16, 185, 129, 0.14);
+    color: #047857;
+    font-size: 0.76rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
 }
 
 .form-row .form-group {
@@ -190,6 +554,19 @@
 
 /* Responsive for form row */
 @media (max-width: 768px) {
+    .draft-health-grid,
+    .ai-suggestion-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .workbench-card-header {
+        flex-direction: column;
+    }
+
+    .assist-dock-header {
+        flex-direction: column;
+    }
+
     .form-row {
         flex-direction: column;
         gap: 1rem;
@@ -409,65 +786,86 @@
 /* 草稿恢复提示 */
 .draft-recovery {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    z-index: 2000;
-    padding: 20px;
+    top: 132px;
+    right: 20px;
+    z-index: 1200;
+    width: min(360px, calc(100vw - 32px));
+    padding: 0;
     display: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 12px 34px rgba(15, 23, 42, 0.14);
+    border-radius: 16px;
 }
 
 .draft-recovery-content {
-    max-width: 800px;
-    margin: 0 auto;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
 }
 
 .recovery-icon {
-    font-size: 2rem;
+    font-size: 1.15rem;
+    line-height: 1;
 }
 
 .recovery-text {
     flex: 1;
-    font-size: 1rem;
+    color: var(--text-color, #1f2937);
+    font-size: 0.9rem;
+    line-height: 1.45;
 }
 
 .recovery-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .recovery-actions .btn {
-    padding: 8px 20px;
-    border-radius: 6px;
-    border: none;
+    padding: 0.45rem 0.8rem;
+    border-radius: 999px;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: all 0.3s ease;
+    font-size: 0.82rem;
+    transition: all 0.2s ease;
 }
 
 .recovery-actions .btn-primary {
-    background: white;
-    color: #667eea;
+    background: rgba(79, 70, 229, 0.1);
+    color: #4338ca;
+    border: 1px solid rgba(79, 70, 229, 0.14);
 }
 
 .recovery-actions .btn-primary:hover {
-    background: #f0f0f0;
+    background: rgba(79, 70, 229, 0.16);
 }
 
 .recovery-actions .btn-secondary {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: transparent;
+    color: var(--text-secondary, #6b7280);
+    border: 1px solid var(--border-color, #d1d5db);
 }
 
 .recovery-actions .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--code-bg, #f8fafc);
+}
+
+.dark-theme .draft-recovery-content {
+    background: rgba(31, 41, 55, 0.96);
+    border-color: rgba(129, 140, 248, 0.2);
+}
+
+.dark-theme .recovery-text {
+    color: #f3f4f6;
+}
+
+.dark-theme .recovery-actions .btn-secondary {
+    color: #d1d5db;
+    border-color: #4b5563;
+    background: rgba(17, 24, 39, 0.5);
 }
 
 /* 响应式 */
@@ -478,14 +876,19 @@
         right: 20px;
     }
 
+    .draft-recovery {
+        top: auto;
+        bottom: 78px;
+        right: 12px;
+    }
+
     .draft-recovery-content {
         flex-direction: column;
-        text-align: center;
+        align-items: flex-start;
     }
 
     .recovery-actions {
         width: 100%;
-        justify-content: center;
     }
 }
 
@@ -498,273 +901,9 @@
 <script src="{{ static_file('js/editor.js') }}"></script>
 <!-- 草稿同步 -->
 <script src="{{ static_file('js/draft-sync.js') }}"></script>
+<script src="{{ static_file('js/editor-workbench.js') }}"></script>
 
 <script>
-// ==================== 自动保存功能 ====================
-
-const AUTOSAVE_KEY = 'blog_draft_autosave';
-const AUTOSAVE_DELAY = 3000; // 3秒后自动保存
-let autosaveTimer = null;
-let lastSavedContent = '';
-
-// 初始化自动保存
-function initAutosave() {
-    const form = document.getElementById('editorForm');
-    if (!form) return;
-
-    const titleInput = document.getElementById('title');
-    const contentTextarea = document.getElementById('content');
-
-    // 监听内容变化
-    if (titleInput) {
-        titleInput.addEventListener('input', () => {
-            scheduleAutosave();
-        });
-    }
-
-    if (contentTextarea) {
-        contentTextarea.addEventListener('input', () => {
-            scheduleAutosave();
-        });
-    }
-
-    // 页面加载时检查草稿
-    checkForDraft();
-
-    // 页面卸载前保存草稿
-    window.addEventListener('beforeunload', () => {
-        if (hasUnsavedChanges()) {
-            saveDraftToStorage();
-        }
-    });
-}
-
-// 安排自动保存
-function scheduleAutosave() {
-    if (autosaveTimer) {
-        clearTimeout(autosaveTimer);
-    }
-
-    updateAutosaveStatus('saving');
-
-    autosaveTimer = setTimeout(() => {
-        saveDraftToStorage();
-    }, AUTOSAVE_DELAY);
-}
-
-// 保存草稿到 LocalStorage
-function saveDraftToStorage() {
-    const form = document.getElementById('editorForm');
-    if (!form) return;
-
-    const formData = new FormData(form);
-    const draft = {
-        title: formData.get('title') || '',
-        content: formData.get('content') || '',
-        category_id: formData.get('category_id') || '',
-        tags: formData.get('tags') || '',
-        access_level: formData.get('access_level') || 'public',
-        access_password: formData.get('access_password') || '',
-        saved_at: new Date().toISOString()
-    };
-
-    try {
-        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(draft));
-        lastSavedContent = JSON.stringify(draft);
-        updateAutosaveStatus('saved');
-        console.log('[Autosave] Draft saved');
-    } catch (e) {
-        console.error('[Autosave] Failed to save draft:', e);
-        updateAutosaveStatus('error');
-    }
-}
-
-// 检查是否有未保存的草稿
-function checkForDraft() {
-    try {
-        const draftJson = localStorage.getItem(AUTOSAVE_KEY);
-        if (!draftJson) return;
-
-        const draft = JSON.parse(draftJson);
-
-        // 检查草稿是否与当前内容不同
-        const currentTitle = document.getElementById('title').value;
-        const currentContent = document.getElementById('content').value;
-
-        if (draft.title === currentTitle && draft.content === currentContent) {
-            // 内容相同，移除草稿
-            localStorage.removeItem(AUTOSAVE_KEY);
-            return;
-        }
-
-        // 显示恢复提示
-        showDraftRecovery(draft);
-    } catch (e) {
-        console.error('[Autosave] Failed to check draft:', e);
-    }
-}
-
-// 显示草稿恢复提示
-function showDraftRecovery(draft) {
-    const recoveryDiv = document.getElementById('draftRecovery');
-    if (!recoveryDiv) return;
-
-    const savedTime = new Date(draft.saved_at);
-    const timeStr = formatTimeAgo(savedTime);
-
-    recoveryDiv.querySelector('.recovery-text').textContent =
-        `检测到 ${timeStr} 的未保存草稿，是否恢复？`;
-
-    recoveryDiv.style.display = 'block';
-
-    // 保存草稿数据到元素
-    recoveryDiv.dataset.draft = JSON.stringify(draft);
-}
-
-// 恢复草稿
-function recoverDraft() {
-    const recoveryDiv = document.getElementById('draftRecovery');
-    if (!recoveryDiv) return;
-
-    try {
-        const draft = JSON.parse(recoveryDiv.dataset.draft);
-
-        // 填充表单
-        document.getElementById('title').value = draft.title;
-        document.getElementById('content').value = draft.content;
-
-        if (draft.category_id) {
-            document.getElementById('category_id').value = draft.category_id;
-        }
-
-        if (draft.tags) {
-            document.getElementById('tags').value = draft.tags;
-        }
-
-        if (draft.access_level) {
-            document.getElementById('access_level').value = draft.access_level;
-        }
-
-        // 隐藏恢复提示
-        recoveryDiv.style.display = 'none';
-
-        // 触发 Quill 更新
-        if (window.quill) {
-            window.quill.root.innerHTML = draft.content;
-        }
-
-        updateAutosaveStatus('recovered');
-
-        // 3秒后更新状态为已保存
-        setTimeout(() => {
-            updateAutosaveStatus('saved');
-        }, 3000);
-
-        console.log('[Autosave] Draft recovered');
-    } catch (e) {
-        console.error('[Autosave] Failed to recover draft:', e);
-    }
-}
-
-// 丢弃草稿
-function discardDraft() {
-    try {
-        localStorage.removeItem(AUTOSAVE_KEY);
-
-        const recoveryDiv = document.getElementById('draftRecovery');
-        if (recoveryDiv) {
-            recoveryDiv.style.display = 'none';
-        }
-
-        updateAutosaveStatus('saved');
-        console.log('[Autosave] Draft discarded');
-    } catch (e) {
-        console.error('[Autosave] Failed to discard draft:', e);
-    }
-}
-
-// 检查是否有未保存的更改
-function hasUnsavedChanges() {
-    const form = document.getElementById('editorForm');
-    if (!form) return false;
-
-    const formData = new FormData(form);
-    const currentContent = {
-        title: formData.get('title') || '',
-        content: formData.get('content') || ''
-    };
-
-    return JSON.stringify(currentContent) !== lastSavedContent;
-}
-
-// 更新自动保存状态指示器
-function updateAutosaveStatus(status) {
-    const indicator = document.getElementById('autosaveIndicator');
-    if (!indicator) return;
-
-    const dot = indicator.querySelector('.indicator-dot');
-    const text = indicator.querySelector('.indicator-text');
-
-    // 移除所有状态类
-    indicator.classList.remove('status-saving', 'status-saved', 'status-error');
-    dot.classList.remove('dot-saving', 'dot-saved', 'dot-error');
-
-    switch (status) {
-        case 'saving':
-            indicator.classList.add('status-saving');
-            dot.classList.add('dot-saving');
-            text.textContent = '正在保存...';
-            break;
-        case 'saved':
-            indicator.classList.add('status-saved');
-            dot.classList.add('dot-saved');
-            text.textContent = '已保存';
-            break;
-        case 'error':
-            indicator.classList.add('status-error');
-            dot.classList.add('dot-error');
-            text.textContent = '保存失败';
-            break;
-        case 'recovered':
-            indicator.classList.add('status-saved');
-            dot.classList.add('dot-saved');
-            text.textContent = '已恢复草稿';
-            break;
-    }
-}
-
-// 格式化时间差
-function formatTimeAgo(date) {
-    const seconds = Math.floor((new Date() - date) / 1000);
-
-    if (seconds < 60) {
-        return `${seconds}秒前`;
-    }
-
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) {
-        return `${minutes}分钟前`;
-    }
-
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) {
-        return `${hours}小时前`;
-    }
-
-    const days = Math.floor(hours / 24);
-    return `${days}天前`;
-}
-
-// 文章发布成功后清除草稿
-function clearDraftAfterPublish() {
-    try {
-        localStorage.removeItem(AUTOSAVE_KEY);
-        console.log('[Autosave] Draft cleared after publish');
-    } catch (e) {
-        console.error('[Autosave] Failed to clear draft:', e);
-    }
-}
-
 // Publish and save article
 function togglePublish() {
     const checkbox = document.getElementById('is_published');
@@ -796,9 +935,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Check AI features status and show/hide accordingly
     checkAIFeaturesStatus();
-
-    // Initialize autosave
-    initAutosave();
 });
 
 // Check AI features status from server

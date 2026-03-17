@@ -3,12 +3,13 @@
  */
 class DraftSyncManager {
     constructor() {
-        this.autoSaveInterval = 30000; // 30秒
+        this.autoSaveInterval = 15000; // 15秒
         this.autoSaveTimer = null;
         this.currentDraftId = null;
         this.lastSyncTime = null;
         this.deviceInfo = this.getDeviceInfo();
         this.postId = null;
+        this.pendingRecoveryDraft = null;
     }
 
     init(postId = null) {
@@ -16,19 +17,37 @@ class DraftSyncManager {
         this.loadLastSyncTime();
         this.observeContentChanges();
         this.checkForExistingDrafts();
+        this.emitStatus('idle', '未修改');
     }
 
     // 监听内容变化
     observeContentChanges() {
         const titleInput = document.getElementById('title');
         const contentTextarea = document.getElementById('content');
+        const categoryInput = document.getElementById('category_id');
+        const tagsInput = document.getElementById('tags');
+        const accessInput = document.getElementById('access_level');
 
         const debouncedSave = this.debounce(() => {
             this.saveDraft();
         }, this.autoSaveInterval);
+        const markDirty = () => this.emitStatus('dirty', '有未保存修改');
 
+        titleInput?.addEventListener('input', markDirty);
         titleInput?.addEventListener('input', debouncedSave);
+        contentTextarea?.addEventListener('input', markDirty);
         contentTextarea?.addEventListener('input', debouncedSave);
+        categoryInput?.addEventListener('change', markDirty);
+        categoryInput?.addEventListener('change', debouncedSave);
+        tagsInput?.addEventListener('input', markDirty);
+        tagsInput?.addEventListener('input', debouncedSave);
+        accessInput?.addEventListener('change', markDirty);
+        accessInput?.addEventListener('change', debouncedSave);
+        window.addEventListener('editor:content-change', markDirty);
+        window.addEventListener('editor:content-change', debouncedSave);
+        window.addEventListener('editor:images-updated', () => {
+            this.emitStatus('dirty', '图片已更新，等待保存');
+        });
     }
 
     // 保存草稿到服务器
@@ -38,6 +57,7 @@ class DraftSyncManager {
             saveStatus.textContent = '正在保存...';
             saveStatus.className = 'save-status saving';
         }
+        this.emitStatus('saving', '正在同步到服务器...');
 
         try {
             const formData = this.getFormData();
@@ -70,6 +90,11 @@ class DraftSyncManager {
                 }
 
                 this.saveToLocalStorage(formData);
+                localStorage.setItem(`last_sync_${this.postId || 'new'}`, result.updated_at);
+                this.emitStatus('saved', `服务器已保存 ${this.getTimeAgo(result.updated_at)}`, {
+                    serverTime: result.updated_at,
+                    localTime: new Date().toISOString()
+                });
             } else {
                 throw new Error(result.error);
             }
@@ -79,109 +104,90 @@ class DraftSyncManager {
                 saveStatus.textContent = '保存失败，已保存到本地';
                 saveStatus.className = 'save-status error';
             }
-            this.saveToLocalStorage(this.getFormData());
+            const localTime = this.saveToLocalStorage(this.getFormData());
+            this.emitStatus('offline', '服务器保存失败，已备份到本地', {
+                localTime
+            });
         }
     }
 
     // 检测现有草稿
     async checkForExistingDrafts() {
-        if (!this.postId) return;
+        const localDraft = this.getFromLocalStorage();
+        let serverDrafts = [];
 
-        try {
-            const response = await fetch(`/api/drafts?post_id=${this.postId}`);
-            const result = await response.json();
-
-            if (result.success && result.drafts?.length > 0) {
-                const localDraft = this.getFromLocalStorage();
-                const serverDrafts = result.drafts;
-
-                if (serverDrafts.length > 0 || localDraft) {
-                    this.showDraftRecoveryDialog(serverDrafts, localDraft);
+        if (this.postId) {
+            try {
+                const response = await fetch(`/api/drafts?post_id=${this.postId}`);
+                const result = await response.json();
+                if (result.success && result.drafts?.length > 0) {
+                    serverDrafts = result.drafts;
                 }
+            } catch (error) {
+                console.error('检测草稿失败:', error);
             }
-        } catch (error) {
-            console.error('检测草稿失败:', error);
         }
+
+        const candidate = this.pickRecoveryCandidate(serverDrafts, localDraft);
+        if (!candidate || this.isRecoveryDismissed(candidate)) {
+            return;
+        }
+
+        this.pendingRecoveryDraft = candidate;
+        this.showDraftRecoveryBanner(candidate);
     }
 
-    // 显示草稿恢复对话框
-    showDraftRecoveryDialog(serverDrafts, localDraft) {
-        const modal = document.createElement('div');
-        modal.className = 'draft-recovery-modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>💾 检测到未保存的草稿</h2>
-                </div>
-                <div class="modal-body">
-                    ${this.renderDraftOptions(serverDrafts, localDraft)}
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" id="discardAllDrafts">
-                        放弃所有草稿
-                    </button>
-                </div>
-            </div>
-        `;
+    pickRecoveryCandidate(serverDrafts, localDraft) {
+        const candidates = [];
+        const currentSnapshot = this.getComparableSnapshot(this.getFormData());
 
-        // 绑定事件
-        modal.querySelector('#discardAllDrafts').onclick = () => {
-            localStorage.removeItem(`draft_${this.postId || 'new'}`);
-            modal.remove();
-        };
-
-        modal.querySelectorAll('.recover-draft').forEach(button => {
-            button.addEventListener('click', async () => {
-                const draftId = button.closest('.draft-option')?.dataset.draftId;
-                if (!draftId) return;
-
-                try {
-                    const draft = await this.loadServerDraft(draftId);
-                    this.applyDraftData(draft);
-                    this.currentDraftId = draft.id;
-                    this.showNotification('已恢复服务器草稿', 'success');
-                    modal.remove();
-                } catch (error) {
-                    this.showNotification('恢复草稿失败: ' + error.message, 'error');
-                }
-            });
-        });
-
-        modal.querySelector('.recover-local')?.addEventListener('click', () => {
-            this.applyDraftData(localDraft);
-            this.showNotification('已恢复本地草稿', 'success');
-            modal.remove();
-        });
-
-        document.body.appendChild(modal);
-    }
-
-    renderDraftOptions(serverDrafts, localDraft) {
-        let html = '';
-
-        if (serverDrafts?.length > 0) {
+        if (Array.isArray(serverDrafts)) {
             serverDrafts.forEach(draft => {
-                html += `
-                    <div class="draft-option" data-draft-id="${draft.id}">
-                        <h3>📱 ${draft.device_info} - ${this.getTimeAgo(draft.updated_at)}</h3>
-                        <div class="draft-preview">${draft.title}</div>
-                        <button class="btn btn-primary recover-draft">恢复此草稿</button>
-                    </div>
-                `;
+                const candidate = {
+                    ...draft,
+                    source: 'server',
+                    label: draft.device_info ? `服务器草稿 · ${draft.device_info}` : '服务器草稿',
+                    timestamp: draft.updated_at
+                };
+                if (this.isMeaningfulDraft(candidate) && !this.isSameAsCurrent(candidate, currentSnapshot)) {
+                    candidates.push(candidate);
+                }
             });
         }
 
         if (localDraft) {
-            html += `
-                <div class="draft-option local-draft">
-                    <h3>💾 本地草稿</h3>
-                    <div class="draft-preview">${localDraft.title}</div>
-                    <button class="btn btn-primary recover-local">恢复本地草稿</button>
-                </div>
-            `;
+            const candidate = {
+                ...localDraft,
+                source: 'local',
+                label: '本地草稿',
+                timestamp: localDraft.saved_at
+            };
+            if (this.isMeaningfulDraft(candidate) && !this.isSameAsCurrent(candidate, currentSnapshot)) {
+                candidates.push(candidate);
+            }
         }
 
-        return html;
+        candidates.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+        return candidates[0] || null;
+    }
+
+    showDraftRecoveryBanner(candidate) {
+        const banner = document.getElementById('draftRecovery');
+        if (!banner) return;
+
+        const text = banner.querySelector('.recovery-text');
+        if (text) {
+            text.textContent = `发现较新的${candidate.label}（${this.getTimeAgo(candidate.timestamp)}），需要时可以恢复。`;
+        }
+
+        banner.style.display = 'block';
+    }
+
+    hideDraftRecoveryBanner() {
+        const banner = document.getElementById('draftRecovery');
+        if (banner) {
+            banner.style.display = 'none';
+        }
     }
 
     // 显示草稿冲突对话框
@@ -301,8 +307,9 @@ class DraftSyncManager {
         return {
             title: document.getElementById('title')?.value || '',
             content: document.getElementById('content')?.value || '',
-            category_id: document.getElementById('category')?.value || null,
-            tags: this.getTags()
+            category_id: document.getElementById('category_id')?.value || null,
+            tags: this.getTags(),
+            access_level: document.getElementById('access_level')?.value || 'public'
         };
     }
 
@@ -334,12 +341,16 @@ class DraftSyncManager {
 
         const titleInput = document.getElementById('title');
         const contentTextarea = document.getElementById('content');
-        const categorySelect = document.getElementById('category');
+        const categorySelect = document.getElementById('category_id');
         const tagsInput = document.getElementById('tags');
+        const accessInput = document.getElementById('access_level');
         const saveStatus = document.getElementById('saveStatus');
 
         if (titleInput) titleInput.value = draft.title || '';
         if (contentTextarea) contentTextarea.value = draft.content || '';
+        if (window.quill) {
+            window.quill.root.innerHTML = draft.content || '';
+        }
 
         if (categorySelect) {
             categorySelect.value = draft.category_id != null ? String(draft.category_id) : '';
@@ -350,30 +361,124 @@ class DraftSyncManager {
             tagsInput.value = tags.join(', ');
         }
 
-        this.saveToLocalStorage({
+        if (accessInput && draft.access_level) {
+            accessInput.value = draft.access_level;
+        }
+
+        const localTime = this.saveToLocalStorage({
             title: titleInput?.value || '',
             content: contentTextarea?.value || '',
             category_id: categorySelect?.value || null,
-            tags: this.getTags()
+            tags: this.getTags(),
+            access_level: accessInput?.value || 'public'
         });
 
         if (saveStatus) {
             saveStatus.textContent = '已恢复草稿';
             saveStatus.className = 'save-status saved';
         }
+        this.emitStatus('recovered', '已恢复草稿', { localTime });
+        window.dispatchEvent(new CustomEvent('editor:images-updated'));
+        this.hideDraftRecoveryBanner();
     }
 
     saveToLocalStorage(data) {
+        const savedAt = new Date().toISOString();
         localStorage.setItem(`draft_${this.postId || 'new'}`, JSON.stringify({
             ...data,
-            saved_at: new Date().toISOString()
+            saved_at: savedAt
         }));
+        return savedAt;
     }
 
     getFromLocalStorage() {
         const key = `draft_${this.postId || 'new'}`;
         const data = localStorage.getItem(key);
         return data ? JSON.parse(data) : null;
+    }
+
+    isMeaningfulDraft(draft) {
+        if (!draft) return false;
+        const title = (draft.title || '').trim();
+        const content = (draft.content || '').replace(/<[^>]+>/g, ' ').trim();
+        const tags = Array.isArray(draft.tags) ? draft.tags : [];
+        const categoryId = draft.category_id;
+        const accessLevel = draft.access_level || 'public';
+        return Boolean(title || content || tags.length || categoryId || accessLevel !== 'public');
+    }
+
+    getComparableSnapshot(draft) {
+        const tags = Array.isArray(draft.tags) ? draft.tags : [];
+        const content = (draft.content || '').replace(/\s+/g, ' ').trim();
+        return JSON.stringify({
+            title: (draft.title || '').trim(),
+            content,
+            category_id: draft.category_id || null,
+            tags: tags.map(tag => String(tag).trim()).filter(Boolean).sort(),
+            access_level: draft.access_level || 'public'
+        });
+    }
+
+    isSameAsCurrent(draft, currentSnapshot) {
+        return this.getComparableSnapshot(draft) === currentSnapshot;
+    }
+
+    getRecoveryDismissKey(candidate) {
+        return `draft_recovery_dismissed_${this.postId || 'new'}_${candidate.source}_${candidate.id || 'local'}_${candidate.timestamp || 'unknown'}`;
+    }
+
+    isRecoveryDismissed(candidate) {
+        return Boolean(sessionStorage.getItem(this.getRecoveryDismissKey(candidate)));
+    }
+
+    dismissRecoveryCandidate(candidate) {
+        sessionStorage.setItem(this.getRecoveryDismissKey(candidate), '1');
+        this.hideDraftRecoveryBanner();
+    }
+
+    async recoverPendingDraft() {
+        const candidate = this.pendingRecoveryDraft;
+        if (!candidate) return;
+
+        try {
+            if (candidate.source === 'server' && candidate.id) {
+                const draft = await this.loadServerDraft(candidate.id);
+                this.applyDraftData(draft);
+                this.currentDraftId = draft.id;
+                this.showNotification('已恢复服务器草稿', 'success');
+            } else {
+                this.applyDraftData(candidate);
+                this.showNotification('已恢复本地草稿', 'success');
+            }
+        } catch (error) {
+            this.showNotification('恢复草稿失败: ' + error.message, 'error');
+        }
+    }
+
+    discardPendingDraft() {
+        const candidate = this.pendingRecoveryDraft;
+        if (!candidate) return;
+        this.dismissRecoveryCandidate(candidate);
+        this.showNotification('本次已忽略这份草稿', 'info');
+    }
+
+    clearDraftCache() {
+        localStorage.removeItem(`draft_${this.postId || 'new'}`);
+        localStorage.removeItem(`last_sync_${this.postId || 'new'}`);
+        this.pendingRecoveryDraft = null;
+        this.hideDraftRecoveryBanner();
+        this.emitStatus('idle', '未修改');
+    }
+
+    cleanupServerDraft() {
+        if (!this.currentDraftId) return;
+        fetch(`/api/drafts/${this.currentDraftId}`, {
+            method: 'DELETE',
+            keepalive: true,
+            headers: {
+                'X-CSRF-Token': this.getCsrfToken()
+            }
+        }).catch(() => {});
     }
 
     loadLastSyncTime() {
@@ -391,6 +496,18 @@ class DraftSyncManager {
             console.log(`[${type}] ${message}`);
         }
     }
+
+    emitStatus(status, message, meta = {}) {
+        window.dispatchEvent(new CustomEvent('draftsync:status', {
+            detail: {
+                status,
+                message,
+                postId: this.postId,
+                serverTime: meta.serverTime || this.lastSyncTime || null,
+                localTime: meta.localTime || this.getFromLocalStorage()?.saved_at || null
+            }
+        }));
+    }
 }
 
 // 页面加载时初始化
@@ -403,5 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         window.draftSync = new DraftSyncManager();
         window.draftSync.init(postId);
+        window.recoverDraft = () => window.draftSync?.recoverPendingDraft();
+        window.discardDraft = () => window.draftSync?.discardPendingDraft();
     }
 });

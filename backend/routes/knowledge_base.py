@@ -393,8 +393,16 @@ def card_list():
     """获取当前用户的卡片列表。"""
     status = request.args.get('status')
     limit = request.args.get('limit', type=int)
+    query = (request.args.get('q') or '').strip().lower()
 
     cards = get_cards_by_user(session['user_id'], status=status, limit=limit)
+    if query:
+        cards = [
+            card for card in cards
+            if query in (card.get('title') or '').lower()
+            or query in (card.get('content') or '').lower()
+            or any(query in str(tag).lower() for tag in (card.get('tags') or []))
+        ]
     return jsonify({
         'success': True,
         'cards': cards,

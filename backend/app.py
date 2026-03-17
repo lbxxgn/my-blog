@@ -324,6 +324,7 @@ app.register_blueprint(mobile_bp, url_prefix='/mobile')
 csrf.exempt(app.view_functions['knowledge_base.plugin_submit'])
 csrf.exempt(app.view_functions['knowledge_base.sync_annotations'])
 csrf.exempt(app.view_functions['mobile.mobile_upload_image'])
+csrf.exempt(app.view_functions['ai.test_ai_config'])
 # 对登录路由应用速率限制
 limiter.limit("5 per minute")(app.view_functions['auth.login'])
 

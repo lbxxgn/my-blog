@@ -35,6 +35,12 @@
         <div class="ai-section">
             <h3>AI提供商配置</h3>
 
+            <div class="ai-provider-notice">
+                <strong>说明：</strong>
+                火山方舟 Coding Plan 支持通过 OpenAI 兼容端点接入。
+                如果控制台给你的模型名和下拉默认值不同，直接填下面的“自定义模型 ID”即可。
+            </div>
+
             <div class="ai-setting-item">
                 <label for="aiProvider">AI提供商</label>
                 <select id="aiProvider" class="form-control">
@@ -52,6 +58,11 @@
                 <select id="aiModel" class="form-control">
                     <option value="">请先选择提供商</option>
                 </select>
+                <input type="text" id="aiModelCustom" class="form-control" style="margin-top: 0.75rem;"
+                       placeholder="可选：填写控制台中的实际模型 ID，优先级高于下拉框">
+                <p class="setting-description">
+                    如果服务商控制台里的模型名和下拉默认值不一致，可以直接在这里填真实模型 ID。
+                </p>
             </div>
 
             <div class="ai-setting-item">
@@ -285,6 +296,13 @@
     margin-bottom: 1.5rem;
 }
 
+.ai-provider-notice,
+.ai-provider-notice {
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.18);
+    color: var(--text-color, #1f2937);
+}
+
 .ai-setting-item:last-child {
     margin-bottom: 0;
 }
@@ -494,6 +512,7 @@ const providerModels = {{ supported_providers|tojson }};
 function updateModelOptions() {
     const provider = document.getElementById('aiProvider').value;
     const modelSelect = document.getElementById('aiModel');
+    const customModelInput = document.getElementById('aiModelCustom');
     const currentConfig = {{ ai_config|tojson }};
 
     modelSelect.innerHTML = '';
@@ -509,6 +528,18 @@ function updateModelOptions() {
             }
             modelSelect.appendChild(option);
         });
+
+        const hasCurrentModel = currentConfig && providerInfo.models.includes(currentConfig.ai_model);
+        customModelInput.value = currentConfig && currentConfig.ai_provider === provider && !hasCurrentModel
+            ? (currentConfig.ai_model || '')
+            : '';
+
+        if (providerInfo.allow_custom_model) {
+            customModelInput.style.display = 'block';
+        } else {
+            customModelInput.style.display = 'none';
+            customModelInput.value = '';
+        }
     }
 }
 
@@ -528,7 +559,7 @@ async function testConfig() {
     // Get current form values
     const config = {
         ai_provider: document.getElementById('aiProvider').value,
-        ai_model: document.getElementById('aiModel').value,
+        ai_model: document.getElementById('aiModelCustom').value.trim() || document.getElementById('aiModel').value,
         ai_api_key: document.getElementById('apiKey').value
     };
 
@@ -538,6 +569,7 @@ async function testConfig() {
     try {
         const response = await fetch('/admin/ai/test', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken
@@ -570,7 +602,7 @@ async function saveConfig() {
     const config = {
         ai_tag_generation_enabled: document.getElementById('aiEnabled').checked,
         ai_provider: document.getElementById('aiProvider').value,
-        ai_model: document.getElementById('aiModel').value,
+        ai_model: document.getElementById('aiModelCustom').value.trim() || document.getElementById('aiModel').value,
         ai_api_key: document.getElementById('apiKey').value
     };
 
@@ -585,6 +617,7 @@ async function saveConfig() {
     try {
         const response = await fetch('/admin/ai/configure', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': csrfToken

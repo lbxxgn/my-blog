@@ -67,6 +67,19 @@ class TestAuthRoutes:
         assert response.status_code == 200
         assert '快捷登录' in response.get_data(as_text=True)
 
+    def test_ai_settings_page_lists_supported_coding_providers(self, client, test_admin_user):
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.get('/admin/ai/configure')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'OpenAI 兼容端点' in html
+        assert '火山方舟 Coding Plan' in html
+        assert '智谱 Coding Plan' in html
+
     def test_passkey_register_begin_requires_login(self, client):
         response = client.post('/passkeys/register/begin', json={})
         assert response.status_code in (302, 401)
@@ -207,6 +220,28 @@ class TestBlogRoutes:
         """测试带查询的搜索"""
         response = client.get('/search?q=Test')
         assert response.status_code == 200
+
+    def test_ai_organize_content_returns_suggestions_without_ai_config(self, client, test_admin_user):
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        response = client.post('/admin/ai/organize-content', json={
+            'title': '',
+            'content': '今天整理了 Flask 路由、草稿同步和编辑器体验，准备继续打磨这个个人记录系统。',
+            'categories': [
+                {'id': 1, 'name': '技术'},
+                {'id': 2, 'name': '日常'}
+            ]
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['suggestion']['title']
+        assert data['suggestion']['summary']
+        assert data['suggestion']['content_type'] in ['daily', 'knowledge', 'idea']
 
     def test_index_json_respects_category_filter(self, client, temp_db):
         """测试首页 JSON 支持分类筛选"""

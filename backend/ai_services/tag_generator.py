@@ -10,6 +10,8 @@ from typing import Dict, List, Optional, Any
 from .base import BaseLLMProvider
 from .openai_provider import OpenAIProvider
 from .volcengine_provider import VolcengineProvider
+from .volcengine_coding_provider import VolcengineCodingProvider
+from .zhipu_coding_provider import ZhipuCodingProvider
 from .dashscope_provider import DashscopeProvider
 
 logger = logging.getLogger(__name__)
@@ -22,6 +24,8 @@ class TagGenerator:
     SUPPORTED_PROVIDERS = {
         'openai': OpenAIProvider,
         'volcengine': VolcengineProvider,
+        'volcengine_codingplan': VolcengineCodingProvider,
+        'zhipu_codingplan': ZhipuCodingProvider,
         'dashscope': DashscopeProvider,
         # 'claude': ClaudeProvider,  # Future implementation
         # 'qwen': QwenProvider,      # Future implementation
@@ -58,6 +62,8 @@ class TagGenerator:
             default_models = {
                 'openai': 'gpt-3.5-turbo',
                 'volcengine': 'doubao-pro-4k',
+                'volcengine_codingplan': 'ark-code-latest',
+                'zhipu_codingplan': 'glm-4.7',
                 'dashscope': 'qwen-turbo',
                 'claude': 'claude-3-haiku-20240307',
                 'qwen': 'qwen-turbo',
@@ -195,6 +201,35 @@ class TagGenerator:
                 'default_model': 'doubao-pro-4k',
                 'models': ['doubao-pro-32k', 'doubao-pro-4k', 'doubao-lite-4k'],
                 'currency': 'CNY'
+            },
+            {
+                'id': 'volcengine_codingplan',
+                'name': '火山方舟 Coding Plan',
+                'description': 'OpenAI 兼容编码端点，推荐填写控制台中的实际模型 ID',
+                'default_model': 'ark-code-latest',
+                'models': [
+                    'ark-code-latest',
+                    'doubao-seed-2.0-code',
+                    'doubao-seed-2.0-pro',
+                    'doubao-seed-2.0-lite',
+                    'doubao-seed-code',
+                    'doubao-seed-code-thinking',
+                    'minimax-m2.5',
+                    'glm-4.7',
+                    'deepseek-v3.2',
+                    'kimi-k2.5',
+                ],
+                'currency': 'CNY',
+                'allow_custom_model': True
+            },
+            {
+                'id': 'zhipu_codingplan',
+                'name': '智谱 Coding Plan',
+                'description': '智谱编码规划端点，适合代码与结构化整理',
+                'default_model': 'glm-4.7',
+                'models': ['glm-4.7', 'glm-5'],
+                'currency': 'CNY',
+                'allow_custom_model': True
             },
             {
                 'id': 'dashscope',

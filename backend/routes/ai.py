@@ -4,6 +4,9 @@ AI功能路由
 包括AI标签生成、摘要生成、相关文章推荐、内容续写等功能。
 """
 
+import json
+import re
+
 from flask import Blueprint, render_template, request, session, jsonify
 import logging
 
@@ -20,6 +23,123 @@ logger = logging.getLogger(__name__)
 
 # 创建 AI 蓝图
 ai_bp = Blueprint('ai', __name__, url_prefix='/admin/ai')
+
+
+def _heuristic_title(content: str) -> str:
+    text = re.sub(r'<[^>]+>', ' ', content or '')
+    text = re.sub(r'\s+', ' ', text).strip()
+    if not text:
+        return '未命名记录'
+    sentence = re.split(r'[。！？.!?\n]', text)[0].strip()
+    return sentence[:24] if sentence else text[:24]
+
+
+def _heuristic_summary(content: str, max_length: int = 120) -> str:
+    text = re.sub(r'<[^>]+>', ' ', content or '')
+    text = re.sub(r'\s+', ' ', text).strip()
+    if len(text) <= max_length:
+        return text
+    return text[:max_length].rstrip() + '...'
+
+
+def _heuristic_type(title: str, content: str) -> str:
+    combined = f"{title} {content}".lower()
+    daily_keywords = ['今天', '昨天', '周末', '日常', '生活', '旅行', '见闻', '心情']
+    knowledge_keywords = ['原理', '教程', '知识', '总结', '学习', '方法', 'flask', 'python', 'sql', 'api']
+    idea_keywords = ['想法', '点子', '构想', '计划', '灵感', '尝试']
+
+    if any(keyword in combined for keyword in daily_keywords):
+        return 'daily'
+    if any(keyword in combined for keyword in knowledge_keywords):
+        return 'knowledge'
+    if any(keyword in combined for keyword in idea_keywords):
+        return 'idea'
+    return 'knowledge' if len(combined) > 180 else 'idea'
+
+
+def _heuristic_tags(title: str, content: str, max_tags: int = 4):
+    combined = f"{title} {content}"
+    candidates = re.findall(r'[\u4e00-\u9fffA-Za-z0-9#+.-]{2,12}', combined)
+    stop_words = {
+        '然后', '这个', '那个', '我们', '你们', '他们', '就是', '因为',
+        '所以', '如果', '但是', '关于', '可以', '进行', '需要', '一个',
+        '自己', '已经', '一下', '还是', '没有', '文章', '内容', '记录'
+    }
+    tags = []
+    for candidate in candidates:
+        lowered = candidate.lower()
+        if lowered in stop_words or candidate.isdigit():
+            continue
+        if candidate not in tags:
+            tags.append(candidate)
+        if len(tags) >= max_tags:
+            break
+    return tags or ['随记']
+
+
+def _pick_category(categories, title: str, content: str, tags):
+    combined = f"{title} {content} {' '.join(tags or [])}".lower()
+    best_match = None
+    best_score = 0
+    for category in categories or []:
+        name = (category.get('name') or '').strip()
+        if not name:
+            continue
+        score = 0
+        lowered = name.lower()
+        if lowered in combined:
+            score += 3
+        for fragment in re.findall(r'[\u4e00-\u9fffA-Za-z0-9]+', lowered):
+            if fragment and fragment in combined:
+                score += 1
+        if score > best_score:
+            best_match = category
+            best_score = score
+    return best_match
+
+
+def _run_structured_prompt(user_config, system_prompt: str, user_prompt: str, max_tokens: int = 500, temperature: float = 0.3):
+    if not user_config or not user_config.get('ai_tag_generation_enabled'):
+        return None
+
+    provider = TagGenerator.create_provider(
+        user_config.get('ai_provider', 'openai'),
+        user_config.get('ai_api_key'),
+        user_config.get('ai_model')
+    )
+
+    if not getattr(provider, 'client', None) and hasattr(provider, '_init_client'):
+        provider._init_client()
+
+    response = provider.client.chat.completions.create(
+        model=provider.model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        temperature=temperature,
+        max_tokens=max_tokens
+    )
+
+    content = response.choices[0].message.content.strip()
+    usage = response.usage
+    return {
+        'content': content,
+        'model': provider.model,
+        'tokens_used': usage.total_tokens,
+        'input_tokens': usage.prompt_tokens,
+        'output_tokens': usage.completion_tokens
+    }
+
+
+def _parse_json_block(content: str):
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        match = re.search(r'\{.*\}', content, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+        raise
 
 
 @ai_bp.route('/generate-tags', methods=['POST'])
@@ -502,3 +622,111 @@ def continue_writing():
     except Exception as e:
         logger.error(f"AI writing continuation error: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ai_bp.route('/organize-content', methods=['POST'])
+@login_required
+def organize_content():
+    """根据输入内容生成整理建议。"""
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    content = (data.get('content') or '').strip()
+    categories = data.get('categories') or []
+
+    if not content:
+        return jsonify({'success': False, 'error': '内容不能为空'}), 400
+
+    user_id = session.get('user_id')
+    user_ai_config = get_user_ai_config(user_id)
+
+    suggestion = {
+        'title': title or _heuristic_title(content),
+        'summary': _heuristic_summary(content),
+        'tags': _heuristic_tags(title, content),
+        'content_type': _heuristic_type(title, content),
+        'category': None,
+        'source': 'heuristic'
+    }
+
+    heuristic_category = _pick_category(categories, suggestion['title'], content, suggestion['tags'])
+    if heuristic_category:
+        suggestion['category'] = {
+            'id': heuristic_category.get('id'),
+            'name': heuristic_category.get('name')
+        }
+
+    ai_result = None
+    try:
+        category_names = [c.get('name') for c in categories if c.get('name')]
+        ai_result = _run_structured_prompt(
+            user_ai_config,
+            system_prompt='你是一个擅长整理个人笔记、知识点和灵感的写作助手。请返回严格 JSON。',
+            user_prompt=f"""请根据以下输入内容，返回一个 JSON 对象，包含：
+- title: 更合适的标题（18字以内）
+- summary: 120字以内摘要
+- tags: 3到5个标签数组
+- content_type: 只能是 daily、knowledge、idea 之一
+- category_name: 如果分类列表里有合适项，返回最匹配的分类名称，否则返回空字符串
+
+可选分类：{', '.join(category_names) if category_names else '无'}
+当前标题：{title or '（未填写）'}
+内容：
+{content[:3000]}
+""",
+            max_tokens=450,
+            temperature=0.2
+        )
+    except Exception as e:
+        logger.warning(f"AI organize content fallback to heuristic: {e}")
+
+    if ai_result:
+        try:
+            parsed = _parse_json_block(ai_result['content'])
+            ai_title = (parsed.get('title') or '').strip()
+            ai_summary = (parsed.get('summary') or '').strip()
+            ai_tags = parsed.get('tags') or []
+            ai_type = (parsed.get('content_type') or '').strip().lower()
+            ai_category_name = (parsed.get('category_name') or '').strip()
+
+            if ai_title:
+                suggestion['title'] = ai_title
+            if ai_summary:
+                suggestion['summary'] = ai_summary
+            if isinstance(ai_tags, list) and ai_tags:
+                suggestion['tags'] = [str(tag).strip() for tag in ai_tags if str(tag).strip()][:5]
+            if ai_type in {'daily', 'knowledge', 'idea'}:
+                suggestion['content_type'] = ai_type
+            if ai_category_name:
+                matched = next((c for c in categories if c.get('name') == ai_category_name), None)
+                if matched:
+                    suggestion['category'] = {
+                        'id': matched.get('id'),
+                        'name': matched.get('name')
+                    }
+
+            suggestion['source'] = 'ai'
+            suggestion['tokens_used'] = ai_result['tokens_used']
+            suggestion['model'] = ai_result['model']
+
+            save_ai_tag_history(
+                user_id=user_id,
+                post_id=data.get('post_id'),
+                action='organize_content',
+                provider=user_ai_config.get('ai_provider') if user_ai_config else None,
+                model_used=ai_result.get('model'),
+                tokens_used=ai_result.get('tokens_used', 0),
+                input_tokens=ai_result.get('input_tokens', 0),
+                output_tokens=ai_result.get('output_tokens', 0),
+                result_preview=json.dumps({
+                    'title': suggestion['title'],
+                    'content_type': suggestion['content_type'],
+                    'tags': suggestion['tags']
+                }, ensure_ascii=False)
+            )
+        except Exception as e:
+            logger.warning(f"Failed to parse AI organize response, using heuristics: {e}")
+
+    return jsonify({
+        'success': True,
+        'suggestion': suggestion
+    })

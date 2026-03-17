@@ -143,6 +143,34 @@ class TestCardManagement:
         data = response.get_json()
         assert 'cards' in data or isinstance(data, list)
 
+    def test_get_cards_supports_query_filter(self, client, test_admin_user, temp_db):
+        """测试卡片列表支持关键词过滤"""
+        from backend.models import create_card
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        create_card(
+            content='Flask blueprints and routes',
+            title='Flask note',
+            user_id=test_admin_user['id'],
+            status='idea'
+        )
+        create_card(
+            content='Weekend diary',
+            title='Daily note',
+            user_id=test_admin_user['id'],
+            status='idea'
+        )
+
+        response = client.get('/api/cards?q=flask')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['count'] == 1
+        assert data['cards'][0]['title'] == 'Flask note'
+
     def test_update_card_status(self, client, test_admin_user, temp_db):
         """测试更新卡片状态"""
         from backend.models import create_card

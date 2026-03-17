@@ -73,89 +73,25 @@ document.addEventListener('DOMContentLoaded', function() {
         // Sync content to textarea on change
         quill.on('text-change', function() {
             textarea.value = quill.root.innerHTML;
+            window.dispatchEvent(new CustomEvent('editor:content-change', {
+                detail: {
+                    html: quill.root.innerHTML,
+                    text: quill.getText().trim()
+                }
+            }));
         });
 
-        // Auto-save functionality
         const saveStatus = document.getElementById('saveStatus');
-        if (saveStatus) {
-            let autoSaveTimeout;
-
-            quill.on('text-change', function() {
-                clearTimeout(autoSaveTimeout);
-                saveStatus.textContent = '正在保存...';
-                saveStatus.className = 'save-status saving';
-
-                autoSaveTimeout = setTimeout(function() {
-                    // Save to localStorage
-                    localStorage.setItem('editor_content', quill.root.innerHTML);
-                    saveStatus.textContent = '已自动保存 ' + new Date().toLocaleTimeString();
-                    saveStatus.className = 'save-status saved';
-                }, 1000);
-            });
-
-            // Load saved content on page load
-            const savedContent = localStorage.getItem('editor_content');
-            if (savedContent && !textarea.value) {
-                // Create a custom modal for draft recovery
-                const modal = document.createElement('div');
-                modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center;';
-                modal.innerHTML = `
-                    <div style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-                        <h3 style="margin: 0 0 1rem 0; color: #333;">📝 发现未保存的草稿</h3>
-                        <p style="color: #666; line-height: 1.6;">我们检测到您之前有未保存的内容，是否要恢复？</p>
-                        <div style="display: flex; gap: 0.75rem; margin-top: 1.5rem;">
-                            <button id="restoreDraft" style="flex: 1; padding: 0.75rem 1.5rem; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 500;">恢复草稿</button>
-                            <button id="ignoreDraft" style="flex: 1; padding: 0.75rem 1.5rem; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 500;">忽略并清除</button>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-
-                // Handle restore button
-                document.getElementById('restoreDraft').addEventListener('click', function() {
-                    quill.root.innerHTML = savedContent;
-                    textarea.value = savedContent;
-                    document.body.removeChild(modal);
-                });
-
-                // Handle ignore button
-                document.getElementById('ignoreDraft').addEventListener('click', function() {
-                    localStorage.removeItem('editor_content');
-                    document.body.removeChild(modal);
-                });
-            }
-        }
 
         // Handle form submission
         const form = document.getElementById('editorForm');
         if (form) {
-            form.addEventListener('submit', function(e) {
+            form.addEventListener('submit', function() {
                 // Ensure Quill content is synced to textarea
                 textarea.value = quill.root.innerHTML;
-                // Clear draft after successful save
-                localStorage.removeItem('editor_content');
-            });
-        }
-
-        // Handle cancel button - clear draft cache
-        const cancelButton = document.querySelector('a[href*="admin_dashboard"]');
-        if (cancelButton) {
-            cancelButton.addEventListener('click', function(e) {
-                // Check if there's unsaved content
-                const currentContent = quill.root.innerHTML;
-                const savedContent = localStorage.getItem('editor_content');
-
-                // Only show confirmation if there's content that hasn't been saved to database
-                if (currentContent && currentContent !== '<p><br></p>' && !textarea.value) {
-                    if (confirm('您有未保存的内容，确定要离开吗？点击"确定"将清除草稿缓存。')) {
-                        localStorage.removeItem('editor_content');
-                    } else {
-                        e.preventDefault();
-                        return false;
-                    }
-                } else {
-                    // No unsaved content, just clear the draft cache
-                    localStorage.removeItem('editor_content');
+                if (window.draftSync) {
+                    window.draftSync.clearDraftCache();
+                    window.draftSync.cleanupServerDraft();
                 }
             });
         }
@@ -210,6 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             // Move insert index forward
                             insertIndex += 2;
                             successCount++;
+                            window.dispatchEvent(new CustomEvent('editor:images-updated'));
 
                             // Start polling for optimization if optimization_id is provided
                             if (data.optimization_id) {
@@ -260,6 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Reset file input
                 e.target.value = '';
+                window.dispatchEvent(new CustomEvent('editor:images-updated'));
             });
         }
 
@@ -294,6 +232,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Expose quill instance globally for debugging
         window.quill = quill;
+        window.insertEditorHtml = function(html, index = null) {
+            const range = quill.getSelection(true);
+            const insertIndex = Number.isInteger(index) ? index : (range ? range.index : quill.getLength());
+            quill.clipboard.dangerouslyPasteHTML(insertIndex, html);
+            textarea.value = quill.root.innerHTML;
+            window.dispatchEvent(new CustomEvent('editor:content-change', {
+                detail: {
+                    html: quill.root.innerHTML,
+                    text: quill.getText().trim()
+                }
+            }));
+            window.dispatchEvent(new CustomEvent('editor:images-updated'));
+        };
     }
 
     // AI Tag Generation Function
