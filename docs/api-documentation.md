@@ -1,7 +1,7 @@
 # Simple Blog API 文档
 
 **版本**: v2.2
-**最后更新**: 2026-03-16
+**最后更新**: 2026-03-19
 **基础URL**: `http://your-domain.com`
 
 ---
@@ -9,6 +9,7 @@
 ## 📋 目录
 
 - [认证](#认证)
+- [Passkey 认证](#passkey-认证)
 - [文章API](#文章api)
 - [分类与标签API](#分类与标签api)
 - [评论API](#评论api)
@@ -18,6 +19,7 @@
 - [AI功能API](#ai功能api)
 - [文件上传API](#文件上传api)
 - [草稿API](#草稿api)
+- [工具API](#工具api)
 
 ---
 
@@ -37,12 +39,13 @@ Content-Type: application/x-www-form-urlencoded
 |------|------|------|------|
 | username | string | 是 | 用户名 |
 | password | string | 是 | 密码 |
+| remember_device | string | 否 | 记住设备（"1"/"true"） |
 
 **响应示例：**
 ```json
 {
   "success": true,
-  "redirect": "/"
+  "redirect": "/admin"
 }
 ```
 
@@ -50,14 +53,6 @@ Content-Type: application/x-www-form-urlencoded
 
 ```http
 POST /logout
-```
-
-**响应示例：**
-```json
-{
-  "success": true,
-  "redirect": "/login"
-}
 ```
 
 ### 修改密码
@@ -69,16 +64,141 @@ POST /change-password
 **请求参数：**
 | 参数 | 类型 | 必需 | 说明 |
 |------|------|------|------|
-| old_password | string | 是 | 旧密码 |
-| new_password | string | 是 | 新密码（至少12位） |
+| current_password | string | 是 | 当前密码 |
+| new_password | string | 是 | 新密码（至少10位） |
+| confirm_password | string | 是 | 确认密码 |
+
+---
+
+## 🔑 Passkey 认证
+
+无密码登录支持，使用 WebAuthn 标准。
+
+### 开始注册 Passkey
+
+```http
+POST /passkeys/register/begin
+```
+
+**需要认证**: 是
 
 **响应示例：**
 ```json
 {
   "success": true,
-  "message": "密码修改成功"
+  "options": {
+    "rp": {
+      "name": "Simple Blog",
+      "id": "localhost"
+    },
+    "user": {
+      "id": "...",
+      "name": "username",
+      "displayName": "username"
+    },
+    "challenge": "...",
+    "pubKeyCredParams": [...]
+  }
 }
 ```
+
+### 完成 Passkey 注册
+
+```http
+POST /passkeys/register/finish
+```
+
+**需要认证**: 是
+
+**请求参数：**
+```json
+{
+  "credential": {...},
+  "device_name": "我的 iPhone"
+}
+```
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "message": "快捷登录已启用"
+}
+```
+
+### 开始 Passkey 登录
+
+```http
+POST /passkeys/authenticate/begin
+```
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "options": {
+    "challenge": "...",
+    "rpId": "localhost",
+    "allowCredentials": [...]
+  }
+}
+```
+
+### 完成 Passkey 登录
+
+```http
+POST /passkeys/authenticate/finish
+```
+
+**请求参数：**
+```json
+{
+  "credential": {...},
+  "remember_device": true
+}
+```
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "redirect": "/admin"
+}
+```
+
+### 获取 Passkey 列表
+
+```http
+GET /passkeys
+```
+
+**需要认证**: 是
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "passkeys": [
+    {
+      "id": 1,
+      "device_name": "iPhone 13",
+      "credential_device_type": "multi_device",
+      "credential_device_type_label": "可同步设备",
+      "backup_state": true,
+      "created_at": "2026-03-01T10:00:00",
+      "last_used_at": "2026-03-19T15:30:00"
+    }
+  ]
+}
+```
+
+### 删除 Passkey
+
+```http
+DELETE /passkeys/{passkey_id}
+```
+
+**需要认证**: 是
 
 ---
 
@@ -105,14 +225,16 @@ GET /api/posts?cursor={timestamp}&per_page={20}&category_id={1}
     {
       "id": 123,
       "title": "文章标题",
+      "content": "<p>文章内容</p>",
       "excerpt": "摘要内容",
       "author": "作者名",
       "created_at": "2026-03-16T10:30:00",
       "updated_at": "2026-03-16T10:30:00",
-      "category": "技术",
+      "category_id": 1,
+      "category_name": "技术",
       "tags": ["Python", "Flask"],
-      "image_url": "/static/uploads/images/...",
-      "access": "public"
+      "image_urls": ["/static/uploads/optimized/xxx_medium.webp"],
+      "access_level": "public"
     }
   ],
   "next_cursor": "2026-03-15T08:00:00",
@@ -132,21 +254,6 @@ GET /post/{post_id}
 |------|------|------|
 | post_id | int | 文章ID |
 
-**响应示例：**
-```json
-{
-  "id": 123,
-  "title": "文章标题",
-  "content": "<p>文章HTML内容</p>",
-  "author": "作者名",
-  "created_at": "2026-03-16T10:30:00",
-  "category": "技术",
-  "tags": ["Python", "Flask"],
-  "access": "public",
-  "allow_comments": true
-}
-```
-
 ### 验证文章密码
 
 ```http
@@ -164,70 +271,94 @@ POST /post/{post_id}/verify-password
 ```json
 {
   "success": true,
-  "message": "密码验证成功"
+  "message": "密码验证成功",
+  "redirect": "/post/123"
 }
 ```
 
 ### 添加文章
 
 ```http
-POST /new
+POST /admin/new
 ```
+
+**需要认证**: 是
 
 **请求参数：**
-```json
-{
-  "title": "文章标题",
-  "content": "文章HTML内容",
-  "category_id": 1,
-  "tags": [1, 2, 3],
-  "access": "public",
-  "allow_comments": true,
-  "password": null
-}
-```
-
-**字段说明：**
-| 字段 | 类型 | 必需 | 说明 |
+| 参数 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | title | string | 是 | 文章标题 |
 | content | string | 是 | 文章内容（HTML） |
 | category_id | int | 否 | 分类ID |
-| tags | array | 否 | 标签ID数组 |
-| access | string | 否 | 访问控制：public/login/password |
-| allow_comments | boolean | 否 | 是否允许评论 |
-| password | string | 否 | 访问密码（access=password时必需） |
-
-**响应示例：**
-```json
-{
-  "success": true,
-  "message": "文章发布成功",
-  "post_id": 124
-}
-```
+| tags | string | 否 | 标签（逗号分隔） |
+| is_published | bool | 否 | 是否发布 |
+| access_level | string | 否 | 访问控制：public/login/password/private |
+| access_password | string | 否 | 访问密码 |
+| allow_comments | bool | 否 | 是否允许评论 |
 
 ### 编辑文章
 
 ```http
-POST /edit/{post_id}
+POST /admin/edit/{post_id}
 ```
 
-**请求参数：** 同添加文章
+**需要认证**: 是
 
-**响应示例：** 同添加文章
+**请求参数：** 同添加文章
 
 ### 删除文章
 
 ```http
-POST /delete/{post_id}
+POST /admin/delete/{post_id}
 ```
+
+**需要认证**: 是
+
+### 文章归档
+
+```http
+GET /archive?days={7}&year={2026}&month={3}
+```
+
+**查询参数：**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| days | int | 最近N天（7/30/90/365） |
+| year | int | 年份 |
+| month | int | 月份 |
+
+### 获取我的文章（移动端）
+
+```http
+GET /mobile/my-posts?tab={published}&page={1}
+```
+
+**需要认证**: 是
+
+**查询参数：**
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| tab | string | published | published/drafts |
+| page | int | 1 | 页码 |
+| per_page | int | 10 | 每页数量（5/10/20/40） |
 
 **响应示例：**
 ```json
 {
   "success": true,
-  "message": "文章已删除"
+  "tab": "published",
+  "posts": [
+    {
+      "id": 123,
+      "title": "文章标题",
+      "content": "...",
+      "is_published": true,
+      "created_at": "2026-03-19T10:00:00"
+    }
+  ],
+  "page": 1,
+  "total": 25,
+  "total_pages": 3
 }
 ```
 
@@ -236,8 +367,10 @@ POST /delete/{post_id}
 #### 批量更新分类
 
 ```http
-POST /batch-update-category
+POST /admin/batch-update-category
 ```
+
+**需要认证**: 是
 
 **请求参数：**
 ```json
@@ -250,41 +383,57 @@ POST /batch-update-category
 #### 批量删除
 
 ```http
-POST /batch-delete
+POST /admin/batch-delete
 ```
 
-**请求参数：**
-```json
-{
-  "post_ids": [1, 2, 3]
-}
-```
+**需要认证**: 是
 
-#### 批量发布
+#### 批量发布/取消发布
 
 ```http
-POST /batch-publish
+POST /admin/batch-publish
 ```
+
+**需要认证**: 是
 
 **请求参数：**
 ```json
 {
   "post_ids": [1, 2, 3],
-  "action": "publish"
+  "publish": true
 }
 ```
 
 #### 批量添加标签
 
 ```http
-POST /batch-add-tags
+POST /admin/batch-add-tags
 ```
+
+**需要认证**: 是
 
 **请求参数：**
 ```json
 {
   "post_ids": [1, 2, 3],
-  "tag_ids": [1, 2]
+  "tags": ["Python", "Flask"]
+}
+```
+
+#### 批量更新访问权限
+
+```http
+POST /admin/batch-update-access
+```
+
+**需要认证**: 是
+
+**请求参数：**
+```json
+{
+  "post_ids": [1, 2, 3],
+  "access_level": "password",
+  "access_password": "mypassword"
 }
 ```
 
@@ -295,66 +444,38 @@ POST /batch-add-tags
 ### 获取所有分类
 
 ```http
-GET /categories
-```
-
-**响应示例：**
-```json
-{
-  "categories": [
-    {
-      "id": 1,
-      "name": "技术",
-      "slug": "tech",
-      "post_count": 15
-    }
-  ]
-}
+GET /admin/categories
 ```
 
 ### 创建分类
 
 ```http
-POST /categories/new
+POST /admin/categories/new
 ```
 
 **请求参数：**
 ```json
 {
-  "name": "分类名称",
-  "slug": "url-slug"
+  "name": "分类名称"
 }
 ```
 
 ### 删除分类
 
 ```http
-POST /categories/{category_id}/delete
+POST /admin/categories/{category_id}/delete
 ```
 
 ### 获取所有标签
 
 ```http
-GET /tags
-```
-
-**响应示例：**
-```json
-{
-  "tags": [
-    {
-      "id": 1,
-      "name": "Python",
-      "post_count": 8
-    }
-  ]
-}
+GET /admin/tags
 ```
 
 ### 创建标签
 
 ```http
-POST /tags/new
+POST /admin/tags/new
 ```
 
 **请求参数：**
@@ -367,7 +488,7 @@ POST /tags/new
 ### 删除标签
 
 ```http
-POST /tags/{tag_id}/delete
+POST /admin/tags/{tag_id}/delete
 ```
 
 ---
@@ -381,33 +502,35 @@ POST /post/{post_id}/comment
 ```
 
 **请求参数：**
-```json
-{
-  "content": "评论内容",
-  "parent_id": null
-}
-```
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| author_name | string | 是 | 评论者姓名 |
+| author_email | string | 否 | 评论者邮箱 |
+| content | string | 是 | 评论内容 |
 
 **响应示例：**
 ```json
 {
   "success": true,
-  "message": "评论已添加",
-  "comment_id": 456
+  "message": "评论提交成功"
 }
 ```
 
 ### 切换评论状态
 
 ```http
-POST /comments/{comment_id}/toggle
+POST /admin/comments/{comment_id}/toggle
 ```
+
+**需要认证**: 是
 
 ### 删除评论
 
 ```http
-POST /comments/{comment_id}/delete
+POST /admin/comments/{comment_id}/delete
 ```
+
+**需要认证**: 是
 
 ---
 
@@ -416,7 +539,7 @@ POST /comments/{comment_id}/delete
 ### 全文搜索
 
 ```http
-GET /search?q={keyword}&page={1}
+GET /search?q={keyword}&page={1}&per_page={20}
 ```
 
 **查询参数：**
@@ -424,24 +547,7 @@ GET /search?q={keyword}&page={1}
 |------|------|------|--------|------|
 | q | string | 是 | - | 搜索关键词 |
 | page | int | 否 | 1 | 页码 |
-
-**响应示例：**
-```json
-{
-  "query": "Python",
-  "results": [
-    {
-      "id": 123,
-      "title": "文章标题",
-      "excerpt": "匹配的摘要...",
-      "relevance": 0.95
-    }
-  ],
-  "total": 5,
-  "page": 1,
-  "per_page": 10
-}
-```
+| per_page | int | 否 | 20 | 每页数量 |
 
 ---
 
@@ -450,14 +556,15 @@ GET /search?q={keyword}&page={1}
 ### 创建用户
 
 ```http
-POST /users/new
+POST /admin/users/new
 ```
+
+**需要认证**: 是（仅管理员）
 
 **请求参数：**
 ```json
 {
   "username": "newuser",
-  "email": "user@example.com",
   "password": "SecurePassword123",
   "role": "author"
 }
@@ -471,15 +578,13 @@ POST /users/new
 ### 编辑用户
 
 ```http
-POST /users/{user_id}/edit
+POST /admin/users/{user_id}/edit
 ```
-
-**请求参数：** 同创建用户
 
 ### 删除用户
 
 ```http
-POST /users/{user_id}/delete
+POST /admin/users/{user_id}/delete
 ```
 
 ---
@@ -488,18 +593,24 @@ POST /users/{user_id}/delete
 
 > 注意：知识库API端点已豁免CSRF保护（浏览器扩展需求）
 
-### 提交卡片
+### 提交卡片/文章
 
 ```http
 POST /api/plugin/submit
 ```
 
+**认证**: API Key 或 Session
+
 **请求参数：**
 ```json
 {
-  "content": "卡片内容",
+  "title": "页面标题",
+  "content": "内容或选中文本",
+  "source_url": "https://example.com",
   "url": "https://example.com",
-  "title": "页面标题"
+  "tags": ["tag1", "tag2"],
+  "annotation_type": "capture",
+  "create_as_post": true
 }
 ```
 
@@ -507,7 +618,9 @@ POST /api/plugin/submit
 ```json
 {
   "success": true,
-  "card_id": 789
+  "post_id": 123,
+  "type": "post",
+  "message": "文章创建成功"
 }
 ```
 
@@ -517,43 +630,118 @@ POST /api/plugin/submit
 POST /api/plugin/sync-annotations
 ```
 
+**认证**: API Key 或 Session
+
 **请求参数：**
 ```json
 {
+  "url": "https://example.com",
   "annotations": [
     {
       "url": "https://example.com",
       "selection": "选中的文本",
-      "note": "笔记"
+      "text": "高亮文本",
+      "xpath": "/html/body/p[1]",
+      "color": "yellow",
+      "note": "笔记",
+      "annotation_type": "highlight"
     }
   ]
 }
 ```
 
-### 获取最近标注
+**颜色选项:** yellow, blue, green, pink, orange, purple
+**类型选项:** highlight, note, bookmark
+
+### 获取页面标注
 
 ```http
-GET /api/plugin/annotations
+GET /api/plugin/annotations?url={url}
+```
+
+**认证**: API Key 或 Session
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "annotations": [
+    {
+      "id": 1,
+      "annotation_text": "选中的文本",
+      "xpath": "/html/body/p[1]",
+      "color": "yellow",
+      "note": "笔记",
+      "annotation_type": "highlight",
+      "created_at": "2026-03-19T10:00:00"
+    }
+  ],
+  "count": 1
+}
+```
+
+### 获取最近捕获
+
+```http
+GET /api/plugin/recent?limit={10}
+```
+
+**认证**: API Key 或 Session
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "cards": [
+    {
+      "id": 1,
+      "title": "标题",
+      "content": "内容",
+      "tags": ["tag1"],
+      "status": "idea",
+      "source": "plugin",
+      "created_at": "2026-03-19T10:00:00"
+    }
+  ],
+  "count": 10
+}
 ```
 
 ### 快速记事
 
 ```http
-GET /quick-note
 POST /quick-note
+```
+
+**需要认证**: 是
+
+**请求参数：**
+```json
+{
+  "title": "标题",
+  "content": "内容"
+}
 ```
 
 ### 获取卡片列表
 
 ```http
-GET /api/cards
+GET /api/cards?status={idea}&limit={20}
 ```
+
+**需要认证**: 是
 
 **查询参数：**
 | 参数 | 类型 | 说明 |
 |------|------|------|
 | status | string | 筛选状态：idea/incubating/draft |
 | limit | int | 返回数量 |
+
+### 获取卡片详情
+
+```http
+GET /api/cards/{card_id}
+```
 
 ### 更新卡片
 
@@ -564,8 +752,9 @@ PUT /api/cards/{card_id}
 **请求参数：**
 ```json
 {
-  "content": "更新后的内容",
-  "status": "draft"
+  "title": "新标题",
+  "content": "新内容",
+  "status": "incubating"
 }
 ```
 
@@ -598,12 +787,12 @@ POST /api/cards/merge
 ```json
 {
   "card_ids": [1, 2, 3],
-  "merged_content": "合并后的内容",
-  "title": "新标题"
+  "title": "合并后的标题",
+  "content": "合并后的内容"
 }
 ```
 
-### AI生成标签
+### AI生成卡片标签
 
 ```http
 POST /api/cards/generate-tags
@@ -642,14 +831,17 @@ POST /api/card/{card_id}/convert-to-post
 ### 生成标签
 
 ```http
-POST /ai/generate-tags
+POST /admin/ai/generate-tags
 ```
+
+**需要认证**: 是
 
 **请求参数：**
 ```json
 {
+  "title": "文章标题",
   "content": "文章内容",
-  "count": 5
+  "post_id": 123
 }
 ```
 
@@ -657,20 +849,45 @@ POST /ai/generate-tags
 ```json
 {
   "success": true,
-  "tags": ["Python", "Flask", "Web开发", "后端", "教程"]
+  "tags": ["Python", "Flask", "Web开发"],
+  "tokens_used": 250,
+  "model": "gpt-3.5-turbo",
+  "cost": 0.0001
 }
 ```
 
 ### 生成摘要
 
 ```http
-POST /ai/generate-summary
+POST /admin/ai/generate-summary
 ```
+
+**需要认证**: Is
 
 **请求参数：**
 ```json
 {
-  "content": "文章内容"
+  "title": "文章标题",
+  "content": "文章内容",
+  "max_length": 200
+}
+```
+
+### 推荐相关文章
+
+```http
+POST /admin/ai/recommend-posts
+```
+
+**需要认证**: 是
+
+**请求参数：**
+```json
+{
+  "post_id": 123,
+  "title": "文章标题",
+  "content": "文章内容",
+  "max_recommendations": 3
 }
 ```
 
@@ -678,37 +895,135 @@ POST /ai/generate-summary
 ```json
 {
   "success": true,
-  "summary": "这是一篇关于..."
-}
-```
-
-### 推荐相关文章
-
-```http
-POST /ai/recommend-posts
-```
-
-**请求参数：**
-```json
-{
-  "post_id": 123,
-  "limit": 5
+  "recommendations": [
+    {"post_id": 100, "title": "相关文章1", "relevance": 0.85},
+    {"post_id": 101, "title": "相关文章2", "relevance": 0.78}
+  ],
+  "tokens_used": 300
 }
 ```
 
 ### 续写文章
 
 ```http
-POST /ai/continue-writing
+POST /admin/ai/continue-writing
+```
+
+**需要认证**: 是
+
+**请求参数：**
+```json
+{
+  "title": "文章标题",
+  "content": "现有内容",
+  "continuation_length": 500
+}
+```
+
+### 内容整理建议
+
+```http
+POST /admin/ai/organize-content
+```
+
+**需要认证**: 是
+
+**请求参数：**
+```json
+{
+  "title": "当前标题",
+  "content": "内容",
+  "categories": [{"id": 1, "name": "技术"}]
+}
+```
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "suggestion": {
+    "title": "更好的标题",
+    "summary": "内容摘要...",
+    "tags": ["标签1", "标签2"],
+    "content_type": "knowledge",
+    "category": {"id": 1, "name": "技术"},
+    "source": "ai",
+    "tokens_used": 150
+  }
+}
+```
+
+### AI 配置
+
+```http
+GET /admin/ai/configure
+```
+
+**需要认证**: 是
+
+获取当前 AI 配置和设置页面。
+
+```http
+POST /admin/ai/configure
 ```
 
 **请求参数：**
 ```json
 {
-  "content": "现有内容",
-  "length": 500
+  "ai_tag_generation_enabled": true,
+  "ai_provider": "openai",
+  "ai_api_key": "sk-...",
+  "ai_model": "gpt-3.5-turbo"
 }
 ```
+
+### 测试 AI 配置
+
+```http
+POST /admin/ai/test
+```
+
+**需要认证**: 是
+
+**请求参数：**
+```json
+{
+  "ai_provider": "openai",
+  "ai_api_key": "sk-...",
+  "ai_model": "gpt-3.5-turbo"
+}
+```
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "message": "配置测试成功"
+}
+```
+
+### AI 功能状态
+
+```http
+GET /admin/ai/status
+```
+
+**需要认证**: 是
+
+**响应示例：**
+```json
+{
+  "ai_enabled": true
+}
+```
+
+### AI 使用历史
+
+```http
+GET /admin/ai/history
+```
+
+**需要认证**: 是
 
 ---
 
@@ -717,9 +1032,11 @@ POST /ai/continue-writing
 ### 上传图片
 
 ```http
-POST /upload
+POST /admin/upload
 Content-Type: multipart/form-data
 ```
+
+**需要认证**: 是
 
 **请求参数：**
 | 参数 | 类型 | 必需 | 说明 |
@@ -733,16 +1050,44 @@ Content-Type: multipart/form-data
   "url": "/static/uploads/images/20260316_abc123.jpg",
   "filename": "20260316_abc123.jpg",
   "original_url": "/static/uploads/images/20260316_abc123.jpg",
-  "optimization_id": 1,
-  "status": "pending"
+  "optimization_id": 1
 }
 ```
 
-**说明：**
-- 上传后会在后台自动生成多个尺寸的优化版本
-- 支持：JPG, PNG, GIF, BMP, WebP, TIFF, HEIC, HEIF, MPO
-- 自动转换为WebP格式
-- 生成尺寸：thumbnail (150×150), medium (600×400), large (1200×800), feed (1920×1280)
+**支持格式：** JPG, PNG, GIF, BMP, WebP, TIFF, HEIC, HEIF, MPO
+
+### 查询图片优化状态
+
+```http
+GET /admin/image-status/{optimization_id}
+```
+
+**需要认证**: 是
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "status": "completed",
+  "sizes": {
+    "thumbnail": "/static/uploads/optimized/xxx_thumbnail.webp",
+    "medium": "/static/uploads/optimized/xxx_medium.webp",
+    "large": "/static/uploads/optimized/xxx_large.webp"
+  },
+  "compression_ratio": 85.5
+}
+```
+
+### 移动端上传图片
+
+```http
+POST /mobile/upload
+Content-Type: multipart/form-data
+```
+
+**需要认证**: 是
+
+> 注意：此端点已豁免 CSRF 保护
 
 ---
 
@@ -751,18 +1096,29 @@ Content-Type: multipart/form-data
 ### 获取草稿列表
 
 ```http
-GET /api/drafts
+GET /api/drafts?post_id={123}
 ```
+
+**需要认证**: 是
+
+**查询参数：**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| post_id | int | 可选，筛选特定文章的草稿 |
 
 **响应示例：**
 ```json
 {
+  "success": true,
   "drafts": [
     {
       "id": 1,
+      "post_id": 123,
       "title": "草稿标题",
       "content": "草稿内容",
-      "updated_at": "2026-03-16T10:30:00"
+      "category_id": 1,
+      "tags": ["tag1"],
+      "updated_at": "2026-03-19T10:30:00"
     }
   ]
 }
@@ -774,11 +1130,17 @@ GET /api/drafts
 POST /api/drafts
 ```
 
+**需要认证**: 是
+
 **请求参数：**
 ```json
 {
+  "post_id": 123,
   "title": "草稿标题",
-  "content": "草稿内容"
+  "content": "草稿内容",
+  "category_id": 1,
+  "tags": ["tag1"],
+  "device_info": "iPhone 13"
 }
 ```
 
@@ -788,24 +1150,36 @@ POST /api/drafts
 GET /api/drafts/{draft_id}
 ```
 
+**需要认证**: 是
+
 ### 更新草稿
 
 ```http
-PUT /api/drafts/{draft_id}?_method=PATCH
+PUT /api/drafts/{draft_id}
 ```
+
+**需要认证**: 是
 
 **请求参数：**
 ```json
 {
   "title": "更新的标题",
-  "content": "更新的内容"
+  "content": "更新的内容",
+  "category_id": 1,
+  "tags": ["tag1"],
+  "client_version": "2026-03-19T10:30:00",
+  "server_version": "2026-03-19T10:25:00"
 }
 ```
 
-### 删除草稿
-
-```http
-DELETE /api/drafts/{draft_id}
+**冲突响应（409）：**
+```json
+{
+  "success": false,
+  "error": "检测到版本冲突",
+  "status": "conflict",
+  "draft": {...}
+}
 ```
 
 ### 解决草稿冲突
@@ -814,12 +1188,74 @@ DELETE /api/drafts/{draft_id}
 POST /api/drafts/resolve
 ```
 
+**需要认证**: 是
+
 **请求参数：**
 ```json
 {
   "draft_id": 1,
-  "resolution": "use_server",
-  "client_content": "客户端的版本"
+  "resolution": "use_client",
+  "client_content": "客户端的版本",
+  "conflict_draft_id": 2,
+  "current_draft_id": 1,
+  "action": "merge",
+  "merged_data": {...}
+}
+```
+
+**resolution 选项：**
+- `use_client`: 使用客户端版本
+- `use_server`: 使用服务器版本
+- `merge`: 合并版本
+
+### 删除草稿
+
+```http
+DELETE /api/drafts/{draft_id}
+```
+
+**需要认证**: 是
+
+---
+
+## 🛠️ 工具API
+
+### 生成分享二维码
+
+```http
+GET /api/share/qrcode?url={url}
+```
+
+**查询参数：**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| url | string | 要生成二维码的URL（默认为首页） |
+
+**响应示例：**
+```json
+{
+  "qrcode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+}
+```
+
+### 获取原图 URL
+
+```http
+GET /api/image/original-url?hash={abc123}
+```
+
+**查询参数：**
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| hash | string | 优化图片文件名中的哈希值 |
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "original_url": "/static/uploads/images/xxx.jpg",
+  "exists": true,
+  "filename": "xxx.jpg"
 }
 ```
 
@@ -840,10 +1276,13 @@ POST /api/drafts/resolve
 
 | HTTP状态码 | 说明 |
 |-----------|------|
+| 200 | 请求成功 |
 | 400 | 请求参数错误 |
 | 401 | 未认证 |
 | 403 | 权限不足 |
 | 404 | 资源不存在 |
+| 409 | 资源冲突（如草稿冲突） |
+| 413 | 请求体过大 |
 | 429 | 请求过于频繁（速率限制） |
 | 500 | 服务器内部错误 |
 
@@ -855,7 +1294,7 @@ POST /api/drafts/resolve
 
 | 角色 | 权限 |
 |------|------|
-| **admin** | 所有权限 |
+| **admin** | 所有权限，包括用户管理 |
 | **editor** | 创建、编辑文章，管理评论 |
 | **author** | 只能管理自己的文章 |
 
@@ -871,22 +1310,34 @@ POST /api/drafts/resolve
 
 ## 📊 速率限制
 
-| 端点 | 限制 |
-|------|------|
+| 端点类型 | 限制 |
+|----------|------|
 | 登录 | 5次/分钟 |
-| AI功能 | 10次/分钟 |
-| 其他API | 60次/分钟 |
+| AI功能 | 10次/分钟（可配置） |
+| 其他API | 1000次/天, 200次/小时 |
+
+---
+
+## 🔐 CSRF 豁免端点
+
+以下端点已豁免 CSRF 保护（用于浏览器扩展和移动端）：
+
+- `/api/plugin/submit` - 浏览器扩展提交
+- `/api/plugin/sync-annotations` - 浏览器扩展标注同步
+- `/mobile/upload` - 移动端图片上传
+- `/admin/ai/test` - AI 配置测试
 
 ---
 
 ## 📚 相关文档
 
-- [完整启动指南](QUICKSTART.md)
-- [数据库迁移](MIGRATION.md)
-- [系统部署](SYSTEMD_DEPLOYMENT.md)
-- [README](../README.md)
+- [系统架构文档](./ARCHITECTURE.md)
+- [部署指南](../DEPLOYMENT.md)
+- [快速启动](../QUICKSTART.md)
+- [文档索引](./README.md)
 
 ---
 
 **更新日志：**
-- v2.2 (2026-03-16): 初始版本，整理所有公开API端点
+- v2.2 (2026-03-19): 更新所有 API 端点，补充 Passkey、知识库、AI 功能、移动端等遗漏端点
+- v2.2 (2026-03-16): 初始版本
