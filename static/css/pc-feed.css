@@ -16,46 +16,48 @@
 
     .feed-posts-list .post-card-media {
         display: grid;
-        gap: 14px;
-        width: min(100%, 640px);
+        gap: 8px;
+        width: min(100%, 500px);
         margin-top: 1.25rem;
     }
 
     .feed-posts-list .post-card-media--single {
         grid-template-columns: minmax(0, 1fr);
+        width: min(100%, 520px);
     }
 
     .feed-posts-list .post-card-media--count-2 {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        width: min(100%, 560px);
+        width: min(100%, 360px);
     }
 
     .feed-posts-list .post-card-media--count-3,
     .feed-posts-list .post-card-media--grid-6,
     .feed-posts-list .post-card-media--grid-9 {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        width: min(100%, 640px);
+        width: min(100%, 420px);
     }
 
     .feed-posts-list .post-card-media--grid-4 {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        width: min(100%, 560px);
+        width: min(100%, 360px);
     }
 
     .feed-posts-list .post-card-media-item {
         overflow: hidden;
-        border-radius: 16px;
+        border-radius: 10px;
         background: rgba(15, 23, 42, 0.06);
         aspect-ratio: 1 / 1;
     }
 
     .feed-posts-list .post-card-media--single .post-card-media-item {
-        aspect-ratio: 16 / 10;
+        aspect-ratio: 4 / 3;
+        border-radius: 14px;
     }
 
     .feed-posts-list .post-card-media--count-2 .post-card-media-item,
     .feed-posts-list .post-card-media--count-3 .post-card-media-item {
-        aspect-ratio: 0.94 / 1;
+        aspect-ratio: 1 / 1;
     }
 
     .feed-posts-list .post-card-media-item img {

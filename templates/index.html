@@ -46,11 +46,9 @@
                                     <div class="post-card-media-item">
                                         <img
                                             src="{{ image_url }}"
-                                            srcset="{{ image_url }} 200w,
-                                                    {{ image_url }} 400w"
-                                            sizes="(max-width: 600px) 200px, 400px"
                                             alt=""
-                                            loading="lazy">
+                                            loading="lazy"
+                                            decoding="async">
                                     </div>
                                     {% endfor %}
                                 </div>

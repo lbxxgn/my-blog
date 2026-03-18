@@ -180,8 +180,8 @@ def determine_mobile_image_layout(image_count):
 
 def build_post_card_payload(post):
     post_dict = serialize_post_for_json(post)
-    # 信息流使用feed尺寸以提供更好的视觉效果
-    image_urls = extract_post_image_urls(post_dict.get('content'), size='feed')
+    # 首页/分类信息流优先使用较大的优化图，避免桌面端卡片放大后发糊
+    image_urls = extract_post_image_urls(post_dict.get('content'), size='large')
     post_dict['image_urls'] = image_urls
     post_dict['image_count'] = len(image_urls)
     post_dict['mobile_image_layout'] = determine_mobile_image_layout(len(image_urls))
