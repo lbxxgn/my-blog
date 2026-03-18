@@ -186,11 +186,14 @@ function registerEditorShortcuts() {
     }, 'AI生成标签');
 
     // 关闭编辑器
-    shortcutHandler.register('esc', (event) => {
+    shortcutHandler.register('esc', async (event) => {
         // Prevent conflict with global ESC handler
         event.stopPropagation();
 
-        if (confirm('确定要离开编辑器吗？未保存的内容将丢失。')) {
+        const confirmed = window.showAppConfirm
+            ? await window.showAppConfirm('确定要离开编辑器吗？未保存的内容将丢失。')
+            : true;
+        if (confirmed) {
             window.history.back();
         }
     }, '关闭编辑器');

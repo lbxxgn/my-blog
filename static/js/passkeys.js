@@ -109,7 +109,7 @@
             window.showAppToast(message, type);
             return;
         }
-        window.alert(message);
+        console.warn('[Passkey]', message);
     }
 
     function isIpHostname(hostname) {

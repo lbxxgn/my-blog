@@ -210,6 +210,25 @@ class TestBlogRoutes:
         html = response.get_data(as_text=True)
         assert 'mobile-bottom-nav' not in html
         assert 'data-page="discover"' not in html
+
+    def test_view_post_renders_media_blocks_and_lazy_images(self, client, temp_db):
+        from models import create_post, create_user
+        from werkzeug.security import generate_password_hash
+
+        user_id = create_user('mediauser', generate_password_hash('TestPassword123!', method='pbkdf2:sha256'), role='author')
+        post_id = create_post(
+            'Media post',
+            '<p><img src="/static/uploads/images/example.jpg" alt="demo"></p>',
+            True,
+            None,
+            user_id
+        )
+
+        response = client.get(f'/post/{post_id}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert 'class="post-media-block"' in html
+        assert 'loading="lazy"' in html
     
     def test_search_page(self, client):
         """测试搜索页面"""

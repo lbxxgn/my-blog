@@ -4,7 +4,10 @@
     const state = {
         aiSuggestion: null,
         historyCards: [],
-        imageNotes: new Map()
+        imageNotes: new Map(),
+        isOrganizing: false,
+        lastOrganizedFingerprint: '',
+        autoOrganizeTimer: null
     };
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -14,10 +17,12 @@
 
         initAssistDock();
         initAiOrganizer();
+        initAiAssistActions();
         initHistoryNotes();
         initDraftHealth();
         initImageWorkbench();
         updateDraftHealth({ status: 'idle', message: '未修改' });
+        updateAiSuggestionState('待整理');
     });
 
     function initAssistDock() {
@@ -78,12 +83,39 @@
         const applyBtn = document.getElementById('applyAiSuggestions');
         const insertSummaryBtn = document.getElementById('insertAiSummary');
 
-        trigger?.addEventListener('click', organizeContent);
+        trigger?.addEventListener('click', () => organizeContent({ manual: true }));
         applyBtn?.addEventListener('click', applyAiSuggestion);
         insertSummaryBtn?.addEventListener('click', insertAiSummary);
+
+        window.addEventListener('editor:content-change', () => {
+            if (state.autoOrganizeTimer) {
+                window.clearTimeout(state.autoOrganizeTimer);
+            }
+
+            state.autoOrganizeTimer = window.setTimeout(() => {
+                const content = getEditorText();
+                const title = document.getElementById('title')?.value?.trim() || '';
+                const fingerprint = `${title}::${content.slice(0, 500)}`;
+                if (content.length < 120 || fingerprint === state.lastOrganizedFingerprint) {
+                    return;
+                }
+                organizeContent({ auto: true });
+            }, 1400);
+        });
     }
 
-    async function organizeContent() {
+    function initAiAssistActions() {
+        document.getElementById('aiTagAssistBtn')?.addEventListener('click', () => window.generateAITags?.());
+        document.getElementById('aiSummaryAssistBtn')?.addEventListener('click', () => window.generateAISummary?.());
+        document.getElementById('aiContinueAssistBtn')?.addEventListener('click', () => window.continueAIWriting?.());
+        document.getElementById('aiRecommendAssistBtn')?.addEventListener('click', () => window.generateAIRecommendations?.());
+    }
+
+    async function organizeContent(options = {}) {
+        if (state.isOrganizing) {
+            return;
+        }
+
         const title = document.getElementById('title')?.value?.trim() || '';
         const content = getEditorText();
         const categories = Array.from(document.querySelectorAll('#category_id option'))
@@ -91,13 +123,17 @@
             .map(option => ({ id: option.value, name: option.textContent.trim() }));
 
         if (!content) {
-            showStatus('aiOrganizeStatus', '请先输入内容，再让 AI 整理。', 'error');
+            if (options.manual) {
+                showStatus('aiOrganizeStatus', '请先输入内容，再让 AI 整理。', 'error');
+            }
             return;
         }
 
         const trigger = document.getElementById('aiOrganizeBtn');
+        state.isOrganizing = true;
+        updateAiSuggestionState(options.auto ? '整理中' : '正在整理');
         if (trigger) trigger.disabled = true;
-        showStatus('aiOrganizeStatus', 'AI 正在整理标题、摘要和分类建议...', 'saving');
+        showStatus('aiOrganizeStatus', options.auto ? 'AI 正在后台更新建议...' : 'AI 正在整理标题、摘要和分类建议...', 'saving');
 
         try {
             const response = await fetch('/admin/ai/organize-content', {
@@ -119,13 +155,19 @@
             }
 
             state.aiSuggestion = data.suggestion;
+            state.lastOrganizedFingerprint = `${title}::${content.slice(0, 500)}`;
             renderAiSuggestion(data.suggestion);
-            setActivePanel('ai');
+            if (options.manual) {
+                setActivePanel('ai');
+            }
             const sourceLabel = data.suggestion.source === 'ai' ? 'AI' : '启发式';
+            updateAiSuggestionState(sourceLabel === 'AI' ? '建议已更新' : '基础建议');
             showStatus('aiOrganizeStatus', `${sourceLabel} 建议已准备好，可以一键应用。`, 'saved');
         } catch (error) {
+            updateAiSuggestionState('整理失败');
             showStatus('aiOrganizeStatus', `整理失败：${error.message}`, 'error');
         } finally {
+            state.isOrganizing = false;
             if (trigger) trigger.disabled = false;
         }
     }
@@ -171,6 +213,7 @@
                 text: getEditorText()
             }
         }));
+        updateAiSuggestionState('已应用建议');
         showStatus('aiOrganizeStatus', '建议已应用到当前编辑器。', 'saved');
     }
 
@@ -186,6 +229,13 @@
             window.insertEditorHtml(summaryHtml, 0);
         }
         showStatus('aiOrganizeStatus', '摘要已插入到正文开头。', 'saved');
+    }
+
+    function updateAiSuggestionState(message) {
+        const node = document.getElementById('aiSuggestionState');
+        if (node) {
+            node.textContent = message;
+        }
     }
 
     function initHistoryNotes() {
@@ -570,4 +620,9 @@
             timer = window.setTimeout(() => fn(...args), wait);
         };
     }
+
+    window.EditorWorkbench = {
+        openPanel: setActivePanel,
+        updateAiSuggestionState
+    };
 })();

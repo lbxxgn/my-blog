@@ -251,8 +251,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.generateAITags = async function() {
         const title = document.getElementById('title')?.value?.trim();
         const tagsInput = document.getElementById('tags');
-        const aiStatus = document.getElementById('aiStatus');
-        const aiGenerateBtn = document.getElementById('aiGenerateBtn');
+        const aiGenerateBtn = document.getElementById('aiTagAssistBtn');
 
         // Validate inputs
         if (!title) {
@@ -342,9 +341,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     'success',
                     `✅ 已生成标签: ${data.tags.join(', ')} (${data.tokens_used} tokens, 约$${data.cost.toFixed(4)})`
                 );
+                if (window.EditorWorkbench?.updateAiSuggestionState) {
+                    window.EditorWorkbench.updateAiSuggestionState('标签已更新');
+                }
+                if (window.EditorWorkbench?.openPanel) {
+                    window.EditorWorkbench.openPanel('ai');
+                }
 
                 // Auto-hide success message after 5 seconds
                 setTimeout(() => {
+                    const aiStatus = document.getElementById('aiStatus') || document.getElementById('aiToolsStatus') || document.getElementById('aiOrganizeStatus');
                     if (aiStatus) aiStatus.style.display = 'none';
                 }, 5000);
             } else {
@@ -362,7 +368,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to show AI status messages
     function showAIStatus(type, message) {
-        const aiStatus = document.getElementById('aiStatus');
+        const aiStatus = document.getElementById('aiStatus') || document.getElementById('aiToolsStatus') || document.getElementById('aiOrganizeStatus');
         if (!aiStatus) return;
 
         aiStatus.className = 'ai-status ' + type;

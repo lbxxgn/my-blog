@@ -450,38 +450,48 @@
         <textarea id="mobileEditorTextarea" class="mobile-editor-textarea" placeholder="分享新鲜事..."></textarea>
         <div id="mobileEditorImages" class="mobile-editor-images"></div>
     </div>
-    <div class="mobile-editor-meta">
-        <div class="mobile-editor-meta-top">
-            <div id="mobileEditorStatus" class="mobile-editor-status" aria-live="polite"></div>
-            <div class="mobile-editor-meta-spacer"></div>
-            <button type="button" class="mobile-editor-access-pill" id="mobileEditorAccessPill">公开</button>
+    <div class="mobile-editor-bottom-shell">
+        <div class="mobile-editor-meta">
+            <div class="mobile-editor-meta-top">
+                <div id="mobileEditorStatus" class="mobile-editor-status" aria-live="polite"></div>
+                <div class="mobile-editor-meta-spacer"></div>
+                <button type="button" class="mobile-editor-access-pill" id="mobileEditorAccessPill">公开</button>
+            </div>
+            <div id="mobileEditorSelections" class="mobile-editor-selections" style="display: none;"></div>
         </div>
-        <div id="mobileEditorSelections" class="mobile-editor-selections" style="display: none;"></div>
-    </div>
-    <div class="mobile-editor-toolbar">
-        <button type="button" class="toolbar-btn" id="toolbarImage" title="添加图片">
-            <span class="toolbar-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                    <rect x="3.5" y="5" width="17" height="14" rx="2.5"></rect>
-                    <circle cx="8.2" cy="9.2" r="1.6"></circle>
-                    <path d="M6 16l3.2-3.2a1 1 0 0 1 1.4 0L13 15l2.3-2.3a1 1 0 0 1 1.4 0L18 14"></path>
-                </svg>
-            </span>
-        </button>
-        <button type="button" class="toolbar-btn" id="toolbarTags" title="快速输入标签">
-            <span class="toolbar-icon">#</span>
-        </button>
-        <button type="button" class="toolbar-btn" id="toolbarCategory" title="选择分类">
-            <span class="toolbar-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M4 7.5h7l1.7 2H20v7A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9A2 2 0 0 1 6 5.5h3.2"></path>
-                </svg>
-            </span>
-        </button>
-        <button type="button" class="toolbar-btn" id="toolbarAccess" title="访问权限">
-            <span class="toolbar-icon">＋</span>
-        </button>
-        <input type="file" id="mobileEditorImageInput" accept="image/*" multiple style="display: none;">
+        <div class="mobile-editor-toolbar-shell">
+            <div class="mobile-editor-toolbar">
+                <button type="button" class="toolbar-btn" id="toolbarImage" title="添加图片">
+                    <span class="toolbar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <rect x="3.5" y="5" width="17" height="14" rx="2.5"></rect>
+                            <circle cx="8.2" cy="9.2" r="1.6"></circle>
+                            <path d="M6 16l3.2-3.2a1 1 0 0 1 1.4 0L13 15l2.3-2.3a1 1 0 0 1 1.4 0L18 14"></path>
+                        </svg>
+                    </span>
+                </button>
+                <button type="button" class="toolbar-btn" id="toolbarTags" title="快速输入标签">
+                    <span class="toolbar-icon">#</span>
+                </button>
+                <button type="button" class="toolbar-btn" id="toolbarCategory" title="选择分类">
+                    <span class="toolbar-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M4 7.5h7l1.7 2H20v7A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9A2 2 0 0 1 6 5.5h3.2"></path>
+                        </svg>
+                    </span>
+                </button>
+                <button type="button" class="toolbar-btn" id="toolbarAccess" title="访问权限">
+                    <span class="toolbar-icon" id="toolbarAccessIcon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M12 3.5a6.5 6.5 0 0 0-6.5 6.5v3.2"></path>
+                            <path d="M18.5 13.2V10A6.5 6.5 0 0 0 12 3.5"></path>
+                            <rect x="4.5" y="12.5" width="15" height="8" rx="2.5"></rect>
+                        </svg>
+                    </span>
+                </button>
+                <input type="file" id="mobileEditorImageInput" accept="image/*" multiple style="display: none;">
+            </div>
+        </div>
     </div>
 </div>
 
@@ -551,6 +561,227 @@ window.showAppToast = function(message, type = 'success') {
         setTimeout(() => toast.remove(), 220);
     }, 2200);
 };
+window.showAppConfirm = function(message, options = {}) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        const dialog = document.createElement('div');
+        const text = document.createElement('div');
+        const actions = document.createElement('div');
+        const cancelBtn = document.createElement('button');
+        const confirmBtn = document.createElement('button');
+
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(15, 23, 42, 0.32)';
+        overlay.style.backdropFilter = 'blur(10px)';
+        overlay.style.zIndex = '10001';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.padding = '20px';
+
+        dialog.style.width = 'min(92vw, 420px)';
+        dialog.style.borderRadius = '18px';
+        dialog.style.background = 'var(--card-bg, #fff)';
+        dialog.style.color = 'var(--text-color, #111827)';
+        dialog.style.border = '1px solid var(--border-color, rgba(15, 23, 42, 0.08))';
+        dialog.style.boxShadow = '0 24px 64px rgba(15, 23, 42, 0.18)';
+        dialog.style.padding = '20px';
+
+        text.textContent = message;
+        text.style.whiteSpace = 'pre-wrap';
+        text.style.lineHeight = '1.6';
+        text.style.fontSize = '15px';
+
+        actions.style.display = 'flex';
+        actions.style.justifyContent = 'flex-end';
+        actions.style.gap = '10px';
+        actions.style.marginTop = '18px';
+
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = options.cancelText || '取消';
+        cancelBtn.style.padding = '9px 16px';
+        cancelBtn.style.borderRadius = '10px';
+        cancelBtn.style.border = '1px solid var(--border-color, #d1d5db)';
+        cancelBtn.style.background = 'transparent';
+        cancelBtn.style.color = 'inherit';
+        cancelBtn.style.cursor = 'pointer';
+
+        confirmBtn.type = 'button';
+        confirmBtn.textContent = options.confirmText || '确认';
+        confirmBtn.style.padding = '9px 16px';
+        confirmBtn.style.borderRadius = '10px';
+        confirmBtn.style.border = 'none';
+        confirmBtn.style.background = options.destructive
+            ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+            : 'linear-gradient(135deg, #10b981, #059669)';
+        confirmBtn.style.color = '#fff';
+        confirmBtn.style.cursor = 'pointer';
+
+        const cleanup = (result) => {
+            overlay.remove();
+            resolve(result);
+        };
+
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) {
+                cleanup(false);
+            }
+        });
+        cancelBtn.addEventListener('click', () => cleanup(false));
+        confirmBtn.addEventListener('click', () => cleanup(true));
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+        dialog.appendChild(text);
+        dialog.appendChild(actions);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        confirmBtn.focus();
+    });
+};
+window.showAppPrompt = function(message, defaultValue = '', options = {}) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        const dialog = document.createElement('div');
+        const text = document.createElement('div');
+        const input = document.createElement('input');
+        const actions = document.createElement('div');
+        const cancelBtn = document.createElement('button');
+        const confirmBtn = document.createElement('button');
+
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(15, 23, 42, 0.32)';
+        overlay.style.backdropFilter = 'blur(10px)';
+        overlay.style.zIndex = '10001';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.padding = '20px';
+
+        dialog.style.width = 'min(92vw, 420px)';
+        dialog.style.borderRadius = '18px';
+        dialog.style.background = 'var(--card-bg, #fff)';
+        dialog.style.color = 'var(--text-color, #111827)';
+        dialog.style.border = '1px solid var(--border-color, rgba(15, 23, 42, 0.08))';
+        dialog.style.boxShadow = '0 24px 64px rgba(15, 23, 42, 0.18)';
+        dialog.style.padding = '20px';
+
+        text.textContent = message;
+        text.style.whiteSpace = 'pre-wrap';
+        text.style.lineHeight = '1.6';
+        text.style.fontSize = '15px';
+
+        input.type = 'text';
+        input.value = defaultValue || '';
+        input.placeholder = options.placeholder || '';
+        input.style.width = '100%';
+        input.style.marginTop = '14px';
+        input.style.padding = '11px 12px';
+        input.style.borderRadius = '10px';
+        input.style.border = '1px solid var(--border-color, #d1d5db)';
+        input.style.background = 'transparent';
+        input.style.color = 'inherit';
+
+        actions.style.display = 'flex';
+        actions.style.justifyContent = 'flex-end';
+        actions.style.gap = '10px';
+        actions.style.marginTop = '18px';
+
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = options.cancelText || '取消';
+        cancelBtn.style.padding = '9px 16px';
+        cancelBtn.style.borderRadius = '10px';
+        cancelBtn.style.border = '1px solid var(--border-color, #d1d5db)';
+        cancelBtn.style.background = 'transparent';
+        cancelBtn.style.color = 'inherit';
+        cancelBtn.style.cursor = 'pointer';
+
+        confirmBtn.type = 'button';
+        confirmBtn.textContent = options.confirmText || '确认';
+        confirmBtn.style.padding = '9px 16px';
+        confirmBtn.style.borderRadius = '10px';
+        confirmBtn.style.border = 'none';
+        confirmBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        confirmBtn.style.color = '#fff';
+        confirmBtn.style.cursor = 'pointer';
+
+        const cleanup = (result) => {
+            overlay.remove();
+            resolve(result);
+        };
+
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) {
+                cleanup(null);
+            }
+        });
+        cancelBtn.addEventListener('click', () => cleanup(null));
+        confirmBtn.addEventListener('click', () => cleanup(input.value));
+        input.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                cleanup(input.value);
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                cleanup(null);
+            }
+        });
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+        dialog.appendChild(text);
+        dialog.appendChild(input);
+        dialog.appendChild(actions);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        input.focus();
+        input.select();
+    });
+};
+
+document.addEventListener('submit', async function(event) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.dataset.confirm) {
+        return;
+    }
+    if (form.dataset.confirmed === 'true') {
+        delete form.dataset.confirmed;
+        return;
+    }
+
+    event.preventDefault();
+    const confirmed = await window.showAppConfirm(form.dataset.confirm, {
+        destructive: form.dataset.confirmDestructive === 'true',
+        confirmText: form.dataset.confirmText || '确认'
+    });
+    if (confirmed) {
+        form.dataset.confirmed = 'true';
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+    }
+}, true);
+
+document.addEventListener('click', async function(event) {
+    const trigger = event.target.closest('a[data-confirm]');
+    if (!trigger) {
+        return;
+    }
+    if (trigger.dataset.confirmed === 'true') {
+        delete trigger.dataset.confirmed;
+        return;
+    }
+
+    event.preventDefault();
+    const confirmed = await window.showAppConfirm(trigger.dataset.confirm, {
+        destructive: trigger.dataset.confirmDestructive === 'true',
+        confirmText: trigger.dataset.confirmText || '确认'
+    });
+    if (confirmed) {
+        trigger.dataset.confirmed = 'true';
+        window.location.href = trigger.href;
+    }
+}, true);
 </script>
 
 <script src="{{ static_file('js/mobile-editor.js') }}"></script>

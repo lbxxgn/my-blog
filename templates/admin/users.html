@@ -55,7 +55,9 @@
                     {% if user.id != session.get('user_id') %}
                     <form method="POST" action="{{ url_for('delete_user_route', user_id=user.id) }}"
                           class="delete-form"
-                          onsubmit="return confirm('确定删除用户 {{ user.username }}？该用户的文章将变为无作者状态。');">
+                          data-confirm="确定删除用户 {{ user.username }}？该用户的文章将变为无作者状态。"
+                          data-confirm-destructive="true"
+                          data-confirm-text="删除">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" class="btn btn-sm btn-danger">删除</button>
                     </form>

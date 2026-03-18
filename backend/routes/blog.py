@@ -26,6 +26,11 @@ blog_bp = Blueprint('blog', __name__)
 
 IMAGE_SRC_PATTERN = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
 IMG_TAG_SRC_REWRITE_PATTERN = re.compile(r'(<img[^>]+src=["\'])([^"\']+)(["\'])', re.IGNORECASE)
+IMG_LOADING_ATTR_PATTERN = re.compile(r'<img(?![^>]*\bloading=)([^>]*)>', re.IGNORECASE)
+MEDIA_PARAGRAPH_PATTERN = re.compile(
+    r'<p>(\s*(?:<a\b[^>]*>\s*)?<img\b[^>]*>(?:\s*</a>)?\s*)</p>',
+    re.IGNORECASE
+)
 HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
 WHITESPACE_PATTERN = re.compile(r'\s+')
 
@@ -149,7 +154,7 @@ def extract_post_excerpt(content, limit=160):
 
 
 def rewrite_post_image_sources(content_html, size='medium'):
-    """在服务端将正文图片URL改写为可用的优化图URL，避免前端额外探测产生404日志。"""
+    """在服务端统一处理正文图片结构，避免模板和前端再做补救。"""
     html = str(content_html or '')
 
     def replace_src(match):
@@ -157,7 +162,10 @@ def rewrite_post_image_sources(content_html, size='medium'):
         optimized_url = get_optimized_image_url(original_url, size)
         return f'{prefix}{optimized_url}{suffix}'
 
-    return IMG_TAG_SRC_REWRITE_PATTERN.sub(replace_src, html)
+    html = IMG_TAG_SRC_REWRITE_PATTERN.sub(replace_src, html)
+    html = IMG_LOADING_ATTR_PATTERN.sub(r'<img loading="lazy"\1>', html)
+    html = MEDIA_PARAGRAPH_PATTERN.sub(r'<p class="post-media-block">\1</p>', html)
+    return html
 
 
 def determine_mobile_image_layout(image_count):

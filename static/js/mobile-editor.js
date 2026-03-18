@@ -18,6 +18,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         initMobileEditor();
         loadDraft();
+        updateAccessIcon();
     });
 
     /**
@@ -259,6 +260,7 @@
         }
 
         updateAccessPill();
+        updateAccessIcon();
     }
 
     /**
@@ -681,14 +683,8 @@
         const currentIndex = levels.indexOf(accessLevel);
         accessLevel = levels[(currentIndex + 1) % levels.length];
 
-        const btn = document.getElementById('toolbarAccess');
-        if (btn) {
-            const icons = { public: '＋', login: '＋', private: '＋' };
-            const icon = btn.querySelector('.toolbar-icon');
-            if (icon) icon.textContent = icons[accessLevel];
-        }
-
         updateAccessPill();
+        updateAccessIcon();
         saveDraft();
     }
 
@@ -705,14 +701,48 @@
         pill.textContent = labels[accessLevel] || '🌐 公开';
     }
 
+    function updateAccessIcon() {
+        const icon = document.getElementById('toolbarAccessIcon');
+        if (!icon) return;
+
+        const icons = {
+            public: `
+                <svg viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="8"></circle>
+                    <path d="M4 12h16"></path>
+                    <path d="M12 4c2.4 2.3 3.6 5 3.6 8s-1.2 5.7-3.6 8"></path>
+                    <path d="M12 4c-2.4 2.3-3.6 5-3.6 8s1.2 5.7 3.6 8"></path>
+                </svg>
+            `,
+            login: `
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 3.5a6.5 6.5 0 0 0-6.5 6.5v3.2"></path>
+                    <path d="M18.5 13.2V10A6.5 6.5 0 0 0 12 3.5"></path>
+                    <rect x="4.5" y="12.5" width="15" height="8" rx="2.5"></rect>
+                </svg>
+            `,
+            private: `
+                <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 4.5a4.5 4.5 0 0 0-4.5 4.5v3"></path>
+                    <path d="M16.5 12V9A4.5 4.5 0 0 0 12 4.5"></path>
+                    <rect x="5.5" y="12" width="13" height="8.5" rx="2.5"></rect>
+                    <path d="M12 15.2v2.1"></path>
+                </svg>
+            `
+        };
+
+        icon.innerHTML = icons[accessLevel] || icons.public;
+    }
+
     /**
      * 创建新标签
      */
     window.createNewTag = function() {
-        const name = prompt('请输入新标签名称：');
-        if (name && name.trim()) {
-            mergeTagNames(parseTagNames(name));
-            renderTagsList(document.getElementById('tagsQuickInput')?.value || '');
+        openTagsSelector();
+        const input = document.getElementById('tagsQuickInput');
+        if (input) {
+            input.focus();
+            showToast('直接输入标签后回车即可创建');
         }
     };
 

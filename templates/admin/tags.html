@@ -41,9 +41,12 @@
                 </td>
                 <td>{{ tag.created_at }}</td>
                 <td>
-                    <form action="{{ url_for('delete_tag_route', tag_id=tag.id) }}" method="post" class="delete-form">
+                    <form action="{{ url_for('delete_tag_route', tag_id=tag.id) }}" method="post" class="delete-form"
+                          data-confirm="确定删除此标签吗？"
+                          data-confirm-destructive="true"
+                          data-confirm-text="删除">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定删除此标签吗？')">删除</button>
+                        <button type="submit" class="btn btn-sm btn-danger">删除</button>
                     </form>
                 </td>
             </tr>

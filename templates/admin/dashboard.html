@@ -84,7 +84,10 @@
                         <td>{{ post.created_at|localtime }}</td>
                         <td class="actions">
                             <a href="{{ url_for('edit_post', post_id=post.id) }}" class="btn btn-sm">编辑</a>
-                            <form method="POST" action="{{ url_for('delete_post_route', post_id=post.id) }}" class="delete-form" onsubmit="return confirm('确定删除这篇文章？');">
+                            <form method="POST" action="{{ url_for('delete_post_route', post_id=post.id) }}" class="delete-form"
+                                  data-confirm="确定删除这篇文章？"
+                                  data-confirm-destructive="true"
+                                  data-confirm-text="删除">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="btn btn-sm btn-danger">删除</button>
                             </form>
@@ -585,24 +588,26 @@ function confirmBatchDelete() {
 }
 
 // Batch publish/unpublish functions
-function showBatchPublishModal() {
+async function showBatchPublishModal() {
     if (selectedPosts.size === 0) {
         notifyDashboard('请先选择文章', 'error');
         return;
     }
 
-    if (confirm(`确定要发布 ${selectedPosts.size} 篇文章吗？`)) {
+    const confirmed = await window.showAppConfirm(`确定要发布 ${selectedPosts.size} 篇文章吗？`);
+    if (confirmed) {
         performBatchPublish(true);
     }
 }
 
-function showBatchUnpublishModal() {
+async function showBatchUnpublishModal() {
     if (selectedPosts.size === 0) {
         notifyDashboard('请先选择文章', 'error');
         return;
     }
 
-    if (confirm(`确定要取消发布 ${selectedPosts.size} 篇文章吗？`)) {
+    const confirmed = await window.showAppConfirm(`确定要取消发布 ${selectedPosts.size} 篇文章吗？`);
+    if (confirmed) {
         performBatchPublish(false);
     }
 }

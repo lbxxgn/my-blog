@@ -30,7 +30,9 @@
                     </ul>
                 </div>
                 <div class="export-action">
-                    <a href="{{ url_for('export_markdown') }}" class="btn btn-primary" onclick="return confirm('确定要导出所有文章为 Markdown 格式吗？')">
+                    <a href="{{ url_for('export_markdown') }}" class="btn btn-primary"
+                       data-confirm="确定要导出所有文章为 Markdown 格式吗？"
+                       data-confirm-text="导出">
                         导出 Markdown
                     </a>
                 </div>
@@ -50,7 +52,9 @@
                     </ul>
                 </div>
                 <div class="export-action">
-                    <a href="{{ url_for('export_json') }}" class="btn btn-primary" onclick="return confirm('确定要导出所有文章为 JSON 格式吗？')">
+                    <a href="{{ url_for('export_json') }}" class="btn btn-primary"
+                       data-confirm="确定要导出所有文章为 JSON 格式吗？"
+                       data-confirm-text="导出">
                         导出 JSON
                     </a>
                 </div>

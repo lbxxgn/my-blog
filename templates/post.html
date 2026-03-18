@@ -418,32 +418,6 @@ header {
 <!-- Code Copy -->
 <script src="{{ url_for('static', filename='js/code-copy.js') }}?v=1.1"></script>
 
-<!-- 响应式图片优化 -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const contentImages = document.querySelectorAll('.post-content img');
-
-    contentImages.forEach(function(img) {
-        const parentParagraph = img.closest('p');
-        const imageLink = img.closest('a');
-        const paragraphText = parentParagraph
-            ? parentParagraph.textContent.replace(/\s+/g, '').trim()
-            : '';
-
-        if (parentParagraph && !paragraphText) {
-            parentParagraph.classList.add('post-media-block');
-        } else if (imageLink && imageLink.parentElement === document.querySelector('.post-content')) {
-            imageLink.classList.add('post-media-block');
-        }
-
-        // 添加懒加载属性
-        if (!img.hasAttribute('loading')) {
-            img.loading = 'lazy';
-        }
-    });
-});
-</script>
-
 <!-- 移动端评论区折叠功能 -->
 <script>
 (function() {

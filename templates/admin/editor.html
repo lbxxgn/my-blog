@@ -65,47 +65,9 @@
 
             <div class="form-group" style="flex: 2;">
                 <label for="tags">标签（用逗号分隔）</label>
-                <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
-                    <input type="text" name="tags" id="tags" value="{% if post and post.tags %}{{ post.tags|map(attribute='name')|join(', ') }}{% endif %}" placeholder="例如: Python, Flask, Web" style="flex: 1; padding: 0.625rem 0.875rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.95rem; transition: all 0.2s;">
-                    <button type="button" id="aiGenerateBtn" class="btn btn-secondary ai-feature" onclick="generateAITags()" title="使用AI生成标签" style="flex-shrink: 0;">
-                        <span style="display: flex; align-items: center; gap: 0.25rem;">
-                            <span class="ai-icon">🤖</span>
-                            <span>AI生成</span>
-                        </span>
-                    </button>
-                </div>
-                <small style="color: #666;">多个标签用逗号分隔</small>
-                <div id="aiStatus" class="ai-status" style="display: none;"></div>
+                <input type="text" name="tags" id="tags" value="{% if post and post.tags %}{{ post.tags|map(attribute='name')|join(', ') }}{% endif %}" placeholder="例如: Python, Flask, Web" style="width: 100%; padding: 0.625rem 0.875rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.95rem; transition: all 0.2s;">
+                <small style="color: #666;">多个标签用逗号分隔。AI 标签建议已移到下方写作助手。</small>
             </div>
-        </div>
-
-        <!-- AI工具栏 -->
-        <div id="aiToolsSection" class="ai-tools-section ai-feature" style="margin-top: 1.5rem; padding: 1.25rem; border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; background: var(--code-bg, #f9fafb);">
-            <h3 style="font-size: 1rem; margin: 0 0 1rem 0; color: var(--text-color, #1f2937); display: flex; align-items: center; gap: 0.5rem;">
-                <span>🤖</span>
-                <span>AI助手工具</span>
-            </h3>
-            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-                <button type="button" class="btn btn-secondary" onclick="generateAISummary()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
-                    <span style="display: flex; align-items: center; gap: 0.375rem;">
-                        <span>📝</span>
-                        <span>生成摘要</span>
-                    </span>
-                </button>
-                <button type="button" class="btn btn-secondary" onclick="generateAIRecommendations()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
-                    <span style="display: flex; align-items: center; gap: 0.375rem;">
-                        <span>🔗</span>
-                        <span>推荐相关文章</span>
-                    </span>
-                </button>
-                <button type="button" class="btn btn-secondary" onclick="continueAIWriting()" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
-                    <span style="display: flex; align-items: center; gap: 0.375rem;">
-                        <span>✍️</span>
-                        <span>AI续写</span>
-                    </span>
-                </button>
-            </div>
-            <div id="aiToolsStatus" class="ai-status" style="display: none; margin-top: 1rem;"></div>
         </div>
 
         <!-- 底部操作栏 -->
@@ -140,10 +102,11 @@
     <section class="editor-assist-dock" id="editorAssistDock">
         <div class="assist-dock-header">
             <div>
-                <h3>辅助工具</h3>
-                <p>默认收起，需要时再展开，不打断写作节奏。</p>
+                <h3>写作助手</h3>
+                <p>默认只写作。整理、历史资料和图片管理都收在这里。</p>
             </div>
             <div class="assist-dock-summary">
+                <span class="assist-summary-item">AI：<strong id="aiSuggestionState">待整理</strong></span>
                 <span class="assist-summary-item">草稿：<strong id="draftHealthState">未修改</strong></span>
                 <span class="assist-summary-item">图片：<strong id="draftHealthImages">0 张</strong></span>
             </div>
@@ -168,10 +131,16 @@
             <section class="editor-workbench-card assist-panel ai-feature" data-panel-name="ai" hidden>
                 <div class="workbench-card-header">
                     <div>
-                        <h3>AI 整理助手</h3>
-                        <p>自动建议标题、摘要、标签、分类和记录类型。</p>
+                        <h3>AI 写作助手</h3>
+                        <p>自动整理标题、摘要、标签和分类；需要时再生成摘要、续写和推荐。</p>
                     </div>
-                    <button type="button" class="btn btn-secondary" id="aiOrganizeBtn">AI 整理内容</button>
+                    <div class="ai-action-group">
+                        <button type="button" class="btn btn-secondary" id="aiOrganizeBtn">整理内容</button>
+                        <button type="button" class="btn btn-secondary" id="aiTagAssistBtn">生成标签</button>
+                        <button type="button" class="btn btn-secondary" id="aiSummaryAssistBtn">生成摘要</button>
+                        <button type="button" class="btn btn-secondary" id="aiContinueAssistBtn">AI续写</button>
+                        <button type="button" class="btn btn-secondary" id="aiRecommendAssistBtn">相关文章</button>
+                    </div>
                 </div>
                 <div id="aiOrganizeStatus" class="save-status"></div>
                 <div id="aiSuggestionPanel" class="ai-suggestion-panel" hidden>
@@ -201,6 +170,29 @@
                         <button type="button" class="btn btn-primary" id="applyAiSuggestions">应用全部建议</button>
                         <button type="button" class="btn btn-secondary" id="insertAiSummary">插入摘要到正文开头</button>
                     </div>
+                </div>
+                <div id="aiToolsStatus" class="ai-status" style="display: none; margin-top: 0.9rem;"></div>
+                <div class="ai-tool-results">
+                    <section id="aiSummaryResultCard" class="ai-result-card" hidden>
+                        <div class="ai-result-header">
+                            <strong>AI 摘要</strong>
+                            <button type="button" class="btn btn-secondary btn-sm" id="applyGeneratedSummary">插入到开头</button>
+                        </div>
+                        <div class="ai-result-body" id="aiSummaryResultBody"></div>
+                    </section>
+                    <section id="aiContinuationResultCard" class="ai-result-card" hidden>
+                        <div class="ai-result-header">
+                            <strong>AI 续写</strong>
+                            <button type="button" class="btn btn-secondary btn-sm" id="applyGeneratedContinuation">插入到末尾</button>
+                        </div>
+                        <div class="ai-result-body" id="aiContinuationResultBody"></div>
+                    </section>
+                    <section id="aiRecommendationResultCard" class="ai-result-card" hidden>
+                        <div class="ai-result-header">
+                            <strong>相关文章推荐</strong>
+                        </div>
+                        <div class="ai-result-body" id="aiRecommendationResultBody"></div>
+                    </section>
                 </div>
             </section>
 
@@ -301,6 +293,13 @@
     gap: 0.65rem;
     flex-wrap: wrap;
     margin-bottom: 0.9rem;
+}
+
+.ai-action-group {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .assist-toggle {
@@ -415,6 +414,45 @@
     gap: 0.75rem;
     margin-top: 1rem;
     flex-wrap: wrap;
+}
+
+.ai-tool-results {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    margin-top: 0.9rem;
+}
+
+.ai-result-card {
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    background: var(--code-bg, #f8fafc);
+    padding: 0.9rem 1rem;
+}
+
+.ai-result-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.65rem;
+}
+
+.ai-result-body {
+    color: var(--text-color, #111827);
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.ai-result-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.ai-result-list a,
+.ai-result-list span {
+    display: block;
 }
 
 .history-notes-inline input {
@@ -561,6 +599,10 @@
 
     .workbench-card-header {
         flex-direction: column;
+    }
+
+    .ai-action-group {
+        justify-content: flex-start;
     }
 
     .assist-dock-header {
@@ -965,6 +1007,7 @@ async function checkAIFeaturesStatus() {
 // Show AI tools status message
 function showAiToolsStatus(type, message) {
     const statusDiv = document.getElementById('aiToolsStatus');
+    if (!statusDiv) return;
     statusDiv.className = 'ai-status ' + type;
     statusDiv.style.display = 'flex';
     statusDiv.innerHTML = message;
@@ -974,6 +1017,74 @@ function showAiToolsStatus(type, message) {
         setTimeout(() => {
             statusDiv.style.display = 'none';
         }, 5000);
+    }
+}
+
+function showEditorToast(message, type = 'success') {
+    if (window.showAppToast) {
+        window.showAppToast(message, type);
+    }
+}
+
+function escapeInlineHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function openAiAssistPanel() {
+    if (window.EditorWorkbench?.openPanel) {
+        window.EditorWorkbench.openPanel('ai');
+    }
+}
+
+function setAiResultCardVisibility(cardId, visible) {
+    const card = document.getElementById(cardId);
+    if (card) {
+        card.hidden = !visible;
+    }
+}
+
+function renderAiResultText(targetId, text) {
+    const node = document.getElementById(targetId);
+    if (node) {
+        node.textContent = text || '';
+    }
+}
+
+function renderAiRecommendationList(recommendations) {
+    const body = document.getElementById('aiRecommendationResultBody');
+    if (!body) return;
+
+    if (!recommendations || !recommendations.length) {
+        body.innerHTML = '<div class="workbench-empty">暂无相关文章推荐。</div>';
+        return;
+    }
+
+    body.innerHTML = `
+        <div class="ai-result-list">
+            ${recommendations.map((rec) => {
+                if (rec && typeof rec === 'object' && !Array.isArray(rec) && rec.title && rec.url) {
+                    return `<a href="${rec.url}" target="_blank" rel="noopener noreferrer">${escapeInlineHtml(rec.title)}</a>`;
+                }
+                if (typeof rec === 'number' || (typeof rec === 'string' && !isNaN(parseInt(rec, 10)))) {
+                    return `<span>文章 #${escapeInlineHtml(String(rec))}</span>`;
+                }
+                return `<span>${escapeInlineHtml(JSON.stringify(rec))}</span>`;
+            }).join('')}
+        </div>
+    `;
+}
+
+function prependHtmlToEditor(html) {
+    if (typeof window.insertEditorHtml === 'function') {
+        window.insertEditorHtml(html, 0);
+    }
+}
+
+function appendHtmlToEditor(html) {
+    if (typeof window.insertEditorHtml === 'function') {
+        window.insertEditorHtml(html);
     }
 }
 
@@ -1028,22 +1139,18 @@ async function generateAISummary() {
         const data = await response.json();
 
         if (data.success) {
-            // Display summary and offer to append to content
             const summary = data.summary;
-            const shouldAppend = confirm(`AI生成的摘要：\n\n${summary}\n\n是否将摘要添加到文章开头？`);
-
-            if (shouldAppend) {
-                if (window.quill) {
-                    // Insert into Quill editor
-                    const summaryHtml = `<p><strong>摘要：</strong>${summary}</p><p><br></p>`;
-                    window.quill.clipboard.dangerouslyPasteHTML(0, summaryHtml);
-                } else {
-                    // Fallback to textarea
-                    const contentTextarea = document.getElementById('content');
-                    contentTextarea.value = `**摘要**：${summary}\n\n${contentTextarea.value}`;
-                }
+            renderAiResultText('aiSummaryResultBody', summary);
+            setAiResultCardVisibility('aiSummaryResultCard', true);
+            const applyButton = document.getElementById('applyGeneratedSummary');
+            if (applyButton) {
+                applyButton.onclick = () => {
+                    prependHtmlToEditor(`<p><strong>摘要：</strong>${escapeInlineHtml(summary)}</p><p><br></p>`);
+                    showAiToolsStatus('success', '摘要已插入到正文开头。');
+                    showEditorToast('摘要已插入正文');
+                };
             }
-
+            openAiAssistPanel();
             showAiToolsStatus('success', `✅ 摘要已生成 (${data.tokens_used} tokens, ${data.model})`);
         } else {
             showAiToolsStatus('error', `❌ ${data.error || '生成失败'}`);
@@ -1103,44 +1210,14 @@ async function generateAIRecommendations() {
         const data = await response.json();
 
         if (data.success && data.recommendations.length > 0) {
-            // 检查返回格式 - 如果是对象数组则显示标题和链接，如果是ID数组则显示ID
-            console.log('=== 推荐文章调试信息 ===');
-            console.log('完整数据:', data.recommendations);
-            console.log('数据类型:', typeof data.recommendations);
-            console.log('第一项:', data.recommendations[0]);
-            console.log('第一项类型:', typeof data.recommendations[0]);
-            console.log('是否为数组:', Array.isArray(data.recommendations[0]));
-
-            const recList = data.recommendations.map((rec, index) => {
-                console.log(`处理第${index + 1}项:`, rec, '类型:', typeof rec, '是否数组:', Array.isArray(rec));
-
-                // 情况1: 新格式 - 包含title和url的对象
-                if (rec && typeof rec === 'object' && !Array.isArray(rec) && rec.title && rec.url) {
-                    console.log('  -> 使用新格式（对象）');
-                    return `<a href="${rec.url}" target="_blank" class="recommendation-link">${rec.title}</a>`;
-                }
-                // 情况2: 旧格式 - 纯数字ID
-                else if (typeof rec === 'number') {
-                    console.log('  -> 使用旧格式（数字）');
-                    return `文章 #${rec}`;
-                }
-                // 情况3: 可能是字符串数字
-                else if (typeof rec === 'string' && !isNaN(parseInt(rec))) {
-                    console.log('  -> 使用旧格式（字符串）');
-                    return `文章 #${rec}`;
-                }
-                // 情况4: 未知格式
-                else {
-                    console.log('  -> 未知格式，JSON序列化:', JSON.stringify(rec));
-                    return `[${typeof rec}] ${JSON.stringify(rec)}`;
-                }
-            }).join(', ');
-
-            console.log('最终结果:', recList);
-            console.log('========================');
-
-            showAiToolsStatus('success', `✅ 推荐文章：${recList} (${data.tokens_used} tokens)`);
+            renderAiRecommendationList(data.recommendations);
+            setAiResultCardVisibility('aiRecommendationResultCard', true);
+            openAiAssistPanel();
+            showAiToolsStatus('success', `✅ 已生成 ${data.recommendations.length} 条相关文章推荐 (${data.tokens_used} tokens)`);
         } else if (data.success && data.recommendations.length === 0) {
+            renderAiRecommendationList([]);
+            setAiResultCardVisibility('aiRecommendationResultCard', true);
+            openAiAssistPanel();
             showAiToolsStatus('success', '✅ 暂无相关文章推荐');
         } else {
             showAiToolsStatus('error', `❌ ${data.error || '生成失败'}`);
@@ -1202,19 +1279,17 @@ async function continueAIWriting() {
 
         if (data.success) {
             const continuation = data.continuation;
-            const shouldAppend = confirm(`AI续写内容：\n\n${continuation.substring(0, 200)}...\n\n是否将此内容添加到文章末尾？`);
-
-            if (shouldAppend) {
-                if (window.quill) {
-                    // Append to Quill editor
-                    window.quill.clipboard.dangerouslyPasteHTML(window.quill.getLength(), `<p>${continuation}</p>`);
-                } else {
-                    // Fallback to textarea
-                    const contentTextarea = document.getElementById('content');
-                    contentTextarea.value = contentTextarea.value + '\n\n' + continuation;
-                }
+            renderAiResultText('aiContinuationResultBody', continuation);
+            setAiResultCardVisibility('aiContinuationResultCard', true);
+            const applyButton = document.getElementById('applyGeneratedContinuation');
+            if (applyButton) {
+                applyButton.onclick = () => {
+                    appendHtmlToEditor(`<p>${escapeInlineHtml(continuation)}</p>`);
+                    showAiToolsStatus('success', '续写内容已插入到正文末尾。');
+                    showEditorToast('续写内容已插入正文');
+                };
             }
-
+            openAiAssistPanel();
             showAiToolsStatus('success', `✅ 续写完成 (${data.tokens_used} tokens, ${data.model})`);
         } else {
             showAiToolsStatus('error', `❌ ${data.error || '生成失败'}`);

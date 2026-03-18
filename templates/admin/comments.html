@@ -46,9 +46,12 @@
                                 {% if comment.is_visible %}隐藏{% else %}显示{% endif %}
                             </button>
                         </form>
-                        <form action="{{ url_for('delete_comment_route', comment_id=comment.id) }}" method="post" class="delete-form">
+                        <form action="{{ url_for('delete_comment_route', comment_id=comment.id) }}" method="post" class="delete-form"
+                              data-confirm="确定删除此评论吗？"
+                              data-confirm-destructive="true"
+                              data-confirm-text="删除">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('确定删除此评论吗？')">删除</button>
+                            <button type="submit" class="btn btn-sm btn-danger">删除</button>
                         </form>
                     </div>
                 </td>

@@ -724,13 +724,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ==================== 转为文章功能 ====================
     document.querySelectorAll('.convert-to-post-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
+        btn.addEventListener('click', async function(e) {
             e.preventDefault();
             const cardId = this.getAttribute('data-id');
             const cardTitle = this.closest('.timeline-item').querySelector('.item-title')?.textContent || '此卡片';
 
-            // 确认转换
-            if (confirm(`确定要将卡片 "${cardTitle}" 转换为文章吗？\n\n转换后卡片将被删除，内容将作为已发布的文章保存到"转载"分类下。`)) {
+            const confirmed = await window.showAppConfirm(`确定要将卡片 "${cardTitle}" 转换为文章吗？\n\n转换后卡片将被删除，内容将作为已发布的文章保存到"转载"分类下。`);
+            if (confirmed) {
                 console.log('转换卡片为文章 ID:', cardId);
 
                 fetch(`/knowledge_base/api/card/${cardId}/convert-to-post`, {
@@ -775,13 +775,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ==================== 删除卡片功能 ====================
     document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
+        btn.addEventListener('click', async function(e) {
             e.preventDefault();
             const cardId = this.getAttribute('data-id');
             const cardTitle = this.closest('.timeline-item').querySelector('.item-title')?.textContent || '此卡片';
 
-            // 确认删除
-            if (confirm(`确定要删除卡片 "${cardTitle}" 吗？\n\n此操作不可恢复！`)) {
+            const confirmed = await window.showAppConfirm(`确定要删除卡片 "${cardTitle}" 吗？\n\n此操作不可恢复！`, {
+                destructive: true,
+                confirmText: '删除'
+            });
+            if (confirmed) {
                 console.log('删除卡片 ID:', cardId);
                 const timelineItem = this.closest('.timeline-item');
 
