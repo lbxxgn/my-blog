@@ -440,28 +440,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!img.hasAttribute('loading')) {
             img.loading = 'lazy';
         }
-
-        // 检查是否有本地上传的图片（使用优化的WebP版本）
-        const originalSrc = img.src;
-        if (originalSrc.includes('/static/uploads/images/')) {
-            // 提取文件名（不含扩展名）
-            const filename = originalSrc.split('/').pop().replace(/\.[^/.]+$/, '');
-
-            // 尝试使用优化的WebP版本
-            fetch(`/static/uploads/optimized/${filename}_medium.webp`, { method: 'HEAD' })
-                .then(response => {
-                    if (response.ok) {
-                        // WebP版本存在，使用srcset
-                        const webpBase = `/static/uploads/optimized/${filename}`;
-                        img.srcset = `${webpBase}_thumbnail.webp 400w, ${webpBase}_medium.webp 800w, ${webpBase}_large.webp 1200w`;
-                        img.sizes = '(max-width: 600px) 400px, (max-width: 1200px) 800px, 1200px';
-                    }
-                })
-                .catch(() => {
-                    // 优化版本不存在，保持原图
-                    console.debug('WebP version not available for:', originalSrc);
-                });
-        }
     });
 });
 </script>

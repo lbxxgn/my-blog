@@ -25,6 +25,7 @@ from models import (
 blog_bp = Blueprint('blog', __name__)
 
 IMAGE_SRC_PATTERN = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
+IMG_TAG_SRC_REWRITE_PATTERN = re.compile(r'(<img[^>]+src=["\'])([^"\']+)(["\'])', re.IGNORECASE)
 HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
 WHITESPACE_PATTERN = re.compile(r'\s+')
 
@@ -46,6 +47,7 @@ def get_optimized_image_url(original_url, size='medium'):
         if size not in valid_sizes:
             logger.warning(f"Invalid size parameter: {size}, using 'medium'")
             size = 'medium'
+        resolved_size = 'medium' if size == 'feed' else size
 
         from pathlib import Path
         import re
@@ -61,7 +63,7 @@ def get_optimized_image_url(original_url, size='medium'):
             if match:
                 image_hash = match.group(1)
                 # 构建新的URL
-                new_url = f"/static/uploads/optimized/{image_hash}_{size}.webp"
+                new_url = f"/static/uploads/optimized/{image_hash}_{resolved_size}.webp"
 
                 # 检查文件是否存在
                 file_path = project_root / new_url.lstrip('/')
@@ -87,7 +89,7 @@ def get_optimized_image_url(original_url, size='medium'):
         cursor = conn.cursor()
 
         # 根据请求的尺寸选择字段（使用白名单验证过的size）
-        size_field = f'{size}_path'
+        size_field = f'{resolved_size}_path'
 
         cursor.execute('''
             SELECT {}, status
@@ -144,6 +146,18 @@ def extract_post_excerpt(content, limit=160):
     text_content = HTML_TAG_PATTERN.sub(' ', str(content or ''))
     normalized = WHITESPACE_PATTERN.sub(' ', text_content).strip()
     return normalized[:limit]
+
+
+def rewrite_post_image_sources(content_html, size='medium'):
+    """在服务端将正文图片URL改写为可用的优化图URL，避免前端额外探测产生404日志。"""
+    html = str(content_html or '')
+
+    def replace_src(match):
+        prefix, original_url, suffix = match.groups()
+        optimized_url = get_optimized_image_url(original_url, size)
+        return f'{prefix}{optimized_url}{suffix}'
+
+    return IMG_TAG_SRC_REWRITE_PATTERN.sub(replace_src, html)
 
 
 def determine_mobile_image_layout(image_count):
@@ -320,6 +334,7 @@ def view_post(post_id):
         },
         strip_comments=False
     )
+    post['content_html'] = rewrite_post_image_sources(post['content_html'], size='medium')
 
     # 获取文章标签
     post['tags'] = get_post_tags(post_id)
