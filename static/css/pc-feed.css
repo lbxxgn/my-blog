@@ -28,19 +28,19 @@
 
     .feed-posts-list .post-card-media--count-2 {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        width: min(100%, 360px);
+        width: min(100%, 392px);
     }
 
     .feed-posts-list .post-card-media--count-3,
     .feed-posts-list .post-card-media--grid-6,
     .feed-posts-list .post-card-media--grid-9 {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        width: min(100%, 420px);
+        width: min(100%, 456px);
     }
 
     .feed-posts-list .post-card-media--grid-4 {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        width: min(100%, 360px);
+        width: min(100%, 396px);
     }
 
     .feed-posts-list .post-card-media-item {
