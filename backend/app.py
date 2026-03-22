@@ -48,6 +48,11 @@ from config import (SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS,
 # 安全相关导入
 # =============================================================================
 from flask_wtf.csrf import CSRFProtect
+
+# =============================================================================
+# 静态资源优化
+# =============================================================================
+from utils.asset_optimizer import asset_optimizer
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -99,10 +104,9 @@ app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # =============================================================================
-# 初始化静态资源版本管理器
+# 初始化静态资源优化器
 # =============================================================================
-app.asset_manager = AssetVersionManager(app.static_folder)
-register_template_helpers(app)
+asset_optimizer.init_app(app)
 
 # =============================================================================
 # HTTP缓存优化：为静态文件添加缓存头

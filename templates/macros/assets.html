@@ -1,0 +1,36 @@
+{# 静态资源优化宏 #}
+{% macro static_file(path) %}
+    {% set build_version = '20260322' %}
+    {% set use_minified = True %}
+    {% set use_bundled = True %}
+
+    {% if use_minified %}
+        {% set min_suffix = '.min' %}
+    {% else %}
+        {% set min_suffix = '' %}
+    {% endif %}
+
+    {% if use_bundled %}
+        {% if path.endswith('.css') %}
+            {% if path == 'css/style.css' %}
+                {{ url_for('static', filename='css/bundle.css?v=' + build_version) }}
+            {% elif path == 'css/mobile-weibo.css' %}
+                {{ url_for('static', filename='css/mobile-weibo.css?v=' + build_version) }}
+            {% elif path == 'css/pc-feed.css' %}
+                {{ url_for('static', filename='css/pc-feed.css?v=' + build_version) }}
+            {% else %}
+                {{ url_for('static', filename='static_build/' + path + '?v=' + build_version) }}
+            {% endif %}
+        {% elif path.endswith('.js') %}
+            {% if path == 'js/main.js' %}
+                {{ url_for('static', filename='js/bundle.js?v=' + build_version) }}
+            {% else %}
+                {{ url_for('static', filename='static_build/' + path + '?v=' + build_version) }}
+            {% endif %}
+        {% else %}
+            {{ url_for('static', filename=path + '?v=' + build_version) }}
+        {% endif %}
+    {% else %}
+        {{ url_for('static', filename='static_build/' + path + '?v=' + build_version) }}
+    {% endif %}
+{% endmacro %}

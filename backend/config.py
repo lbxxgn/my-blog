@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -131,6 +132,19 @@ else:
     SESSION_COOKIE_SECURE = False  # Allow cookies over HTTP
     SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to cookies
     SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection for cookies
+
+# =============================================================================
+# 静态资源优化配置
+# =============================================================================
+
+# 是否启用资源压缩
+USE_MINIFIED_ASSETS = os.environ.get('USE_MINIFIED_ASSETS', 'True').lower() in ('true', '1', 'yes')
+
+# 是否启用资源合并（使用bundle文件）
+USE_BUNDLED_ASSETS = os.environ.get('USE_BUNDLED_ASSETS', 'True').lower() in ('true', '1', 'yes')
+
+# 静态资源构建版本号
+ASSET_BUILD_VERSION = os.environ.get('ASSET_BUILD_VERSION', str(int(time.time())))
 
 # =============================================================================
 # AI功能配置
