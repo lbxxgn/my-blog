@@ -135,6 +135,49 @@ def add_cache_headers_to_static_files(response):
     return response
 
 # =============================================================================
+# 安全响应头配置
+# =============================================================================
+@app.after_request
+def add_security_headers(response):
+    """添加安全响应头，增强应用安全性"""
+    # 防止MIME类型嗅探
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+
+    # 防止点击劫持
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+
+    # 启用XSS防护
+    response.headers.setdefault('X-XSS-Protection', '1; mode=block')
+
+    # 启用内容安全策略（CSP）
+    # 注意：这个CSP策略比较宽松，生产环境可能需要根据实际情况调整
+    response.headers.setdefault('Content-Security-Policy',
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self'; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "frame-src 'none'; "
+        "base-uri 'self';"
+    )
+
+    # 严格传输安全（仅在生产环境且启用HTTPS时）
+    if app.config.get('IS_PRODUCTION') and app.config.get('FORCE_HTTPS'):
+        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+
+    # 防止浏览器猜测Referer
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+
+    # Permissions Policy
+    response.headers.setdefault('Permissions-Policy',
+        "geolocation=(), microphone=(), camera=(), payment=()"
+    )
+
+    return response
+
+# =============================================================================
 # CSRF保护配置
 # =============================================================================
 csrf = CSRFProtect(app)
@@ -152,6 +195,23 @@ limiter = Limiter(
     storage_uri="memory://",
     strategy="fixed-window"
 )
+
+# =============================================================================
+# 缓存配置
+# =============================================================================
+from flask_caching import Cache
+import time
+
+# 配置缓存
+app.config['CACHE_TYPE'] = 'SimpleCache'  # 开发环境使用SimpleCache
+app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 默认缓存5分钟
+app.config['CACHE_THRESHOLD'] = 1000  # 最大缓存条目数
+
+# 初始化缓存
+cache = Cache(app)
+
+# 将缓存实例添加到app对象，方便其他模块使用
+app.cache = cache
 
 # =============================================================================
 # 会话安全配置
@@ -331,6 +391,42 @@ csrf.exempt(app.view_functions['mobile.mobile_upload_image'])
 csrf.exempt(app.view_functions['ai.test_ai_config'])
 # 对登录路由应用速率限制
 limiter.limit("5 per minute")(app.view_functions['auth.login'])
+
+# 为关键API端点添加速率限制
+# 文章相关API
+limiter.limit("100 per hour")(app.view_functions['api.api_posts_cursor'])
+limiter.limit("10 per minute")(app.view_functions['api.generate_qrcode'])
+limiter.limit("30 per hour")(app.view_functions['api.get_original_image_url'])
+
+# 认证相关端点
+limiter.limit("10 per minute")(app.view_functions['auth.passkey_register_begin'])
+limiter.limit("10 per minute")(app.view_functions['auth.passkey_authenticate_begin'])
+limiter.limit("10 per minute")(app.view_functions['auth.passkey_register_finish'])
+limiter.limit("10 per minute")(app.view_functions['auth.passkey_authenticate_finish'])
+
+# AI相关端点
+limiter.limit("50 per hour")(app.view_functions['ai.generate_tags'])
+limiter.limit("50 per hour")(app.view_functions['ai.ai_settings'])
+limiter.limit("10 per minute")(app.view_functions['ai.test_ai_config'])
+limiter.limit("50 per hour")(app.view_functions['ai.ai_history'])
+limiter.limit("50 per hour")(app.view_functions['ai.ai_status'])
+limiter.limit("30 per hour")(app.view_functions['ai.generate_summary'])
+limiter.limit("30 per hour")(app.view_functions['ai.recommend_posts'])
+limiter.limit("20 per hour")(app.view_functions['ai.continue_writing'])
+limiter.limit("20 per hour")(app.view_functions['ai.organize_content'])
+
+# 知识库API
+limiter.limit("50 per hour")(app.view_functions['knowledge_base.plugin_submit'])
+limiter.limit("50 per hour")(app.view_functions['knowledge_base.sync_annotations'])
+limiter.limit("30 per hour")(app.view_functions['knowledge_base.get_annotations'])
+limiter.limit("50 per hour")(app.view_functions['knowledge_base.get_recent_captures'])
+limiter.limit("20 per hour")(app.view_functions['knowledge_base.card_list'])
+limiter.limit("10 per minute")(app.view_functions['knowledge_base.card_detail'])
+limiter.limit("10 per minute")(app.view_functions['knowledge_base.card_status'])
+limiter.limit("10 per minute")(app.view_functions['knowledge_base.merge_cards'])
+limiter.limit("20 per hour")(app.view_functions['knowledge_base.generate_card_tags'])
+limiter.limit("10 per hour")(app.view_functions['knowledge_base.ai_merge_cards'])
+limiter.limit("10 per hour")(app.view_functions['knowledge_base.convert_card_to_post'])
 
 # =============================================================================
 # 开发环境：启动时检查manifest

@@ -13,6 +13,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
+from app import cache
 from models import (
     get_all_posts, get_all_posts_cursor, get_post_by_id,
     get_all_categories, get_category_by_id, get_all_tags,
@@ -124,6 +125,20 @@ def get_optimized_image_url(original_url, size='medium'):
         return original_url
 
 
+@cache.cached(timeout=3600, key_prefix=lambda original_url, size='medium': f"optimized_image_url_{original_url}_{size}")  # 缓存1小时
+def get_optimized_image_url_cached(original_url, size='medium'):
+    """
+    带缓存的图片URL优化函数
+
+    Args:
+        original_url: 原图URL
+        size: 优化尺寸
+
+    Returns:
+        优化后的图片URL
+    """
+    return get_optimized_image_url(original_url, size)
+
 def extract_post_image_urls(content, limit=9, use_optimized=True, size='medium'):
     """
     提取文章内容中的图片URL
@@ -141,8 +156,8 @@ def extract_post_image_urls(content, limit=9, use_optimized=True, size='medium')
     image_urls = IMAGE_SRC_PATTERN.findall(content_str)[:limit]
 
     if use_optimized:
-        # 将原图URL转换为优化后的URL
-        image_urls = [get_optimized_image_url(url, size) for url in image_urls]
+        # 将原图URL转换为优化后的URL（使用缓存）
+        image_urls = [get_optimized_image_url_cached(url, size) for url in image_urls]
 
     return image_urls
 
@@ -230,35 +245,74 @@ def index():
     if per_page not in [10, 20, 40, 80]:
         per_page = 20
 
-    posts_data = get_all_posts(
-        include_drafts=False,
-        page=page,
-        per_page=per_page,
-        category_id=category_id
-    )
+    # 检查是否使用游标分页（更高效的分页方式）
+    cursor_time = request.args.get('cursor')
+    if cursor_time:
+        posts_data = get_all_posts_cursor(
+            cursor_time=cursor_time,
+            per_page=per_page,
+            include_drafts=False,
+            category_id=category_id
+        )
+    else:
+        # 保持向后兼容性，继续支持传统OFFSET分页
+        posts_data = get_all_posts(
+            include_drafts=False,
+            page=page,
+            per_page=per_page,
+            category_id=category_id
+        )
     categories = get_all_categories()
     popular_tags = get_popular_tags(limit=10)
 
     # JSON 格式支持（用于无限滚动）
     if format == 'json':
-        return jsonify({
-            'posts': build_post_card_payloads(posts_data['posts']),
-            'page': posts_data['page'],
-            'total_pages': posts_data['total_pages'],
-            'total': posts_data['total']
-        })
+        # 处理两种分页格式
+        if 'cursor' in request.args or 'next_cursor' in posts_data:
+            # 游标分页格式
+            return jsonify({
+                'posts': build_post_card_payloads(posts_data['posts']),
+                'next_cursor': posts_data.get('next_cursor'),
+                'has_more': posts_data.get('has_more'),
+                'per_page': posts_data.get('per_page')
+            })
+        else:
+            # 传统OFFSET分页格式
+            return jsonify({
+                'posts': build_post_card_payloads(posts_data['posts']),
+                'page': posts_data['page'],
+                'total_pages': posts_data['total_pages'],
+                'total': posts_data['total']
+            })
 
     card_posts = build_post_card_payloads(posts_data['posts'])
 
-    # 计算分页信息
-    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
-    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+    # 处理分页信息（根据使用的分页方式）
+    if 'next_cursor' in posts_data:
+        # 游标分页：显示"加载更多"按钮
+        start_item = None
+        end_item = None
+        page_range = None
+        show_ellipsis = False
+        pagination = {
+            'page': 1,
+            'total_pages': None,  # 游标分页不返回总页数
+            'total': None,
+            'per_page': posts_data['per_page'],
+            'has_more': posts_data.get('has_more'),
+            'next_cursor': posts_data.get('next_cursor')
+        }
+    else:
+        # 传统OFFSET分页：计算页码信息
+        start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+        end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
 
-    # 计算显示的页码范围
-    page_start = max(1, posts_data['page'] - 2)
-    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
-    page_range = list(range(page_start, page_end))
-    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+        # 计算显示的页码范围
+        page_start = max(1, posts_data['page'] - 2)
+        page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+        page_range = list(range(page_start, page_end))
+        show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+        pagination = posts_data
 
     # 获取所有标签和分类供移动端使用
     all_tags = get_all_tags()
@@ -269,7 +323,7 @@ def index():
                          posts=card_posts,
                          categories=categories,
                          popular_tags=popular_tags,
-                         pagination=posts_data,
+                         pagination=pagination,
                          start_item=start_item,
                          end_item=end_item,
                          page_range=page_range,
@@ -500,32 +554,71 @@ def view_category(category_id):
     if per_page not in [10, 20, 40, 80]:
         per_page = 20
 
-    posts_data = get_all_posts(
-        include_drafts=False,
-        page=page,
-        per_page=per_page,
-        category_id=category_id
-    )
+    # 检查是否使用游标分页（更高效的分页方式）
+    cursor_time = request.args.get('cursor')
+    if cursor_time:
+        posts_data = get_all_posts_cursor(
+            cursor_time=cursor_time,
+            per_page=per_page,
+            include_drafts=False,
+            category_id=category_id
+        )
+    else:
+        # 保持向后兼容性，继续支持传统OFFSET分页
+        posts_data = get_all_posts(
+            include_drafts=False,
+            page=page,
+            per_page=per_page,
+            category_id=category_id
+        )
 
     if request.args.get('format') == 'json':
-        return jsonify({
-            'posts': build_post_card_payloads(posts_data['posts']),
-            'page': posts_data['page'],
-            'total_pages': posts_data['total_pages'],
-            'total': posts_data['total']
-        })
+        # 处理两种分页格式
+        if 'next_cursor' in posts_data:
+            # 游标分页格式
+            return jsonify({
+                'posts': build_post_card_payloads(posts_data['posts']),
+                'next_cursor': posts_data.get('next_cursor'),
+                'has_more': posts_data.get('has_more'),
+                'per_page': posts_data.get('per_page')
+            })
+        else:
+            # 传统OFFSET分页格式
+            return jsonify({
+                'posts': build_post_card_payloads(posts_data['posts']),
+                'page': posts_data['page'],
+                'total_pages': posts_data['total_pages'],
+                'total': posts_data['total']
+            })
 
     card_posts = build_post_card_payloads(posts_data['posts'])
 
-    # 计算分页信息
-    start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
-    end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
+    # 处理分页信息（根据使用的分页方式）
+    if 'next_cursor' in posts_data:
+        # 游标分页：显示"加载更多"按钮
+        start_item = None
+        end_item = None
+        page_range = None
+        show_ellipsis = False
+        pagination = {
+            'page': 1,
+            'total_pages': None,  # 游标分页不返回总页数
+            'total': None,
+            'per_page': posts_data['per_page'],
+            'has_more': posts_data.get('has_more'),
+            'next_cursor': posts_data.get('next_cursor')
+        }
+    else:
+        # 传统OFFSET分页：计算页码信息
+        start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
+        end_item = min(posts_data['page'] * posts_data['per_page'], posts_data['total'])
 
-    # 计算显示的页码范围
-    page_start = max(1, posts_data['page'] - 2)
-    page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
-    page_range = list(range(page_start, page_end))
-    show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+        # 计算显示的页码范围
+        page_start = max(1, posts_data['page'] - 2)
+        page_end = min(posts_data['total_pages'] + 1, posts_data['page'] + 3)
+        page_range = list(range(page_start, page_end))
+        show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
+        pagination = posts_data
 
     # 获取所有分类用于筛选栏
     categories = get_all_categories()
@@ -534,7 +627,7 @@ def view_category(category_id):
                          posts=card_posts,
                          category=category,
                          categories=categories,
-                         pagination=posts_data,
+                         pagination=pagination,
                          start_item=start_item,
                          end_item=end_item,
                          page_range=page_range,
@@ -626,21 +719,30 @@ def list_all_tags():
     # 获取所有标签
     tags = get_all_tags()
 
-    # 为每个标签获取文章数量
-    import sqlite3
-    from flask import current_app
+    if not tags:
+        return render_template('tags.html', tags=[])
 
+    # 批量获取所有标签的文章数量（修复N+1查询问题）
+    tag_ids = [tag['id'] for tag in tags]
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    for tag in tags:
-        cursor.execute('''
-            SELECT COUNT(*) FROM post_tags
-            WHERE tag_id = ?
-        ''', (tag['id'],))
-        tag['post_count'] = cursor.fetchone()[0]
+    # 使用一个查询获取所有标签的文章数量
+    placeholders = ','.join(['?'] * len(tag_ids))
+    cursor.execute(f'''
+        SELECT tag_id, COUNT(*) as post_count
+        FROM post_tags
+        WHERE tag_id IN ({placeholders})
+        GROUP BY tag_id
+    ''', tag_ids)
 
+    # 将结果转换为字典
+    tag_counts = {row['tag_id']: row['post_count'] for row in cursor.fetchall()}
     conn.close()
+
+    # 为每个标签添加文章数量
+    for tag in tags:
+        tag['post_count'] = tag_counts.get(tag['id'], 0)
 
     # 按文章数量降序排序，标签名升序
     tags.sort(key=lambda x: (-x['post_count'], x['name']))

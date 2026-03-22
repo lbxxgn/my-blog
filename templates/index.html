@@ -58,7 +58,19 @@
                     {% endfor %}
                 </div>
 
-                {% if pagination.page < pagination.total_pages %}
+                {% if pagination.get('has_more', false) %}
+                <div class="load-more-container">
+                    <button id="load-more" class="btn btn-primary" data-cursor="{{ pagination.next_cursor }}" data-category="{{ category.id if category else '' }}">
+                        加载更多
+                    </button>
+                </div>
+                {% elif not pagination.get('total_pages') %}
+                {# 游标分页但没有更多结果时显示提示 #}
+                <div class="load-more-container">
+                    <p style="text-align: center; color: #666;">没有更多文章了</p>
+                </div>
+                {% elif pagination.page < pagination.total_pages %}
+                {# 传统OFFSET分页的加载更多按钮 #}
                 <div class="load-more-container">
                     <button id="load-more" class="btn btn-primary" data-page="{{ pagination.page + 1 }}" data-category="{{ category.id if category else '' }}">
                         加载更多

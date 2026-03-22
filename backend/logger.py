@@ -125,7 +125,7 @@ def log_error(error, context=None, user_id=None):
         print(f"Failed to write error log: {e}")
 
 
-def log_sql(operation, sql, params=None, result=None):
+def log_sql(operation, sql, params=None, result=None, execution_time=None):
     """记录 SQL 操作日志（追加模式）"""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
@@ -134,6 +134,11 @@ def log_sql(operation, sql, params=None, result=None):
         log_entry += f" | 参数: {params}"
     if result:
         log_entry += f" | 结果: {result}"
+    if execution_time:
+        log_entry += f" | 执行时间: {execution_time:.2f}ms"
+        # 慢查询警告
+        if execution_time > 100:
+            logger.warning(f"慢查询警告 ({execution_time:.2f}ms): {sql}")
     log_entry += "\n"
 
     try:
@@ -141,6 +146,26 @@ def log_sql(operation, sql, params=None, result=None):
             f.write(log_entry)
     except Exception as e:
         print(f"Failed to write SQL log: {e}")
+
+# SQL 查询装饰器，用于测量执行时间
+def measure_query_time(operation="SQL查询"):
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            start_time = time.time()
+            try:
+                result = f(*args, **kwargs)
+                execution_time = (time.time() - start_time) * 1000
+                # 记录查询时间（仅记录超过10ms的查询）
+                if execution_time > 10:
+                    log_sql(operation, str(f.__name__), execution_time=execution_time)
+                return result
+            except Exception as e:
+                execution_time = (time.time() - start_time) * 1000
+                log_sql(f"ERROR - {operation}", str(e), execution_time=execution_time)
+                raise
+        return decorated
+    return decorator
 
 
 # 日志装饰器

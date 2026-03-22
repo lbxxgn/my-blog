@@ -297,6 +297,18 @@ def init_db(db_path=None):
 
     # Comments index
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_comments_post ON comments(post_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_comments_post_created ON comments(post_id, created_at DESC)')
+
+    # Post-Tags association composite indexes
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_tags_tag_post ON post_tags(tag_id, post_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_tags_post_tag ON post_tags(post_id, tag_id)')
+
+    # Posts composite indexes
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_category_published ON posts(category_id, is_published, created_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_posts_author_published ON posts(author_id, is_published, created_at DESC)')
+
+    # Users composite indexes
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)')
 
     # Create FTS5 virtual table for full-text search
     cursor.execute('''
@@ -1086,6 +1098,10 @@ def ensure_optimized_images_table():
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_optimized_original
             ON optimized_images(original_path)
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_optimized_hash
+            ON optimized_images(original_hash)
         ''')
 
 

@@ -7,12 +7,15 @@ API路由
 from flask import Blueprint, request, jsonify, url_for
 
 from models import get_all_posts_cursor
+from app import cache
 
 # 创建 API 蓝图
 api_bp = Blueprint('api', __name__)
 
 
 @api_bp.route('/posts')
+@api_bp.route('/api/posts')  # 兼容旧版API路径
+@cache.cached(timeout=300, query_string=True)
 def api_posts_cursor():
     """
     获取文章列表的 API 端点，使用游标分页
@@ -77,13 +80,14 @@ def generate_qrcode():
 
 
 @api_bp.route('/image/original-url')
+@cache.cached(timeout=300, query_string=True)
 def get_original_image_url():
     """
     通过优化图片hash获取原图URL
-    
+
     参数:
         hash: 优化图片的hash（文件名中的hash部分）
-    
+
     返回:
         {
             'success': true,
@@ -94,41 +98,51 @@ def get_original_image_url():
     hash = request.args.get('hash')
     if not hash:
         return jsonify({'success': False, 'error': '缺少hash参数'}), 400
-    
+
     try:
-        import os
-        # 获取项目根目录
-        from flask import current_app
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        images_dir = os.path.join(root_dir, 'static', 'uploads', 'images')
+        # 使用数据库查询替代目录遍历，提高性能
+        from models import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-        if not os.path.exists(images_dir):
-            return jsonify({'success': False, 'error': '图片目录不存在'}), 404
+        # 查询优化图片记录
+        cursor.execute('''
+            SELECT original_path
+            FROM optimized_images
+            WHERE original_hash = ?
+        ''', (hash,))
 
-        # 查找包含此hash的文件
-        matching_files = []
-        for filename in os.listdir(images_dir):
-            if hash in filename:
-                file_path = os.path.join(images_dir, filename)
-                if os.path.isfile(file_path):
-                    matching_files.append(filename)
+        result = cursor.fetchone()
 
-        if matching_files:
-            # 返回第一个匹配的文件
-            original_url = f"/static/uploads/images/{matching_files[0]}"
+        if result:
+            # 转换为URL格式
+            original_path = result['original_path']
+            # 去除可能的前缀，确保返回正确的URL
+            import os
+            if original_path.startswith('static/uploads/images/'):
+                original_url = f"/{original_path}"
+            elif original_path.startswith('uploads/images/'):
+                original_url = f"/static/{original_path}"
+            elif original_path.startswith('/static/uploads/images/'):
+                original_url = original_path
+            else:
+                original_url = f"/static/uploads/images/{os.path.basename(original_path)}"
+
+            conn.close()
             return jsonify({
                 'success': True,
                 'original_url': original_url,
                 'exists': True,
-                'filename': matching_files[0]
+                'filename': os.path.basename(original_path)
             })
         else:
+            conn.close()
             return jsonify({
                 'success': True,
                 'original_url': None,
                 'exists': False,
                 'error': '未找到对应的原图文件'
             })
-            
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

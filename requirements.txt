@@ -3,6 +3,7 @@ Flask>=3.0,<4.0
 Flask-WTF>=1.2,<2.0
 Werkzeug>=3.0,<4.0
 Flask-Limiter>=3.5.0
+Flask-Caching>=2.0,<3.0
 
 # Text Processing
 markdown2>=2.4,<3.0
