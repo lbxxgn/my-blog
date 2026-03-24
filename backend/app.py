@@ -50,17 +50,47 @@ from config import (SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS,
 from flask_wtf.csrf import CSRFProtect
 
 # =============================================================================
-# 静态资源优化
+# 静态资源优化和限流
 # =============================================================================
-from utils.asset_optimizer import asset_optimizer
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 # =============================================================================
 # 日志系统导入
 # =============================================================================
-from logger import setup_logging, log_login, log_operation, log_error, log_sql
 import logging
+
+# 延迟导入项目模块（避免循环导入问题）
+def get_logger():
+    """获取logger实例"""
+    from logger import setup_logging
+    return logging.getLogger(__name__)
+
+def get_setup_logging():
+    """获取setup_logging函数"""
+    from logger import setup_logging
+    return setup_logging
+
+def get_asset_optimizer():
+    """获取asset_optimizer实例"""
+    from utils.asset_optimizer import asset_optimizer
+    return asset_optimizer
+
+def get_log_error():
+    """获取log_error函数"""
+    from logger import log_error
+    return log_error
+
+def get_log_login():
+    """获取log_login函数"""
+    from logger import log_login
+    return log_login
+
+def get_log_operation():
+    """获取log_operation函数"""
+    from logger import log_operation
+    return log_operation
+
 logger = logging.getLogger(__name__)
 
 # =============================================================================
@@ -106,7 +136,7 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 # =============================================================================
 # 初始化静态资源优化器
 # =============================================================================
-asset_optimizer.init_app(app)
+get_asset_optimizer().init_app(app)
 
 # =============================================================================
 # HTTP缓存优化：为静态文件添加缓存头
@@ -153,8 +183,8 @@ def add_security_headers(response):
     # 注意：这个CSP策略比较宽松，生产环境可能需要根据实际情况调整
     response.headers.setdefault('Content-Security-Policy',
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.quilljs.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.quilljs.com https://cdn.jsdelivr.net; "
         "img-src 'self' data: https:; "
         "font-src 'self'; "
         "connect-src 'self'; "
@@ -270,7 +300,7 @@ def validate_password_strength(password):
 # =============================================================================
 # 日志系统初始化
 # =============================================================================
-setup_logging(app)
+get_setup_logging()(app)
 
 # =============================================================================
 # 时区处理
@@ -433,8 +463,9 @@ limiter.limit("10 per hour")(app.view_functions['knowledge_base.convert_card_to_
 # =============================================================================
 def auto_regenerate_assets():
     """启动时检查manifest是否存在，不存在则生成"""
-    if not app.asset_manager.manifest_file.exists():
-        app.asset_manager.regenerate()
+    if hasattr(app, 'asset_manager') and app.asset_manager:
+        if not app.asset_manager.manifest_file.exists():
+            app.asset_manager.regenerate()
 
     # 恢复未完成的图片优化任务
     try:
@@ -792,7 +823,7 @@ def create_admin_user():
 @app.errorhandler(404)
 def not_found_error(error):
     """Handle 404 errors"""
-    log_error(error, context='404 Not Found')
+    get_log_error()(error, context='404 Not Found')
     return render_template('error.html', status_code=404), 404
 
 @app.errorhandler(500)

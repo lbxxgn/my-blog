@@ -65,7 +65,8 @@ class TestCleanAllImages:
         db_path = tmp_path / 'test.db'
         conn = sqlite3.connect(str(db_path))
         conn.execute('CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, content TEXT)')
-        conn.execute('''INSERT INTO posts (title, content) VALUES ("Test", "<img src=\"https://example.com/test.jpg\">")''')
+        content = '<img src="https://example.com/test.jpg">'
+        conn.execute('INSERT INTO posts (title, content) VALUES (?, ?)', ("Test", content))
         conn.commit()
         conn.close()
 
@@ -87,7 +88,8 @@ class TestFastCleanInvalidDomains:
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         conn.execute('CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, content TEXT)')
-        conn.execute('''INSERT INTO posts (title, content) VALUES ("Test", "<img src=\"http://img.126.net/test.jpg\"> content")''')
+        content = '<img src="http://img.126.net/test.jpg"> content'
+        conn.execute('INSERT INTO posts (title, content) VALUES (?, ?)', ("Test", content))
         conn.commit()
         conn.close()
 
@@ -105,7 +107,8 @@ class TestFastCleanInvalidDomains:
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         conn.execute('CREATE TABLE posts (id INTEGER PRIMARY KEY, title TEXT, content TEXT)')
-        conn.execute('''INSERT INTO posts (title, content) VALUES ("Test", "<img src=\"http://blog.163.com/test.jpg\"> content")''')
+        content = '<img src="http://blog.163.com/test.jpg"> content'
+        conn.execute('INSERT INTO posts (title, content) VALUES (?, ?)', ("Test", content))
         conn.commit()
         conn.close()
 

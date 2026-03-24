@@ -4,7 +4,7 @@
 包括首页、文章详情、搜索、分类、标签、作者页面、评论等公开访问的功能。
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app, has_app_context
 import markdown2
 import bleach
 import logging
@@ -13,7 +13,6 @@ import re
 
 logger = logging.getLogger(__name__)
 
-from app import cache
 from models import (
     get_all_posts, get_all_posts_cursor, get_post_by_id,
     get_all_categories, get_category_by_id, get_all_tags,
@@ -125,7 +124,6 @@ def get_optimized_image_url(original_url, size='medium'):
         return original_url
 
 
-@cache.cached(timeout=3600, key_prefix=lambda original_url, size='medium': f"optimized_image_url_{original_url}_{size}")  # 缓存1小时
 def get_optimized_image_url_cached(original_url, size='medium'):
     """
     带缓存的图片URL优化函数
@@ -137,7 +135,26 @@ def get_optimized_image_url_cached(original_url, size='medium'):
     Returns:
         优化后的图片URL
     """
-    return get_optimized_image_url(original_url, size)
+    if not has_app_context() or not hasattr(current_app, 'cache'):
+        return get_optimized_image_url(original_url, size)
+
+    cache = current_app.cache
+
+    # 构建缓存key
+    cache_key = f"optimized_image_url_{original_url}_{size}"
+
+    # 尝试从缓存获取
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        return cached_result
+
+    # 计算结果
+    result = get_optimized_image_url(original_url, size)
+
+    # 存入缓存（1小时）
+    cache.set(cache_key, result, timeout=3600)
+
+    return result
 
 def extract_post_image_urls(content, limit=9, use_optimized=True, size='medium'):
     """

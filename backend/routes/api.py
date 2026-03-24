@@ -4,18 +4,21 @@ API路由
 提供 RESTful API 接口，支持游标分页等功能。
 """
 
-from flask import Blueprint, request, jsonify, url_for
+from flask import Blueprint, request, jsonify, url_for, current_app
 
 from models import get_all_posts_cursor
-from app import cache
 
 # 创建 API 蓝图
 api_bp = Blueprint('api', __name__)
 
 
+def get_cache():
+    """获取缓存对象"""
+    return current_app.cache
+
+
 @api_bp.route('/posts')
 @api_bp.route('/api/posts')  # 兼容旧版API路径
-@cache.cached(timeout=300, query_string=True)
 def api_posts_cursor():
     """
     获取文章列表的 API 端点，使用游标分页
@@ -29,9 +32,17 @@ def api_posts_cursor():
     返回:
         JSON 格式，包含 posts, next_cursor, has_more
     """
-    cursor_time = request.args.get('cursor')
+    # 构建缓存key
+    cursor_time = request.args.get('cursor', '')
     per_page = request.args.get('per_page', 20, type=int)
-    category_id = request.args.get('category_id')
+    category_id = request.args.get('category_id', '')
+    cache_key = f"api_posts_{cursor_time}_{per_page}_{category_id}"
+
+    # 尝试从缓存获取
+    cache = get_cache()
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        return jsonify(cached_result)
 
     # 验证 per_page
     if per_page not in [10, 20, 40, 80]:
@@ -39,19 +50,24 @@ def api_posts_cursor():
 
     # 使用游标分页
     posts_data = get_all_posts_cursor(
-        cursor_time=cursor_time,
+        cursor_time=cursor_time if cursor_time else None,
         per_page=per_page,
         include_drafts=False,
-        category_id=category_id
+        category_id=category_id if category_id else None
     )
 
-    return jsonify({
+    result = {
         'success': True,
         'posts': posts_data['posts'],
         'next_cursor': posts_data['next_cursor'],
         'has_more': posts_data['has_more'],
         'per_page': posts_data['per_page']
-    })
+    }
+
+    # 存入缓存
+    cache.set(cache_key, result, timeout=300)
+
+    return jsonify(result)
 
 
 @api_bp.route('/share/qrcode')
@@ -80,7 +96,6 @@ def generate_qrcode():
 
 
 @api_bp.route('/image/original-url')
-@cache.cached(timeout=300, query_string=True)
 def get_original_image_url():
     """
     通过优化图片hash获取原图URL
@@ -98,6 +113,15 @@ def get_original_image_url():
     hash = request.args.get('hash')
     if not hash:
         return jsonify({'success': False, 'error': '缺少hash参数'}), 400
+
+    # 构建缓存key
+    cache_key = f"original_image_url_{hash}"
+
+    # 尝试从缓存获取
+    cache = get_cache()
+    cached_result = cache.get(cache_key)
+    if cached_result is not None:
+        return jsonify(cached_result)
 
     try:
         # 使用数据库查询替代目录遍历，提高性能
@@ -129,20 +153,25 @@ def get_original_image_url():
                 original_url = f"/static/uploads/images/{os.path.basename(original_path)}"
 
             conn.close()
-            return jsonify({
+            response = {
                 'success': True,
                 'original_url': original_url,
                 'exists': True,
                 'filename': os.path.basename(original_path)
-            })
+            }
         else:
             conn.close()
-            return jsonify({
+            response = {
                 'success': True,
                 'original_url': None,
                 'exists': False,
                 'error': '未找到对应的原图文件'
-            })
+            }
+
+        # 存入缓存
+        cache.set(cache_key, response, timeout=300)
+
+        return jsonify(response)
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

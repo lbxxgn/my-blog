@@ -13,7 +13,6 @@ class AssetOptimizer:
         self.app = app
         self.build_version = str(int(time.time()))
         self.use_minified = True
-        self.use_bundled = True
 
         if app is not None:
             self.init_app(app)
@@ -24,7 +23,6 @@ class AssetOptimizer:
 
         # 配置默认值
         self.use_minified = app.config.get('USE_MINIFIED_ASSETS', True)
-        self.use_bundled = app.config.get('USE_BUNDLED_ASSETS', True)
         self.build_version = app.config.get('ASSET_BUILD_VERSION', self.build_version)
 
     def static_file(self, path):
@@ -33,28 +31,26 @@ class AssetOptimizer:
         :param path: 资源路径，如 'css/style.css'
         :return: 优化后的URL
         """
-        if not self.use_minified and not self.use_bundled:
+        if not self.use_minified:
             return f"{url_for('static', filename=path)}?v={self.build_version}"
 
         # 处理CSS文件
         if path.endswith('.css'):
-            if self.use_bundled:
-                # 主样式表使用合并包
-                if path == 'css/style.css':
-                    return f"{url_for('static', filename='css/bundle.css')}?v={self.build_version}"
-                # 移动端样式单独加载
-                elif path == 'css/mobile-weibo.css':
-                    return f"{url_for('static', filename='css/mobile-weibo.css')}?v={self.build_version}"
-                # PC端信息流样式单独加载
-                elif path == 'css/pc-feed.css':
-                    return f"{url_for('static', filename='css/pc-feed.css')}?v={self.build_version}"
+            # 主样式表使用合并包
+            if path == 'css/style.css':
+                return f"{url_for('static', filename='css/bundle.css')}?v={self.build_version}"
+            # 移动端样式单独加载
+            elif path == 'css/mobile-weibo.css':
+                return f"{url_for('static', filename='css/mobile-weibo.css')}?v={self.build_version}"
+            # PC端信息流样式单独加载
+            elif path == 'css/pc-feed.css':
+                return f"{url_for('static', filename='css/pc-feed.css')}?v={self.build_version}"
 
         # 处理JavaScript文件
         elif path.endswith('.js'):
-            if self.use_bundled:
-                # 主脚本使用合并包
-                if path == 'js/main.js':
-                    return f"{url_for('static', filename='js/bundle.js')}?v={self.build_version}"
+            # 主脚本使用合并包
+            if path == 'js/main.js':
+                return f"{url_for('static', filename='js/bundle.js')}?v={self.build_version}"
 
         # 对于其他文件，使用单独的压缩版本
         if self.use_minified:
@@ -74,7 +70,7 @@ class AssetOptimizer:
         return {
             'build_version': self.build_version,
             'use_minified': self.use_minified,
-            'use_bundled': self.use_bundled
+            'use_bundled': True
         }
 
 # 全局实例

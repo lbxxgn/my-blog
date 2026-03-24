@@ -267,11 +267,6 @@ def fast_clean_invalid_domains():
     - blog.163.com (也经常失效)
     """
     import re
-    import sqlite3
-    from config import DATABASE_URL
-
-    db_path = DATABASE_URL.replace('sqlite:///', '')
-
     report = {
         'total_posts': 0,
         'cleaned_posts': 0,
@@ -280,8 +275,7 @@ def fast_clean_invalid_domains():
     }
 
     try:
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
+        conn = get_db_connection()
         cursor = conn.cursor()
 
         cursor.execute('''

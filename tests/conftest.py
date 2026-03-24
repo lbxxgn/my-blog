@@ -365,6 +365,12 @@ def test_admin_user(temp_db):
 
 
 @pytest.fixture
+def admin_user(test_admin_user):
+    """Backward-compatible alias for older tests."""
+    return test_admin_user
+
+
+@pytest.fixture
 def test_user(temp_db):
     """
     创建测试普通用户
