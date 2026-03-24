@@ -9,7 +9,6 @@ from flask import Flask
 app = Flask(__name__)
 app.config['DEBUG'] = True
 app.config['USE_MINIFIED_ASSETS'] = True
-app.config['USE_BUNDLED_ASSETS'] = True
 
 asset_optimizer = AssetOptimizer()
 asset_optimizer.init_app(app)

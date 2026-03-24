@@ -26,7 +26,7 @@ git clone https://github.com/lbxxgn/my-blog.git
 cd my-blog
 
 # 运行自动安装
-sudo ./install-service.sh
+sudo ./scripts/install-service.sh
 ```
 
 ### 方法二：手动安装
@@ -88,7 +88,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # 安装Python依赖
-pip install -r backend/requirements.txt
+pip install -r requirements.txt
 
 # 初始化数据库
 python3 -c "from backend.app import app; from backend.models import init_db; init_db()"

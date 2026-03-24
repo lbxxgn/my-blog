@@ -108,6 +108,8 @@ simple-blog/
 ### 更多文档
 - [完整文档索引](docs/) - 所有文档的导航中心
 - [API文档](docs/api-documentation.md) - REST API参考
+- [测试说明](docs/testing.md) - 测试运行方式与调试方法
+- [归档报告](docs/archive/reports/) - 历史优化与验收记录
 
 ## 开发
 

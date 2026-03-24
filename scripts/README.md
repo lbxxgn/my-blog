@@ -51,6 +51,15 @@ sudo ./scripts/install-service.sh
 python3 scripts/generate_manifest.py
 ```
 
+### 🧪 诊断脚本
+
+诊断和性能分析脚本统一放在 `scripts/diagnostics/`：
+
+- `performance-test.py` - 后端接口性能检查
+- `performance_test.py` - 静态资源体积与 bundle 检查
+- `test-lazyload.js` - 懒加载行为测试
+- `test_asset_optimizer.py` - 资源路径映射检查
+
 ## 📚 使用文档
 
 详细使用方法请参考：

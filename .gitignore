@@ -28,6 +28,8 @@ ENV/
 # Database (keep db/ directory but ignore database files)
 *.db
 db/*.db
+db/*.db-shm
+db/*.db-wal
 !db/.gitkeep
 
 # Environment variables
@@ -44,6 +46,7 @@ server-test.log
 .coverage
 .coverage.*
 htmlcov/
+.pytest_cache/
 
 # System files
 .DS_Store
@@ -63,6 +66,7 @@ Thumbs.db
 
 # Exports (user-specific data)
 exports/
+exports.zip
 !exports/.gitkeep
 
 # XML exports and backups
@@ -74,6 +78,7 @@ exports/
 *.bak
 *.old
 blog.db
+*.pid
 
 # Keep .gitkeep files
 !.gitkeep
@@ -81,6 +86,7 @@ blog.db
 # Uploaded images and media
 static/uploads/*
 !static/uploads/.gitkeep
+static_build/uploads/
 
 # Git worktrees
 .worktrees/
@@ -88,3 +94,8 @@ worktrees/
 
 # Asset version manifest
 static/manifest.json
+static_build/manifest.json
+
+# Build and diagnostic artifacts
+node_modules/
+scripts/diagnostics/lazyload-performance-report.txt

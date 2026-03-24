@@ -9,7 +9,11 @@ tests/
 ├── __init__.py           # 测试模块初始化
 ├── conftest.py           # pytest 配置和共享 fixtures
 ├── test_models.py        # 数据模型测试
-└── test_routes.py        # 路由测试
+├── test_routes.py        # 路由测试
+├── test_admin_features.py
+├── test_drafts.py
+├── test_image_processing.py
+└── ...                   # 其他专项测试
 ```
 
 ## 运行测试
@@ -91,6 +95,8 @@ def test_something(temp_db, test_user):
 - ✅ 博客路由（首页、文章详情、搜索）
 - ✅ 管理后台路由（仪表板、新建文章）
 - ✅ API路由（文章列表、分页）
+
+更完整的测试运行说明见 [docs/testing.md](/Users/gn/simple-blog/docs/testing.md)。
 
 ## 持续集成
 
