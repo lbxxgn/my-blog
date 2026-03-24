@@ -21,7 +21,7 @@ tests/
 ### 运行所有测试
 
 ```bash
-pytest
+make test
 ```
 
 ### 运行特定测试文件
@@ -41,6 +41,9 @@ pytest tests/test_models.py::TestUserModels::test_create_user
 
 ```bash
 pytest --cov=backend --cov-report=html
+
+# 或先跑项目默认快速检查
+make check
 ```
 
 覆盖率报告将生成在 `htmlcov/index.html`

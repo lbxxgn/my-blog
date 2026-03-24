@@ -114,14 +114,17 @@ simple-blog/
 ## 开发
 
 ```bash
-# 运行测试
-pytest tests/ -v
+# 快速检查（语法 + 图片相关关键测试）
+make check
 
-# 查看测试覆盖率
-pytest --cov=backend --cov-report=html
+# 运行全部测试
+make test
+
+# 构建静态资源
+make build-assets
 
 # 启动开发服务器
-python backend/app.py
+make run
 ```
 
 ## 部署

@@ -42,12 +42,15 @@
 
 ```bash
 # 运行所有测试
-pytest tests/ -v
+make test
 
 # 运行特定测试文件
 pytest tests/test_drafts.py -v
 pytest tests/test_knowledge_base.py -v
 pytest tests/test_admin_features.py -v
+
+# 运行关键快速检查
+make check
 
 # 查看测试覆盖率
 pytest --cov=backend --cov-report=html

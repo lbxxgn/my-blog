@@ -42,8 +42,7 @@ python backend/image_cleanup_tool.py local --force
 ### 初始化数据库
 
 ```bash
-cd backend
-python -c "from app import app; from models import init_db; init_db()"
+python -c "from backend.app import app; from backend.models import init_db; init_db()"
 ```
 
 ### 检查数据库完整性
@@ -65,7 +64,7 @@ python backend/db_check.py
 
 - [完整API文档](../docs/api-documentation.md)
 - [快速启动指南](../QUICKSTART.md)
-- [部署指南](../docs/deployment/)
+- [部署指南](../DEPLOYMENT.md)
 
 ## 注意事项
 
