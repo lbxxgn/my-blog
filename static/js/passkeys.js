@@ -15,7 +15,7 @@ function showToast(message,type){if(window.showAppToast){window.showAppToast(mes
 console.warn('[Passkey]',message);}
 function isIpHostname(hostname){if(!hostname)return false;if(/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname))return true;return hostname.includes(':');}
 function getHostAdvice(){const{hostname,port,pathname}=window.location;if(hostname==='localhost'){return{valid:true,recommendedUrl:''};}
-if(isIpHostname(hostname)){const suffix=port?`:${port}`:'';return{valid:false,recommendedUrl:`http:message:'Passkey 在本地开发时请使用 localhost 打开，不要直接用 127.0.0.1 或局域网 IP。',};}
+if(isIpHostname(hostname)){const suffix=port?`:${port}`:'';return{valid:false,recommendedUrl:`http://localhost${suffix}${pathname}`,message:'Passkey 在本地开发时请使用 localhost 打开，不要直接用 127.0.0.1 或局域网 IP。',};}
 return{valid:true,recommendedUrl:''};}
 async function getCapabilitySummary(){const summary={supported:Boolean(window.PublicKeyCredential&&navigator.credentials),platformAuthenticator:false,conditionalMediation:false,remembered:getRememberedPasskeyState(),};if(!summary.supported){return summary;}
 try{if(typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable==='function'){summary.platformAuthenticator=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();}}catch(error){summary.platformAuthenticator=false;}

@@ -6,6 +6,10 @@ from jsmin import jsmin
 import shutil
 import argparse
 
+SKIP_DIRS = {'uploads', '__pycache__', 'node_modules'}
+SKIP_FILES = {'.DS_Store'}
+
+
 def main():
     parser = argparse.ArgumentParser(description='Build optimized static assets')
     parser.add_argument('--minify', action='store_true', help='Minify CSS/JS files')
@@ -18,7 +22,10 @@ def main():
 
     # Copy all static files first
     for root, dirs, files in os.walk('static'):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for file in files:
+            if file in SKIP_FILES:
+                continue
             src_path = os.path.join(root, file)
             dest_path = os.path.join(build_dir, src_path[7:])  # Remove 'static/' prefix
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)

@@ -1,64 +1,829 @@
+
+/* --- static/js/main.js --- */
 let lastScrollTop=0;const header=document.querySelector('header');let scrollThreshold=100;let headerHeight=header.offsetHeight;window.addEventListener('scroll',function(){let scrollTop=window.pageYOffset||document.documentElement.scrollTop;if(scrollTop<0){scrollTop=0;}
 if(scrollTop<=0){header.classList.remove('header-hidden');return;}
 if(scrollTop>lastScrollTop&&scrollTop>scrollThreshold){header.classList.add('header-hidden');}else if(scrollTop<lastScrollTop){header.classList.remove('header-hidden');}
 lastScrollTop=scrollTop;},false);const hamburger=document.getElementById('hamburger');const navLinks=document.getElementById('navLinks');if(hamburger&&navLinks){hamburger.addEventListener('click',function(){hamburger.classList.toggle('active');navLinks.classList.toggle('active');if(navLinks.classList.contains('active')){document.body.style.overflow='hidden';}else{document.body.style.overflow='';}});const menuLinks=navLinks.querySelectorAll('a');menuLinks.forEach(link=>{link.addEventListener('click',function(){hamburger.classList.remove('active');navLinks.classList.remove('active');document.body.style.overflow='';});});document.addEventListener('click',function(event){const isClickInsideNav=navLinks.contains(event.target);const isClickOnHamburger=hamburger.contains(event.target);if(!isClickInsideNav&&!isClickOnHamburger&&navLinks.classList.contains('active')){hamburger.classList.remove('active');navLinks.classList.remove('active');document.body.style.overflow='';}});window.addEventListener('resize',function(){if(window.innerWidth>768&&navLinks.classList.contains('active')){hamburger.classList.remove('active');navLinks.classList.remove('active');document.body.style.overflow='';}});}
-class LazyLoadImage{constructor(){this.init();}
-init(){this.supportsIntersectionObserver='IntersectionObserver'in window;this.supportsWebP=this.checkWebPSupport();if(this.supportsIntersectionObserver){this.observer=new IntersectionObserver(this.onIntersection.bind(this),{rootMargin:'50px 0px',threshold:0.01});}
-this.initImages();}
-checkWebPSupport(){const canvas=document.createElement('canvas');if(canvas.getContext&&canvas.getContext('2d')){return canvas.toDataURL('image/webp').indexOf('data:image/webp')===0;}
-return false;}
-initImages(){const images=document.querySelectorAll('img[data-src]');images.forEach(img=>this.setupImage(img));if(this.observer){images.forEach(img=>this.observer.observe(img));}else{images.forEach(img=>this.loadImage(img));}}
-setupImage(img){const src=img.getAttribute('data-src');const placeholder=img.getAttribute('data-placeholder');if(placeholder&&!img.src){img.src=placeholder;}else{img.src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Crect width='1' height='1' fill='%23e5e7eb'/%3E%3C/svg%3E";}
-img.classList.add('lazy-loading');}
-onIntersection(entries){entries.forEach(entry=>{if(entry.isIntersecting){const img=entry.target;this.loadImage(img);this.observer.unobserve(img);}});}
-loadImage(img){const src=img.getAttribute('data-src');const srcset=img.getAttribute('data-srcset');if(!src)return;img.classList.remove('lazy-loading');img.classList.add('lazy-load-in-progress');const tempImg=new Image();tempImg.onload=()=>{img.src=src;if(srcset){img.srcset=srcset;}
-img.classList.remove('lazy-load-in-progress');img.classList.add('lazy-loaded');};tempImg.onerror=()=>{img.classList.remove('lazy-load-in-progress');img.classList.add('lazy-load-error');console.error(`Failed to load image:${src}`);};tempImg.src=src;}
-setupResponsiveImages(){const images=document.querySelectorAll('img[data-sizes]');images.forEach(img=>{this.makeResponsive(img);});}
-makeResponsive(img){const sizes=img.getAttribute('data-sizes');if(!sizes)return;try{const sizesMap=JSON.parse(sizes);const width=this.getElementWidth(img);let selectedSize='original';if(width<600){selectedSize='thumbnail';}else if(width<1200){selectedSize='medium';}else{selectedSize='large';}
-if(sizesMap[selectedSize]){img.dataset.src=sizesMap[selectedSize];}}catch(e){console.error('Error parsing data-sizes:',e);}}
-getElementWidth(element){return element.parentElement?element.parentElement.offsetWidth:window.innerWidth;}}
-const lazyLoadImage=new LazyLoadImage();document.addEventListener('DOMContentLoaded',()=>{lazyLoadImage.initImages();lazyLoadImage.setupResponsiveImages();let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{lazyLoadImage.setupResponsiveImages();},300);});});window.lazyLoadImage=lazyLoadImage;function observeNewImages(){lazyLoadImage.initImages();}
-function setupContentImages(){const contentArea=document.querySelector('.post-content, .article-content, .content, #post-content');if(!contentArea)return;const images=contentArea.querySelectorAll('img');images.forEach(img=>{if(!img.hasAttribute('data-src')){img.setAttribute('data-src',img.src);img.classList.add('lazy-loading');}});lazyLoadImage.initImages();}
-window.setupContentImages=setupContentImages;window.observeNewImages=observeNewImages;document.addEventListener('DOMContentLoaded',function(){'use strict';const imageObserver=new IntersectionObserver((entries,observer)=>{entries.forEach(entry=>{if(entry.isIntersecting){const img=entry.target;const src=img.getAttribute('data-src');if(src){img.classList.add('loading');img.src=src;img.onload=()=>{img.classList.remove('loading');img.classList.add('loaded');};img.onerror=()=>{img.classList.remove('loading');img.classList.add('error');};img.removeAttribute('data-src');observer.unobserve(img);}}});},{rootMargin:'100px 0px',threshold:0.01});document.querySelectorAll('img[data-src]').forEach(img=>{imageObserver.observe(img);});const SkeletonLoader={show(container,count=3,type='card'){this.hide(container);const skeletons=[];for(let i=0;i<count;i++){const skeleton=document.createElement('div');skeleton.className=`skeleton-wrapper skeleton-${type}`;skeleton.setAttribute('data-skeleton','true');skeleton.style.animationDelay=`${i*0.1}s`;if(type==='card'){skeleton.innerHTML=`<div class="skeleton skeleton-title"></div><div class="skeleton skeleton-meta"></div><div class="skeleton skeleton-excerpt"></div><div class="skeleton skeleton-excerpt"></div><div class="skeleton skeleton-excerpt-short"></div>`;}else if(type==='list'){skeleton.innerHTML=`<div class="skeleton skeleton-list-title"></div><div class="skeleton skeleton-list-meta"></div>`;}else if(type==='detail'){skeleton.innerHTML=`<div class="skeleton skeleton-detail-title"></div><div class="skeleton skeleton-detail-meta"></div><div class="skeleton skeleton-detail-content"></div><div class="skeleton skeleton-detail-content"></div><div class="skeleton skeleton-detail-content"></div>`;}
+/* --- static/js/lazyload.js --- */
+/**
+ * 改进版图片懒加载和响应式图片
+ *
+ * 功能增强：
+ * 1. 更好的错误处理和重试机制
+ * 2. 支持渐入动画
+ * 3. 优化的Intersection Observer配置
+ * 4. 响应式图片加载优化
+ * 5. 动态添加图片的自动监听
+ * 6. 性能优化：减少DOM操作和重排
+ */
+
+class LazyLoadImage {
+    constructor() {
+        this.init();
+    }
+
+    init() {
+        // 检查浏览器支持
+        this.supportsIntersectionObserver = 'IntersectionObserver' in window;
+        this.supportsWebP = this.checkWebPSupport();
+        this.imageCache = new Map();
+        this.resizeTimer = null;
+
+        // 配置参数
+        this.options = {
+            rootMargin: '100px 0px', // 提前100px加载
+            threshold: 0.01,
+            animationDuration: 300, // 图片加载动画时长
+            maxRetries: 2 // 加载失败重试次数
+        };
+
+        // 如果支持 Intersection Observer，创建观察器
+        if (this.supportsIntersectionObserver) {
+            this.observer = new IntersectionObserver(
+                this.onIntersection.bind(this),
+                this.options
+            );
+        }
+
+        // 初始化所有懒加载图片
+        this.initImages();
+
+        // 设置响应式图片监听
+        this.setupResponsiveImages();
+
+        // 添加窗口大小变化监听
+        window.addEventListener('resize', this.onResize.bind(this));
+    }
+
+    /**
+     * 检查浏览器是否支持WebP格式
+     * @returns {boolean} 是否支持WebP
+     */
+    checkWebPSupport() {
+        try {
+            const canvas = document.createElement('canvas');
+            if (canvas.getContext && canvas.getContext('2d')) {
+                return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+            }
+        } catch (e) {
+            console.warn('WebP support check failed:', e);
+        }
+        return false;
+    }
+
+    /**
+     * 初始化页面上所有已有的懒加载图片
+     */
+    initImages() {
+        const images = document.querySelectorAll('img[data-src]:not(.lazy-processed)');
+        images.forEach(img => this.setupImage(img));
+
+        if (this.supportsIntersectionObserver) {
+            images.forEach(img => this.observer.observe(img));
+        } else {
+            // 降级处理：不支持IntersectionObserver时直接加载
+            images.forEach(img => this.loadImage(img));
+        }
+    }
+
+    /**
+     * 设置单张图片的懒加载配置
+     * @param {HTMLImageElement} img 图片元素
+     */
+    setupImage(img) {
+        if (img.classList.contains('lazy-processed')) return;
+
+        const src = img.getAttribute('data-src');
+        const placeholder = img.getAttribute('data-placeholder');
+        const alt = img.getAttribute('alt') || '';
+
+        // 设置占位符
+        if (placeholder && !img.src) {
+            img.src = placeholder;
+        } else {
+            // 使用SVG占位符
+            img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3Crect width='1' height='1' fill='%23f3f4f6'/%3E%3C/svg%3E";
+        }
+
+        // 添加样式类
+        img.classList.add('lazy-loading', 'lazy-processed');
+        img.setAttribute('alt', alt);
+
+        // 保存原始属性
+        img.dataset.originalAlt = alt;
+    }
+
+    /**
+     * Intersection Observer 回调函数
+     * @param {IntersectionObserverEntry[]} entries 观察到的元素
+     */
+    onIntersection(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                this.loadImage(img);
+                this.observer.unobserve(img);
+            }
+        });
+    }
+
+    /**
+     * 加载图片
+     * @param {HTMLImageElement} img 图片元素
+     * @param {number} retryCount 重试次数
+     */
+    loadImage(img, retryCount = 0) {
+        if (img.classList.contains('lazy-loaded')) return;
+
+        const src = img.getAttribute('data-src');
+        const srcset = img.getAttribute('data-srcset');
+        const sizes = img.getAttribute('data-sizes');
+
+        if (!src) {
+            console.warn('No data-src attribute found for image', img);
+            return;
+        }
+
+        // 标记为加载中
+        img.classList.remove('lazy-loading');
+        img.classList.add('lazy-load-in-progress');
+
+        // 处理响应式图片
+        if (sizes && srcset) {
+            this.makeResponsive(img, sizes);
+        }
+
+        // 创建临时图片对象进行加载
+        const tempImg = new Image();
+
+        // 加载成功
+        tempImg.onload = () => {
+            // 添加渐入动画
+            img.style.opacity = '0';
+            img.style.transition = `opacity ${this.options.animationDuration}ms ease-in-out`;
+
+            // 设置最终图片源
+            img.src = src;
+            if (srcset) {
+                img.srcset = srcset;
+                if (sizes) {
+                    img.sizes = sizes;
+                }
+            }
+
+            // 完成加载
+            img.classList.remove('lazy-load-in-progress');
+            img.classList.add('lazy-loaded');
+
+            // 显示图片
+            requestAnimationFrame(() => {
+                img.style.opacity = '1';
+            });
+
+            // 触发自定义事件
+            img.dispatchEvent(new CustomEvent('lazyload:loaded', {
+                detail: { src: src }
+            }));
+        };
+
+        // 加载失败
+        tempImg.onerror = () => {
+            if (retryCount < this.options.maxRetries) {
+                // 重试加载
+                setTimeout(() => {
+                    this.loadImage(img, retryCount + 1);
+                }, 1000 * (retryCount + 1));
+            } else {
+                // 重试失败，显示错误状态
+                img.classList.remove('lazy-load-in-progress');
+                img.classList.add('lazy-load-error');
+                img.src = this.getErrorPlaceholder();
+
+                console.error(`Failed to load image after ${retryCount + 1} attempts: ${src}`);
+
+                // 触发自定义错误事件
+                img.dispatchEvent(new CustomEvent('lazyload:error', {
+                    detail: { src: src, retries: retryCount + 1 }
+                }));
+            }
+        };
+
+        // 设置跨域（如果需要）
+        if (img.crossOrigin) {
+            tempImg.crossOrigin = img.crossOrigin;
+        }
+
+        tempImg.src = src;
+        this.imageCache.set(src, tempImg);
+    }
+
+    /**
+     * 处理响应式图片
+     * @param {HTMLImageElement} img 图片元素
+     * @param {string} sizesJson 尺寸配置JSON字符串
+     */
+    makeResponsive(img, sizesJson) {
+        try {
+            const sizesMap = JSON.parse(sizesJson);
+            const width = this.getElementWidth(img);
+            let selectedSize = 'original';
+
+            // 根据设备宽度选择合适的图片尺寸
+            if (width < 600) {
+                selectedSize = 'thumbnail';
+            } else if (width < 1200) {
+                selectedSize = 'medium';
+            } else if (width < 1920) {
+                selectedSize = 'large';
+            }
+
+            // 如果支持WebP，尝试使用WebP格式
+            if (this.supportsWebP && sizesMap[`${selectedSize}_webp`]) {
+                img.setAttribute('data-src', sizesMap[`${selectedSize}_webp`]);
+            } else if (sizesMap[selectedSize]) {
+                img.setAttribute('data-src', sizesMap[selectedSize]);
+            }
+
+        } catch (e) {
+            console.error('Error parsing data-sizes:', e);
+        }
+    }
+
+    /**
+     * 获取元素的实际宽度
+     * @param {HTMLElement} element 目标元素
+     * @returns {number} 元素宽度
+     */
+    getElementWidth(element) {
+        if (!element) return window.innerWidth;
+
+        // 如果元素已经被移除，使用窗口宽度
+        if (!document.contains(element)) {
+            return window.innerWidth;
+        }
+
+        // 尝试获取元素的实际宽度
+        const rect = element.getBoundingClientRect();
+        return rect.width || element.offsetWidth || element.clientWidth || window.innerWidth;
+    }
+
+    /**
+     * 窗口大小变化处理
+     */
+    onResize() {
+        clearTimeout(this.resizeTimer);
+        this.resizeTimer = setTimeout(() => {
+            // 重新初始化响应式图片
+            this.setupResponsiveImages();
+        }, 300);
+    }
+
+    /**
+     * 设置所有响应式图片
+     */
+    setupResponsiveImages() {
+        const images = document.querySelectorAll('img[data-sizes]:not(.lazy-responsive)');
+        images.forEach(img => {
+            img.classList.add('lazy-responsive');
+            this.makeResponsive(img, img.getAttribute('data-sizes'));
+        });
+    }
+
+    /**
+     * 获取错误占位符图片
+     * @returns {string} 错误占位符SVG
+     */
+    getErrorPlaceholder() {
+        return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle' fill='%239ca3af' font-family='sans-serif' font-size='16'%3E图片加载失败%3C/text%3E%3C/svg%3E";
+    }
+
+    /**
+     * 手动加载新添加的图片
+     * @param {HTMLImageElement|string} selector 图片元素或选择器
+     */
+    observeNewImages(selector) {
+        let images = [];
+
+        if (typeof selector === 'string') {
+            images = document.querySelectorAll(`${selector}:not(.lazy-processed)`);
+        } else if (selector instanceof HTMLElement) {
+            images = [selector];
+        } else if (selector && typeof selector.forEach === 'function') {
+            images = selector;
+        }
+
+        images.forEach(img => this.setupImage(img));
+
+        if (this.supportsIntersectionObserver) {
+            images.forEach(img => this.observer.observe(img));
+        } else {
+            images.forEach(img => this.loadImage(img));
+        }
+    }
+
+    /**
+     * 销毁实例，清理资源
+     */
+    destroy() {
+        if (this.supportsIntersectionObserver) {
+            this.observer.disconnect();
+        }
+
+        window.removeEventListener('resize', this.onResize.bind(this));
+        this.imageCache.clear();
+    }
+}
+
+// 全局实例化和导出
+const lazyLoadImage = new LazyLoadImage();
+
+// DOM加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+    lazyLoadImage.initImages();
+    lazyLoadImage.setupResponsiveImages();
+});
+
+// 导出到全局作用域
+window.lazyLoadImage = lazyLoadImage;
+window.setupContentImages = (selector = '.post-content img') => {
+    lazyLoadImage.observeNewImages(selector);
+};
+window.observeNewImages = (selector = 'img[data-src]') => {
+    lazyLoadImage.observeNewImages(selector);
+};
+
+// 支持动态加载的内容
+if (typeof MutationObserver !== 'undefined') {
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        // 检查新添加的元素中的图片
+                        const images = node.querySelectorAll ?
+                            node.querySelectorAll('img[data-src]:not(.lazy-processed)') :
+                            [];
+                        images.forEach(img => lazyLoadImage.setupImage(img));
+
+                        if (lazyLoadImage.supportsIntersectionObserver) {
+                            images.forEach(img => lazyLoadImage.observer.observe(img));
+                        } else {
+                            images.forEach(img => lazyLoadImage.loadImage(img));
+                        }
+                    }
+                });
+            }
+        });
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+}
+/* --- static/js/loading.js --- */
+document.addEventListener('DOMContentLoaded',function(){'use strict';const imageObserver=new IntersectionObserver((entries,observer)=>{entries.forEach(entry=>{if(entry.isIntersecting){const img=entry.target;const src=img.getAttribute('data-src');if(src){img.classList.add('loading');img.src=src;img.onload=()=>{img.classList.remove('loading');img.classList.add('loaded');};img.onerror=()=>{img.classList.remove('loading');img.classList.add('error');};img.removeAttribute('data-src');observer.unobserve(img);}}});},{rootMargin:'100px 0px',threshold:0.01});document.querySelectorAll('img[data-src]').forEach(img=>{imageObserver.observe(img);});const SkeletonLoader={show(container,count=3,type='card'){this.hide(container);const skeletons=[];for(let i=0;i<count;i++){const skeleton=document.createElement('div');skeleton.className=`skeleton-wrapper skeleton-${type}`;skeleton.setAttribute('data-skeleton','true');skeleton.style.animationDelay=`${i*0.1}s`;if(type==='card'){skeleton.innerHTML=`<div class="skeleton skeleton-title"></div><div class="skeleton skeleton-meta"></div><div class="skeleton skeleton-excerpt"></div><div class="skeleton skeleton-excerpt"></div><div class="skeleton skeleton-excerpt-short"></div>`;}else if(type==='list'){skeleton.innerHTML=`<div class="skeleton skeleton-list-title"></div><div class="skeleton skeleton-list-meta"></div>`;}else if(type==='detail'){skeleton.innerHTML=`<div class="skeleton skeleton-detail-title"></div><div class="skeleton skeleton-detail-meta"></div><div class="skeleton skeleton-detail-content"></div><div class="skeleton skeleton-detail-content"></div><div class="skeleton skeleton-detail-content"></div>`;}
 container.appendChild(skeleton);skeletons.push(skeleton);}
 return skeletons;},hide(container){const skeletons=container.querySelectorAll('[data-skeleton]');skeletons.forEach((skeleton,index)=>{setTimeout(()=>{skeleton.classList.add('skeleton-fade-out');setTimeout(()=>{skeleton.remove();},300);},index*50);});},pageLoading(show){let spinner=document.querySelector('.page-loader');if(show){if(!spinner){spinner=document.createElement('div');spinner.className='page-loader';spinner.innerHTML=`<div class="spinner"></div><div class="spinner-text">加载中...</div>`;document.body.appendChild(spinner);}
 spinner.style.display='block';}else if(spinner){spinner.style.display='none';}},inlineLoading(element){element.classList.add('loading-inline');},inlineLoaded(element){element.classList.remove('loading-inline');}};const ProgressiveLoader={animateContent(container){const items=container.querySelectorAll('.post-card, .comment, article');items.forEach((item,index)=>{item.style.opacity='0';item.style.transform='translateY(20px)';setTimeout(()=>{item.style.transition='opacity 0.4s ease, transform 0.4s ease';item.style.opacity='1';item.style.transform='translateY(0)';},index*100);});}};window.SkeletonLoader=SkeletonLoader;window.ProgressiveLoader=ProgressiveLoader;window.loadingUtils={showSkeleton:(container,count,type)=>SkeletonLoader.show(container,count,type),hideSkeleton:(container)=>SkeletonLoader.hide(container),pageLoading:(show)=>SkeletonLoader.pageLoading(show),imageObserver:imageObserver,animateContent:(container)=>ProgressiveLoader.animateContent(container)};const postsContainer=document.getElementById('posts-container');if(postsContainer&&postsContainer.children.length===0){SkeletonLoader.show(postsContainer,5,'card');}
-if(postsContainer&&postsContainer.children.length>0){ProgressiveLoader.animateContent(postsContainer);}});(function(){'use strict';let isLoading=false;let hasMore=true;let currentPage=1;let observer=null;const MOBILE_BREAKPOINT=768;const DEBUG=false;function debug(...args){if(DEBUG)console.log('[InfiniteScroll]',...args);}
-document.addEventListener('DOMContentLoaded',function(){const container=document.getElementById('posts-container');if(window.innerWidth<=MOBILE_BREAKPOINT){initInfiniteScroll();}else if(container&&container.children.length>0){initInfiniteScroll();}});window.addEventListener('resize',function(){if(window.innerWidth<=MOBILE_BREAKPOINT&&!observer){initInfiniteScroll();}});function initInfiniteScroll(){debug('Initializing...');const loadMoreBtn=document.getElementById('load-more');if(loadMoreBtn){loadMoreBtn.style.display='none';}
-createLoadIndicator();setupObserver();debug('Initialized successfully');}
-function buildFeedUrl(page=1){const currentUrl=new URL(window.location.href);currentUrl.searchParams.set('page',page);currentUrl.searchParams.set('format','json');return`${currentUrl.pathname}?${currentUrl.searchParams.toString()}`;}
-function createLoadIndicator(){const container=document.getElementById('posts-container');if(!container){console.error('[InfiniteScroll] posts-container not found!');return;}
-const existing=document.getElementById('loadMoreIndicator');if(existing){existing.remove();}
-const indicator=document.createElement('div');indicator.id='loadMoreIndicator';indicator.className='load-more-indicator';indicator.innerHTML=`<span class="spinner"></span><span class="load-more-text">下拉加载更多</span>`;container.appendChild(indicator);debug('Load indicator created and appended');}
-function setupObserver(){const indicator=document.getElementById('loadMoreIndicator');if(!indicator){console.error('[InfiniteScroll] Load indicator not found for observer!');return;}
-debug('Setting up observer...');observer=new IntersectionObserver(function(entries){entries.forEach(entry=>{debug('Observer callback:',{isIntersecting:entry.isIntersecting,isLoading:isLoading,hasMore:hasMore});if(entry.isIntersecting&&!isLoading&&hasMore){debug('Triggering loadMorePosts');loadMorePosts();}});},{rootMargin:'200px'});observer.observe(indicator);debug('Observer setup complete');}
-async function loadMorePosts(){if(isLoading||!hasMore){debug('Skipping load: isLoading='+isLoading+', hasMore='+hasMore);return;}
-debug('Loading page',currentPage+1);isLoading=true;showLoadingIndicator();try{currentPage++;const url=buildFeedUrl(currentPage);debug('Fetching:',url);const response=await fetch(url);const data=await response.json();if(data.posts&&data.posts.length>0){appendPosts(data.posts);hasMore=currentPage<data.total_pages;debug('Loaded',data.posts.length,'posts, hasMore=',hasMore);}else{hasMore=false;debug('No more posts');}}catch(error){console.error('[InfiniteScroll] Failed to load more posts:',error);currentPage--;}finally{isLoading=false;hideLoadingIndicator();if(!hasMore){showNoMoreIndicator();}}}
-function appendPosts(posts){const container=document.getElementById('posts-container');if(!container)return;const indicator=document.getElementById('loadMoreIndicator');debug('Appending',posts.length,'posts');posts.forEach((post,index)=>{const card=createPostCard(post);if(indicator){container.insertBefore(card,indicator);}else{container.appendChild(card);}});debug('Appended',posts.length,'posts');}
-function createPostCard(post){const article=document.createElement('article');article.className='post-card';const imageUrls=Array.isArray(post.image_urls)?post.image_urls.slice(0,9):extractImageUrls(post.content);const imageCount=imageUrls.length;const imageLayout=post.mobile_image_layout||getMobileImageLayout(imageCount);try{article.innerHTML=`<a href="/post/${post.id}"class="post-card-link"><div class="post-card-content"><h2>${escapeHtml(post.title)}</h2><div class="post-meta">${post.category_name?`<span class="post-category">${escapeHtml(post.category_name)}</span>`:''}
-${post.author_display_name?`<span>👤 ${escapeHtml(post.author_display_name)}</span>`:''}<time>${formatDate(post.created_at)}</time></div><div class="post-excerpt">${escapeHtml(post.excerpt||truncateContent(post.content,100))}</div></div>${renderPostMedia(imageUrls,imageCount,imageLayout)}</a>`;}catch(error){console.error('[InfiniteScroll] Error creating card for post:',post.id,error);}
-return article;}
-function renderPostMedia(imageUrls,imageCount,imageLayout){if(!imageUrls||imageUrls.length===0){return'';}
-const items=imageUrls.map(url=>`<div class="post-card-media-item"><img src="${escapeHtml(url)}"alt=""loading="lazy"></div>`).join('');return`<div class="post-card-media post-card-media--${imageLayout} post-card-media--count-${imageCount}">${items}</div>`;}
-function extractImageUrls(content){if(!content)return[];return Array.from(content.matchAll(/<img[^>]+src="([^"]+)"/g)).map(match=>match[1]).slice(0,9);}
-function getMobileImageLayout(imageCount){if(imageCount<=1)return'single';if(imageCount<=4)return'grid-4';if(imageCount<=6)return'grid-6';return'grid-9';}
-function truncateContent(content,maxLength){if(!content)return'';const text=content.replace(/<[^>]+>/g,'');if(text.length<=maxLength)return text;return text.substring(0,maxLength)+'...';}
-function escapeHtml(text){if(!text)return'';const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
-function formatDate(dateStr){if(!dateStr)return'';const date=new Date(dateStr);const now=new Date();const diff=now-date;if(diff<60*60*1000){const mins=Math.floor(diff/(60*1000));return`${Math.max(1,mins)}分钟前`;}
-if(diff<24*60*60*1000){const hours=Math.floor(diff/(60*60*1000));return`${hours}小时前`;}
-if(diff<7*24*60*60*1000){const days=Math.floor(diff/(24*60*60*1000));return`${days}天前`;}
-if(typeof dateStr==='string'){return dateStr.substring(0,10);}
-return date.toISOString().substring(0,10);}
-function showLoadingIndicator(){const indicator=document.getElementById('loadMoreIndicator');if(indicator){indicator.style.display='flex';indicator.innerHTML=`<span class="spinner"style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></span><span style="margin-left: 10px;">加载中...</span>`;}}
-function hideLoadingIndicator(){const indicator=document.getElementById('loadMoreIndicator');if(indicator){if(hasMore){indicator.innerHTML=`<span style="display: inline-block; width: 20px; height: 20px;"></span><span style="margin-left: 10px;">下拉加载更多</span>`;}}}
-function showNoMoreIndicator(){const indicator=document.getElementById('loadMoreIndicator');if(indicator){indicator.innerHTML='<span>没有更多了</span>';indicator.style.display='flex';}}
-async function refreshPosts(){const container=document.getElementById('posts-container');if(!container){return false;}
-try{if(observer){observer.disconnect();observer=null;}
-const response=await fetch(buildFeedUrl(1),{headers:{'X-Requested-With':'XMLHttpRequest'}});if(!response.ok){throw new Error(`刷新失败:${response.status}`);}
-const data=await response.json();const posts=Array.isArray(data.posts)?data.posts:[];container.innerHTML='';currentPage=1;hasMore=currentPage<(data.total_pages||1);isLoading=false;if(posts.length===0){container.innerHTML='<div class="empty-state"><p>还没有发布任何文章。</p></div>';return true;}
-posts.forEach(post=>{container.appendChild(createPostCard(post));});if(hasMore){createLoadIndicator();setupObserver();}
-return true;}catch(error){console.error('[InfiniteScroll] Failed to refresh posts:',error);return false;}}
-window.InfiniteScroll={reset:function(){currentPage=1;hasMore=true;isLoading=false;},loadMore:loadMorePosts,refresh:refreshPosts,destroy:function(){if(observer){observer.disconnect();observer=null;}}};})();(function(){'use strict';let currentPage='home';let currentMyPostsTab='published';document.addEventListener('DOMContentLoaded',function(){initBottomNavigation();initDoubleTapToTop();initMobileLayout();initMyPostsTabs();});function initBottomNavigation(){const navItems=document.querySelectorAll('.nav-item[data-page]');navItems.forEach(item=>{item.addEventListener('click',function(e){const page=this.getAttribute('data-page');if(page==='publish'){e.preventDefault();if(typeof window.openMobileEditor==='function'){window.openMobileEditor();}
+if(postsContainer&&postsContainer.children.length>0){ProgressiveLoader.animateContent(postsContainer);}});
+/* --- static/js/infinite-scroll.js --- */
+/**
+ * 无限滚动加载
+ */
+(function() {
+    'use strict';
+
+    let isLoading = false;
+    let hasMore = true;
+    let currentPage = 1;
+    let observer = null;
+
+    // 常量
+    const MOBILE_BREAKPOINT = 768;
+    const DEBUG = false;
+
+    function debug(...args) {
+        if (DEBUG) console.log('[InfiniteScroll]', ...args);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('posts-container');
+
+        // 在移动端或者存在posts-container时初始化
+        if (window.innerWidth <= MOBILE_BREAKPOINT) {
+            initInfiniteScroll();
+        } else if (container && container.children.length > 0) {
+            initInfiniteScroll();
+        }
+    });
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', function() {
+        if (window.innerWidth <= MOBILE_BREAKPOINT && !observer) {
+            initInfiniteScroll();
+        }
+    });
+
+    function initInfiniteScroll() {
+        debug('Initializing...');
+
+        // 隐藏桌面端的加载更多按钮
+        const loadMoreBtn = document.getElementById('load-more');
+        if (loadMoreBtn) {
+            loadMoreBtn.style.display = 'none';
+        }
+
+        // 创建加载指示器
+        createLoadIndicator();
+
+        // 设置 Intersection Observer
+        setupObserver();
+
+        debug('Initialized successfully');
+    }
+
+    function buildFeedUrl(page = 1, cursor = null) {
+        const currentUrl = new URL(window.location.href);
+
+        // 清除可能存在的旧参数
+        currentUrl.searchParams.delete('page');
+        currentUrl.searchParams.delete('cursor');
+
+        // 根据分页类型添加参数
+        if (cursor) {
+            currentUrl.searchParams.set('cursor', cursor);
+        } else if (page) {
+            currentUrl.searchParams.set('page', page);
+        }
+
+        currentUrl.searchParams.set('format', 'json');
+        return `${currentUrl.pathname}?${currentUrl.searchParams.toString()}`;
+    }
+
+    function createLoadIndicator() {
+        const container = document.getElementById('posts-container');
+        if (!container) {
+            console.error('[InfiniteScroll] posts-container not found!');
+            return;
+        }
+
+        // 如果已经存在，先删除
+        const existing = document.getElementById('loadMoreIndicator');
+        if (existing) {
+            existing.remove();
+        }
+
+        const indicator = document.createElement('div');
+        indicator.id = 'loadMoreIndicator';
+        indicator.className = 'load-more-indicator';
+        indicator.innerHTML = `
+            <span class="spinner"></span>
+            <span class="load-more-text">下拉加载更多</span>
+        `;
+
+        // 添加到容器后面
+        container.appendChild(indicator);
+
+        debug('Load indicator created and appended');
+    }
+
+    function setupObserver() {
+        const indicator = document.getElementById('loadMoreIndicator');
+        if (!indicator) {
+            console.error('[InfiniteScroll] Load indicator not found for observer!');
+            return;
+        }
+
+        debug('Setting up observer...');
+
+        observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                debug('Observer callback:', {
+                    isIntersecting: entry.isIntersecting,
+                    isLoading: isLoading,
+                    hasMore: hasMore
+                });
+
+                if (entry.isIntersecting && !isLoading && hasMore) {
+                    debug('Triggering loadMorePosts');
+                    loadMorePosts();
+                }
+            });
+        }, {
+            rootMargin: '200px'
+        });
+
+        observer.observe(indicator);
+        debug('Observer setup complete');
+    }
+
+    async function loadMorePosts() {
+        if (isLoading || !hasMore) {
+            debug('Skipping load: isLoading=' + isLoading + ', hasMore=' + hasMore);
+            return;
+        }
+
+        isLoading = true;
+        showLoadingIndicator();
+
+        try {
+            // 检查是否应该使用游标分页
+            const loadMoreBtn = document.getElementById('load-more');
+            let url, data;
+
+            if (loadMoreBtn && loadMoreBtn.dataset.cursor) {
+                // 游标分页
+                debug('Loading posts with cursor:', loadMoreBtn.dataset.cursor);
+                url = buildFeedUrl(null, loadMoreBtn.dataset.cursor);
+                debug('Fetching:', url);
+
+                const response = await fetch(url);
+                data = await response.json();
+
+                if (data.posts && data.posts.length > 0) {
+                    appendPosts(data.posts);
+                    hasMore = data.has_more;
+                    debug('Loaded', data.posts.length, 'posts, hasMore=', hasMore);
+
+                    // 更新下一页的游标
+                    if (data.next_cursor) {
+                        loadMoreBtn.dataset.cursor = data.next_cursor;
+                    } else {
+                        loadMoreBtn.disabled = true;
+                        loadMoreBtn.textContent = '没有更多了';
+                    }
+                } else {
+                    hasMore = false;
+                    loadMoreBtn.disabled = true;
+                    loadMoreBtn.textContent = '没有更多了';
+                    debug('No more posts');
+                }
+            } else {
+                // 传统OFFSET分页
+                debug('Loading page', currentPage + 1);
+                currentPage++;
+                url = buildFeedUrl(currentPage);
+                debug('Fetching:', url);
+
+                const response = await fetch(url);
+                data = await response.json();
+
+                if (data.posts && data.posts.length > 0) {
+                    appendPosts(data.posts);
+                    hasMore = currentPage < data.total_pages;
+                    debug('Loaded', data.posts.length, 'posts, hasMore=', hasMore);
+                } else {
+                    hasMore = false;
+                    debug('No more posts');
+                }
+            }
+        } catch (error) {
+            console.error('[InfiniteScroll] Failed to load more posts:', error);
+            currentPage--; // 回退页码
+        } finally {
+            isLoading = false;
+            hideLoadingIndicator();
+
+            if (!hasMore) {
+                showNoMoreIndicator();
+            }
+        }
+    }
+
+    function appendPosts(posts) {
+        const container = document.getElementById('posts-container');
+        if (!container) return;
+
+        // 获取加载指示器
+        const indicator = document.getElementById('loadMoreIndicator');
+
+        debug('Appending', posts.length, 'posts');
+
+        // 如果指示器存在，将新文章插入到指示器之前
+        // 否则直接添加到容器末尾
+        posts.forEach((post, index) => {
+            const card = createPostCard(post);
+
+            if (indicator) {
+                container.insertBefore(card, indicator);
+            } else {
+                container.appendChild(card);
+            }
+        });
+
+        debug('Appended', posts.length, 'posts');
+    }
+
+    function createPostCard(post) {
+        const article = document.createElement('article');
+        article.className = 'post-card';
+        const imageUrls = Array.isArray(post.image_urls) ? post.image_urls.slice(0, 9) : extractImageUrls(post.content);
+        const imageCount = imageUrls.length;
+        const imageLayout = post.mobile_image_layout || getMobileImageLayout(imageCount);
+
+        try {
+            article.innerHTML = `
+                <a href="/post/${post.id}" class="post-card-link">
+                    <div class="post-card-content">
+                        <h2>${escapeHtml(post.title)}</h2>
+                        <div class="post-meta">
+                            ${post.category_name ? `<span class="post-category">${escapeHtml(post.category_name)}</span>` : ''}
+                            ${post.author_display_name ? `<span>👤 ${escapeHtml(post.author_display_name)}</span>` : ''}
+                            <time>${formatDate(post.created_at)}</time>
+                        </div>
+                        <div class="post-excerpt">${escapeHtml(post.excerpt || truncateContent(post.content, 100))}</div>
+                    </div>
+                    ${renderPostMedia(imageUrls, imageCount, imageLayout)}
+                </a>
+            `;
+        } catch (error) {
+            console.error('[InfiniteScroll] Error creating card for post:', post.id, error);
+        }
+
+        return article;
+    }
+
+    function renderPostMedia(imageUrls, imageCount, imageLayout) {
+        if (!imageUrls || imageUrls.length === 0) {
+            return '';
+        }
+
+        const items = imageUrls.map(url => `
+            <div class="post-card-media-item">
+                <img src="${escapeHtml(url)}" alt="" loading="lazy">
+            </div>
+        `).join('');
+
+        return `
+            <div class="post-card-media post-card-media--${imageLayout} post-card-media--count-${imageCount}">
+                ${items}
+            </div>
+        `;
+    }
+
+    function extractImageUrls(content) {
+        if (!content) return [];
+        return Array.from(content.matchAll(/<img[^>]+src="([^"]+)"/g)).map(match => match[1]).slice(0, 9);
+    }
+
+    function getMobileImageLayout(imageCount) {
+        if (imageCount <= 1) return 'single';
+        if (imageCount <= 4) return 'grid-4';
+        if (imageCount <= 6) return 'grid-6';
+        return 'grid-9';
+    }
+
+    function truncateContent(content, maxLength) {
+        if (!content) return '';
+        // 移除 HTML 标签
+        const text = content.replace(/<[^>]+>/g, '');
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diff = now - date;
+
+        // 1小时内
+        if (diff < 60 * 60 * 1000) {
+            const mins = Math.floor(diff / (60 * 1000));
+            return `${Math.max(1, mins)}分钟前`;
+        }
+
+        // 1天内
+        if (diff < 24 * 60 * 60 * 1000) {
+            const hours = Math.floor(diff / (60 * 60 * 1000));
+            return `${hours}小时前`;
+        }
+
+        // 1周内
+        if (diff < 7 * 24 * 60 * 60 * 1000) {
+            const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+            return `${days}天前`;
+        }
+
+        // 显示日期
+        if (typeof dateStr === 'string') {
+            return dateStr.substring(0, 10);
+        }
+        return date.toISOString().substring(0, 10);
+    }
+
+    function showLoadingIndicator() {
+        const indicator = document.getElementById('loadMoreIndicator');
+        if (indicator) {
+            indicator.style.display = 'flex';
+            indicator.innerHTML = `
+                <span class="spinner" style="display: inline-block; width: 20px; height: 20px; border: 2px solid #f3f3f3; border-top: 2px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></span>
+                <span style="margin-left: 10px;">加载中...</span>
+            `;
+        }
+    }
+
+    function hideLoadingIndicator() {
+        const indicator = document.getElementById('loadMoreIndicator');
+        if (indicator) {
+            // 保持指示器可见，这样观察器可以继续监控
+            // 只有在没有更多内容时才改变文字
+            if (hasMore) {
+                indicator.innerHTML = `
+                    <span style="display: inline-block; width: 20px; height: 20px;"></span>
+                    <span style="margin-left: 10px;">下拉加载更多</span>
+                `;
+            }
+        }
+    }
+
+    function showNoMoreIndicator() {
+        const indicator = document.getElementById('loadMoreIndicator');
+        if (indicator) {
+            indicator.innerHTML = '<span>没有更多了</span>';
+            indicator.style.display = 'flex';
+        }
+    }
+
+    async function refreshPosts() {
+        const container = document.getElementById('posts-container');
+        if (!container) {
+            return false;
+        }
+
+        try {
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+
+            const response = await fetch(buildFeedUrl(1), {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`刷新失败: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const posts = Array.isArray(data.posts) ? data.posts : [];
+
+            container.innerHTML = '';
+            currentPage = 1;
+            hasMore = currentPage < (data.total_pages || 1);
+            isLoading = false;
+
+            if (posts.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>还没有发布任何文章。</p></div>';
+                return true;
+            }
+
+            posts.forEach(post => {
+                container.appendChild(createPostCard(post));
+            });
+
+            if (hasMore) {
+                createLoadIndicator();
+                setupObserver();
+            }
+
+            return true;
+        } catch (error) {
+            console.error('[InfiniteScroll] Failed to refresh posts:', error);
+            return false;
+        }
+    }
+
+    window.InfiniteScroll = {
+        reset: function() {
+            currentPage = 1;
+            hasMore = true;
+            isLoading = false;
+        },
+        loadMore: loadMorePosts,
+        refresh: refreshPosts,
+        destroy: function() {
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+        }
+    };
+
+})();
+
+/* --- static/js/mobile-layout.js --- */
+(function(){'use strict';let currentPage='home';let currentMyPostsTab='published';document.addEventListener('DOMContentLoaded',function(){initBottomNavigation();initDoubleTapToTop();initMobileLayout();initMyPostsTabs();});function initBottomNavigation(){const navItems=document.querySelectorAll('.nav-item[data-page]');navItems.forEach(item=>{item.addEventListener('click',function(e){const page=this.getAttribute('data-page');if(page==='publish'){e.preventDefault();if(typeof window.openMobileEditor==='function'){window.openMobileEditor();}
 return;}
 if(page==='home'&&window.location.pathname!=='/'){return;}
 e.preventDefault();if(page!==currentPage){setActiveNavItem(page);switchPage(page);}});});}
@@ -91,7 +856,9 @@ function confirmDeletePost(postId,postTitle){const modal=document.createElement(
 function closeDeleteModal(){if(window.deleteModal){window.deleteModal.classList.remove('show');setTimeout(()=>{window.deleteModal.remove();window.deleteModal=null;},300);}}
 async function deletePost(postId){try{const csrfToken=document.querySelector('meta[name="csrf_token"]')?.getAttribute('content')||'';const response=await fetch(`/admin/delete/${postId}`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken}});const data=await response.json();if(data.success){closeDeleteModal();showToast('文章已删除');loadMyPosts(currentMyPostsTab);}else{showToast('删除失败：'+(data.error||'未知错误'));}}catch(error){console.error('Failed to delete post:',error);showToast('删除失败，请稍后重试');}}
 function showToast(message){const toast=document.createElement('div');toast.className='toast-message';toast.textContent=message;document.body.appendChild(toast);setTimeout(()=>{toast.classList.add('show');},10);setTimeout(()=>{toast.classList.remove('show');setTimeout(()=>{toast.remove();},300);},2000);}
-window.MobileLayout={setActiveNavItem,switchPage,scrollToTop,loadMyPosts};window.confirmDeletePost=confirmDeletePost;window.closeDeleteModal=closeDeleteModal;window.deletePost=deletePost;})();(function(){'use strict';let selectedTags=[];let selectedCategory=null;let selectedImages=[];let accessLevel='public';let draftKey='mobile_editor_draft';let isPublishing=false;let editorStatusTimer=null;document.addEventListener('DOMContentLoaded',function(){initMobileEditor();loadDraft();updateAccessIcon();});function openMobileEditor(){const overlay=document.getElementById('mobileEditorOverlay');const panel=document.getElementById('mobileEditorPanel');if(overlay&&panel){overlay.classList.add('show');panel.classList.add('show');document.body.style.overflow='hidden';setTimeout(()=>{const textarea=document.getElementById('mobileEditorTextarea');if(textarea)textarea.focus();},300);}}
+window.MobileLayout={setActiveNavItem,switchPage,scrollToTop,loadMyPosts};window.confirmDeletePost=confirmDeletePost;window.closeDeleteModal=closeDeleteModal;window.deletePost=deletePost;})();
+/* --- static/js/mobile-editor.js --- */
+(function(){'use strict';let selectedTags=[];let selectedCategory=null;let selectedImages=[];let accessLevel='public';let draftKey='mobile_editor_draft';let isPublishing=false;let editorStatusTimer=null;document.addEventListener('DOMContentLoaded',function(){initMobileEditor();loadDraft();updateAccessIcon();});function openMobileEditor(){const overlay=document.getElementById('mobileEditorOverlay');const panel=document.getElementById('mobileEditorPanel');if(overlay&&panel){overlay.classList.add('show');panel.classList.add('show');document.body.style.overflow='hidden';setTimeout(()=>{const textarea=document.getElementById('mobileEditorTextarea');if(textarea)textarea.focus();},300);}}
 window.openMobileEditor=openMobileEditor;function closeMobileEditor(){const overlay=document.getElementById('mobileEditorOverlay');const panel=document.getElementById('mobileEditorPanel');if(overlay&&panel){overlay.classList.remove('show');panel.classList.remove('show');document.body.style.overflow='';}}
 window.closeMobileEditor=closeMobileEditor;function hasMeaningfulDraftContent(){const textarea=document.getElementById('mobileEditorTextarea');const title=document.getElementById('mobileEditorTitle');return Boolean((textarea&&textarea.value.trim().length>0)||(title&&title.value.trim().length>0)||selectedImages.length>0||selectedTags.length>0||selectedCategory||accessLevel!=='public');}
 function dismissEditor(){if(isPublishing){showToast('正在发送，请稍候','error');setEditorStatus('正在发送，请稍候...','info',{persistent:true});return;}
@@ -189,7 +956,9 @@ return`${titleCandidate||'移动随记'}· ${fallbackDate}`;}
 function formatMobilePostDate(){const now=new Date();const year=now.getFullYear();const month=String(now.getMonth()+1).padStart(2,'0');const day=String(now.getDate()).padStart(2,'0');return`${year}-${month}-${day}`;}
 function escapeHtml(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function escapeHtmlAttr(value){return escapeHtml(value);}
-window.MobileEditor={open:openMobileEditor,close:closeMobileEditor,publishPost};})();(function(){'use strict';let images=[];let currentIndex=0;let currentShowingOriginal=false;function notify(message,type='success'){if(window.showAppToast){window.showAppToast(message,type);}}
+window.MobileEditor={open:openMobileEditor,close:closeMobileEditor,publishPost};})();
+/* --- static/js/lightbox.js --- */
+(function(){'use strict';let images=[];let currentIndex=0;let currentShowingOriginal=false;function notify(message,type='success'){if(window.showAppToast){window.showAppToast(message,type);}}
 function createLightbox(){if(document.querySelector('.lightbox-overlay')){return;}
 const overlay=document.createElement('div');overlay.className='lightbox-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-label','图片预览');const container=document.createElement('div');container.className='lightbox-container';const img=document.createElement('img');img.className='lightbox-img';img.alt='灯箱图片';const closeBtn=document.createElement('button');closeBtn.className='lightbox-close';closeBtn.innerHTML='×';closeBtn.setAttribute('aria-label','关闭');const prevBtn=document.createElement('button');prevBtn.className='lightbox-nav lightbox-prev';prevBtn.innerHTML='‹';prevBtn.setAttribute('aria-label','上一张');const nextBtn=document.createElement('button');nextBtn.className='lightbox-nav lightbox-next';nextBtn.innerHTML='›';nextBtn.setAttribute('aria-label','下一张');const counter=document.createElement('div');counter.className='lightbox-counter';const caption=document.createElement('div');caption.className='lightbox-caption';const toolbar=document.createElement('div');toolbar.className='lightbox-toolbar';const originalBtn=document.createElement('button');originalBtn.className='lightbox-original-btn';originalBtn.innerHTML='📷 原图';originalBtn.setAttribute('aria-label','查看原图');const downloadBtn=document.createElement('button');downloadBtn.className='lightbox-download-btn';downloadBtn.innerHTML='⬇️ 下载';downloadBtn.setAttribute('aria-label','下载图片');toolbar.appendChild(originalBtn);toolbar.appendChild(downloadBtn);const loading=document.createElement('div');loading.className='lightbox-loading';loading.innerHTML='加载中...';container.appendChild(img);container.appendChild(loading);overlay.appendChild(container);overlay.appendChild(closeBtn);overlay.appendChild(prevBtn);overlay.appendChild(nextBtn);overlay.appendChild(counter);overlay.appendChild(caption);overlay.appendChild(toolbar);document.body.appendChild(overlay);bindLightboxEvents(overlay,img,closeBtn,prevBtn,nextBtn,originalBtn,downloadBtn);}
 function bindLightboxEvents(overlay,img,closeBtn,prevBtn,nextBtn,originalBtn,downloadBtn){overlay.addEventListener('click',function(e){if(e.target===overlay){closeLightbox();}});closeBtn.addEventListener('click',closeLightbox);prevBtn.addEventListener('click',function(e){e.stopPropagation();showPreviousImage();});nextBtn.addEventListener('click',function(e){e.stopPropagation();showNextImage();});if(originalBtn){originalBtn.addEventListener('click',function(e){e.stopPropagation();toggleOriginalImage(img,originalBtn);});}
@@ -224,12 +993,18 @@ postContent.addEventListener('click',function(e){const img=e.target.closest('img
 const index=parseInt(img.dataset.lightboxIndex);if(!isNaN(index)){e.preventDefault();openLightbox(index);}});}
 function init(){if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',initialize);}else{initialize();}}
 function initialize(){createLightbox();collectImages();addImageClickHandlers();console.log(`图片灯箱已初始化，找到 ${images.length}张图片`);}
-init();})();document.addEventListener('DOMContentLoaded',function(){const codeBlocks=document.querySelectorAll('.post-content pre > code');const toast=document.createElement('div');toast.className='code-copy-toast';toast.textContent='代码已复制！';document.body.appendChild(toast);codeBlocks.forEach(function(codeBlock){const pre=codeBlock.parentElement;const copyBtn=document.createElement('button');copyBtn.className='code-copy-btn';copyBtn.innerHTML='<span>📋</span><span>复制</span>';copyBtn.setAttribute('aria-label','复制代码');copyBtn.type='button';copyBtn.addEventListener('click',async function(){const code=codeBlock.textContent;try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(code);}else{const textArea=document.createElement('textarea');textArea.value=code;textArea.style.position='fixed';textArea.style.left='-999999px';document.body.appendChild(textArea);textArea.select();try{document.execCommand('copy');}catch(err){console.error('复制失败:',err);throw err;}
+init();})();
+/* --- static/js/code-copy.js --- */
+document.addEventListener('DOMContentLoaded',function(){const codeBlocks=document.querySelectorAll('.post-content pre > code');const toast=document.createElement('div');toast.className='code-copy-toast';toast.textContent='代码已复制！';document.body.appendChild(toast);codeBlocks.forEach(function(codeBlock){const pre=codeBlock.parentElement;const copyBtn=document.createElement('button');copyBtn.className='code-copy-btn';copyBtn.innerHTML='<span>📋</span><span>复制</span>';copyBtn.setAttribute('aria-label','复制代码');copyBtn.type='button';copyBtn.addEventListener('click',async function(){const code=codeBlock.textContent;try{if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(code);}else{const textArea=document.createElement('textarea');textArea.value=code;textArea.style.position='fixed';textArea.style.left='-999999px';document.body.appendChild(textArea);textArea.select();try{document.execCommand('copy');}catch(err){console.error('复制失败:',err);throw err;}
 document.body.removeChild(textArea);}
-toast.classList.add('show');copyBtn.innerHTML='<span>✓</span><span>已复制</span>';setTimeout(()=>{toast.classList.remove('show');copyBtn.innerHTML='<span>📋</span><span>复制</span>';},2000);}catch(error){console.error('复制失败:',error);toast.textContent='复制失败，请手动选择';toast.style.backgroundColor='var(--error-color, #ef4444)';toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');toast.textContent='代码已复制！';toast.style.backgroundColor='var(--success-color, #10b981)';},2000);}});pre.appendChild(copyBtn);setTimeout(()=>{copyBtn.classList.add('visible');},100);});});document.addEventListener('DOMContentLoaded',function(){const wechatBtn=document.querySelector('.share-btn.wechat');const copyBtn=document.querySelector('.share-btn.copy');const modal=document.querySelector('.modal-overlay');const modalClose=document.querySelector('.modal-close');const qrcodeImg=document.querySelector('.qrcode-img');const toast=document.querySelector('.copy-toast');if(wechatBtn&&modal){wechatBtn.addEventListener('click',async function(e){e.preventDefault();const url=window.location.href;try{const response=await fetch(`/api/share/qrcode?url=${encodeURIComponent(url)}`);const data=await response.json();if(data.qrcode){qrcodeImg.src=data.qrcode;modal.classList.add('active');}}catch(error){console.error('Failed to generate QR code:',error);}});}
+toast.classList.add('show');copyBtn.innerHTML='<span>✓</span><span>已复制</span>';setTimeout(()=>{toast.classList.remove('show');copyBtn.innerHTML='<span>📋</span><span>复制</span>';},2000);}catch(error){console.error('复制失败:',error);toast.textContent='复制失败，请手动选择';toast.style.backgroundColor='var(--error-color, #ef4444)';toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');toast.textContent='代码已复制！';toast.style.backgroundColor='var(--success-color, #10b981)';},2000);}});pre.appendChild(copyBtn);setTimeout(()=>{copyBtn.classList.add('visible');},100);});});
+/* --- static/js/share.js --- */
+document.addEventListener('DOMContentLoaded',function(){const wechatBtn=document.querySelector('.share-btn.wechat');const copyBtn=document.querySelector('.share-btn.copy');const modal=document.querySelector('.modal-overlay');const modalClose=document.querySelector('.modal-close');const qrcodeImg=document.querySelector('.qrcode-img');const toast=document.querySelector('.copy-toast');if(wechatBtn&&modal){wechatBtn.addEventListener('click',async function(e){e.preventDefault();const url=window.location.href;try{const response=await fetch(`/api/share/qrcode?url=${encodeURIComponent(url)}`);const data=await response.json();if(data.qrcode){qrcodeImg.src=data.qrcode;modal.classList.add('active');}}catch(error){console.error('Failed to generate QR code:',error);}});}
 if(modalClose){modalClose.addEventListener('click',function(){modal.classList.remove('active');});}
 if(modal){modal.addEventListener('click',function(e){if(e.target===modal){modal.classList.remove('active');}});}
-if(copyBtn){copyBtn.addEventListener('click',async function(e){e.preventDefault();try{await navigator.clipboard.writeText(window.location.href);toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');},2000);}catch(error){console.error('Failed to copy:',error);}});}});class ShortcutHandler{constructor(){this.shortcuts=new Map();this.init();}
+if(copyBtn){copyBtn.addEventListener('click',async function(e){e.preventDefault();try{await navigator.clipboard.writeText(window.location.href);toast.classList.add('show');setTimeout(()=>{toast.classList.remove('show');},2000);}catch(error){console.error('Failed to copy:',error);}});}});
+/* --- static/js/shortcuts.js --- */
+class ShortcutHandler{constructor(){this.shortcuts=new Map();this.init();}
 init(){document.addEventListener('keydown',this.handleKeyDown.bind(this));}
 register(key,callback,description=''){this.shortcuts.set(key.toLowerCase(),{callback,description});}
 handleKeyDown(e){const key=this.getKeyString(e);const shortcut=this.shortcuts.get(key);if(shortcut){e.preventDefault();e.stopPropagation();shortcut.callback(e);}}
@@ -277,10 +1052,14 @@ getCurrentPageShortcuts(){const pageType=document.body.dataset.page||'home';cons
 show(){if(!this.hintElement)return;this.hintElement.style.display='block';this.autoFadeTimer=setTimeout(()=>{this.hide();},3000);}
 hide(){if(!this.hintElement)return;if(this.autoFadeTimer){clearTimeout(this.autoFadeTimer);this.autoFadeTimer=null;}
 this.hintElement.style.opacity='0';setTimeout(()=>{if(this.hintElement){this.hintElement.style.display='none';}},300);sessionStorage.setItem('shortcutHintDismissed','true');}}
-document.addEventListener('DOMContentLoaded',()=>{window.shortcutHint=new ShortcutHint();});document.addEventListener('DOMContentLoaded',function(){const themeToggle=document.getElementById('themeToggle');if(!themeToggle){const savedTheme=localStorage.getItem('theme')||'light';if(savedTheme==='dark'){document.body.classList.add('dark-theme');}
+document.addEventListener('DOMContentLoaded',()=>{window.shortcutHint=new ShortcutHint();});
+/* --- static/js/theme.js --- */
+document.addEventListener('DOMContentLoaded',function(){const themeToggle=document.getElementById('themeToggle');if(!themeToggle){const savedTheme=localStorage.getItem('theme')||'light';if(savedTheme==='dark'){document.body.classList.add('dark-theme');}
 return;}
 const themeIcon=themeToggle.querySelector('.theme-toggle-icon');const themeText=themeToggle.querySelector('.theme-toggle-text');const savedTheme=localStorage.getItem('theme')||'light';function applyTheme(theme){if(theme==='dark'){document.body.classList.add('dark-theme');themeIcon.textContent='☀️';themeText.textContent='亮色';}else{document.body.classList.remove('dark-theme');themeIcon.textContent='🌙';themeText.textContent='暗色';}}
-applyTheme(savedTheme);themeToggle.addEventListener('click',function(){const isDark=document.body.classList.contains('dark-theme');const newTheme=isDark?'light':'dark';applyTheme(newTheme);localStorage.setItem('theme',newTheme);});});class DraftSyncManager{constructor(){this.autoSaveInterval=15000;this.autoSaveTimer=null;this.currentDraftId=null;this.lastSyncTime=null;this.deviceInfo=this.getDeviceInfo();this.postId=null;this.pendingRecoveryDraft=null;}
+applyTheme(savedTheme);themeToggle.addEventListener('click',function(){const isDark=document.body.classList.contains('dark-theme');const newTheme=isDark?'light':'dark';applyTheme(newTheme);localStorage.setItem('theme',newTheme);});});
+/* --- static/js/draft-sync.js --- */
+class DraftSyncManager{constructor(){this.autoSaveInterval=15000;this.autoSaveTimer=null;this.currentDraftId=null;this.lastSyncTime=null;this.deviceInfo=this.getDeviceInfo();this.postId=null;this.pendingRecoveryDraft=null;}
 init(postId=null){this.postId=postId;this.loadLastSyncTime();this.observeContentChanges();this.checkForExistingDrafts();this.emitStatus('idle','未修改');}
 observeContentChanges(){const titleInput=document.getElementById('title');const contentTextarea=document.getElementById('content');const categoryInput=document.getElementById('category_id');const tagsInput=document.getElementById('tags');const accessInput=document.getElementById('access_level');const debouncedSave=this.debounce(()=>{this.saveDraft();},this.autoSaveInterval);const markDirty=()=>this.emitStatus('dirty','有未保存修改');titleInput?.addEventListener('input',markDirty);titleInput?.addEventListener('input',debouncedSave);contentTextarea?.addEventListener('input',markDirty);contentTextarea?.addEventListener('input',debouncedSave);categoryInput?.addEventListener('change',markDirty);categoryInput?.addEventListener('change',debouncedSave);tagsInput?.addEventListener('input',markDirty);tagsInput?.addEventListener('input',debouncedSave);accessInput?.addEventListener('change',markDirty);accessInput?.addEventListener('change',debouncedSave);window.addEventListener('editor:content-change',markDirty);window.addEventListener('editor:content-change',debouncedSave);window.addEventListener('editor:images-updated',()=>{this.emitStatus('dirty','图片已更新，等待保存');});}
 async saveDraft(){const saveStatus=document.getElementById('saveStatus');if(saveStatus){saveStatus.textContent='正在保存...';saveStatus.className='save-status saving';}
@@ -328,7 +1107,9 @@ cleanupServerDraft(){if(!this.currentDraftId)return;fetch(`/api/drafts/${this.cu
 loadLastSyncTime(){const key=`last_sync_${this.postId||'new'}`;const time=localStorage.getItem(key);if(time){this.lastSyncTime=time;}}
 showNotification(message,type='info'){if(typeof showNotification==='function'){showNotification(message,type);}else{console.log(`[${type}]${message}`);}}
 emitStatus(status,message,meta={}){window.dispatchEvent(new CustomEvent('draftsync:status',{detail:{status,message,postId:this.postId,serverTime:meta.serverTime||this.lastSyncTime||null,localTime:meta.localTime||this.getFromLocalStorage()?.saved_at||null}}));}}
-document.addEventListener('DOMContentLoaded',()=>{const pageType=document.body.dataset.page;if(pageType==='editor'||pageType==='admin'){const postIdElement=document.querySelector('[data-post-id]');const postId=postIdElement?.dataset.postId?parseInt(postIdElement.dataset.postId):null;window.draftSync=new DraftSyncManager();window.draftSync.init(postId);window.recoverDraft=()=>window.draftSync?.recoverPendingDraft();window.discardDraft=()=>window.draftSync?.discardPendingDraft();}});(function(){'use strict';const state={aiSuggestion:null,historyCards:[],imageNotes:new Map(),isOrganizing:false,lastOrganizedFingerprint:'',autoOrganizeTimer:null};document.addEventListener('DOMContentLoaded',()=>{if(document.body.dataset.page!=='editor'){return;}
+document.addEventListener('DOMContentLoaded',()=>{const pageType=document.body.dataset.page;if(pageType==='editor'||pageType==='admin'){const postIdElement=document.querySelector('[data-post-id]');const postId=postIdElement?.dataset.postId?parseInt(postIdElement.dataset.postId):null;window.draftSync=new DraftSyncManager();window.draftSync.init(postId);window.recoverDraft=()=>window.draftSync?.recoverPendingDraft();window.discardDraft=()=>window.draftSync?.discardPendingDraft();}});
+/* --- static/js/editor-workbench.js --- */
+(function(){'use strict';const state={aiSuggestion:null,historyCards:[],imageNotes:new Map(),isOrganizing:false,lastOrganizedFingerprint:'',autoOrganizeTimer:null};document.addEventListener('DOMContentLoaded',()=>{if(document.body.dataset.page!=='editor'){return;}
 initAssistDock();initAiOrganizer();initAiAssistActions();initHistoryNotes();initDraftHealth();initImageWorkbench();updateDraftHealth({status:'idle',message:'未修改'});updateAiSuggestionState('待整理');});function initAssistDock(){const toggles=Array.from(document.querySelectorAll('.assist-toggle'));toggles.forEach(button=>{button.addEventListener('click',()=>{const panelName=button.dataset.panelTarget;const isActive=button.classList.contains('is-active');setActivePanel(isActive?null:panelName);});});}
 function setActivePanel(panelName){document.querySelectorAll('.assist-toggle').forEach(button=>{button.classList.toggle('is-active',button.dataset.panelTarget===panelName);});document.querySelectorAll('.assist-panel').forEach(panel=>{panel.hidden=panel.dataset.panelName!==panelName;});}
 function getCsrfToken(){return document.querySelector('meta[name="csrf_token"]')?.content||'';}
@@ -395,13 +1176,17 @@ function truncate(text,limit){const normalized=String(text||'').replace(/\s+/g,'
 function escapeHtml(text){const div=document.createElement('div');div.textContent=text||'';return div.innerHTML;}
 function escapeAttribute(text){return String(text||'').replace(/"/g,'&quot;');}
 function debounce(fn,wait){let timer=null;return(...args)=>{window.clearTimeout(timer);timer=window.setTimeout(()=>fn(...args),wait);};}
-window.EditorWorkbench={openPanel:setActivePanel,updateAiSuggestionState};})();document.addEventListener('DOMContentLoaded',function(){const loadMoreBtn=document.getElementById('load-more');const postsContainer=document.getElementById('posts-container');if(!loadMoreBtn||!postsContainer)return;let currentCursor=null;let currentPerPage=20;loadMoreBtn.addEventListener('click',async function(){const categoryId=this.dataset.category;const originalText=this.textContent;this.disabled=true;this.textContent='加载中...';try{let url=`/api/posts?per_page=${currentPerPage}`;if(currentCursor){url+=`&cursor=${encodeURIComponent(currentCursor)}`;}
+window.EditorWorkbench={openPanel:setActivePanel,updateAiSuggestionState};})();
+/* --- static/js/pagination.js --- */
+document.addEventListener('DOMContentLoaded',function(){const loadMoreBtn=document.getElementById('load-more');const postsContainer=document.getElementById('posts-container');if(!loadMoreBtn||!postsContainer)return;let currentCursor=null;let currentPerPage=20;loadMoreBtn.addEventListener('click',async function(){const categoryId=this.dataset.category;const originalText=this.textContent;this.disabled=true;this.textContent='加载中...';try{let url=`/api/posts?per_page=${currentPerPage}`;if(currentCursor){url+=`&cursor=${encodeURIComponent(currentCursor)}`;}
 if(categoryId){url+=`&category_id=${categoryId}`;}
 const response=await fetch(url);const data=await response.json();if(data.success){data.posts.forEach(post=>{const postCard=createPostCard(post);postsContainer.appendChild(postCard);});currentCursor=data.next_cursor;if(data.has_more){this.disabled=false;this.textContent=originalText;}else{this.remove();}
 if(window.loadingUtils&&window.loadingUtils.imageObserver){document.querySelectorAll('img[data-src]').forEach(img=>{window.loadingUtils.imageObserver.observe(img);});}
 if(window.ProgressiveLoader){const newItems=postsContainer.querySelectorAll('.post-card');const startIndex=Math.max(0,newItems.length-data.posts.length);for(let i=startIndex;i<newItems.length;i++){const item=newItems[i];item.style.opacity='0';item.style.transform='translateY(20px)';setTimeout(()=>{item.style.transition='opacity 0.4s ease, transform 0.4s ease';item.style.opacity='1';item.style.transform='translateY(0)';},(i-startIndex)*100);}}}else{throw new Error(data.error||'加载失败');}}catch(error){console.error('Failed to load more posts:',error);this.disabled=false;this.textContent='加载失败，重试';}});function createPostCard(post){const article=document.createElement('article');article.className='post-card';const link=document.createElement('a');link.href=`/post/${post.id}`;link.className='post-card-link';const meta=[];if(post.category_name){meta.push(`<span class="post-category">${escapeHtml(post.category_name)}</span>`);meta.push('<span>·</span>');}
 meta.push(`<time datetime="${post.created_at}">${escapeHtml((post.created_at||'').substring(0,10))}</time>`);link.innerHTML=`<h2>${escapeHtml(post.title)}</h2><div class="post-meta">${meta.join('')}</div><div class="post-excerpt">${escapeHtml((post.content||'').substring(0,200))}...</div>`;article.appendChild(link);return article;}
-function escapeHtml(text){const div=document.createElement('div');div.textContent=text;return div.innerHTML;}});(function(){'use strict';const STORAGE_KEY='passkey:last-used';function decodeBase64Url(value){const padded=value.replace(/-/g,'+').replace(/_/g,'/')
+function escapeHtml(text){const div=document.createElement('div');div.textContent=text;return div.innerHTML;}});
+/* --- static/js/passkeys.js --- */
+(function(){'use strict';const STORAGE_KEY='passkey:last-used';function decodeBase64Url(value){const padded=value.replace(/-/g,'+').replace(/_/g,'/')
 +'='.repeat((4-value.length%4)%4);const binary=atob(padded);const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++){bytes[i]=binary.charCodeAt(i);}
 return bytes.buffer;}
 function encodeBase64Url(buffer){const bytes=new Uint8Array(buffer);let binary='';for(let i=0;i<bytes.byteLength;i++){binary+=String.fromCharCode(bytes[i]);}
@@ -418,7 +1203,7 @@ function showToast(message,type){if(window.showAppToast){window.showAppToast(mes
 console.warn('[Passkey]',message);}
 function isIpHostname(hostname){if(!hostname)return false;if(/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname))return true;return hostname.includes(':');}
 function getHostAdvice(){const{hostname,port,pathname}=window.location;if(hostname==='localhost'){return{valid:true,recommendedUrl:''};}
-if(isIpHostname(hostname)){const suffix=port?`:${port}`:'';return{valid:false,recommendedUrl:`http:message:'Passkey 在本地开发时请使用 localhost 打开，不要直接用 127.0.0.1 或局域网 IP。',};}
+if(isIpHostname(hostname)){const suffix=port?`:${port}`:'';return{valid:false,recommendedUrl:`http://localhost${suffix}${pathname}`,message:'Passkey 在本地开发时请使用 localhost 打开，不要直接用 127.0.0.1 或局域网 IP。',};}
 return{valid:true,recommendedUrl:''};}
 async function getCapabilitySummary(){const summary={supported:Boolean(window.PublicKeyCredential&&navigator.credentials),platformAuthenticator:false,conditionalMediation:false,remembered:getRememberedPasskeyState(),};if(!summary.supported){return summary;}
 try{if(typeof PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable==='function'){summary.platformAuthenticator=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();}}catch(error){summary.platformAuthenticator=false;}

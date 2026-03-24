@@ -351,13 +351,10 @@
         <p>&copy; 2025 我的博客. All rights reserved.</p>
     </footer>
 
+    <!-- bundle.js 包含: main, lazyload, loading, infinite-scroll, mobile-layout, shortcuts, theme, pagination 等 -->
     <script src="{{ static_file('js/main.js') }}"></script>
-    <script src="{{ static_file('js/mobile-layout.js') }}"></script>
-    <script src="{{ static_file('js/infinite-scroll.js') }}"></script>
+    <!-- pull-refresh 不在 bundle 中，需要单独加载 -->
     <script src="{{ static_file('js/pull-refresh.js') }}"></script>
-    <script src="{{ static_file('js/theme.js') }}"></script>
-    <script src="{{ static_file('js/loading.js') }}"></script>
-    <script src="{{ static_file('js/pagination.js') }}"></script>
 
     <script>
     // Dropdown Menu Click Handler
@@ -424,12 +421,6 @@
         });
     });
     </script>
-
-    <!-- 全局快捷键 -->
-    <script src="{{ static_file('js/shortcuts.js') }}"></script>
-
-    <!-- 图片懒加载 -->
-    <script src="{{ static_file('js/lazyload.js') }}"></script>
 
     {% block scripts %}{% endblock %}
 
