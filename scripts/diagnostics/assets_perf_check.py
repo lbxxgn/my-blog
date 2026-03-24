@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
-"""
-前端性能测试脚本
-用于评估静态资源优化效果
-"""
+"""静态资源体积与 bundle 检查脚本。"""
+
 import os
-import sys
-import time
 from pathlib import Path
 
 def get_file_size_mb(file_path):
@@ -94,7 +90,7 @@ def test_template_changes():
             print("✗ 未使用合并后的JS bundle")
 
 def main():
-    os.chdir(Path(__file__).parent)
+    os.chdir(Path(__file__).resolve().parents[2])
 
     print("🚀 前端性能测试报告")
     print("=" * 50)

@@ -27,7 +27,7 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_DIR))
 
-from config import DATABASE_URL
+from backend.config import DATABASE_URL
 
 def backup_database(db_path):
     """备份现有数据库"""

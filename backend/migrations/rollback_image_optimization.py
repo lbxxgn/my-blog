@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-import config
+import backend.config as config
 
 def rollback():
     """执行回滚"""

@@ -31,7 +31,7 @@ from utils.image_cleanup import (
     print_cleanup_report,
     CleanupLogger
 )
-from config import get_backup_path
+from backend.config import get_backup_path
 
 
 def clean_local_images(dry_run=True):

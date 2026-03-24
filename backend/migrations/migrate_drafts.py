@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-import config
+import backend.config as config
 
 def migrate():
     """执行迁移"""

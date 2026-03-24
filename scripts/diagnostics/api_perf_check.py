@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""
-性能测试脚本，用于验证后端优化效果
-"""
+"""后端接口性能检查脚本。"""
 
-import time
-import requests
 from datetime import datetime
+from pathlib import Path
+import sys
+import time
+
+import requests
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 BASE_URL = "http://localhost:5001"
 

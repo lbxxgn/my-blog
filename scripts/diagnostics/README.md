@@ -4,7 +4,7 @@
 
 常用脚本：
 
-- `python scripts/diagnostics/performance-test.py`
-- `python scripts/diagnostics/performance_test.py`
-- `node scripts/diagnostics/test-lazyload.js`
-- `python scripts/diagnostics/test_asset_optimizer.py`
+- `python scripts/diagnostics/api_perf_check.py`
+- `python scripts/diagnostics/assets_perf_check.py`
+- `node scripts/diagnostics/lazyload_check.js`
+- `python scripts/diagnostics/asset_optimizer_check.py`

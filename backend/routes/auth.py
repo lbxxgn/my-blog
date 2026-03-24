@@ -19,7 +19,7 @@ from models import (
 )
 from auth_decorators import login_required
 from logger import log_login
-from config import PASSKEY_RP_NAME, PASSKEY_RP_ID, PASSKEY_ALLOWED_ORIGINS
+from backend.config import PASSKEY_RP_NAME, PASSKEY_RP_ID, PASSKEY_ALLOWED_ORIGINS
 from webauthn import (
     generate_registration_options,
     generate_authentication_options,

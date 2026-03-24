@@ -5,10 +5,15 @@ Pytest 配置和测试固件 (fixtures)
 import os
 import sys
 import tempfile
+from pathlib import Path
 import pytest
 
-# 将 backend 目录添加到 Python 路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+BACKEND_DIR = PROJECT_ROOT / 'backend'
+
+# 同时保留项目根目录和 backend 目录，兼容现有测试导入风格
+sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(BACKEND_DIR))
 
 
 @pytest.fixture(scope='function')
@@ -20,7 +25,7 @@ def temp_db():
     测试结束后自动清理。
     """
     import importlib
-    import config
+    import backend.config as config
     import models
     import uuid
     import sqlite3

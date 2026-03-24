@@ -6,7 +6,7 @@ from pathlib import Path
 from contextlib import contextmanager
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
-import config
+import backend.config as config
 
 # Setup logger
 logger = logging.getLogger(__name__)

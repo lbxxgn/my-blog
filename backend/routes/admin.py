@@ -29,7 +29,7 @@ from models import (
 )
 from auth_decorators import login_required, can_manage_users
 from logger import log_operation, log_error, log_sql
-from config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
+from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 
 # 创建管理后台蓝图
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
