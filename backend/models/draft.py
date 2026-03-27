@@ -117,7 +117,6 @@ def save_draft(user_id: int, post_id: Optional[int], title: str,
             cursor.execute('''
                 INSERT INTO drafts (user_id, post_id, title, content, category_id, tags, device_info)
                 VALUES (?, NULL, ?, ?, ?, ?, ?)
-                RETURNING id, updated_at
             ''', (user_id, title, content, category_id, tags_json, device_info))
         else:
             cursor.execute('''
@@ -131,12 +130,14 @@ def save_draft(user_id: int, post_id: Optional[int], title: str,
                     tags = excluded.tags,
                     device_info = excluded.device_info,
                     updated_at = CURRENT_TIMESTAMP
-                RETURNING id, updated_at
             ''', (user_id, post_id, title, content, category_id, tags_json, device_info))
 
+        draft_id = cursor.lastrowid
+        cursor.execute('''
+            SELECT updated_at FROM drafts WHERE id = ?
+        ''', (draft_id,))
         result = cursor.fetchone()
-        draft_id = result['id']
-        updated_at = result['updated_at']
+        updated_at = result['updated_at'] if result else None
 
         conn.commit()
 
@@ -190,11 +191,13 @@ def update_draft(draft_id: int, user_id: int, title: str,
 
     try:
         cursor.execute('''
-            UPDATE drafts
-            SET title = ?, content = ?, category_id = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+            UPDATE
+            drafts SET title = ?, content = ?, category_id = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND user_id = ?
-            RETURNING *
         ''', (title, content, category_id, json.dumps(tags) if tags else None, draft_id, user_id))
+        cursor.execute('''
+            SELECT * FROM drafts WHERE id = ? AND user_id = ?
+        ''', (draft_id, user_id))
         row = cursor.fetchone()
         conn.commit()
         return _row_to_draft(row) if row else None
