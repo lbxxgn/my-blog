@@ -16,9 +16,10 @@ from models import (
     create_card, get_card_by_id, get_cards_by_user,
     update_card_status, update_card, delete_card, get_timeline_items,
     get_user_by_id, merge_cards_to_post, get_user_ai_config, ai_merge_cards_to_post,
-    create_annotation, get_annotations_by_url
+    create_annotation, get_annotations_by_url, create_post
 )
 import json
+from datetime import datetime
 from logger import log_operation
 
 knowledge_base_bp = Blueprint('knowledge_base', __name__)
@@ -300,20 +301,24 @@ def quick_note():
             if not content:
                 return jsonify({'success': False, 'error': '内容不能为空'}), 400
 
-            # Create card with 'idea' status
-            card_id = create_card(
-                user_id=session['user_id'],
-                title=title if title else None,
+            # Create post with type='note'
+            post_id = create_post(
+                title=title if title else datetime.now().strftime('%Y-%m-%d %H:%M'),
                 content=content,
-                status='idea',
-                source='web'
+                type='note',
+                is_published=True,
+                author_id=session['user_id']
             )
 
             log_operation(session['user_id'], session.get('username', 'Unknown'),
-                          f'创建快速笔记', f'卡片ID: {card_id}')
+                          f'创建快速笔记', f'文章ID: {post_id}')
 
             if request.is_json:
-                return jsonify({'success': True, 'card_id': card_id})
+                return jsonify({
+                    'success': True,
+                    'post_id': post_id,
+                    'message': '笔记已保存，已在内容流中可见'
+                })
             else:
                 return redirect(url_for('knowledge_base.timeline'))
         except Exception as e:
