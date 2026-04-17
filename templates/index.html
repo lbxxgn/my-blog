@@ -502,10 +502,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 // 显示成功提示
                 closeModal();
-                notify('记事保存成功');
+                notify(data.message || '笔记已保存，已在内容流中可见');
 
-                // 可选：跳转到时间线查看
-                // window.location.href = '/knowledge_base/timeline';
+                // 提供跳转选项
+                setTimeout(() => {
+                    if (confirm('笔记已保存！去内容流查看？')) {
+                        window.location.href = '/';
+                    }
+                }, 500);
             } else {
                 notify('保存失败：' + (data.error || '未知错误'), 'error');
                 submitBtn.disabled = false;
