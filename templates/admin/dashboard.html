@@ -29,6 +29,14 @@
                     {% endfor %}
                 </select>
             </div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <label for="typeFilter" style="font-weight: 500;">筛选类型：</label>
+                <select id="typeFilter" onchange="filterByType()" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem;">
+                    <option value="" {% if not current_type %}selected{% endif %}>全部</option>
+                    <option value="post" {% if current_type == 'post' %}selected{% endif %}>文章</option>
+                    <option value="note" {% if current_type == 'note' %}selected{% endif %}>笔记</option>
+                </select>
+            </div>
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <label for="perPageSelect" style="font-weight: 500; font-size: 0.9rem;">每页条数：</label>
                 <select id="perPageSelect" onchange="changePerPage()" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem;">
@@ -56,6 +64,7 @@
                 <tr>
                     <th style="width: 50px;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                     <th>标题</th>
+                    <th>类型</th>
                     <th>分类</th>
                     <th>状态</th>
                     <th>创建时间</th>
@@ -67,6 +76,13 @@
                     <tr data-post-id="{{ post.id }}">
                         <td><input type="checkbox" class="post-checkbox" value="{{ post.id }}" onchange="updateBatchActions()"></td>
                         <td><a href="{{ url_for('view_post', post_id=post.id) }}">{{ post.title }}</a></td>
+                        <td>
+                            {% if post.type == 'note' %}
+                                <span class="badge badge-note">笔记</span>
+                            {% else %}
+                                <span class="badge badge-post">文章</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if post.category_name %}
                                 <span class="post-category">{{ post.category_name }}</span>
@@ -84,6 +100,12 @@
                         <td>{{ post.created_at|localtime }}</td>
                         <td class="actions">
                             <a href="{{ url_for('edit_post', post_id=post.id) }}" class="btn btn-sm">编辑</a>
+                            {% if post.type == 'note' %}
+                            <form method="POST" action="{{ url_for('convert_note_to_post', post_id=post.id) }}" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <button type="submit" class="btn btn-sm btn-info">转文章</button>
+                            </form>
+                            {% endif %}
                             <form method="POST" action="{{ url_for('delete_post_route', post_id=post.id) }}" class="delete-form"
                                   data-confirm="确定删除这篇文章？"
                                   data-confirm-destructive="true"
@@ -107,8 +129,8 @@
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center;">
                 {% if pagination.page > 1 %}
-                <a href="{{ url_for('admin_dashboard', page=1, per_page=pagination.per_page, category_id=current_category_id) }}" class="btn btn-sm">首页</a>
-                <a href="{{ url_for('admin_dashboard', page=pagination.page-1, per_page=pagination.per_page, category_id=current_category_id) }}" class="btn btn-sm">上一页</a>
+                <a href="{{ url_for('admin_dashboard', page=1, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-sm">首页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.page-1, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-sm">上一页</a>
                 {% endif %}
 
                 <span style="display: flex; gap: 0.25rem; align-items: center;">
@@ -116,19 +138,19 @@
                         {% if p == pagination.page %}
                         <span style="padding: 0.5rem 0.75rem; background: var(--primary-color); color: white; border-radius: 4px; font-weight: 500;">{{ p }}</span>
                         {% else %}
-                        <a href="{{ url_for('admin_dashboard', page=p, per_page=pagination.per_page, category_id=current_category_id) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ p }}</a>
+                        <a href="{{ url_for('admin_dashboard', page=p, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ p }}</a>
                         {% endif %}
                     {% endfor %}
 
                     {% if show_ellipsis %}
                     <span style="color: #999;">...</span>
-                    <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
+                    <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
                     {% endif %}
                 </span>
 
                 {% if pagination.page < pagination.total_pages %}
-                <a href="{{ url_for('admin_dashboard', page=pagination.page+1, per_page=pagination.per_page, category_id=current_category_id) }}" class="btn btn-sm">下一页</a>
-                <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id) }}" class="btn btn-sm">末页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.page+1, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-sm">下一页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-sm">末页</a>
                 {% endif %}
             </div>
         </div>
@@ -346,6 +368,25 @@
     background-color: #f3f4f6;
     color: #1f2937;
 }
+
+/* Type badges */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.badge-post {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.badge-note {
+    background-color: #fef3c7;
+    color: #92400e;
+}
 </style>
 
 <script>
@@ -439,6 +480,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+function filterByType() {
+    const type = document.getElementById('typeFilter').value;
+    const url = new URL(window.location.href);
+    if (type) {
+        url.searchParams.set('type', type);
+    } else {
+        url.searchParams.delete('type');
+    }
+    url.searchParams.set('page', '1');
+    window.location.href = url.toString();
+}
 
 function filterByCategory() {
     const categoryFilter = document.getElementById('categoryFilter');
