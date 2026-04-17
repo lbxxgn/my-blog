@@ -26,9 +26,14 @@
                 <div id="posts-container" class="posts-list feed-posts-list">
                     {% for post in posts %}
                         <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
-                            <article class="post-card">
+                            <article class="post-card {% if post.type == 'note' %}post-card--note{% endif %}">
                                 <div class="post-card-content">
-                                    <h2>{{ post.title }}</h2>
+                                    <h2>
+                                        {% if post.type == 'note' %}
+                                            <span class="note-badge">笔记</span>
+                                        {% endif %}
+                                        {{ post.title }}
+                                    </h2>
                                     <div class="post-meta">
                                         {% if post.category_name %}
                                         <span class="post-category">{{ post.category_name }}</span>
@@ -38,9 +43,15 @@
                                         {% endif %}
                                         <time datetime="{{ post.created_at }}">{{ post.created_at|string|truncate(10, True, '') }}</time>
                                     </div>
-                                    <div class="post-excerpt">{{ post.excerpt|default(post.content|striptags)|truncate(100) }}</div>
+                                    <div class="post-excerpt">
+                                        {% if post.type == 'note' %}
+                                            {{ post.content|striptags|truncate(80) }}
+                                        {% else %}
+                                            {{ post.excerpt|default(post.content|striptags)|truncate(100) }}
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                {% if post.image_urls %}
+                                {% if post.image_urls and post.type != 'note' %}
                                 <div class="post-card-media post-card-media--{{ post.mobile_image_layout }} post-card-media--count-{{ post.image_count }}">
                                     {% for image_url in post.image_urls %}
                                     <div class="post-card-media-item">
@@ -79,7 +90,8 @@
                 {% endif %}
             {% else %}
                 <div class="empty-state">
-                    <p>还没有发布任何文章。</p>
+                    <p>还没有发布任何内容。</p>
+                    <a href="{{ url_for('knowledge_base.quick_note') }}" class="btn btn-primary">写一条笔记</a>
                 </div>
             {% endif %}
         </div>
