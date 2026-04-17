@@ -143,6 +143,11 @@ def temp_db():
         except:
             pass
 
+        try:
+            conn.execute("ALTER TABLE posts ADD COLUMN type TEXT DEFAULT 'post'")
+        except:
+            pass
+
         # 创建tags表
         conn.execute('''
             CREATE TABLE IF NOT EXISTS tags (

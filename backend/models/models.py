@@ -183,6 +183,11 @@ def init_db(db_path=None):
         pass  # Column already exists
 
     try:
+        cursor.execute('ALTER TABLE posts ADD COLUMN type TEXT DEFAULT \'post\'')
+    except Exception:
+        pass  # Column already exists
+
+    try:
         cursor.execute('ALTER TABLE posts ADD COLUMN source_card_ids TEXT')
     except Exception:
         pass  # Column already exists
@@ -427,7 +432,7 @@ def init_db(db_path=None):
     conn.commit()
     conn.close()
 
-def create_post(title, content, is_published=False, category_id=None, author_id=None, access_level='public', access_password=None):
+def create_post(title, content, is_published=False, category_id=None, author_id=None, access_level='public', access_password=None, type='post'):
     """
     创建新文章
 
@@ -439,6 +444,7 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
         author_id (int, optional): 作者ID。默认为None
         access_level (str): 访问级别。默认为'public'
         access_password (str, optional): 访问密码。默认为None
+        type (str): 文章类型。默认为'post'
 
     Returns:
         int: 新创建文章的ID
@@ -450,8 +456,8 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        'INSERT INTO posts (title, content, is_published, category_id, author_id, access_level, access_password) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        (title, content, is_published, category_id, author_id, access_level, access_password)
+        'INSERT INTO posts (title, content, is_published, category_id, author_id, access_level, access_password, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        (title, content, is_published, category_id, author_id, access_level, access_password, type)
     )
     post_id = cursor.lastrowid
 
@@ -462,7 +468,7 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
     conn.close()
     return post_id
 
-def update_post(post_id, title, content, is_published, category_id=None, access_level=None, access_password=None):
+def update_post(post_id, title, content, is_published, category_id=None, access_level=None, access_password=None, type=None):
     """
     Update an existing post
 
@@ -474,15 +480,26 @@ def update_post(post_id, title, content, is_published, category_id=None, access_
         category_id (int, optional): 分类ID
         access_level (str, optional): 访问级别
         access_password (str, optional): 访问密码
+        type (str, optional): 文章类型
     """
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 构建更新SQL（动态包含访问权限字段）
-    if access_level is not None:
+    # Build update SQL dynamically based on which optional fields are provided
+    if access_level is not None and type is not None:
+        cursor.execute(
+            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, access_level = ?, access_password = ?, type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (title, content, is_published, category_id, access_level, access_password, type, post_id)
+        )
+    elif access_level is not None:
         cursor.execute(
             'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, access_level = ?, access_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
             (title, content, is_published, category_id, access_level, access_password, post_id)
+        )
+    elif type is not None:
+        cursor.execute(
+            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            (title, content, is_published, category_id, type, post_id)
         )
     else:
         cursor.execute(
@@ -509,8 +526,8 @@ def delete_post(post_id):
     conn.commit()
     conn.close()
 
-def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None):
-    """Get all posts with pagination, optionally including drafts and filtering by category"""
+def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None, type=None):
+    """Get all posts with pagination, optionally including drafts and filtering by category and type"""
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -527,11 +544,15 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None):
         where_conditions.append('posts.category_id = ?')
         params.append(category_id)
 
+    if type is not None:
+        where_conditions.append('posts.type = ?')
+        params.append(type)
+
     # 构建安全的WHERE子句 - 仅使用硬编码的条件
     where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
 
     # 验证where_clause只包含安全的条件（防止代码注入）
-    allowed_patterns = ['posts.is_published = ', 'posts.category_id IS NULL', 'posts.category_id = ', '1=1']
+    allowed_patterns = ['posts.is_published = ', 'posts.category_id IS NULL', 'posts.category_id = ', 'posts.type = ', '1=1']
     if not any(allowed in where_clause for allowed in allowed_patterns):
         raise ValueError(f"Invalid WHERE clause: {where_clause}")
 
