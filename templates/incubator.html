@@ -242,6 +242,14 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = window.getCsrfToken ? window.getCsrfToken() : '';
+
+    // 兜底：如果 base.html 的 showAppConfirm 还没加载，用原生 confirm 代替
+    if (!window.showAppConfirm) {
+        window.showAppConfirm = function(message, options) {
+            return Promise.resolve(confirm(message));
+        };
+    }
+
     const cardsList = document.querySelectorAll('.card-item');
     const checkboxes = document.querySelectorAll('.card-checkbox');
     const aiMergeBtn = document.getElementById('ai-merge-btn');
