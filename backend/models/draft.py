@@ -3,8 +3,21 @@ from models import get_db_connection
 from typing import Optional, List, Dict
 import logging
 import json
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
+
+
+def _format_iso_time(time_str):
+    """将 SQLite 时间字符串转换为带 UTC 时区的 ISO 8601 格式。"""
+    if not time_str:
+        return None
+    try:
+        dt = datetime.strptime(time_str, '%Y-%m-%d %H:%M:%S')
+        dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
+    except (ValueError, TypeError):
+        return time_str
 
 
 def ensure_drafts_table() -> None:
@@ -113,31 +126,42 @@ def save_draft(user_id: int, post_id: Optional[int], title: str,
             ''', (user_id, post_id, device_info))
             conflicts = [dict(row) for row in cursor.fetchall()]
 
+        draft_id = None
         if post_id is None:
             cursor.execute('''
                 INSERT INTO drafts (user_id, post_id, title, content, category_id, tags, device_info)
                 VALUES (?, NULL, ?, ?, ?, ?, ?)
             ''', (user_id, title, content, category_id, tags_json, device_info))
+            draft_id = cursor.lastrowid
         else:
+            # 先检查是否存在，避免 ON CONFLICT 与部分索引冲突
             cursor.execute('''
-                INSERT INTO drafts (user_id, post_id, title, content, category_id, tags, device_info)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(user_id, post_id)
-                DO UPDATE SET
-                    title = excluded.title,
-                    content = excluded.content,
-                    category_id = excluded.category_id,
-                    tags = excluded.tags,
-                    device_info = excluded.device_info,
-                    updated_at = CURRENT_TIMESTAMP
-            ''', (user_id, post_id, title, content, category_id, tags_json, device_info))
-
-        draft_id = cursor.lastrowid
+                SELECT id FROM drafts WHERE user_id = ? AND post_id = ?
+            ''', (user_id, post_id))
+            existing = cursor.fetchone()
+            if existing:
+                draft_id = existing['id']
+                cursor.execute('''
+                    UPDATE drafts SET
+                        title = ?, content = ?, category_id = ?, tags = ?,
+                        device_info = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE user_id = ? AND post_id = ?
+                ''', (title, content, category_id, tags_json, device_info, user_id, post_id))
+            else:
+                cursor.execute('''
+                    INSERT INTO drafts (user_id, post_id, title, content, category_id, tags, device_info)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (user_id, post_id, title, content, category_id, tags_json, device_info))
+                draft_id = cursor.lastrowid
         cursor.execute('''
             SELECT updated_at FROM drafts WHERE id = ?
         ''', (draft_id,))
         result = cursor.fetchone()
-        updated_at = result['updated_at'] if result else None
+        updated_at = _format_iso_time(result['updated_at']) if result else None
+
+        # 同样格式化冲突草稿的时间
+        for c in conflicts:
+            c['updated_at'] = _format_iso_time(c.get('updated_at'))
 
         conn.commit()
 
@@ -200,7 +224,12 @@ def update_draft(draft_id: int, user_id: int, title: str,
         ''', (draft_id, user_id))
         row = cursor.fetchone()
         conn.commit()
-        return _row_to_draft(row) if row else None
+        if row:
+            draft = _row_to_draft(row)
+            draft['updated_at'] = _format_iso_time(draft.get('updated_at'))
+            draft['created_at'] = _format_iso_time(draft.get('created_at'))
+            return draft
+        return None
     finally:
         conn.close()
 
@@ -228,7 +257,10 @@ def get_drafts(user_id: int, post_id: Optional[int] = None) -> List[Dict]:
                 LIMIT 20
             ''', (user_id,))
 
-        return [_row_to_draft(row) for row in cursor.fetchall()]
+        drafts = [_row_to_draft(row) for row in cursor.fetchall()]
+        for d in drafts:
+            d['updated_at'] = _format_iso_time(d.get('updated_at'))
+        return drafts
 
     finally:
         conn.close()
@@ -246,7 +278,12 @@ def get_draft(draft_id: int) -> Optional[Dict]:
         ''', (draft_id,))
 
         row = cursor.fetchone()
-        return _row_to_draft(row) if row else None
+        if row:
+            draft = _row_to_draft(row)
+            draft['updated_at'] = _format_iso_time(draft.get('updated_at'))
+            draft['created_at'] = _format_iso_time(draft.get('created_at'))
+            return draft
+        return None
 
     finally:
         conn.close()
