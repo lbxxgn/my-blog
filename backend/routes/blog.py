@@ -250,7 +250,11 @@ def serialize_post_for_json(post):
 
 @blog_bp.route('/')
 def index():
-    """首页 - 列出所有已发布的文章"""
+    """首页 - 列出所有已发布的内容（文章和笔记）
+
+    支持混合显示 post 和 note 类型的内容，通过 posts.type 字段区分。
+    模板可通过 post.type 判断内容类型并选择不同的渲染方式。
+    """
     format = request.args.get('format', 'html')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
