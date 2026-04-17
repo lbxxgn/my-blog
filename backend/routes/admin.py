@@ -176,12 +176,13 @@ def admin_dashboard():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     category_id = request.args.get('category_id')
+    type_filter = request.args.get('type')
 
     # 验证 per_page
     if per_page not in [10, 20, 40, 80]:
         per_page = 20
 
-    posts_data = get_all_posts(include_drafts=True, page=page, per_page=per_page, category_id=category_id)
+    posts_data = get_all_posts(include_drafts=True, page=page, per_page=per_page, category_id=category_id, type=type_filter)
     categories = get_all_categories()
 
     # 计算分页信息
@@ -202,7 +203,8 @@ def admin_dashboard():
                          end_item=end_item,
                          page_range=page_range,
                          show_ellipsis=show_ellipsis,
-                         current_category_id=category_id)
+                         current_category_id=category_id,
+                         current_type=type_filter)
 
 
 @admin_bp.route('/new', methods=['GET', 'POST'])
@@ -349,6 +351,29 @@ def delete_post_route(post_id):
         return jsonify({'success': True, 'message': '文章已删除'})
 
     flash('文章已删除', 'success')
+    return redirect(url_for('admin.admin_dashboard'))
+
+
+@admin_bp.route('/convert-note/<int:post_id>', methods=['POST'])
+@login_required
+def convert_note_to_post(post_id):
+    """将笔记转换为文章"""
+    post = get_post_by_id(post_id)
+    if post is None:
+        flash('文章不存在', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
+
+    user_id = session.get('user_id')
+    username = session.get('username', 'Unknown')
+
+    update_post(post_id, post['title'], post['content'], post['is_published'],
+                post.get('category_id'), post.get('access_level', 'public'),
+                post.get('access_password'), type='post')
+
+    log_operation(user_id, username, '转换笔记为文章',
+                  f'文章ID: {post_id}, 标题: {post["title"]}')
+
+    flash('笔记已成功转换为文章', 'success')
     return redirect(url_for('admin.admin_dashboard'))
 
 
