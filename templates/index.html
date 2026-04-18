@@ -467,7 +467,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const title = document.getElementById('noteTitle').value.trim();
         const content = document.getElementById('noteContent').value.trim();
-        const csrfToken = window.getCsrfToken ? window.getCsrfToken() : '';
+        const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content || '';
         const notify = (message, type = 'success') => {
             if (window.showAppToast) {
                 window.showAppToast(message, type);

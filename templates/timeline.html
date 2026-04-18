@@ -537,7 +537,8 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Timeline page loaded');
     console.log('Filter buttons:', document.querySelectorAll('.filter-btn').length);
     console.log('Timeline items:', document.querySelectorAll('.timeline-item').length);
-    const csrfToken = window.getCsrfToken ? window.getCsrfToken() : '';
+    // 直接从 meta 标签读取 CSRF token，不依赖 base.html 的脚本
+    const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content || '';
 
     // 兜底：如果 base.html 的 showAppConfirm 还没加载，用原生 confirm 代替
     if (!window.showAppConfirm) {
