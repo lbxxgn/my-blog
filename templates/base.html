@@ -33,7 +33,7 @@
             <ul class="nav-links" id="navLinks">
                 <li>
                     <form action="{{ url_for('search') }}" method="get" class="search-form-nav">
-                        <input type="text" name="q" placeholder="搜索文章..." class="search-input-nav" value="{{ request.args.get('q', '') }}">
+                        <input type="text" name="q" placeholder="搜索内容..." class="search-input-nav" value="{{ request.args.get('q', '') }}">
                         <button type="submit" class="search-btn">🔍</button>
                     </form>
                 </li>
@@ -59,6 +59,11 @@
                         </ul>
                     </li>
                     {% endif %}
+                    <li class="nav-theme-toggle">
+                        <button class="theme-toggle-nav" id="themeToggleNav" aria-label="切换主题">
+                            <span class="theme-toggle-nav-icon">🌙</span>
+                        </button>
+                    </li>
                     <li class="dropdown">
                         <span class="dropdown-toggle">
                             <span class="user-icon">👤</span> <span class="dropdown-arrow">▼</span>
@@ -102,7 +107,7 @@
 }
 
 .dropdown-menu {
-    display: none;
+    display: block;
     position: absolute;
     top: 100%;
     left: 0;
@@ -112,6 +117,10 @@
     border-radius: 8px;
     padding: 8px 0;
     z-index: 1000;
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .dropdown-menu li {
@@ -132,12 +141,36 @@
 
 /* Active state for open dropdowns */
 .dropdown-menu.show {
-    display: block;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
 /* User Icon Style */
 .user-icon {
     font-size: 18px;
+}
+
+/* Nav Theme Toggle */
+.nav-theme-toggle {
+    display: flex;
+    align-items: center;
+    list-style: none;
+}
+
+.theme-toggle-nav {
+    background: none;
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 6px 10px;
+    font-size: 1.1rem;
+    color: var(--text-color, #333);
+    transition: all 0.2s ease;
+}
+
+.theme-toggle-nav:hover {
+    background-color: var(--code-bg, #f3f4f6);
 }
 
 /* Responsive adjustments */
@@ -147,10 +180,17 @@
         box-shadow: none;
         border-left: 3px solid #007bff;
         padding-left: 10px;
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
     }
 
     .dropdown-arrow {
         display: inline-block;
+    }
+
+    .nav-theme-toggle {
+        display: none;
     }
 }
 </style>
@@ -386,16 +426,12 @@
                 document.querySelectorAll('.dropdown').forEach(d => {
                     if (d !== dropdown) {
                         const m = d.querySelector('.dropdown-menu');
-                        if (m) m.style.display = 'none';
+                        if (m) m.classList.remove('show');
                     }
                 });
 
                 // Toggle current dropdown
-                if (menu.style.display === 'block') {
-                    menu.style.display = 'none';
-                } else {
-                    menu.style.display = 'block';
-                }
+                menu.classList.toggle('show');
             });
         });
 
@@ -404,7 +440,7 @@
             const nav = document.querySelector('nav');
             if (nav && !nav.contains(e.target)) {
                 document.querySelectorAll('.dropdown-menu').forEach(menu => {
-                    menu.style.display = 'none';
+                    menu.classList.remove('show');
                 });
             }
         });
@@ -419,6 +455,31 @@
                 e.stopPropagation();
             });
         });
+
+        // Nav theme toggle (desktop)
+        const themeToggleNav = document.getElementById('themeToggleNav');
+        if (themeToggleNav) {
+            themeToggleNav.addEventListener('click', function() {
+                const isDark = document.body.classList.contains('dark-theme');
+                const newTheme = isDark ? 'light' : 'dark';
+                if (newTheme === 'dark') {
+                    document.body.classList.add('dark-theme');
+                } else {
+                    document.body.classList.remove('dark-theme');
+                }
+                localStorage.setItem('theme', newTheme);
+                // Sync icon on nav toggle
+                this.querySelector('.theme-toggle-nav-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+                // Sync dropdown toggle if visible
+                const innerIcon = document.querySelector('.theme-toggle-icon');
+                const innerText = document.querySelector('.theme-toggle-text');
+                if (innerIcon) innerIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+                if (innerText) innerText.textContent = newTheme === 'dark' ? '亮色' : '暗色';
+            });
+            // Set initial icon
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            themeToggleNav.querySelector('.theme-toggle-nav-icon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        }
     });
     </script>
 
