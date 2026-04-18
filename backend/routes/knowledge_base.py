@@ -16,7 +16,8 @@ from models import (
     create_card, get_card_by_id, get_cards_by_user,
     update_card_status, update_card, delete_card, get_timeline_items,
     get_user_by_id, merge_cards_to_post, get_user_ai_config, ai_merge_cards_to_post,
-    create_annotation, get_annotations_by_url, create_post
+    create_annotation, get_annotations_by_url, create_post,
+    get_category_by_name, create_category
 )
 import json
 from datetime import datetime
@@ -301,12 +302,20 @@ def quick_note():
             if not content:
                 return jsonify({'success': False, 'error': '内容不能为空'}), 400
 
+            # 获取或创建"快速记事"分类
+            category = get_category_by_name('快速记事')
+            if not category:
+                category_id = create_category('快速记事')
+            else:
+                category_id = category['id']
+
             # Create post with type='note'
             post_id = create_post(
                 title=title if title else datetime.now().strftime('%Y-%m-%d %H:%M'),
                 content=content,
                 type='note',
                 is_published=True,
+                category_id=category_id,
                 author_id=session['user_id']
             )
 
