@@ -106,82 +106,125 @@ header {
 
 /* 移动端返回按钮 */
 .mobile-back-btn {
-    display: none; /* 桌面端隐藏 */
-    position: fixed;
-    top: 16px; /* 固定在左上角 */
-    left: 16px;
-    z-index: 1000;
-    width: 40px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid var(--border-color, #e0e0e0);
-    border-radius: 50%;
-    font-size: 20px;
-    color: var(--text-color, #333);
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    line-height: 1;
-    font-weight: bold;
+    display: none;
 }
 
-.mobile-back-btn:hover {
-    background: white;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transform: scale(1.05);
-}
-
-.mobile-back-btn:active {
-    transform: scale(0.95);
-}
-
-/* 移动端优化 */
+/* 移动端沉浸式阅读 */
 @media (max-width: 768px) {
     .mobile-back-btn {
-        display: flex; /* 移动端显示 */
+        display: flex;
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 1000;
+        width: 36px;
+        height: 36px;
+        background: var(--card-bg, rgba(255,255,255,0.85));
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--border-color, rgba(0,0,0,0.06));
+        border-radius: 10px;
+        font-size: 18px;
+        color: var(--text-color);
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        line-height: 1;
+        transition: opacity 0.35s ease, transform 0.35s ease;
     }
 
-    .post-header {
-        padding-top: 20px; /* 正常的上边距 */
+    .mobile-back-btn:active {
+        transform: scale(0.92);
     }
 
-    /* 隐藏底部的返回首页链接，避免重复 */
+    .mobile-back-btn.scrolled-away {
+        opacity: 0;
+        transform: translateX(-10px);
+        pointer-events: none;
+    }
+
+    .dark-theme .mobile-back-btn {
+        border-color: rgba(255,255,255,0.08);
+    }
+
+    /* 整体往下避开返回按钮 */
+    .post-full {
+        padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    }
+
+    .post-header h1 {
+        font-size: 1.75rem !important;
+        font-weight: 700;
+        line-height: 1.35;
+        margin-bottom: 1rem;
+        padding-top: calc(48px + env(safe-area-inset-top, 0px));
+    }
+
+    .post-header .post-meta {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0;
+        font-size: 0.8125rem;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    .post-header .meta-left {
+        gap: 0.5rem;
+    }
+
+    .post-header .author-name::before {
+        display: none;
+    }
+
+    .post-header .post-category {
+        background: rgba(42,157,143,0.08);
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+    }
+
+    .post-header .meta-right {
+        width: auto;
+    }
+
+    .post-header .meta-right time {
+        background: none;
+        padding: 0;
+        font-size: 0.8125rem;
+        border-radius: 0;
+    }
+
+    /* 正文排版 */
+    .post-content {
+        font-size: 1rem;
+        line-height: 1.8;
+    }
+
+    .post-content > p:first-of-type::first-letter {
+        font-size: 2.8em;
+    }
+
+    /* 隐藏底部返回链接 */
     .post-navigation {
         display: none;
     }
 
-    .post-header .post-meta {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 0;
-    }
-
-    .post-header .meta-left {
-        flex-wrap: wrap;
-        width: 100%;
-    }
-
-    .post-header .meta-right {
-        width: 100%;
-    }
-
-    .post-header .meta-right time {
-        width: 100%;
-        justify-content: center;
-    }
-
-    /* 移动端评论区精简 */
+    /* 评论区精简 */
     .comments-section {
-        margin-top: 1.5rem;
-        padding: 1rem;
+        margin-top: 2rem;
+        padding: 0;
+        border-top: 1px solid var(--border-color);
+        padding-top: 1.5rem;
     }
 
     .comments-section h3 {
-        font-size: 16px;
+        font-size: 1rem;
+        font-weight: 600;
         margin-bottom: 0.75rem;
         display: flex;
         justify-content: space-between;
@@ -192,53 +235,47 @@ header {
 
     .comments-section h3::after {
         content: '▼';
-        font-size: 12px;
+        font-size: 10px;
         transition: transform 0.2s;
+        color: var(--text-secondary);
     }
 
     .comments-section.collapsed h3::after {
         transform: rotate(-90deg);
     }
 
-    /* 折叠时隐藏评论内容 */
     .comments-section.collapsed .comments-list,
     .comments-section.collapsed .comment-form {
         display: none;
     }
 
-    /* 折叠时显示提示 */
     .comments-section.collapsed::after {
         content: '点击展开评论';
         display: block;
         text-align: center;
-        padding: 1rem;
+        padding: 0.75rem;
         color: var(--text-secondary);
-        font-size: 14px;
+        font-size: 0.8125rem;
     }
 
     .comment {
         padding: 0.75rem;
         margin-bottom: 0.5rem;
-        background: var(--code-bg, #f6f8fa);
-        border-radius: 6px;
+        background: var(--code-bg);
+        border-radius: 8px;
     }
 
     .comment-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
-        font-size: 13px;
+        font-size: 0.8125rem;
     }
 
     .comment-date {
-        font-size: 11px;
-        color: var(--text-secondary);
+        font-size: 0.6875rem;
     }
 
     .comment-content {
-        font-size: 14px;
-        line-height: 1.5;
+        font-size: 0.875rem;
+        line-height: 1.6;
     }
 
     .comment-form {
@@ -247,7 +284,7 @@ header {
     }
 
     .comment-form h4 {
-        font-size: 15px;
+        font-size: 0.9375rem;
         margin-bottom: 0.75rem;
     }
 
@@ -256,20 +293,24 @@ header {
     }
 
     .comment-form label {
-        font-size: 13px;
-        margin-bottom: 0.25rem;
+        font-size: 0.8125rem;
     }
 
     .comment-form input,
     .comment-form textarea {
-        font-size: 14px;
+        font-size: 0.875rem;
         padding: 0.6rem;
     }
 
     .comment-form button {
         width: 100%;
         padding: 0.75rem;
-        font-size: 15px;
+        font-size: 0.9375rem;
+    }
+
+    /* 底部留出安全距离 */
+    .post-full {
+        padding-bottom: 3rem;
     }
 }
 
@@ -437,6 +478,20 @@ header {
             }
         }
     }
+})();
+
+// Mobile back button: hide as soon as user scrolls down, show on scroll up
+(function() {
+    var btn = document.querySelector('.mobile-back-btn');
+    if (!btn || window.innerWidth > 768) return;
+
+    window.addEventListener('scroll', function() {
+        if (window.scrollY > 10) {
+            btn.classList.add('scrolled-away');
+        } else {
+            btn.classList.remove('scrolled-away');
+        }
+    }, { passive: true });
 })();
 </script>
 {% endblock %}
