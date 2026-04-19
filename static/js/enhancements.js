@@ -127,4 +127,58 @@
             });
         }
     }
+
+    /* --- Reader Mode Toggle --- */
+    var readerToggle = document.getElementById('readerModeToggle');
+    var readerExit = document.getElementById('readerExit');
+    var readerKey = 'reader-mode:' + window.location.pathname;
+
+    function enterReaderMode() {
+        document.body.classList.add('reader-mode');
+        if (readerToggle) readerToggle.classList.add('active');
+        localStorage.setItem(readerKey, '1');
+    }
+
+    function exitReaderMode() {
+        document.body.classList.remove('reader-mode');
+        if (readerToggle) readerToggle.classList.remove('active');
+        localStorage.removeItem(readerKey);
+    }
+
+    function toggleReaderMode() {
+        if (document.body.classList.contains('reader-mode')) {
+            exitReaderMode();
+        } else {
+            enterReaderMode();
+        }
+    }
+
+    if (readerToggle) {
+        readerToggle.addEventListener('click', toggleReaderMode);
+    }
+    if (readerExit) {
+        readerExit.addEventListener('click', exitReaderMode);
+    }
+
+    // Keyboard shortcut: R to toggle, Esc to exit
+    document.addEventListener('keydown', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.key === 'r' || e.key === 'R') {
+            toggleReaderMode();
+        } else if (e.key === 'Escape' && document.body.classList.contains('reader-mode')) {
+            exitReaderMode();
+        }
+    });
+
+    // Restore reader mode if previously active for this post
+    if (localStorage.getItem(readerKey) === '1') {
+        enterReaderMode();
+    }
+
+    /* --- System Dark Mode Detection --- */
+    if (!localStorage.getItem('theme')) {
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.body.classList.add('dark-theme');
+        }
+    }
 })();

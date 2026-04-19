@@ -43,23 +43,23 @@
     --primary-hover: #3dbdb5;
     --accent-color: #ff6b6b;
 
-    --bg-color: #0f0f12;
-    --text-color: #d4d4d8;
-    --text-secondary: #a1a1aa;
-    --heading-color: #f0f0f5;
-    --border-color: #27272a;
+    --bg-color: #191b22;
+    --text-color: #c8ccd4;
+    --text-secondary: #8b919d;
+    --heading-color: #dce0e8;
+    --border-color: #2a2d38;
 
-    --header-bg: rgba(15, 15, 18, 0.88);
-    --card-bg: #18181b;
+    --header-bg: rgba(25, 27, 34, 0.88);
+    --card-bg: #1e2028;
     --card-shadow: 0 1px 3px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.1);
     --card-shadow-hover: 0 8px 30px rgba(0,0,0,0.3), 0 2px 8px rgba(78,205,196,0.08);
 
     --gradient-primary: linear-gradient(135deg, #4ecdc4 0%, #264653 100%);
     --gradient-secondary: linear-gradient(135deg, #ff6b6b 0%, #f4a261 100%);
-    --gradient-card: linear-gradient(180deg, #18181b 0%, #1c1c20 100%);
+    --gradient-card: linear-gradient(180deg, #1e2028 0%, #22242c 100%);
 
-    --code-bg: #1c1c20;
-    --code-border: #27272a;
+    --code-bg: #1e2028;
+    --code-border: #2a2d38;
 }
 
 /* --- Base Typography --- */
@@ -984,6 +984,180 @@ footer {
 
     .reading-progress {
         display: none;
+    }
+}
+
+/* --- Immersive Reader Mode --- */
+.reader-mode-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1000;
+    background: var(--card-bg, #fff);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.reader-mode-toggle:hover {
+    background: rgba(42,157,143,0.08);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.reader-mode-toggle.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+/* Reader mode overrides */
+body.reader-mode {
+    --bg-color: #fff;
+}
+
+.dark-theme body.reader-mode,
+body.reader-mode.dark-theme {
+    --bg-color: #191b22;
+}
+
+body.reader-mode::after {
+    display: none !important;
+}
+
+body.reader-mode header {
+    display: none !important;
+}
+
+body.reader-mode footer {
+    display: none !important;
+}
+
+body.reader-mode .share-buttons {
+    display: none !important;
+}
+
+body.reader-mode .comments-section {
+    display: none !important;
+}
+
+body.reader-mode .post-tags {
+    display: none !important;
+}
+
+body.reader-mode .reader-mode-toggle {
+    display: none !important;
+}
+
+body.reader-mode .post-navigation {
+    display: none !important;
+}
+
+body.reader-mode .mobile-back-btn {
+    display: none !important;
+}
+
+body.reader-mode .post-full {
+    max-width: 680px;
+    margin: 0 auto;
+    padding-top: 2rem;
+    padding-bottom: 4rem;
+}
+
+body.reader-mode .post-content {
+    font-size: 1.15rem;
+    line-height: 1.9;
+}
+
+body.reader-mode .post-content p {
+    margin-bottom: 1.25rem;
+}
+
+body.reader-mode .post-header {
+    border-bottom: none;
+    margin-bottom: 2.5rem;
+}
+
+body.reader-mode .post-header h1 {
+    font-size: 2.5rem;
+    text-align: center;
+}
+
+body.reader-mode .post-header .post-meta {
+    justify-content: center;
+    color: var(--text-secondary);
+}
+
+/* Reader exit button */
+.reader-exit {
+    display: none;
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1001;
+    background: var(--card-bg, rgba(255,255,255,0.9));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    opacity: 0;
+    pointer-events: none;
+}
+
+body.reader-mode .reader-exit {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.reader-exit:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Mobile reader mode */
+@media (max-width: 768px) {
+    body.reader-mode .post-full {
+        padding-top: 1rem;
+    }
+
+    body.reader-mode .post-header h1 {
+        font-size: 1.75rem;
+        padding-top: 0 !important;
+        text-align: left;
+    }
+
+    body.reader-mode .post-content {
+        font-size: 1rem;
+        line-height: 1.85;
+    }
+
+    .reader-exit {
+        top: auto;
+        bottom: 16px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        border-radius: 20px;
+        padding: 8px 20px;
     }
 }
 
