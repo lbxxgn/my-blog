@@ -181,4 +181,26 @@
             document.body.classList.add('dark-theme');
         }
     }
+
+    /* --- Mobile Bottom Nav Auto-Hide --- */
+    var bottomNav = document.querySelector('.mobile-bottom-nav');
+    if (bottomNav && window.innerWidth <= 768) {
+        var lastScrollY = window.scrollY;
+        var navTicking = false;
+
+        window.addEventListener('scroll', function() {
+            if (navTicking) return;
+            navTicking = true;
+            requestAnimationFrame(function() {
+                var y = window.scrollY;
+                if (y > lastScrollY && y > 60) {
+                    bottomNav.classList.add('nav-hidden');
+                } else {
+                    bottomNav.classList.remove('nav-hidden');
+                }
+                lastScrollY = y;
+                navTicking = false;
+            });
+        }, { passive: true });
+    }
 })();
