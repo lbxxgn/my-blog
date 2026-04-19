@@ -22,6 +22,10 @@
 {% set current_page_type = current_page_type|trim or 'site' %}
 {% set mobile_shell_enabled = current_page_type == 'home' %}
 <body data-page="{{ current_page_type }}">
+    <!-- 移动端全局返回按钮（非首页显示） -->
+    {% if not mobile_shell_enabled %}
+    <button class="mobile-back-btn global" onclick="history.back()" aria-label="返回">←</button>
+    {% endif %}
     <header>
         <nav>
             <h1><a href="{{ url_for('index') }}">{{ site_name }}</a></h1>
@@ -335,7 +339,7 @@
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <a href="{{ url_for('admin_dashboard') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                    <a href="{{ url_for('admin_dashboard') }}" class="profile-link-admin" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
                         <span style="font-size: 24px;">📝</span>
                         <span style="flex: 1;">文章管理</span>
                         <span>→</span>

@@ -987,6 +987,52 @@ footer {
     }
 }
 
+/* --- Global Mobile Back Button (non-home pages) --- */
+.mobile-back-btn.global {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-back-btn.global {
+        display: flex;
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 1000;
+        width: 36px;
+        height: 36px;
+        background: var(--card-bg, rgba(255,255,255,0.9));
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--border-color, rgba(0,0,0,0.06));
+        border-radius: 10px;
+        font-size: 18px;
+        color: var(--text-color);
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        line-height: 1;
+        transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+
+    .mobile-back-btn.global:active {
+        transform: scale(0.92);
+    }
+
+    .mobile-back-btn.global.scrolled-away {
+        opacity: 0;
+        transform: translateX(-10px);
+        pointer-events: none;
+    }
+
+    /* Hide global back button when reader mode is active */
+    body.reader-mode .mobile-back-btn.global {
+        display: none !important;
+    }
+}
+
 /* --- Refined Skeleton Screen --- */
 .skeleton-wrapper {
     border: 1px solid var(--border-color);

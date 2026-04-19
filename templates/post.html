@@ -104,51 +104,8 @@ header {
     font-size: 0.9rem;
 }
 
-/* 移动端返回按钮 */
-.mobile-back-btn {
-    display: none;
-}
-
 /* 移动端沉浸式阅读 */
 @media (max-width: 768px) {
-    .mobile-back-btn {
-        display: flex;
-        position: fixed;
-        top: 12px;
-        left: 12px;
-        z-index: 1000;
-        width: 36px;
-        height: 36px;
-        background: var(--card-bg, rgba(255,255,255,0.85));
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid var(--border-color, rgba(0,0,0,0.06));
-        border-radius: 10px;
-        font-size: 18px;
-        color: var(--text-color);
-        cursor: pointer;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-        align-items: center;
-        justify-content: center;
-        padding: 0;
-        line-height: 1;
-        transition: opacity 0.35s ease, transform 0.35s ease;
-    }
-
-    .mobile-back-btn:active {
-        transform: scale(0.92);
-    }
-
-    .mobile-back-btn.scrolled-away {
-        opacity: 0;
-        transform: translateX(-10px);
-        pointer-events: none;
-    }
-
-    .dark-theme .mobile-back-btn {
-        border-color: rgba(255,255,255,0.08);
-    }
-
     /* 整体往下避开返回按钮 */
     .post-full {
         padding-top: calc(16px + env(safe-area-inset-top, 0px));
@@ -237,11 +194,6 @@ header {
 {% block content %}
 <div class="container">
     <article class="post-full">
-        <!-- 移动端返回按钮 -->
-        <button class="mobile-back-btn" onclick="history.back()" aria-label="返回">
-            ←
-        </button>
-
         <!-- 阅读模式按钮 -->
         <button class="reader-mode-toggle" id="readerModeToggle" aria-label="阅读模式" title="阅读模式 (R)">
             &#x1D4D7;
@@ -367,19 +319,4 @@ header {
 <!-- Code Copy -->
 <script src="{{ url_for('static', filename='js/code-copy.js') }}?v=1.1"></script>
 
-<!-- Mobile back button: hide as soon as user scrolls down, show on scroll up -->
-<script>
-(function() {
-    var btn = document.querySelector('.mobile-back-btn');
-    if (!btn || window.innerWidth > 768) return;
-
-    window.addEventListener('scroll', function() {
-        if (window.scrollY > 10) {
-            btn.classList.add('scrolled-away');
-        } else {
-            btn.classList.remove('scrolled-away');
-        }
-    }, { passive: true });
-})();
-</script>
 {% endblock %}

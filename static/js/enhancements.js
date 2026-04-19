@@ -203,4 +203,16 @@
             });
         }, { passive: true });
     }
+
+    /* --- Global Back Button Auto-Hide --- */
+    var globalBackBtn = document.querySelector('.mobile-back-btn.global');
+    if (globalBackBtn && window.innerWidth <= 768) {
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 10) {
+                globalBackBtn.classList.add('scrolled-away');
+            } else {
+                globalBackBtn.classList.remove('scrolled-away');
+            }
+        }, { passive: true });
+    }
 })();
