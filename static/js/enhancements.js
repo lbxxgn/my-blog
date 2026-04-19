@@ -107,12 +107,24 @@
 
     /* --- Image Lazy Load Fade-In --- */
     document.addEventListener('load', function(e) {
-        if (e.target.tagName === 'IMG' && e.target.hasAttribute('loading')) {
-            e.target.style.opacity = '0';
-            e.target.style.transition = 'opacity 0.4s ease';
+        if (e.target && e.target.tagName === 'IMG' && e.target.hasAttribute('loading')) {
+            var img = e.target;
+            img.style.opacity = '0';
+            img.style.transition = 'opacity 0.4s ease';
             requestAnimationFrame(function() {
-                e.target.style.opacity = '1';
+                img.style.opacity = '1';
             });
         }
     }, true);
+
+    /* --- Comments Collapse Toggle --- */
+    var commentsSection = document.querySelector('.comments-section');
+    if (commentsSection) {
+        var trigger = commentsSection.querySelector('.comments-trigger');
+        if (trigger) {
+            trigger.addEventListener('click', function() {
+                commentsSection.classList.toggle('collapsed');
+            });
+        }
+    }
 })();

@@ -214,100 +214,6 @@ header {
         display: none;
     }
 
-    /* 评论区精简 */
-    .comments-section {
-        margin-top: 2rem;
-        padding: 0;
-        border-top: 1px solid var(--border-color);
-        padding-top: 1.5rem;
-    }
-
-    .comments-section h3 {
-        font-size: 1rem;
-        font-weight: 600;
-        margin-bottom: 0.75rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        user-select: none;
-    }
-
-    .comments-section h3::after {
-        content: '▼';
-        font-size: 10px;
-        transition: transform 0.2s;
-        color: var(--text-secondary);
-    }
-
-    .comments-section.collapsed h3::after {
-        transform: rotate(-90deg);
-    }
-
-    .comments-section.collapsed .comments-list,
-    .comments-section.collapsed .comment-form {
-        display: none;
-    }
-
-    .comments-section.collapsed::after {
-        content: '点击展开评论';
-        display: block;
-        text-align: center;
-        padding: 0.75rem;
-        color: var(--text-secondary);
-        font-size: 0.8125rem;
-    }
-
-    .comment {
-        padding: 0.75rem;
-        margin-bottom: 0.5rem;
-        background: var(--code-bg);
-        border-radius: 8px;
-    }
-
-    .comment-header {
-        font-size: 0.8125rem;
-    }
-
-    .comment-date {
-        font-size: 0.6875rem;
-    }
-
-    .comment-content {
-        font-size: 0.875rem;
-        line-height: 1.6;
-    }
-
-    .comment-form {
-        margin-top: 1rem;
-        padding: 0;
-    }
-
-    .comment-form h4 {
-        font-size: 0.9375rem;
-        margin-bottom: 0.75rem;
-    }
-
-    .comment-form .form-group {
-        margin-bottom: 0.75rem;
-    }
-
-    .comment-form label {
-        font-size: 0.8125rem;
-    }
-
-    .comment-form input,
-    .comment-form textarea {
-        font-size: 0.875rem;
-        padding: 0.6rem;
-    }
-
-    .comment-form button {
-        width: 100%;
-        padding: 0.75rem;
-        font-size: 0.9375rem;
-    }
-
     /* 底部留出安全距离 */
     .post-full {
         padding-bottom: 3rem;
@@ -404,46 +310,40 @@ header {
 
     <div class="copy-toast">链接已复制</div>
 
-    <!-- Comments Section -->
-    <section class="comments-section">
-        <h3>评论 ({{ comments|length }})</h3>
-
-        {% if comments %}
-        <div class="comments-list">
-            {% for comment in comments %}
-            <div class="comment">
-                <div class="comment-header">
-                    <strong>{{ comment.author_name }}</strong>
-                    <span class="comment-date">{{ (comment.created_at|localtime)[:16] }}</span>
-                </div>
-                <div class="comment-content">
-                    {{ comment.content }}
-                </div>
-            </div>
-            {% endfor %}
+    <!-- Comments Section (collapsed by default) -->
+    <section class="comments-section collapsed">
+        <div class="comments-trigger">
+            <span class="comments-trigger-text">评论{% if comments %} ({{ comments|length }}){% endif %}</span>
+            <span class="comments-trigger-arrow">▾</span>
         </div>
-        {% else %}
-        <p class="no-comments">暂无评论，快来抢沙发吧！</p>
-        {% endif %}
 
-        <!-- Comment Form -->
-        <form class="comment-form" action="{{ url_for('add_comment', post_id=post.id) }}" method="post">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-            <h4>发表评论</h4>
-            <div class="form-group">
-                <label for="author_name">姓名 *</label>
-                <input type="text" name="author_name" id="author_name" required maxlength="50">
+        <div class="comments-body">
+            {% if comments %}
+            <div class="comments-list">
+                {% for comment in comments %}
+                <div class="comment">
+                    <div class="comment-header">
+                        <strong>{{ comment.author_name }}</strong>
+                        <span class="comment-date">{{ (comment.created_at|localtime)[:16] }}</span>
+                    </div>
+                    <div class="comment-content">
+                        {{ comment.content }}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="form-group">
-                <label for="author_email">邮箱（可选，不会公开）</label>
-                <input type="email" name="author_email" id="author_email" maxlength="100">
-            </div>
-            <div class="form-group">
-                <label for="content">评论内容 *</label>
-                <textarea name="content" id="content" rows="5" required maxlength="1000"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">提交评论</button>
-        </form>
+            {% endif %}
+
+            <form class="comment-form" action="{{ url_for('add_comment', post_id=post.id) }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="comment-form-row">
+                    <input type="text" name="author_name" placeholder="姓名 *" required maxlength="50">
+                    <input type="email" name="author_email" placeholder="邮箱（选填）" maxlength="100">
+                </div>
+                <textarea name="content" placeholder="写点什么..." rows="3" required maxlength="1000"></textarea>
+                <button type="submit" class="btn btn-primary btn-sm">发送</button>
+            </form>
+        </div>
     </section>
 
     <div class="post-navigation">
@@ -459,28 +359,8 @@ header {
 <!-- Code Copy -->
 <script src="{{ url_for('static', filename='js/code-copy.js') }}?v=1.1"></script>
 
-<!-- 移动端评论区折叠功能 -->
+<!-- Mobile back button: hide as soon as user scrolls down, show on scroll up -->
 <script>
-(function() {
-    // 只在移动端启用折叠功能
-    if (window.innerWidth <= 768) {
-        const commentsSection = document.querySelector('.comments-section');
-        if (commentsSection) {
-            // 默认折叠评论区
-            commentsSection.classList.add('collapsed');
-
-            // 点击标题展开/折叠
-            const title = commentsSection.querySelector('h3');
-            if (title) {
-                title.addEventListener('click', function() {
-                    commentsSection.classList.toggle('collapsed');
-                });
-            }
-        }
-    }
-})();
-
-// Mobile back button: hide as soon as user scrolls down, show on scroll up
 (function() {
     var btn = document.querySelector('.mobile-back-btn');
     if (!btn || window.innerWidth > 768) return;
