@@ -20,17 +20,15 @@
     document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('posts-container');
 
-        // 在移动端或者存在posts-container时初始化
-        if (window.innerWidth <= MOBILE_BREAKPOINT) {
-            initInfiniteScroll();
-        } else if (container && container.children.length > 0) {
+        // 只在存在posts-container时初始化
+        if (container) {
             initInfiniteScroll();
         }
     });
 
     // 监听窗口大小变化
     window.addEventListener('resize', function() {
-        if (window.innerWidth <= MOBILE_BREAKPOINT && !observer) {
+        if (window.innerWidth <= MOBILE_BREAKPOINT && !observer && document.getElementById('posts-container')) {
             initInfiniteScroll();
         }
     });
