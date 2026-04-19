@@ -24,7 +24,11 @@
 <body data-page="{{ current_page_type }}">
     <!-- 移动端全局返回按钮（非首页显示） -->
     {% if not mobile_shell_enabled %}
+    {% if current_page_type.startswith('admin') %}
+    <button class="mobile-back-btn global" onclick="window.location.href='{{ url_for('index') }}'" aria-label="返回首页">←</button>
+    {% else %}
     <button class="mobile-back-btn global" onclick="history.back()" aria-label="返回">←</button>
+    {% endif %}
     {% endif %}
     <header>
         <nav>
