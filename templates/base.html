@@ -4,6 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf_token" content="{{ csrf_token() }}">
+
+    <!-- PWA: Web App Manifest -->
+    <link rel="manifest" href="{{ static_file('site.webmanifest') }}">
+
+    <!-- PWA: iOS Safari -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="我的博客">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ static_file('icon-180.png') }}">
+
+    <!-- PWA: Theme Color (adapts to dark mode via JS) -->
+    <meta name="theme-color" content="#10b981" id="themeColorMeta">
+
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ static_file('css/style.css') }}" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="{{ static_file('css/style.css') }}"></noscript>
@@ -845,5 +858,21 @@ document.addEventListener('click', async function(event) {
 
 <script src="{{ static_file('js/mobile-editor.js') }}"></script>
 {% endif %}
+
+    <!-- PWA: Service Worker Registration -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js')
+                .then(function(registration) {
+                    console.log('[PWA] Service Worker registered:', registration.scope);
+                })
+                .catch(function(error) {
+                    console.log('[PWA] Service Worker registration failed:', error);
+                });
+        });
+    }
+    </script>
+    <script src="{{ static_file('js/pwa.js') }}"></script>
 </body>
 </html>
