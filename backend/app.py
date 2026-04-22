@@ -26,7 +26,7 @@ Flask博客系统 - 主应用文件
 # =============================================================================
 # 标准库导入
 # =============================================================================
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_from_directory
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
@@ -531,6 +531,12 @@ def view_tag(tag_id):
 def view_author(author_id):
     """查看作者别名（兼容模板）"""
     return app.view_functions['blog.view_author'](author_id)
+
+# PWA: Service Worker must be served from root scope
+@app.route('/sw.js')
+def service_worker():
+    """Serve Service Worker from root for proper scope"""
+    return send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
 
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
