@@ -452,9 +452,25 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
     Note:
         - 自动更新FTS全文搜索索引
         - 触发器已禁用，手动维护索引
+        - 包含60秒内重复内容防重保护
     """
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # 防重保护：同一作者60秒内发布相同标题+内容的文章，返回已有文章ID
+    if author_id is not None:
+        cursor.execute(
+            """SELECT id FROM posts
+               WHERE author_id = ? AND title = ? AND content = ?
+                 AND created_at > datetime('now', '-60 seconds')
+               ORDER BY created_at DESC LIMIT 1""",
+            (author_id, title, content)
+        )
+        existing = cursor.fetchone()
+        if existing:
+            conn.close()
+            return existing['id']
+
     cursor.execute(
         'INSERT INTO posts (title, content, is_published, category_id, author_id, access_level, access_password, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         (title, content, is_published, category_id, author_id, access_level, access_password, type)

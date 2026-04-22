@@ -69,14 +69,83 @@ selectedTags=draft.tags||[];selectedCategory=draft.category||null;accessLevel=dr
 renderSelections();updateAccessPill();updatePublishButton();}catch(e){console.warn('Failed to load draft:',e);}}
 function clearDraft(){try{localStorage.removeItem(draftKey);}catch(e){}
 selectedTags=[];selectedCategory=null;selectedImages=[];accessLevel='public';const titleInput=document.getElementById('mobileEditorTitle');const textarea=document.getElementById('mobileEditorTextarea');if(titleInput)titleInput.value='';if(textarea)textarea.value='';renderSelections();renderImages();updateAccessPill();updatePublishButton();}
-async function publishPost(){if(isPublishing){return;}
-const title=document.getElementById('mobileEditorTitle')?.value||'';const content=document.getElementById('mobileEditorTextarea')?.value||'';if(!content.trim()&&selectedImages.length===0){setEditorStatus('至少输入一点内容，或带上一张图片。','error');showToast('请输入内容或添加图片','error');return;}
-isPublishing=true;setPublishButtonState('发送中...');setEditorStatus('正在整理内容...','info',{persistent:true});try{const csrfToken=document.querySelector('meta[name="csrf_token"]')?.content;const uploadedImageUrls=await uploadSelectedImages(csrfToken);const composedContent=composePostContent(content,uploadedImageUrls);setEditorStatus('正在发送内容...','info',{persistent:true});const formData=new FormData();formData.append('title',title||buildTitleFromContent(composedContent,uploadedImageUrls.length));formData.append('content',composedContent);formData.append('is_published','true');formData.append('access_level',accessLevel);if(csrfToken){formData.append('csrf_token',csrfToken);}
-if(selectedCategory){formData.append('category_id',selectedCategory.id);}
-if(selectedTags.length>0){formData.append('tags',selectedTags.map(t=>t.name).join(', '));}
-const response=await fetch('/admin/new',{method:'POST',headers:{'X-CSRFToken':csrfToken},body:formData});if(response.ok){const destinationUrl=response.redirected?response.url:null;clearDraft();closeMobileEditor();setEditorStatus('');showToast('发送成功');if(destinationUrl){setTimeout(()=>{window.location.href=destinationUrl;},500);return;}
-const refreshed=window.InfiniteScroll&&typeof window.InfiniteScroll.refresh==='function'?await window.InfiniteScroll.refresh():false;if(refreshed){window.scrollTo({top:0,behavior:'smooth'});return;}
-setTimeout(()=>{window.location.href='/';},500);}else{const error=await response.text();throw new Error(error||'发布失败');}}catch(error){console.error('Publish error:',error);setEditorStatus(error.message||'发布失败，请稍后重试。','error',{persistent:true});showToast(`发布失败：${error.message||'未知错误'}`,'error');}finally{isPublishing=false;resetPublishButton();}}
+async function publishPost(){
+    // Double-lock: memory flag + DOM disabled check
+    const publishBtn = document.getElementById('mobileEditorPublish');
+    if (isPublishing || (publishBtn && publishBtn.disabled)) {
+        return;
+    }
+
+    const title = document.getElementById('mobileEditorTitle')?.value || '';
+    const content = document.getElementById('mobileEditorTextarea')?.value || '';
+    if (!content.trim() && selectedImages.length === 0) {
+        setEditorStatus('至少输入一点内容，或带上一张图片。', 'error');
+        showToast('请输入内容或添加图片', 'error');
+        return;
+    }
+
+    isPublishing = true;
+    if (publishBtn) publishBtn.disabled = true;
+    setPublishButtonState('发送中...');
+    setEditorStatus('正在整理内容...', 'info', {persistent: true});
+
+    let success = false;
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content;
+        const uploadedImageUrls = await uploadSelectedImages(csrfToken);
+        const composedContent = composePostContent(content, uploadedImageUrls);
+        setEditorStatus('正在发送内容...', 'info', {persistent: true});
+
+        const formData = new FormData();
+        formData.append('title', title || buildTitleFromContent(composedContent, uploadedImageUrls.length));
+        formData.append('content', composedContent);
+        formData.append('is_published', 'true');
+        formData.append('access_level', accessLevel);
+        if (csrfToken) { formData.append('csrf_token', csrfToken); }
+        if (selectedCategory) { formData.append('category_id', selectedCategory.id); }
+        if (selectedTags.length > 0) { formData.append('tags', selectedTags.map(t => t.name).join(', ')); }
+
+        const response = await fetch('/admin/new', {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken},
+            body: formData
+        });
+
+        if (response.ok) {
+            success = true;
+            const destinationUrl = response.redirected ? response.url : null;
+            clearDraft();
+            closeMobileEditor();
+            setEditorStatus('');
+            showToast('发送成功');
+            if (destinationUrl) {
+                setTimeout(() => { window.location.href = destinationUrl; }, 500);
+                return;
+            }
+            const refreshed = window.InfiniteScroll && typeof window.InfiniteScroll.refresh === 'function'
+                ? await window.InfiniteScroll.refresh()
+                : false;
+            if (refreshed) {
+                window.scrollTo({top: 0, behavior: 'smooth'});
+                return;
+            }
+            setTimeout(() => { window.location.href = '/'; }, 500);
+        } else {
+            const error = await response.text();
+            throw new Error(error || '发布失败');
+        }
+    } catch (error) {
+        console.error('Publish error:', error);
+        setEditorStatus(error.message || '发布失败，请稍后重试。', 'error', {persistent: true});
+        showToast(`发布失败：${error.message || '未知错误'}`, 'error');
+    } finally {
+        // Only reset lock on failure; on success we navigate away
+        if (!success) {
+            isPublishing = false;
+            resetPublishButton();
+        }
+    }
+}
 async function uploadSelectedImages(csrfToken){if(selectedImages.length===0){return[];}
 const uploadedUrls=[];for(let index=0;index<selectedImages.length;index++){const image=selectedImages[index];const file=image.file||await dataUrlToFile(image.dataUrl,`mobile-image-${index+1}.png`);if(!file){throw new Error(`第 ${index+1}张图片无法读取，请重新选择`);}
 setPublishButtonState(`上传中 ${index+1}/${selectedImages.length}`);setEditorStatus(`正在上传第 ${index+1}张图片，共 ${selectedImages.length}张`,'info',{persistent:true});const formData=new FormData();formData.append('file',file);if(csrfToken){formData.append('csrf_token',csrfToken);}

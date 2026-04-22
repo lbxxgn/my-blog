@@ -946,6 +946,22 @@
 <script>
 // Publish and save article
 function togglePublish() {
+    const titleInput = document.getElementById('title');
+    const contentInput = document.getElementById('content');
+    const title = titleInput.value.trim();
+    const content = contentInput.value.trim();
+
+    if (!title) {
+        alert('请填写文章标题');
+        titleInput.focus();
+        return;
+    }
+    if (!content) {
+        alert('请填写文章内容');
+        contentInput.focus();
+        return;
+    }
+
     const checkbox = document.getElementById('is_published');
     const form = document.getElementById('editorForm');
 

@@ -228,7 +228,16 @@ def new_post():
         if not title or not content:
             flash('标题和内容不能为空', 'error')
             categories = get_all_categories()
-            return render_template('admin/editor.html', post=None, categories=categories)
+            return render_template('admin/editor.html',
+                post={
+                    'title': title or '',
+                    'content': content or '',
+                    'is_published': is_published,
+                    'category_id': category_id,
+                    'access_level': access_level,
+                    'access_password': access_password,
+                },
+                categories=categories)
 
         # 获取当前用户ID作为作者
         author_id = session.get('user_id')
@@ -299,14 +308,20 @@ def edit_post(post_id):
         elif category_id is not None:
             category_id = int(category_id)
 
-        if not title or not content:
-            flash('标题和内容不能为空', 'error')
-            categories = get_all_categories()
-            return render_template('admin/editor.html', post=post, categories=categories)
-
         # 访问权限设置
         access_level = request.form.get('access_level', 'public')
         access_password = request.form.get('access_password', '') if access_level == 'password' else None
+
+        if not title or not content:
+            flash('标题和内容不能为空', 'error')
+            categories = get_all_categories()
+            # 保留用户已输入的数据，避免清空
+            post['title'] = title or ''
+            post['content'] = content or ''
+            post['category_id'] = category_id
+            post['access_level'] = access_level
+            post['access_password'] = access_password
+            return render_template('admin/editor.html', post=post, categories=categories)
 
         # 处理标签
         tag_names = request.form.get('tags', '').split(',')
