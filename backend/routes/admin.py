@@ -25,12 +25,16 @@ from models import (
     update_comment_visibility, delete_comment,
     search_posts, get_posts_by_author,
     get_user_by_username, get_user_by_id, create_user, update_user, delete_user, get_all_users,
-    get_db_connection, create_optimized_image_record
+    get_db_connection, create_optimized_image_record,
+    get_user_ai_config, save_ai_tag_history
 )
+from backend.routes.ai import _run_structured_prompt
 from auth_decorators import login_required, can_manage_users
 from logger import log_operation, log_error, log_sql
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 import re
+import threading
+from flask import current_app
 
 def _auto_title(content: str) -> str:
     text = re.sub(r'<[^>]+>', ' ', content or '')
@@ -39,6 +43,55 @@ def _auto_title(content: str) -> str:
         return '未命名记录'
     sentence = re.split(r'[。！？.!?\n]', text)[0].strip()
     return sentence[:24] if sentence else text[:24]
+
+def _async_ai_title(app, post_id, content, user_id):
+    """后台线程异步调用AI生成标题并更新文章。"""
+    with app.app_context():
+        try:
+            user_ai_config = get_user_ai_config(user_id)
+            if not user_ai_config or not user_ai_config.get('ai_tag_generation_enabled'):
+                return
+
+            ai_result = _run_structured_prompt(
+                user_ai_config,
+                system_prompt='你是一个专业的文章标题生成助手。请根据文章内容生成一个简洁、准确、吸引人的标题。',
+                user_prompt=f"""请为以下文章生成一个标题。
+
+要求：
+1. 标题简洁明了，18字以内
+2. 准确反映文章核心内容
+3. 直接返回标题文本，不要加引号或其他格式
+4. 不要返回任何解释性文字，只返回标题
+
+文章内容：
+{content[:3000]}
+""",
+                max_tokens=50,
+                temperature=0.5
+            )
+
+            if ai_result:
+                ai_title = ai_result['content'].strip().strip('"\'').strip()
+                if ai_title:
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    cursor.execute('UPDATE posts SET title = ? WHERE id = ?', (ai_title, post_id))
+                    conn.commit()
+                    conn.close()
+
+                    save_ai_tag_history(
+                        user_id=user_id,
+                        post_id=post_id,
+                        action='generate_title',
+                        provider=user_ai_config.get('ai_provider'),
+                        model_used=ai_result.get('model'),
+                        tokens_used=ai_result.get('tokens_used', 0),
+                        input_tokens=ai_result.get('input_tokens', 0),
+                        output_tokens=ai_result.get('output_tokens', 0),
+                        result_preview=ai_title
+                    )
+        except Exception as e:
+            logger.warning(f"Async AI title generation failed: {e}")
 
 # 创建管理后台蓝图
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -257,6 +310,13 @@ def new_post():
         # 创建文章
         post_id = create_post(title, content, is_published, category_id, author_id, access_level, access_password)
 
+        # 如果原标题为空，后台异步调用AI生成更好的标题
+        if not request.form.get('title') and post_id:
+            app = current_app._get_current_object()
+            t = threading.Thread(target=_async_ai_title, args=(app, post_id, content, author_id))
+            t.daemon = True
+            t.start()
+
         # 更新AI历史记录
         try:
             conn = get_db_connection()
@@ -343,6 +403,14 @@ def edit_post(post_id):
 
         # 更新文章
         update_post(post_id, title, content, is_published, category_id, access_level, access_password)
+
+        # 如果原标题为空，后台异步调用AI生成更好的标题
+        if not request.form.get('title'):
+            user_id = session.get('user_id')
+            app = current_app._get_current_object()
+            t = threading.Thread(target=_async_ai_title, args=(app, post_id, content, user_id))
+            t.daemon = True
+            t.start()
 
         # 更新标签
         if tag_names and tag_names[0]:
