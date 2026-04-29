@@ -5,8 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf_token" content="{{ csrf_token() }}">
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
+    <!-- JetBrains Mono for code blocks -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="{{ static_file('css/style.css') }}" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="{{ static_file('css/style.css') }}"></noscript>
+
+    <!-- Syntax highlighting (Pygments) -->
+    <link rel="stylesheet" href="{{ static_file('css/pygments.css') }}">
 
     <!-- Frontend enhancements -->
     <link rel="stylesheet" href="{{ static_file('css/enhancements.css') }}">
