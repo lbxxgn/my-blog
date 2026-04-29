@@ -730,3 +730,71 @@ def organize_content():
         'success': True,
         'suggestion': suggestion
     })
+
+
+@ai_bp.route('/generate-title', methods=['POST'])
+@login_required
+def generate_title():
+    """
+    根据内容自动生成标题
+    """
+    data = request.get_json() or {}
+    content = (data.get('content') or '').strip()
+
+    if not content:
+        return jsonify({'success': False, 'error': '内容不能为空'}), 400
+
+    user_id = session.get('user_id')
+    user_ai_config = get_user_ai_config(user_id)
+
+    # 启发式标题作为 fallback
+    title = _heuristic_title(content)
+    source = 'heuristic'
+
+    # 尝试 AI 生成
+    if user_ai_config and user_ai_config.get('ai_tag_generation_enabled'):
+        try:
+            ai_result = _run_structured_prompt(
+                user_ai_config,
+                system_prompt='你是一个专业的文章标题生成助手。请根据文章内容生成一个简洁、准确、吸引人的标题。',
+                user_prompt=f"""请为以下文章生成一个标题。
+
+要求：
+1. 标题简洁明了，18字以内
+2. 准确反映文章核心内容
+3. 直接返回标题文本，不要加引号或其他格式
+4. 不要返回任何解释性文字，只返回标题
+
+文章内容：
+{content[:3000]}
+""",
+                max_tokens=50,
+                temperature=0.5
+            )
+
+            if ai_result:
+                ai_title = ai_result['content'].strip().strip('"\'').strip()
+                if ai_title:
+                    title = ai_title
+                    source = 'ai'
+
+                    # 记录历史
+                    save_ai_tag_history(
+                        user_id=user_id,
+                        post_id=data.get('post_id'),
+                        action='generate_title',
+                        provider=user_ai_config.get('ai_provider'),
+                        model_used=ai_result.get('model'),
+                        tokens_used=ai_result.get('tokens_used', 0),
+                        input_tokens=ai_result.get('input_tokens', 0),
+                        output_tokens=ai_result.get('output_tokens', 0),
+                        result_preview=title
+                    )
+        except Exception as e:
+            logger.warning(f"AI title generation failed, using heuristic: {e}")
+
+    return jsonify({
+        'success': True,
+        'title': title,
+        'source': source
+    })

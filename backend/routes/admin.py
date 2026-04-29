@@ -30,6 +30,15 @@ from models import (
 from auth_decorators import login_required, can_manage_users
 from logger import log_operation, log_error, log_sql
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
+import re
+
+def _auto_title(content: str) -> str:
+    text = re.sub(r'<[^>]+>', ' ', content or '')
+    text = re.sub(r'\s+', ' ', text).strip()
+    if not text:
+        return '未命名记录'
+    sentence = re.split(r'[。！？.!?\n]', text)[0].strip()
+    return sentence[:24] if sentence else text[:24]
 
 # 创建管理后台蓝图
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -225,8 +234,8 @@ def new_post():
         access_level = request.form.get('access_level', 'public')
         access_password = request.form.get('access_password', '') if access_level == 'password' else None
 
-        if not title or not content:
-            flash('标题和内容不能为空', 'error')
+        if not content:
+            flash('内容不能为空', 'error')
             categories = get_all_categories()
             return render_template('admin/editor.html',
                 post={
@@ -238,6 +247,9 @@ def new_post():
                     'access_password': access_password,
                 },
                 categories=categories)
+
+        if not title:
+            title = _auto_title(content)
 
         # 获取当前用户ID作为作者
         author_id = session.get('user_id')
@@ -312,8 +324,8 @@ def edit_post(post_id):
         access_level = request.form.get('access_level', 'public')
         access_password = request.form.get('access_password', '') if access_level == 'password' else None
 
-        if not title or not content:
-            flash('标题和内容不能为空', 'error')
+        if not content:
+            flash('内容不能为空', 'error')
             categories = get_all_categories()
             # 保留用户已输入的数据，避免清空
             post['title'] = title or ''
@@ -322,6 +334,9 @@ def edit_post(post_id):
             post['access_level'] = access_level
             post['access_password'] = access_password
             return render_template('admin/editor.html', post=post, categories=categories)
+
+        if not title:
+            title = _auto_title(content)
 
         # 处理标签
         tag_names = request.form.get('tags', '').split(',')

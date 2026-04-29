@@ -270,16 +270,6 @@ nav h1 a:hover {
     color: var(--text-color);
 }
 
-.post-content > p:first-of-type::first-letter {
-    font-family: var(--font-heading);
-    font-size: 3.5em;
-    float: left;
-    line-height: 0.8;
-    margin: 0.08em 0.15em 0 0;
-    color: var(--primary-color);
-    font-weight: 700;
-}
-
 .post-content h1,
 .post-content h2,
 .post-content h3,
@@ -960,10 +950,6 @@ footer {
 
     .post-card h2 {
         font-size: 1.25rem;
-    }
-
-    .post-content > p:first-of-type::first-letter {
-        font-size: 2.8em;
     }
 
     .post-card {
