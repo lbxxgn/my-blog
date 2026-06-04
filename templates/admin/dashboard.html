@@ -430,10 +430,39 @@
 }
 
 /* ===== Table ===== */
+.admin-dashboard .posts-table th,
+.admin-dashboard .posts-table td {
+    padding: .75rem .5rem;
+}
+
 .posts-table th:first-child,
 .posts-table td:first-child {
     width: 40px;
     text-align: center;
+}
+
+.posts-table th:nth-child(3),
+.posts-table td:nth-child(3) {
+    width: 60px;
+    text-align: center;
+}
+
+.posts-table th:nth-child(4),
+.posts-table td:nth-child(4) {
+    width: 100px;
+    white-space: nowrap;
+}
+
+.posts-table th:nth-child(5),
+.posts-table td:nth-child(5) {
+    width: 70px;
+    text-align: center;
+}
+
+.posts-table th:nth-child(6),
+.posts-table td:nth-child(6) {
+    width: 150px;
+    white-space: nowrap;
 }
 
 .posts-table th:last-child,
@@ -629,6 +658,14 @@
     .batch-actions-bar .btn-xs {
         width: 100%;
         text-align: center;
+    }
+    .posts-table th:nth-child(4),
+    .posts-table td:nth-child(4) {
+        width: auto;
+    }
+    .posts-table th:nth-child(6),
+    .posts-table td:nth-child(6) {
+        width: auto;
     }
     .posts-table .actions {
         flex-direction: column;
