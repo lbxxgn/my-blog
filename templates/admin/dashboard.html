@@ -9,19 +9,19 @@
     <div class="dashboard-header">
         <h2>文章管理</h2>
         <div class="header-actions">
-            <a href="{{ url_for('category_list') }}" class="btn">分类管理</a>
-            <a href="{{ url_for('tag_list') }}" class="btn">标签管理</a>
-            <a href="{{ url_for('export_page') }}" class="btn">数据导出</a>
-            <a href="{{ url_for('import_page') }}" class="btn">数据导入</a>
-            <a href="{{ url_for('new_post') }}" class="btn btn-primary">新建文章</a>
+            <a href="{{ url_for('category_list') }}" class="btn btn-sm">分类管理</a>
+            <a href="{{ url_for('tag_list') }}" class="btn btn-sm">标签管理</a>
+            <a href="{{ url_for('export_page') }}" class="btn btn-sm">数据导出</a>
+            <a href="{{ url_for('import_page') }}" class="btn btn-sm">数据导入</a>
+            <a href="{{ url_for('new_post') }}" class="btn btn-sm btn-primary">新建文章</a>
         </div>
     </div>
 
     {% if posts %}
-        <div class="filter-bar" style="margin-bottom: 1rem; padding: 1rem; background: var(--code-bg); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <label for="categoryFilter" style="font-weight: 500;">筛选分类：</label>
-                <select id="categoryFilter" onchange="filterByCategory()" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem;">
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label for="categoryFilter">筛选分类</label>
+                <select id="categoryFilter" class="form-select" onchange="filterByCategory()">
                     <option value="" {% if not current_category_id %}selected{% endif %}>全部分类</option>
                     <option value="none" {% if current_category_id == 'none' %}selected{% endif %}>未分类</option>
                     {% for category in categories %}
@@ -29,17 +29,17 @@
                     {% endfor %}
                 </select>
             </div>
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <label for="typeFilter" style="font-weight: 500;">筛选类型：</label>
-                <select id="typeFilter" onchange="filterByType()" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem;">
+            <div class="filter-group">
+                <label for="typeFilter">筛选类型</label>
+                <select id="typeFilter" class="form-select" onchange="filterByType()">
                     <option value="" {% if not current_type %}selected{% endif %}>全部</option>
                     <option value="post" {% if current_type == 'post' %}selected{% endif %}>文章</option>
                     <option value="note" {% if current_type == 'note' %}selected{% endif %}>笔记</option>
                 </select>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <label for="perPageSelect" style="font-weight: 500; font-size: 0.9rem;">每页条数：</label>
-                <select id="perPageSelect" onchange="changePerPage()" style="padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.9rem;">
+            <div class="filter-group">
+                <label for="perPageSelect">每页条数</label>
+                <select id="perPageSelect" class="form-select" onchange="changePerPage()">
                     <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10</option>
                     <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20</option>
                     <option value="40" {% if pagination.per_page == 40 %}selected{% endif %}>40</option>
@@ -48,21 +48,21 @@
             </div>
         </div>
 
-        <div id="batchActionsBar" class="batch-actions-bar" style="display: none; margin-bottom: 1rem; padding: 1rem; background: #e0f2fe; border: 1px solid #0284c7; border-radius: 8px; align-items: center; gap: 1rem; flex-wrap: wrap;">
-            <span style="font-weight: 500;">已选择 <strong id="selectedCount">0</strong> 篇文章</span>
-            <button type="button" class="btn btn-sm btn-success" onclick="showBatchPublishModal()">批量发布</button>
-            <button type="button" class="btn btn-sm btn-secondary" onclick="showBatchUnpublishModal()">取消发布</button>
-            <button type="button" class="btn btn-sm btn-primary" onclick="showBatchCategoryModal()">设置分类</button>
-            <button type="button" class="btn btn-sm btn-info" onclick="showBatchTagsModal()">添加标签</button>
-            <button type="button" class="btn btn-sm btn-warning" onclick="showBatchAccessModal()">访问权限</button>
-            <button type="button" class="btn btn-sm btn-danger" onclick="showBatchDeleteModal()">批量删除</button>
-            <button type="button" class="btn btn-sm" onclick="clearSelection()">取消选择</button>
+        <div id="batchActionsBar" class="batch-actions-bar" style="display: none;">
+            <span class="selected-info">已选择 <strong id="selectedCount">0</strong> 篇</span>
+            <button type="button" class="btn btn-xs btn-primary" onclick="showBatchPublishModal()">批量发布</button>
+            <button type="button" class="btn btn-xs" onclick="showBatchUnpublishModal()">取消发布</button>
+            <button type="button" class="btn btn-xs" onclick="showBatchCategoryModal()">设置分类</button>
+            <button type="button" class="btn btn-xs" onclick="showBatchTagsModal()">添加标签</button>
+            <button type="button" class="btn btn-xs" onclick="showBatchAccessModal()">访问权限</button>
+            <button type="button" class="btn btn-xs btn-danger" onclick="showBatchDeleteModal()">批量删除</button>
+            <button type="button" class="btn btn-xs" onclick="clearSelection()">取消选择</button>
         </div>
 
         <table class="posts-table">
             <thead>
                 <tr>
-                    <th style="width: 50px;"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                    <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                     <th>标题</th>
                     <th>类型</th>
                     <th>分类</th>
@@ -87,7 +87,7 @@
                             {% if post.category_name %}
                                 <span class="post-category">{{ post.category_name }}</span>
                             {% else %}
-                                <span style="color: #999;">未分类</span>
+                                <span class="text-muted">未分类</span>
                             {% endif %}
                         </td>
                         <td>
@@ -99,11 +99,11 @@
                         </td>
                         <td>{{ post.created_at|localtime }}</td>
                         <td class="actions">
-                            <a href="{{ url_for('edit_post', post_id=post.id) }}" class="btn btn-sm">编辑</a>
+                            <a href="{{ url_for('edit_post', post_id=post.id) }}" class="btn btn-xs">编辑</a>
                             {% if post.type == 'note' %}
-                            <form method="POST" action="{{ url_for('admin.convert_note_to_post', post_id=post.id) }}" style="display: inline;">
+                            <form method="POST" action="{{ url_for('admin.convert_note_to_post', post_id=post.id) }}" class="delete-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn btn-sm btn-info">转文章</button>
+                                <button type="submit" class="btn btn-xs">转文章</button>
                             </form>
                             {% endif %}
                             <form method="POST" action="{{ url_for('delete_post_route', post_id=post.id) }}" class="delete-form"
@@ -111,7 +111,7 @@
                                   data-confirm-destructive="true"
                                   data-confirm-text="删除">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                                <button type="submit" class="btn btn-xs btn-danger">删除</button>
                             </form>
                         </td>
                     </tr>
@@ -121,36 +121,36 @@
 
         <!-- Pagination -->
         {% if pagination.total_pages > 1 %}
-        <div class="pagination-bar" style="margin-top: 1.5rem; padding: 1rem; background: var(--code-bg); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-            <div style="color: #666; font-size: 0.9rem;">
+        <div class="pagination-bar">
+            <div class="pagination-info">
                 显示第 <strong>{{ start_item }}</strong> 到
                 <strong>{{ end_item }}</strong> 条，
                 共 <strong>{{ pagination.total }}</strong> 条
             </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <div class="pagination-links">
                 {% if pagination.page > 1 %}
-                <a href="{{ url_for('admin_dashboard', page=1, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-sm">首页</a>
-                <a href="{{ url_for('admin_dashboard', page=pagination.page-1, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-sm">上一页</a>
+                <a href="{{ url_for('admin_dashboard', page=1, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-xs">首页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.page-1, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-xs">上一页</a>
                 {% endif %}
 
-                <span style="display: flex; gap: 0.25rem; align-items: center;">
+                <span class="page-nums">
                     {% for p in page_range %}
                         {% if p == pagination.page %}
-                        <span style="padding: 0.5rem 0.75rem; background: var(--primary-color); color: white; border-radius: 4px; font-weight: 500;">{{ p }}</span>
+                        <span class="page-num active">{{ p }}</span>
                         {% else %}
-                        <a href="{{ url_for('admin_dashboard', page=p, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ p }}</a>
+                        <a href="{{ url_for('admin_dashboard', page=p, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="page-num">{{ p }}</a>
                         {% endif %}
                     {% endfor %}
 
                     {% if show_ellipsis %}
-                    <span style="color: #999;">...</span>
-                    <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 4px; text-decoration: none; color: var(--text-color);">{{ pagination.total_pages }}</a>
+                    <span class="page-ellipsis">...</span>
+                    <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="page-num">{{ pagination.total_pages }}</a>
                     {% endif %}
                 </span>
 
                 {% if pagination.page < pagination.total_pages %}
-                <a href="{{ url_for('admin_dashboard', page=pagination.page+1, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-sm">下一页</a>
-                <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-sm">末页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.page+1, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-xs">下一页</a>
+                <a href="{{ url_for('admin_dashboard', page=pagination.total_pages, per_page=pagination.per_page, category_id=current_category_id, type=current_type) }}" class="btn btn-xs">末页</a>
                 {% endif %}
             </div>
         </div>
@@ -173,16 +173,16 @@
             <form id="batchCategoryForm">
                 <div class="form-group">
                     <label for="batchCategorySelect">选择分类</label>
-                    <select id="batchCategorySelect" name="category_id" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;">
+                    <select id="batchCategorySelect" name="category_id" class="form-select">
                         <option value="">移除分类（设为未分类）</option>
                         {% for category in categories %}
                             <option value="{{ category.id }}">{{ category.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">确认设置</button>
-                    <button type="button" class="btn" onclick="closeBatchCategoryModal()" style="flex: 1;">取消</button>
+                <div class="modal-form-actions">
+                    <button type="submit" class="btn btn-primary">确认设置</button>
+                    <button type="button" class="btn" onclick="closeBatchCategoryModal()">取消</button>
                 </div>
             </form>
         </div>
@@ -193,22 +193,21 @@
 <div id="batchDeleteModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>⚠️ 批量删除文章</h3>
+            <h3>批量删除文章</h3>
             <button type="button" class="btn-close" onclick="closeBatchDeleteModal()">✕</button>
         </div>
         <div class="modal-body">
-            <p style="margin: 1rem 0;">确定要删除 <strong id="deleteCount">0</strong> 篇文章吗？</p>
-            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 1rem; margin: 1rem 0;">
-                <p style="margin: 0 0 0.5rem 0; font-weight: 500; color: #dc2626;">此操作：</p>
-                <ul style="margin: 0.5rem 0; padding-left: 1.5rem; color: #991b1b;">
-                    <li>不可撤销</li>
+            <p class="delete-count-text">确定要删除 <strong id="deleteCount">0</strong> 篇文章吗？</p>
+            <div class="warning-box">
+                <p class="warning-box-title">此操作不可撤销</p>
+                <ul>
                     <li>将删除文章及所有评论</li>
                     <li>将删除文章标签关联</li>
                 </ul>
             </div>
-            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button type="button" class="btn btn-danger" onclick="confirmBatchDelete()" style="flex: 1;">确认删除</button>
-                <button type="button" class="btn" onclick="closeBatchDeleteModal()" style="flex: 1;">取消</button>
+            <div class="modal-form-actions">
+                <button type="button" class="btn btn-danger" onclick="confirmBatchDelete()">确认删除</button>
+                <button type="button" class="btn" onclick="closeBatchDeleteModal()">取消</button>
             </div>
         </div>
     </div>
@@ -225,12 +224,12 @@
             <form id="batchTagsForm">
                 <div class="form-group">
                     <label for="batchTagsInput">标签（用逗号分隔）</label>
-                    <input type="text" id="batchTagsInput" name="tags" placeholder="标签1, 标签2, 标签3" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;">
-                    <small style="color: #666; display: block; margin-top: 0.5rem;">输入多个标签，用逗号分隔</small>
+                    <input type="text" id="batchTagsInput" name="tags" class="form-input" placeholder="标签1, 标签2, 标签3">
+                    <small class="hint-text">输入多个标签，用逗号分隔</small>
                 </div>
-                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">确认添加</button>
-                    <button type="button" class="btn" onclick="closeBatchTagsModal()" style="flex: 1;">取消</button>
+                <div class="modal-form-actions">
+                    <button type="submit" class="btn btn-primary">确认添加</button>
+                    <button type="button" class="btn" onclick="closeBatchTagsModal()">取消</button>
                 </div>
             </form>
         </div>
@@ -248,19 +247,19 @@
             <form id="batchAccessForm">
                 <div class="form-group">
                     <label for="batchAccessLevel">访问权限</label>
-                    <select id="batchAccessLevel" name="access_level" onchange="togglePasswordField()" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;">
+                    <select id="batchAccessLevel" name="access_level" class="form-select" onchange="togglePasswordField()">
                         <option value="public">公开</option>
                         <option value="password">密码保护</option>
                         <option value="private">私密</option>
                     </select>
                 </div>
-                <div class="form-group" id="passwordFieldGroup" style="display: none; margin-top: 1rem;">
+                <div class="form-group" id="passwordFieldGroup" style="display: none;">
                     <label for="batchAccessPassword">访问密码</label>
-                    <input type="text" id="batchAccessPassword" name="access_password" placeholder="输入访问密码" style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1rem;">
+                    <input type="text" id="batchAccessPassword" name="access_password" class="form-input" placeholder="输入访问密码">
                 </div>
-                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1;">确认设置</button>
-                    <button type="button" class="btn" onclick="closeBatchAccessModal()" style="flex: 1;">取消</button>
+                <div class="modal-form-actions">
+                    <button type="submit" class="btn btn-primary">确认设置</button>
+                    <button type="button" class="btn" onclick="closeBatchAccessModal()">取消</button>
                 </div>
             </form>
         </div>
@@ -268,6 +267,7 @@
 </div>
 
 <style>
+/* ===== Modal ===== */
 .modal {
     position: fixed;
     top: 0;
@@ -282,7 +282,7 @@
 }
 
 .modal-content {
-    background: white;
+    background: var(--bg-color, white);
     border-radius: 12px;
     max-width: 500px;
     width: 90%;
@@ -295,29 +295,31 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem;
+    padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--border-color);
 }
 
 .modal-header h3 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 1.125rem;
+    font-weight: 600;
 }
 
 .modal-body {
     padding: 1.5rem;
 }
 
-.batch-actions-bar {
-    display: flex;
+/* ===== Button Variants ===== */
+.btn-xs {
+    padding: .3rem .6rem;
+    font-size: .8rem;
+    border-radius: 6px;
 }
 
-/* Button color variants */
 .btn-success {
     background-color: #10b981;
     color: white;
 }
-
 .btn-success:hover {
     background-color: #059669;
 }
@@ -326,7 +328,6 @@
     background-color: #6b7280;
     color: white;
 }
-
 .btn-secondary:hover {
     background-color: #4b5563;
 }
@@ -335,7 +336,6 @@
     background-color: #3b82f6;
     color: white;
 }
-
 .btn-info:hover {
     background-color: #2563eb;
 }
@@ -344,7 +344,6 @@
     background-color: #f59e0b;
     color: white;
 }
-
 .btn-warning:hover {
     background-color: #d97706;
 }
@@ -352,40 +351,308 @@
 .btn-close {
     background: none;
     border: none;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     cursor: pointer;
-    color: #6b7280;
+    color: var(--text-secondary);
     padding: 0;
     width: 2rem;
     height: 2rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 6px;
+    transition: all .2s;
 }
 
 .btn-close:hover {
-    background-color: #f3f4f6;
-    color: #1f2937;
+    background-color: var(--code-bg);
+    color: var(--text-color);
 }
 
-/* Type badges */
+/* ===== Filter Bar ===== */
+.filter-bar {
+    margin-bottom: 1rem;
+    padding: .75rem 1rem;
+    background: var(--code-bg);
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .75rem 1.25rem;
+}
+
+.filter-bar .filter-group {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.filter-bar label {
+    font-weight: 500;
+    font-size: .875rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.form-select {
+    padding: .4rem .75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: .875rem;
+    background: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+/* ===== Batch Actions Bar ===== */
+.batch-actions-bar {
+    display: flex;
+    margin-bottom: 1rem;
+    padding: .625rem 1rem;
+    background: var(--code-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    align-items: center;
+    gap: .4rem;
+    flex-wrap: wrap;
+}
+
+.batch-actions-bar .selected-info {
+    font-size: .875rem;
+    color: var(--text-secondary);
+    margin-right: .25rem;
+}
+
+.batch-actions-bar .selected-info strong {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+/* ===== Table ===== */
+.posts-table th:first-child,
+.posts-table td:first-child {
+    width: 44px;
+    text-align: center;
+}
+
+.posts-table th:last-child,
+.posts-table td:last-child {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.posts-table .actions {
+    display: flex;
+    gap: .3rem;
+    align-items: center;
+}
+
+.posts-table .actions .btn-xs {
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .posts-table .actions .btn-xs {
+        white-space: normal;
+        min-width: 3em;
+    }
+}
+
+.text-muted {
+    color: var(--text-secondary);
+}
+
+/* ===== Pagination ===== */
+.pagination-bar {
+    margin-top: 1.5rem;
+    padding: .75rem 1rem;
+    background: var(--code-bg);
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .75rem;
+}
+
+.pagination-bar .pagination-info {
+    color: var(--text-secondary);
+    font-size: .875rem;
+}
+
+.pagination-bar .pagination-links {
+    display: flex;
+    gap: .25rem;
+    align-items: center;
+}
+
+.page-nums {
+    display: flex;
+    gap: .25rem;
+    align-items: center;
+}
+
+.page-num {
+    padding: .35rem .6rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text-color);
+    font-size: .875rem;
+    transition: all .2s;
+    min-width: 2rem;
+    text-align: center;
+    display: inline-block;
+}
+
+.page-num:hover {
+    background: var(--bg-color);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.page-num.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    font-weight: 500;
+}
+
+.page-ellipsis {
+    color: var(--text-secondary);
+    padding: 0 .25rem;
+}
+
+/* ===== Modal Form ===== */
+.modal-form-actions {
+    display: flex;
+    gap: .75rem;
+    margin-top: 1.25rem;
+}
+
+.modal-form-actions .btn {
+    flex: 1;
+}
+
+.modal .form-select,
+.modal .form-input {
+    width: 100%;
+    padding: .625rem .875rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: .9375rem;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-family: inherit;
+}
+
+.modal .hint-text {
+    color: var(--text-secondary);
+    display: block;
+    margin-top: .5rem;
+    font-size: .875rem;
+}
+
+.warning-box {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.warning-box-title {
+    margin: 0 0 .5rem 0;
+    font-weight: 500;
+    color: #dc2626;
+}
+
+.warning-box ul {
+    margin: .5rem 0;
+    padding-left: 1.5rem;
+    color: #991b1b;
+}
+
+.delete-count-text {
+    margin: 1rem 0;
+    color: var(--text-color);
+}
+
+/* ===== Type badges ===== */
 .badge {
     display: inline-block;
-    padding: 0.25rem 0.5rem;
+    padding: .25rem .5rem;
     border-radius: 4px;
-    font-size: 0.8rem;
+    font-size: .8rem;
     font-weight: 500;
 }
 
 .badge-post {
-    background-color: #dbeafe;
-    color: #1e40af;
+    background: rgba(26, 188, 156, 0.15);
+    color: #1abc9c;
 }
 
 .badge-note {
-    background-color: #fef3c7;
-    color: #92400e;
+    background: rgba(102, 126, 234, 0.15);
+    color: #667eea;
+}
+
+/* ===== Dark theme adjustments ===== */
+.dark-theme .warning-box {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+.dark-theme .warning-box-title {
+    color: #f87171;
+}
+.dark-theme .warning-box ul {
+    color: #fca5a5;
+}
+
+/* ===== Mobile ===== */
+@media (max-width: 768px) {
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: .75rem;
+        gap: .5rem;
+    }
+    .filter-bar .filter-group {
+        width: 100%;
+    }
+    .filter-bar .form-select {
+        flex: 1;
+        width: 100%;
+    }
+    .batch-actions-bar {
+        flex-direction: column;
+        gap: .35rem;
+        padding: .75rem;
+    }
+    .batch-actions-bar .btn-xs {
+        width: 100%;
+        text-align: center;
+    }
+    .posts-table .actions {
+        flex-direction: column;
+        gap: .3rem;
+    }
+    .posts-table .actions .btn-xs {
+        width: 100%;
+        text-align: center;
+    }
+    .pagination-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .pagination-bar .pagination-links {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .modal-form-actions {
+        flex-direction: column;
+    }
 }
 </style>
 
