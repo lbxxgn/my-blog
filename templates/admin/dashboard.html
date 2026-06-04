@@ -99,11 +99,11 @@
                         </td>
                         <td>{{ post.created_at|localtime }}</td>
                         <td class="actions">
-                            <a href="{{ url_for('edit_post', post_id=post.id) }}" class="btn btn-xs">编辑</a>
+                            <a href="{{ url_for('edit_post', post_id=post.id) }}" class="btn btn-sm">编辑</a>
                             {% if post.type == 'note' %}
                             <form method="POST" action="{{ url_for('admin.convert_note_to_post', post_id=post.id) }}" class="delete-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn btn-xs">转文章</button>
+                                <button type="submit" class="btn btn-sm">转文章</button>
                             </form>
                             {% endif %}
                             <form method="POST" action="{{ url_for('delete_post_route', post_id=post.id) }}" class="delete-form"
@@ -111,7 +111,7 @@
                                   data-confirm-destructive="true"
                                   data-confirm-text="删除">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                                <button type="submit" class="btn btn-xs btn-danger">删除</button>
+                                <button type="submit" class="btn btn-sm btn-danger">删除</button>
                             </form>
                         </td>
                     </tr>
@@ -432,31 +432,27 @@
 /* ===== Table ===== */
 .posts-table th:first-child,
 .posts-table td:first-child {
-    width: 44px;
+    width: 40px;
     text-align: center;
 }
 
 .posts-table th:last-child,
 .posts-table td:last-child {
-    width: 1%;
+    white-space: nowrap;
+}
+
+.posts-table th {
     white-space: nowrap;
 }
 
 .posts-table .actions {
     display: flex;
-    gap: .3rem;
+    gap: .5rem;
     align-items: center;
 }
 
-.posts-table .actions .btn-xs {
+.posts-table .actions .btn-sm {
     white-space: nowrap;
-}
-
-@media (max-width: 768px) {
-    .posts-table .actions .btn-xs {
-        white-space: normal;
-        min-width: 3em;
-    }
 }
 
 .text-muted {
@@ -636,9 +632,9 @@
     }
     .posts-table .actions {
         flex-direction: column;
-        gap: .3rem;
+        gap: .4rem;
     }
-    .posts-table .actions .btn-xs {
+    .posts-table .actions .btn-sm {
         width: 100%;
         text-align: center;
     }
