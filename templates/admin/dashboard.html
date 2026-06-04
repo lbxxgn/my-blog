@@ -64,8 +64,6 @@
                 <tr>
                     <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                     <th>标题</th>
-                    <th>类型</th>
-                    <th>分类</th>
                     <th>状态</th>
                     <th>创建时间</th>
                     <th>操作</th>
@@ -77,24 +75,12 @@
                         <td><input type="checkbox" class="post-checkbox" value="{{ post.id }}" onchange="updateBatchActions()"></td>
                         <td><a href="{{ url_for('view_post', post_id=post.id) }}">{{ post.title }}</a></td>
                         <td>
-                            {% if post.type == 'note' %}
-                                <span class="badge badge-note">笔记</span>
-                            {% else %}
-                                <span class="badge badge-post">文章</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if post.category_name %}
-                                <span class="post-category">{{ post.category_name }}</span>
-                            {% else %}
-                                <span class="text-muted">未分类</span>
-                            {% endif %}
-                        </td>
-                        <td>
+                            {% set type_label = '笔记' if post.type == 'note' else '文章' %}
+                            {% set category_label = post.category_name or '未分类' %}
                             {% if post.is_published %}
-                                <span class="status published">已发布</span>
+                                <span class="status published" data-type="{{ type_label }}" data-category="{{ category_label }}">已发布</span>
                             {% else %}
-                                <span class="status draft">草稿</span>
+                                <span class="status draft" data-type="{{ type_label }}" data-category="{{ category_label }}">草稿</span>
                             {% endif %}
                         </td>
                         <td>{{ post.created_at|localtime }}</td>
@@ -443,26 +429,13 @@
 
 .posts-table th:nth-child(3),
 .posts-table td:nth-child(3) {
-    width: 80px;
+    width: 90px;
     text-align: center;
     white-space: nowrap;
 }
 
 .posts-table th:nth-child(4),
 .posts-table td:nth-child(4) {
-    width: 120px;
-    white-space: nowrap;
-}
-
-.posts-table th:nth-child(5),
-.posts-table td:nth-child(5) {
-    width: 90px;
-    text-align: center;
-    white-space: nowrap;
-}
-
-.posts-table th:nth-child(6),
-.posts-table td:nth-child(6) {
     width: 170px;
     white-space: nowrap;
 }
@@ -606,23 +579,54 @@
     color: var(--text-color);
 }
 
-/* ===== Type badges ===== */
-.badge {
-    display: inline-block;
-    padding: .25rem .5rem;
-    border-radius: 4px;
+/* ===== Status tooltip ===== */
+.status {
+    position: relative;
+    cursor: help;
+}
+
+.status::after {
+    content: attr(data-type) " · " attr(data-category);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    padding: .35rem .7rem;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
     font-size: .8rem;
-    font-weight: 500;
+    font-weight: 400;
+    color: var(--text-color);
+    white-space: nowrap;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s, visibility .2s;
+    pointer-events: none;
 }
 
-.badge-post {
-    background: rgba(26, 188, 156, 0.15);
-    color: #1abc9c;
+.status::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 1px);
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--border-color) transparent transparent transparent;
+    z-index: 101;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .2s, visibility .2s;
+    pointer-events: none;
 }
 
-.badge-note {
-    background: rgba(102, 126, 234, 0.15);
-    color: #667eea;
+.status:hover::after,
+.status:hover::before {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* ===== Dark theme adjustments ===== */
@@ -663,10 +667,6 @@
     }
     .posts-table th:nth-child(4),
     .posts-table td:nth-child(4) {
-        width: auto;
-    }
-    .posts-table th:nth-child(6),
-    .posts-table td:nth-child(6) {
         width: auto;
     }
     .posts-table .actions {
@@ -713,23 +713,23 @@ function getSelectedPostRows() {
 }
 
 function updateRowCategory(row, categoryName) {
-    const cell = row?.children?.[2];
-    if (!cell) return;
+    const statusSpan = row?.querySelector('.status');
+    if (!statusSpan) return;
 
-    if (categoryName) {
-        cell.innerHTML = `<span class="post-category">${categoryName}</span>`;
-    } else {
-        cell.innerHTML = '<span style="color: #999;">未分类</span>';
-    }
+    statusSpan.setAttribute('data-category', categoryName || '未分类');
 }
 
 function updateRowStatus(row, isPublished) {
-    const cell = row?.children?.[3];
+    const cell = row?.children?.[2];
     if (!cell) return;
 
+    const statusSpan = cell.querySelector('.status');
+    const typeLabel = statusSpan?.getAttribute('data-type') || '文章';
+    const categoryLabel = statusSpan?.getAttribute('data-category') || '未分类';
+
     cell.innerHTML = isPublished
-        ? '<span class="status published">已发布</span>'
-        : '<span class="status draft">草稿</span>';
+        ? `<span class="status published" data-type="${typeLabel}" data-category="${categoryLabel}">已发布</span>`
+        : `<span class="status draft" data-type="${typeLabel}" data-category="${categoryLabel}">草稿</span>`;
 }
 
 function removeSelectedRows() {
