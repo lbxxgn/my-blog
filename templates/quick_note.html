@@ -1,89 +1,371 @@
 {% extends "base.html" %}
 
-{% block title %}快速记事 - {{ SITE_NAME }}{% endblock %}
+{% block title %}快速记事 - {{ site_name }}{% endblock %}
 
 {% block page_type %}quick_note{% endblock %}
 
 {% block content %}
-<div class="quick-note-container">
-    <h1>快速记事</h1>
-    <p class="text-muted">快速捕获你的想法</p>
-
-    <form id="quick-note-form" class="quick-note-form">
-        <div class="form-group">
-            <label for="title">标题（可选）</label>
-            <input type="text" id="title" name="title" class="form-control"
-                   placeholder="给这个想法起个标题...">
+<div class="quick-note-wrapper">
+    <div class="quick-note-main">
+        <div class="quick-note-header">
+            <h1 class="quick-note-title">快速记事</h1>
+            <div class="save-indicator" id="saveIndicator">
+                <span class="save-dot" id="saveDot"></span>
+                <span class="save-text" id="saveText">就绪</span>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="content">内容 *</label>
-            <textarea id="content" name="content" class="form-control" rows="15"
-                      placeholder="写下你的想法..." required></textarea>
-        </div>
+        <form id="quick-note-form" class="quick-note-form">
+            <div class="title-area">
+                <input type="text" id="title" name="title" class="title-input"
+                       placeholder="标题（可选）..." autocomplete="off">
+            </div>
 
-        <div class="quick-note-actions">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> 快速保存 (Ctrl+S)
-            </button>
-            <button type="button" id="clear-btn" class="btn btn-secondary">
-                <i class="fas fa-eraser"></i> 清空
-            </button>
-        </div>
-    </form>
+            <div class="content-area">
+                <textarea id="content" name="content" class="content-input"
+                          placeholder="写下你的想法..." required></textarea>
+            </div>
 
-    <div id="save-status" class="save-status"></div>
+            <div class="editor-footer">
+                <div class="footer-left">
+                    <span class="word-count" id="wordCount">0 字</span>
+                    <button type="button" id="clear-btn" class="clear-link">清空</button>
+                </div>
+                <div class="footer-right">
+                    <a href="{{ url_for('index') }}" class="back-btn">返回首页</a>
+                    <button type="submit" class="save-btn" id="saveBtn">
+                        <span class="save-btn-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
+                        </span>
+                        <span class="save-btn-text">保存</span>
+                        <span class="save-btn-hint">Ctrl + S</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
 </div>
 
 <style>
-.quick-note-container {
-    max-width: 800px;
-    margin: 40px auto;
-    padding: 30px;
-}
-
-.quick-note-form {
-    margin-top: 30px;
-}
-
-.quick-note-form input,
-.quick-note-form textarea {
-    font-size: 16px;
-    padding: 15px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    transition: border-color 0.3s;
-}
-
-.quick-note-form input:focus,
-.quick-note-form textarea:focus {
-    outline: none;
-    border-color: #007bff;
-}
-
-.quick-note-actions {
-    margin-top: 20px;
+/* ===== 外层布局 ===== */
+.quick-note-wrapper {
+    min-height: calc(100vh - 64px);
     display: flex;
-    gap: 10px;
+    justify-content: center;
+    padding: 24px;
+    background: var(--bg-color, #fafafa);
 }
 
-.save-status {
-    margin-top: 20px;
-    padding: 10px;
-    border-radius: 4px;
-    display: none;
+.quick-note-main {
+    width: 100%;
+    max-width: 1000px;
+    background: var(--card-bg, #ffffff);
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 20px rgba(0,0,0,0.06);
+    padding: 40px 56px 28px;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 112px);
 }
 
-.save-status.success {
-    background-color: #d4edda;
-    color: #155724;
-    display: block;
+/* ===== 头部 ===== */
+.quick-note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color, #e8e8e8);
 }
 
-.save-status.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    display: block;
+.quick-note-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-color, #1a1a1a);
+    margin: 0;
+    letter-spacing: -0.3px;
+}
+
+/* ===== 保存指示器 ===== */
+.save-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary, #888);
+    transition: all 0.3s ease;
+}
+
+.save-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    transition: all 0.3s ease;
+}
+
+.save-dot.saving {
+    background: #f59e0b;
+    animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+.save-dot.saved {
+    background: #10b981;
+}
+
+.save-dot.error {
+    background: #ef4444;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* ===== 表单区域 ===== */
+.quick-note-form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 0;
+}
+
+/* ===== 标题输入 ===== */
+.title-area {
+    margin-bottom: 8px;
+}
+
+.title-input {
+    width: 100%;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--heading-color, #111);
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 8px 0;
+    line-height: 1.3;
+    letter-spacing: -0.5px;
+    font-family: inherit;
+}
+
+.title-input::placeholder {
+    color: var(--text-secondary, #bbb);
+    font-weight: 400;
+}
+
+.title-input:focus {
+    outline: none;
+}
+
+/* ===== 内容输入 ===== */
+.content-area {
+    flex: 1;
+    min-height: 200px;
+    margin-bottom: 24px;
+    display: flex;
+    flex-direction: column;
+}
+
+.content-input {
+    width: 100%;
+    min-height: 200px;
+    flex: 1;
+    font-size: 18px;
+    line-height: 1.8;
+    color: var(--text-color, #333);
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 12px 0;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.content-input::placeholder {
+    color: var(--text-secondary, #bbb);
+}
+
+.content-input:focus {
+    outline: none;
+}
+
+/* ===== 底部操作栏 ===== */
+.editor-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color, #e8e8e8);
+    margin-top: auto;
+}
+
+.footer-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.word-count {
+    font-size: 13px;
+    color: var(--text-secondary, #999);
+    font-variant-numeric: tabular-nums;
+}
+
+.clear-link {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #999);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.clear-link:hover {
+    color: #ef4444;
+    background: #fef2f2;
+}
+
+.back-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 12px 20px;
+    color: var(--text-secondary, #666);
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+    background: var(--code-bg, #f3f4f6);
+    color: var(--text-color, #333);
+}
+
+.save-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.save-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+}
+
+.save-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+}
+
+.save-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.save-btn-hint {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.75;
+    margin-left: 4px;
+    padding-left: 8px;
+    border-left: 1px solid rgba(255,255,255,0.3);
+}
+
+/* ===== 暗色模式 ===== */
+.dark-theme .quick-note-wrapper {
+    background: var(--bg-color, #0f172a);
+}
+
+.dark-theme .quick-note-main {
+    background: var(--card-bg, #1e293b);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2), 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.dark-theme .quick-note-title {
+    color: var(--heading-color, #f1f5f9);
+}
+
+.dark-theme .title-input {
+    color: var(--heading-color, #f1f5f9);
+}
+
+.dark-theme .title-input::placeholder {
+    color: #64748b;
+}
+
+.dark-theme .content-input {
+    color: var(--text-color, #e2e8f0);
+}
+
+.dark-theme .content-input::placeholder {
+    color: #64748b;
+}
+
+.dark-theme .quick-note-header,
+.dark-theme .editor-footer {
+    border-color: var(--border-color, #334155);
+}
+
+/* ===== 移动端适配 ===== */
+@media (max-width: 768px) {
+    .quick-note-wrapper {
+        padding: 0;
+        background: var(--card-bg, #fff);
+        min-height: calc(100vh - 56px);
+    }
+
+    .quick-note-main {
+        border-radius: 0;
+        box-shadow: none;
+        padding: 24px 20px 32px;
+        min-height: calc(100vh - 56px);
+    }
+
+    .quick-note-title {
+        font-size: 18px;
+    }
+
+    .title-input {
+        font-size: 22px;
+    }
+
+    .content-input {
+        font-size: 16px;
+        line-height: 1.7;
+        min-height: 200px;
+    }
+
+    .content-area {
+        min-height: 200px;
+    }
+
+    .save-btn-hint {
+        display: none;
+    }
+
+    .editor-footer {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
 }
 </style>
 
@@ -92,33 +374,85 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('quick-note-form');
     const contentInput = document.getElementById('content');
     const titleInput = document.getElementById('title');
-    const saveStatus = document.getElementById('save-status');
+    const saveBtn = document.getElementById('saveBtn');
     const clearBtn = document.getElementById('clear-btn');
+    const saveDot = document.getElementById('saveDot');
+    const saveText = document.getElementById('saveText');
+    const wordCount = document.getElementById('wordCount');
 
-    // Form submit
+    // 自动增高 textarea
+    function autoResize() {
+        contentInput.style.height = 'auto';
+        const newHeight = Math.max(400, contentInput.scrollHeight);
+        contentInput.style.height = newHeight + 'px';
+    }
+
+    contentInput.addEventListener('input', function() {
+        autoResize();
+        updateWordCount();
+        setSaveState('ready');
+    });
+
+    titleInput.addEventListener('input', function() {
+        setSaveState('ready');
+    });
+
+    // 字数统计
+    function updateWordCount() {
+        const text = contentInput.value.trim();
+        const count = text.length;
+        wordCount.textContent = count + ' 字';
+    }
+
+    // 保存状态
+    function setSaveState(state) {
+        saveDot.className = 'save-dot';
+        switch(state) {
+            case 'ready':
+                saveDot.classList.add('saved');
+                saveText.textContent = '就绪';
+                break;
+            case 'saving':
+                saveDot.classList.add('saving');
+                saveText.textContent = '保存中...';
+                break;
+            case 'saved':
+                saveDot.classList.add('saved');
+                saveText.textContent = '已保存';
+                break;
+            case 'error':
+                saveDot.classList.add('error');
+                saveText.textContent = '保存失败';
+                break;
+        }
+    }
+
+    // 表单提交
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const content = contentInput.value.trim();
         if (!content) {
-            showStatus('内容不能为空', 'error');
+            setSaveState('error');
+            saveText.textContent = '内容不能为空';
+            contentInput.focus();
+            setTimeout(() => setSaveState('ready'), 2000);
             return;
         }
 
+        setSaveState('saving');
+        saveBtn.disabled = true;
+        const originalText = saveBtn.querySelector('.save-btn-text').textContent;
+        saveBtn.querySelector('.save-btn-text').textContent = '保存中...';
+
         try {
-            // Get CSRF token from meta tag
             const csrfToken = document.querySelector('meta[name="csrf_token"]')?.getAttribute('content');
-
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-
-            // Add CSRF token if available
+            const headers = { 'Content-Type': 'application/json' };
             if (csrfToken) {
                 headers['X-CSRFToken'] = csrfToken;
             }
 
-            const response = await fetch('/quick-note', {
+            const response = await fetch('/knowledge_base/quick-note', {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify({
@@ -130,42 +464,60 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (data.success) {
-                showStatus('已保存到时间线！', 'success');
-                // Clear form
+                setSaveState('saved');
                 titleInput.value = '';
                 contentInput.value = '';
-                // Focus back to content for next note
+                contentInput.style.height = '400px';
+                updateWordCount();
                 contentInput.focus();
+
+                // 2秒后恢复就绪状态
+                setTimeout(() => setSaveState('ready'), 2000);
             } else {
-                showStatus(data.error || '保存失败', 'error');
+                setSaveState('error');
+                saveText.textContent = data.error || '保存失败';
+                setTimeout(() => setSaveState('ready'), 3000);
             }
         } catch (error) {
-            showStatus('保存失败：' + error.message, 'error');
+            setSaveState('error');
+            saveText.textContent = '网络错误';
+            setTimeout(() => setSaveState('ready'), 3000);
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.querySelector('.save-btn-text').textContent = originalText;
         }
     });
 
-    // Ctrl+S shortcut
+    // Ctrl+S 快捷键
     document.addEventListener('keydown', function(e) {
-        if (e.ctrlKey && e.key === 's') {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
             form.dispatchEvent(new Event('submit'));
         }
     });
 
-    // Clear button
-    clearBtn.addEventListener('click', function() {
-        titleInput.value = '';
-        contentInput.value = '';
-        contentInput.focus();
+    // 清空按钮
+    clearBtn.addEventListener('click', async function() {
+        if (!titleInput.value && !contentInput.value) {
+            contentInput.focus();
+            return;
+        }
+        const confirmed = window.showAppConfirm
+            ? await window.showAppConfirm('确定清空当前内容？')
+            : confirm('确定清空当前内容？');
+        if (confirmed) {
+            titleInput.value = '';
+            contentInput.value = '';
+            contentInput.style.height = '400px';
+            updateWordCount();
+            setSaveState('ready');
+            contentInput.focus();
+        }
     });
 
-    function showStatus(message, type) {
-        saveStatus.textContent = message;
-        saveStatus.className = 'save-status ' + type;
-        setTimeout(() => {
-            saveStatus.className = 'save-status';
-        }, 3000);
-    }
+    // 初始化
+    updateWordCount();
+    contentInput.focus();
 });
 </script>
 {% endblock %}
