@@ -589,6 +589,13 @@
 // 将可用标签和分类数据传递给 JavaScript
 window.availableTags = {{ all_tags|safe if all_tags else '[]' }};
 window.availableCategories = {{ all_categories|safe if all_categories else '[]' }};
+</script>
+
+
+<script src="{{ static_file('js/mobile-editor.js') }}"></script>
+{% endif %}
+
+<script>
 window.getCsrfToken = function() {
     return document.querySelector('meta[name="csrf_token"]')?.content || '';
 };
@@ -850,8 +857,5 @@ document.addEventListener('click', async function(event) {
     }
 }, true);
 </script>
-
-<script src="{{ static_file('js/mobile-editor.js') }}"></script>
-{% endif %}
 </body>
 </html>
