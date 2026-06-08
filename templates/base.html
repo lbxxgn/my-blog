@@ -57,13 +57,13 @@
                     </form>
                 </li>
                 {% if session.get('user_id') %}
-                    <li><a href="{{ url_for('admin_dashboard') }}">内容</a></li>
-                    <li><a href="{{ url_for('knowledge_base.timeline') }}">知识库</a></li>
                     <li>
                         <a href="{{ url_for('new_post') }}" class="nav-write-btn">
                             <span>✏️</span> 写作
                         </a>
                     </li>
+                    <li><a href="{{ url_for('admin_dashboard') }}">内容</a></li>
+                    <li><a href="{{ url_for('knowledge_base.timeline') }}">知识库</a></li>
                     {% if session.get('role') == 'admin' %}
                     <li class="dropdown">
                         <span class="dropdown-toggle" style="cursor: pointer;">
