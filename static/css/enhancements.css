@@ -806,19 +806,6 @@ footer {
     color: var(--primary-color);
 }
 
-/* --- Quick Note FAB Enhancement --- */
-.quick-note-fab {
-    background: var(--gradient-primary);
-    box-shadow: 0 4px 20px rgba(42,157,143,0.35);
-    border-radius: 50px;
-    transition: all 0.4s var(--transition-smooth);
-}
-
-.quick-note-fab:hover {
-    box-shadow: 0 8px 30px rgba(42,157,143,0.4);
-    transform: translateY(-3px);
-}
-
 /* --- Note Badge --- */
 .post-card--note {
     border-left: 3px solid var(--accent-color);
@@ -1290,8 +1277,7 @@ body.reader-mode .reader-exit {
 /* --- Print Styles --- */
 @media print {
     body::after,
-    .reading-progress,
-    .quick-note-fab {
+    .reading-progress {
         display: none !important;
     }
 

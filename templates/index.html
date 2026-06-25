@@ -114,66 +114,17 @@
     </div>
 </div>
 
-<!-- 快速记事浮动按钮（仅登录用户可见） -->
+<!-- 内容创建入口（仅桌面端显示） -->
 {% if session.get('user_id') %}
-<a href="{{ url_for('knowledge_base.quick_note') }}" class="quick-note-fab" title="快速记事">
-    <span class="fab-icon">✏️</span>
-    <span class="fab-text">快速记事</span>
-</a>
-
-<style>
-/* 快速记事浮动按钮 */
-.quick-note-fab {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 50px;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
-    cursor: pointer;
-    font-size: 16px;
-    font-weight: 600;
-    z-index: 1000;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    text-decoration: none;
-}
-
-.quick-note-fab:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 6px 30px rgba(102, 126, 234, 0.5);
-}
-
-.quick-note-fab:active {
-    transform: translateY(0) scale(0.98);
-}
-
-.fab-icon {
-    font-size: 22px;
-    line-height: 1;
-}
-
-.fab-text {
-    font-size: 15px;
-}
-
-/* 移动端适配 */
-@media (max-width: 768px) {
-    .quick-note-fab {
-        bottom: 76px;
-        right: 16px;
-        padding: 12px 18px;
-    }
-
-    .fab-text {
-        display: none;
-    }
-}
-</style>
+<div class="write-actions-fab">
+    <a href="{{ url_for('new_post') }}" class="write-fab write-fab--post" title="写文章">
+        <span class="write-fab__label">写文章</span>
+        <span class="write-fab__icon">📝</span>
+    </a>
+    <a href="{{ url_for('knowledge_base.quick_note') }}" class="write-fab write-fab--note" title="写笔记">
+        <span class="write-fab__label">写笔记</span>
+        <span class="write-fab__icon">✏️</span>
+    </a>
+</div>
 {% endif %}
 {% endblock %}
