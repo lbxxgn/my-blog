@@ -425,44 +425,51 @@ csrf.exempt(app.view_functions['knowledge_base.plugin_submit'])
 csrf.exempt(app.view_functions['knowledge_base.sync_annotations'])
 csrf.exempt(app.view_functions['mobile.mobile_upload_image'])
 csrf.exempt(app.view_functions['ai.test_ai_config'])
+
+
+def _apply_route_limit(endpoint: str, limit: str) -> None:
+    """将速率限制应用到指定端点的视图函数并写回 view_functions。"""
+    app.view_functions[endpoint] = limiter.limit(limit)(app.view_functions[endpoint])
+
+
 # 对登录路由应用速率限制
-limiter.limit("5 per minute")(app.view_functions['auth.login'])
+_apply_route_limit('auth.login', '5 per minute')
 
 # 为关键API端点添加速率限制
 # 文章相关API
-limiter.limit("100 per hour")(app.view_functions['api.api_posts_cursor'])
-limiter.limit("10 per minute")(app.view_functions['api.generate_qrcode'])
-limiter.limit("30 per hour")(app.view_functions['api.get_original_image_url'])
+_apply_route_limit('api.api_posts_cursor', '100 per hour')
+_apply_route_limit('api.generate_qrcode', '10 per minute')
+_apply_route_limit('api.get_original_image_url', '30 per hour')
 
 # 认证相关端点
-limiter.limit("10 per minute")(app.view_functions['auth.passkey_register_begin'])
-limiter.limit("10 per minute")(app.view_functions['auth.passkey_authenticate_begin'])
-limiter.limit("10 per minute")(app.view_functions['auth.passkey_register_finish'])
-limiter.limit("10 per minute")(app.view_functions['auth.passkey_authenticate_finish'])
+_apply_route_limit('auth.passkey_register_begin', '10 per minute')
+_apply_route_limit('auth.passkey_authenticate_begin', '10 per minute')
+_apply_route_limit('auth.passkey_register_finish', '10 per minute')
+_apply_route_limit('auth.passkey_authenticate_finish', '10 per minute')
 
 # AI相关端点
-limiter.limit("50 per hour")(app.view_functions['ai.generate_tags'])
-limiter.limit("50 per hour")(app.view_functions['ai.ai_settings'])
-limiter.limit("10 per minute")(app.view_functions['ai.test_ai_config'])
-limiter.limit("50 per hour")(app.view_functions['ai.ai_history'])
-limiter.limit("50 per hour")(app.view_functions['ai.ai_status'])
-limiter.limit("30 per hour")(app.view_functions['ai.generate_summary'])
-limiter.limit("30 per hour")(app.view_functions['ai.recommend_posts'])
-limiter.limit("20 per hour")(app.view_functions['ai.continue_writing'])
-limiter.limit("20 per hour")(app.view_functions['ai.organize_content'])
+_apply_route_limit('ai.generate_tags', '50 per hour')
+_apply_route_limit('ai.ai_settings', '50 per hour')
+_apply_route_limit('ai.test_ai_config', '10 per minute')
+_apply_route_limit('ai.ai_history', '50 per hour')
+_apply_route_limit('ai.ai_status', '50 per hour')
+_apply_route_limit('ai.generate_summary', '30 per hour')
+_apply_route_limit('ai.recommend_posts', '30 per hour')
+_apply_route_limit('ai.continue_writing', '20 per hour')
+_apply_route_limit('ai.organize_content', '20 per hour')
 
 # 知识库API
-limiter.limit("50 per hour")(app.view_functions['knowledge_base.plugin_submit'])
-limiter.limit("50 per hour")(app.view_functions['knowledge_base.sync_annotations'])
-limiter.limit("30 per hour")(app.view_functions['knowledge_base.get_annotations'])
-limiter.limit("50 per hour")(app.view_functions['knowledge_base.get_recent_captures'])
-limiter.limit("20 per hour")(app.view_functions['knowledge_base.card_list'])
-limiter.limit("10 per minute")(app.view_functions['knowledge_base.card_detail'])
-limiter.limit("10 per minute")(app.view_functions['knowledge_base.card_status'])
-limiter.limit("10 per minute")(app.view_functions['knowledge_base.merge_cards'])
-limiter.limit("20 per hour")(app.view_functions['knowledge_base.generate_card_tags'])
-limiter.limit("10 per hour")(app.view_functions['knowledge_base.ai_merge_cards'])
-limiter.limit("10 per hour")(app.view_functions['knowledge_base.convert_card_to_post'])
+_apply_route_limit('knowledge_base.plugin_submit', '50 per hour')
+_apply_route_limit('knowledge_base.sync_annotations', '50 per hour')
+_apply_route_limit('knowledge_base.get_annotations', '30 per hour')
+_apply_route_limit('knowledge_base.get_recent_captures', '50 per hour')
+_apply_route_limit('knowledge_base.card_list', '20 per hour')
+_apply_route_limit('knowledge_base.card_detail', '10 per minute')
+_apply_route_limit('knowledge_base.card_status', '10 per minute')
+_apply_route_limit('knowledge_base.merge_cards', '10 per minute')
+_apply_route_limit('knowledge_base.generate_card_tags', '20 per hour')
+_apply_route_limit('knowledge_base.ai_merge_cards', '10 per hour')
+_apply_route_limit('knowledge_base.convert_card_to_post', '10 per hour')
 
 # =============================================================================
 # 开发环境：启动时检查manifest

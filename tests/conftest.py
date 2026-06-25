@@ -346,6 +346,17 @@ def app_with_aliases(temp_db):
     return app
 
 
+@pytest.fixture(scope='function')
+def init_database(temp_db):
+    """
+    兼容旧测试的临时数据库 fixture 别名
+
+    一些历史测试使用 init_database 作为 fixture 名称；
+    其功能与 temp_db 完全一致：提供一个已初始化的临时 SQLite 数据库。
+    """
+    return temp_db
+
+
 @pytest.fixture
 def test_admin_user(temp_db):
     """
@@ -459,6 +470,55 @@ def client(app_with_aliases):
     app.config['SECRET_KEY'] = 'test-secret-key'
     # 禁用CSRF保护以便测试
     app.config['WTF_CSRF_ENABLED'] = False
+
+    # 重置限流计数，避免跨测试污染
+    try:
+        from app import limiter
+        limiter.reset()
+    except Exception:
+        pass
+
+    with app.test_client() as client:
+        yield client
+
+
+@pytest.fixture
+def csrf_client(app_with_aliases):
+    """
+    创建启用 CSRF 保护的测试客户端
+
+    Returns:
+        Flask test client with CSRF enabled
+    """
+    app = app_with_aliases
+    app.config['TESTING'] = True
+    app.config['SECRET_KEY'] = 'test-secret-key'
+    app.config['WTF_CSRF_ENABLED'] = True
+
+    with app.test_client() as client:
+        yield client
+
+
+@pytest.fixture
+def limited_client(app_with_aliases):
+    """
+    创建启用速率限制的测试客户端
+
+    Returns:
+        Flask test client with rate limiting enabled
+    """
+    app = app_with_aliases
+    app.config['TESTING'] = True
+    app.config['SECRET_KEY'] = 'test-secret-key'
+    app.config['WTF_CSRF_ENABLED'] = False
+    app.config['RATELIMIT_ENABLED'] = True
+
+    # 重置内存中的限流计数，避免跨测试污染
+    try:
+        from app import limiter
+        limiter.reset()
+    except Exception:
+        pass
 
     with app.test_client() as client:
         yield client
