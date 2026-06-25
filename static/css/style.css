@@ -27,15 +27,9 @@
     border-radius: 6px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     white-space: nowrap;
-    opacity: 0;
-    transform: translateX(8px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.write-fab:hover .write-fab__label,
-.write-fab:focus-visible .write-fab__label {
     opacity: 1;
     transform: translateX(0);
+    transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .write-fab__icon {

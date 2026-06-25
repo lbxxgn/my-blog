@@ -821,7 +821,7 @@ if(postsContainer&&postsContainer.children.length>0){ProgressiveLoader.animateCo
 })();
 
 /* --- static/js/mobile-layout.js --- */
-(function(){'use strict';let currentPage='home';let currentMyPostsTab='published';document.addEventListener('DOMContentLoaded',function(){initBottomNavigation();initDoubleTapToTop();initMobileLayout();initMyPostsTabs();});function initBottomNavigation(){const navItems=document.querySelectorAll('.nav-item[data-page]');navItems.forEach(item=>{item.addEventListener('click',function(e){const page=this.getAttribute('data-page');if(page==='publish'){e.preventDefault();if(typeof window.openMobileEditor==='function'){window.openMobileEditor();}
+(function(){'use strict';let currentPage='home';let currentMyPostsTab='published';document.addEventListener('DOMContentLoaded',function(){initBottomNavigation();initDoubleTapToTop();initMobileLayout();initMyPostsTabs();initProfileAdminLink();});function initBottomNavigation(){const navItems=document.querySelectorAll('.nav-item[data-page]');navItems.forEach(item=>{item.addEventListener('click',function(e){const page=this.getAttribute('data-page');if(page==='publish'){e.preventDefault();if(typeof window.openMobileEditor==='function'){window.openMobileEditor();}
 return;}
 if(page==='home'&&window.location.pathname!=='/'){return;}
 e.preventDefault();if(page!==currentPage){setActiveNavItem(page);switchPage(page);}});});}
@@ -854,6 +854,7 @@ function confirmDeletePost(postId,postTitle){const modal=document.createElement(
 function closeDeleteModal(){if(window.deleteModal){window.deleteModal.classList.remove('show');setTimeout(()=>{window.deleteModal.remove();window.deleteModal=null;},300);}}
 async function deletePost(postId){try{const csrfToken=document.querySelector('meta[name="csrf_token"]')?.getAttribute('content')||'';const response=await fetch(`/admin/delete/${postId}`,{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken}});const data=await response.json();if(data.success){closeDeleteModal();showToast('文章已删除');loadMyPosts(currentMyPostsTab);}else{showToast('删除失败：'+(data.error||'未知错误'));}}catch(error){console.error('Failed to delete post:',error);showToast('删除失败，请稍后重试');}}
 function showToast(message){const toast=document.createElement('div');toast.className='toast-message';toast.textContent=message;document.body.appendChild(toast);setTimeout(()=>{toast.classList.add('show');},10);setTimeout(()=>{toast.classList.remove('show');setTimeout(()=>{toast.remove();},300);},2000);}
+function initProfileAdminLink(){const link=document.querySelector('.profile-link-admin');if(!link){return;}link.addEventListener('click',function(e){if(window.innerWidth<=768){e.preventDefault();setActiveNavItem('my-posts');switchPage('my-posts');}});}
 window.MobileLayout={setActiveNavItem,switchPage,scrollToTop,loadMyPosts};window.confirmDeletePost=confirmDeletePost;window.closeDeleteModal=closeDeleteModal;window.deletePost=deletePost;})();
 /* --- static/js/mobile-editor.js --- */
 (function(){'use strict';let selectedTags=[];let selectedCategory=null;let selectedImages=[];let accessLevel='public';let draftKey='mobile_editor_draft';let isPublishing=false;let editorStatusTimer=null;document.addEventListener('DOMContentLoaded',function(){initMobileEditor();loadDraft();updateAccessIcon();});function openMobileEditor(){const overlay=document.getElementById('mobileEditorOverlay');const panel=document.getElementById('mobileEditorPanel');if(overlay&&panel){overlay.classList.add('show');panel.classList.add('show');document.body.style.overflow='hidden';setTimeout(()=>{const textarea=document.getElementById('mobileEditorTextarea');if(textarea)textarea.focus();},300);}}
@@ -927,14 +928,83 @@ selectedTags=draft.tags||[];selectedCategory=draft.category||null;accessLevel=dr
 renderSelections();updateAccessPill();updatePublishButton();}catch(e){console.warn('Failed to load draft:',e);}}
 function clearDraft(){try{localStorage.removeItem(draftKey);}catch(e){}
 selectedTags=[];selectedCategory=null;selectedImages=[];accessLevel='public';const titleInput=document.getElementById('mobileEditorTitle');const textarea=document.getElementById('mobileEditorTextarea');if(titleInput)titleInput.value='';if(textarea)textarea.value='';renderSelections();renderImages();updateAccessPill();updatePublishButton();}
-async function publishPost(){if(isPublishing){return;}
-const title=document.getElementById('mobileEditorTitle')?.value||'';const content=document.getElementById('mobileEditorTextarea')?.value||'';if(!content.trim()&&selectedImages.length===0){setEditorStatus('至少输入一点内容，或带上一张图片。','error');showToast('请输入内容或添加图片','error');return;}
-isPublishing=true;setPublishButtonState('发送中...');setEditorStatus('正在整理内容...','info',{persistent:true});try{const csrfToken=document.querySelector('meta[name="csrf_token"]')?.content;const uploadedImageUrls=await uploadSelectedImages(csrfToken);const composedContent=composePostContent(content,uploadedImageUrls);setEditorStatus('正在发送内容...','info',{persistent:true});const formData=new FormData();formData.append('title',title||buildTitleFromContent(composedContent,uploadedImageUrls.length));formData.append('content',composedContent);formData.append('is_published','true');formData.append('access_level',accessLevel);if(csrfToken){formData.append('csrf_token',csrfToken);}
-if(selectedCategory){formData.append('category_id',selectedCategory.id);}
-if(selectedTags.length>0){formData.append('tags',selectedTags.map(t=>t.name).join(', '));}
-const response=await fetch('/admin/new',{method:'POST',headers:{'X-CSRFToken':csrfToken},body:formData});if(response.ok){const destinationUrl=response.redirected?response.url:null;clearDraft();closeMobileEditor();setEditorStatus('');showToast('发送成功');if(destinationUrl){setTimeout(()=>{window.location.href=destinationUrl;},500);return;}
-const refreshed=window.InfiniteScroll&&typeof window.InfiniteScroll.refresh==='function'?await window.InfiniteScroll.refresh():false;if(refreshed){window.scrollTo({top:0,behavior:'smooth'});return;}
-setTimeout(()=>{window.location.href='/';},500);}else{const error=await response.text();throw new Error(error||'发布失败');}}catch(error){console.error('Publish error:',error);setEditorStatus(error.message||'发布失败，请稍后重试。','error',{persistent:true});showToast(`发布失败：${error.message||'未知错误'}`,'error');}finally{isPublishing=false;resetPublishButton();}}
+async function publishPost(){
+    // Double-lock: memory flag + DOM disabled check
+    const publishBtn = document.getElementById('mobileEditorPublish');
+    if (isPublishing || (publishBtn && publishBtn.disabled)) {
+        return;
+    }
+
+    const title = document.getElementById('mobileEditorTitle')?.value || '';
+    const content = document.getElementById('mobileEditorTextarea')?.value || '';
+    if (!content.trim() && selectedImages.length === 0) {
+        setEditorStatus('至少输入一点内容，或带上一张图片。', 'error');
+        showToast('请输入内容或添加图片', 'error');
+        return;
+    }
+
+    isPublishing = true;
+    if (publishBtn) publishBtn.disabled = true;
+    setPublishButtonState('发送中...');
+    setEditorStatus('正在整理内容...', 'info', {persistent: true});
+
+    let success = false;
+    try {
+        const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content;
+        const uploadedImageUrls = await uploadSelectedImages(csrfToken);
+        const composedContent = composePostContent(content, uploadedImageUrls);
+        setEditorStatus('正在发送内容...', 'info', {persistent: true});
+
+        const formData = new FormData();
+        formData.append('title', title || buildTitleFromContent(composedContent, uploadedImageUrls.length));
+        formData.append('content', composedContent);
+        formData.append('is_published', 'true');
+        formData.append('access_level', accessLevel);
+        if (csrfToken) { formData.append('csrf_token', csrfToken); }
+        if (selectedCategory) { formData.append('category_id', selectedCategory.id); }
+        if (selectedTags.length > 0) { formData.append('tags', selectedTags.map(t => t.name).join(', ')); }
+
+        const response = await fetch('/admin/new', {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrfToken},
+            body: formData
+        });
+
+        if (response.ok) {
+            success = true;
+            const destinationUrl = response.redirected ? response.url : null;
+            clearDraft();
+            closeMobileEditor();
+            setEditorStatus('');
+            showToast('发送成功');
+            if (destinationUrl) {
+                setTimeout(() => { window.location.href = destinationUrl; }, 500);
+                return;
+            }
+            const refreshed = window.InfiniteScroll && typeof window.InfiniteScroll.refresh === 'function'
+                ? await window.InfiniteScroll.refresh()
+                : false;
+            if (refreshed) {
+                window.scrollTo({top: 0, behavior: 'smooth'});
+                return;
+            }
+            setTimeout(() => { window.location.href = '/'; }, 500);
+        } else {
+            const error = await response.text();
+            throw new Error(error || '发布失败');
+        }
+    } catch (error) {
+        console.error('Publish error:', error);
+        setEditorStatus(error.message || '发布失败，请稍后重试。', 'error', {persistent: true});
+        showToast(`发布失败：${error.message || '未知错误'}`, 'error');
+    } finally {
+        // Only reset lock on failure; on success we navigate away
+        if (!success) {
+            isPublishing = false;
+            resetPublishButton();
+        }
+    }
+}
 async function uploadSelectedImages(csrfToken){if(selectedImages.length===0){return[];}
 const uploadedUrls=[];for(let index=0;index<selectedImages.length;index++){const image=selectedImages[index];const file=image.file||await dataUrlToFile(image.dataUrl,`mobile-image-${index+1}.png`);if(!file){throw new Error(`第 ${index+1}张图片无法读取，请重新选择`);}
 setPublishButtonState(`上传中 ${index+1}/${selectedImages.length}`);setEditorStatus(`正在上传第 ${index+1}张图片，共 ${selectedImages.length}张`,'info',{persistent:true});const formData=new FormData();formData.append('file',file);if(csrfToken){formData.append('csrf_token',csrfToken);}
