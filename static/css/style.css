@@ -116,7 +116,7 @@
     }
 }
 
- - unified style with subtle differentiation */
+/* Note card modifier - unified style with subtle differentiation */
 .post-card--note {
     border-left: 3px solid var(--accent-color, #667eea);
 }
