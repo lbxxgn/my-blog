@@ -114,16 +114,16 @@
     </div>
 </div>
 
-<!-- 内容创建入口（仅桌面端显示） -->
+<!-- 内容创建入口（右下角悬浮按钮；登录用户由模板条件控制，桌面端由 CSS 媒体查询控制） -->
 {% if session.get('user_id') %}
 <div class="write-actions-fab">
-    <a href="{{ url_for('new_post') }}" class="write-fab write-fab--post" title="写文章">
+    <a href="{{ url_for('new_post') }}" class="write-fab write-fab--post" title="写文章" aria-label="写文章">
         <span class="write-fab__label">写文章</span>
-        <span class="write-fab__icon">📝</span>
+        <span class="write-fab__icon" aria-hidden="true">📝</span>
     </a>
-    <a href="{{ url_for('knowledge_base.quick_note') }}" class="write-fab write-fab--note" title="写笔记">
+    <a href="{{ url_for('knowledge_base.quick_note') }}" class="write-fab write-fab--note" title="写笔记" aria-label="写笔记">
         <span class="write-fab__label">写笔记</span>
-        <span class="write-fab__icon">✏️</span>
+        <span class="write-fab__icon" aria-hidden="true">✏️</span>
     </a>
 </div>
 {% endif %}

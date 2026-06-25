@@ -1277,7 +1277,8 @@ body.reader-mode .reader-exit {
 /* --- Print Styles --- */
 @media print {
     body::after,
-    .reading-progress {
+    .reading-progress,
+    .write-actions-fab {
         display: none !important;
     }
 
