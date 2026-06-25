@@ -22,7 +22,7 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--text-color, #475569);
-    background: var(--bg-color, #fff);
+    background: var(--card-bg, #fff);
     padding: 5px 10px;
     border-radius: 6px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -84,8 +84,8 @@
     animation: write-fab-enter 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-.write-fab--post { animation-delay: 0ms; }
-.write-fab--note { animation-delay: 80ms; }
+.write-actions-fab .write-fab:nth-child(1) { animation-delay: 0ms; }
+.write-actions-fab .write-fab:nth-child(2) { animation-delay: 80ms; }
 
 @keyframes write-fab-enter {
     from {
@@ -101,7 +101,7 @@
 /* 暗色模式 */
 .dark-theme .write-fab__label {
     color: var(--text-color, #e2e8f0);
-    background: var(--bg-color, #1e293b);
+    background: var(--card-bg, #1e293b);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
@@ -116,23 +116,7 @@
     }
 }
 
-/* 减少动画偏好 */
-@media (prefers-reduced-motion: reduce) {
-    .write-actions-fab .write-fab {
-        animation: none;
-    }
-
-    .write-fab__label {
-        transition: none;
-    }
-
-    .write-fab__icon {
-        transition: none;
-    }
-}
-
-
-/* Note card modifier - unified style with subtle differentiation */
+ - unified style with subtle differentiation */
 .post-card--note {
     border-left: 3px solid var(--accent-color, #667eea);
 }
