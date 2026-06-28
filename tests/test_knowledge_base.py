@@ -12,45 +12,38 @@ class TestKnowledgeBaseAPI:
     """知识库API测试"""
 
     def test_timeline_view(self, client, test_admin_user):
-        """测试时间线视图"""
+        """测试时间线视图（已重定向到新知识库空间）"""
         client.post('/login', data={
             'username': test_admin_user['username'],
             'password': test_admin_user['password']
         })
 
         response = client.get('/knowledge_base/timeline')
-        assert response.status_code == 200
+        assert response.status_code == 302
+        assert '/knowledge' in response.headers.get('Location', '')
 
     def test_quick_note(self, client, test_admin_user):
-        """测试快速记事"""
+        """测试快速记事（GET 已重定向到新知识库空间）"""
         client.post('/login', data={
             'username': test_admin_user['username'],
             'password': test_admin_user['password']
         })
 
-        # 获取快速记事页面
+        # 获取快速记事页面（已重定向）
         response = client.get('/knowledge_base/quick-note')
-        assert response.status_code == 200
-
-        # 提交快速记事
-        note_data = {
-            'content': 'Quick note content',
-            'url': '',
-            'title': ''
-        }
-
-        response = client.post('/knowledge_base/quick-note', data=note_data)
-        assert response.status_code in [200, 302]
+        assert response.status_code == 302
+        assert '/knowledge' in response.headers.get('Location', '')
 
     def test_incubator_view(self, client, test_admin_user):
-        """测试孵化器视图"""
+        """测试孵化器视图（已重定向到新知识库空间）"""
         client.post('/login', data={
             'username': test_admin_user['username'],
             'password': test_admin_user['password']
         })
 
         response = client.get('/knowledge_base/incubator')
-        assert response.status_code == 200
+        assert response.status_code == 302
+        assert '/knowledge' in response.headers.get('Location', '')
 
 
 @pytest.mark.usefixtures("client", "test_admin_user")

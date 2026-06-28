@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}卡片归档 - 知识库 - {{ site_name }}{% endblock %}
+{% block page_type %}admin{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/knowledge.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="container kb-archive-page">
+    <div class="dashboard-header">
+        <h2>卡片归档到知识库</h2>
+        <a href="{{ url_for('admin.knowledge_admin') }}" class="btn">返回知识库管理</a>
+    </div>
+
+    <div class="kb-card-preview">
+        <h3>卡片内容</h3>
+        <div class="kb-card-box">
+            <h4>{{ card.title|default('未命名') }}</h4>
+            <div class="kb-card-content">{{ card.content|safe }}</div>
+            {% if card.tags %}
+            <div class="kb-article-tags">
+                {% for tag in card.tags %}<span class="kb-tag">#{{ tag }}</span>{% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin.knowledge_archive_card', card_id=card.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+            <label for="category_id">选择目标目录</label>
+            <select id="category_id" name="category_id" required>
+                <option value="">请选择目录</option>
+                {% for cat in tree_flattened|default([]) %}
+                <option value="{{ cat.id }}">{{ cat.indent|default('') }}{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <p class="kb-hint">归档后，卡片内容将转换为 Markdown 文档存入所选目录，原卡片将被删除。</p>
+        <button type="submit" class="btn btn-primary">确认归档</button>
+    </form>
+</main>
+
+<style>
+.kb-archive-page .dashboard-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem}
+.kb-card-preview{margin-bottom:1.5rem}
+.kb-card-preview h3{font-size:1.1rem;margin-bottom:0.6rem}
+.kb-card-box{background:var(--gradient-card);border:1px solid var(--border-color);border-radius:10px;padding:1rem 1.25rem}
+.kb-card-box h4{margin:0 0 0.5rem;font-size:1rem}
+.kb-card-content{font-size:0.875rem;color:var(--text-secondary);line-height:1.6;max-height:200px;overflow-y:auto}
+.kb-archive-page .form-group{margin-bottom:1rem}
+.kb-archive-page label{display:block;font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.3rem}
+.kb-archive-page select{width:100%;max-width:400px;padding:0.5rem 0.75rem;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-color);color:var(--text-color)}
+.kb-hint{font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.75rem}
+</style>
+{% endblock %}

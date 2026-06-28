@@ -255,6 +255,39 @@ header {
         </button>
     </div>
 
+    {% if kb_tree %}
+    <!-- 沉淀到知识库（仅登录用户） -->
+    <div class="precipitate-section">
+        <button type="button" class="btn btn-sm precipitate-btn" id="precipitate-btn">📥 沉淀到知识库</button>
+        <div class="precipitate-modal" id="precipitate-modal" style="display:none">
+            <div class="precipitate-modal-content">
+                <h4>选择目标目录</h4>
+                <select id="precipitate-category">
+                    <option value="">请选择...</option>
+                    {% for cat in kb_tree_flattened|default([]) %}
+                    <option value="{{ cat.id }}">{{ cat.indent|default('') }}{{ cat.name }}</option>
+                    {% endfor %}
+                    {% if kb_tree %}
+                    {% for node in kb_tree %}
+                    <option value="{{ node.id }}">{% if node.icon %}{{ node.icon }} {% endif %}{{ node.name }}</option>
+                    {% if node.children %}
+                    {% for child in node.children %}
+                    <option value="{{ child.id }}">　└ {{ child.name }}</option>
+                    {% endfor %}
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                </select>
+                <div class="precipitate-actions">
+                    <button type="button" class="btn btn-sm btn-primary" id="precipitate-confirm">确认沉淀</button>
+                    <button type="button" class="btn btn-sm" id="precipitate-cancel">取消</button>
+                </div>
+                <p class="precipitate-hint">将文章内容转换为 Markdown 存入知识库，原文章保留。</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- QR Code Modal -->
     <div class="modal-overlay">
         <div class="modal-content">
@@ -315,4 +348,47 @@ header {
 <!-- Code Copy -->
 <script src="{{ url_for('static', filename='js/code-copy.js') }}?v=1.1"></script>
 
+<script>
+(function(){
+  var btn = document.getElementById('precipitate-btn');
+  if (!btn) return;
+  var modal = document.getElementById('precipitate-modal');
+  var cancelBtn = document.getElementById('precipitate-cancel');
+  var confirmBtn = document.getElementById('precipitate-confirm');
+  var catSelect = document.getElementById('precipitate-category');
+  btn.addEventListener('click', function(){ modal.style.display = 'flex'; });
+  cancelBtn.addEventListener('click', function(){ modal.style.display = 'none'; });
+  modal.addEventListener('click', function(e){ if (e.target === modal) modal.style.display = 'none'; });
+  confirmBtn.addEventListener('click', function(){
+    var catId = catSelect.value;
+    if (!catId) { alert('请选择目标目录'); return; }
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '沉淀中...';
+    fetch('{{ url_for("blog.precipitate_to_knowledge", post_id=post.id) }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
+      body: JSON.stringify({category_id: parseInt(catId)})
+    }).then(function(r){return r.json()}).then(function(data){
+      if (data.success) {
+        alert('已沉淀为知识库文档');
+        window.open(data.redirect, '_blank');
+        modal.style.display = 'none';
+      } else {
+        alert('失败: ' + (data.error || '未知错误'));
+      }
+    }).catch(function(e){ alert('网络错误: ' + e); })
+      .finally(function(){ confirmBtn.disabled = false; confirmBtn.textContent = '确认沉淀'; });
+  });
+})();
+</script>
+<style>
+.precipitate-section{margin:1.5rem 0;text-align:center}
+.precipitate-btn{background:var(--gradient-secondary);color:#fff;border:none}
+.precipitate-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:2000}
+.precipitate-modal-content{background:var(--bg-color);padding:1.5rem;border-radius:12px;min-width:320px;max-width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.precipitate-modal-content h4{margin:0 0 0.75rem}
+.precipitate-modal-content select{width:100%;padding:0.5rem;border:1px solid var(--border-color);border-radius:6px;margin-bottom:0.75rem;background:var(--bg-color);color:var(--text-color)}
+.precipitate-actions{display:flex;gap:0.5rem}
+.precipitate-hint{font-size:0.75rem;color:var(--text-secondary);margin-top:0.75rem;margin-bottom:0}
+</style>
 {% endblock %}

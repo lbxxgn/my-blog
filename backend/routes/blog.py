@@ -18,7 +18,8 @@ from models import (
     get_all_categories, get_category_by_id, get_all_tags,
     get_tag_by_id, get_post_tags, get_comments_by_post, create_comment,
     search_posts, get_posts_by_tag, get_posts_by_author, get_user_by_id,
-    check_post_access, verify_post_password, get_popular_tags, get_db_connection
+    check_post_access, verify_post_password, get_popular_tags, get_db_connection,
+    get_category_tree, precipitate_post_to_knowledge,
 )
 
 # 创建博客蓝图
@@ -428,7 +429,34 @@ def view_post(post_id):
     # 生成完整的文章URL用于分享
     post_url = url_for('blog.view_post', post_id=post_id, _external=True)
 
-    return render_template('post.html', post=post, comments=comments, post_url=post_url)
+    # 知识库分类树（用于"沉淀到知识库"弹窗，仅登录用户）
+    kb_tree = get_category_tree('knowledge') if session.get('user_id') else None
+
+    return render_template('post.html', post=post, comments=comments, post_url=post_url, kb_tree=kb_tree)
+
+
+@blog_bp.route('/post/<int:post_id>/precipitate', methods=['POST'])
+def precipitate_to_knowledge(post_id):
+    """将博客文章沉淀为知识库文档"""
+    if not session.get('user_id'):
+        return jsonify({'success': False, 'error': '请先登录'}), 401
+    from werkzeug.utils import escape
+    from models import get_category_by_id
+    import json as _json
+    data = request.get_json(silent=True) or request.form
+    category_id_raw = data.get('category_id')
+    try:
+        category_id = int(category_id_raw)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': '请选择目标目录'}), 400
+    category = get_category_by_id(category_id)
+    if not category or category.get('space') != 'knowledge':
+        return jsonify({'success': False, 'error': '目标目录不存在'}), 400
+    doc_id = precipitate_post_to_knowledge(post_id, category_id)
+    if doc_id:
+        return jsonify({'success': True, 'doc_id': doc_id,
+                        'redirect': url_for('knowledge.view_doc', doc_id=doc_id)})
+    return jsonify({'success': False, 'error': '文章不存在或沉淀失败'}), 400
 
 
 @blog_bp.route('/post/<int:post_id>/verify-password', methods=['POST'])
@@ -773,19 +801,22 @@ def list_all_tags():
 
 @blog_bp.route('/search')
 def search():
-    """搜索文章"""
+    """搜索文章（默认博客，支持 source=all/knowledge 切换来源）"""
     query = request.args.get('q', '').strip()
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
+    source = request.args.get('source', 'blog')  # blog / knowledge / all
 
     # 验证 per_page
     if per_page not in [10, 20, 40, 80]:
         per_page = 20
 
     if not query:
-        return render_template('search.html', query='', posts=None, pagination=None)
+        return render_template('search.html', query='', posts=None, pagination=None, source=source)
 
-    posts_data = search_posts(query, include_drafts=False, page=page, per_page=per_page)
+    post_type_filter = 'blog' if source == 'blog' else ('knowledge' if source == 'knowledge' else 'all')
+    posts_data = search_posts(query, include_drafts=False, page=page, per_page=per_page,
+                              post_type_filter=post_type_filter)
 
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
@@ -804,7 +835,8 @@ def search():
                          start_item=start_item,
                          end_item=end_item,
                          page_range=page_range,
-                         show_ellipsis=show_ellipsis)
+                         show_ellipsis=show_ellipsis,
+                         source=source)
 
 
 @blog_bp.route('/author/<int:author_id>')

@@ -58,6 +58,20 @@ def temp_db():
             )
         ''')
 
+        # 知识库树形分类字段
+        for _col, _def in [
+            ('parent_id', 'INTEGER'),
+            ('slug', 'TEXT'),
+            ('sort_order', 'INTEGER DEFAULT 0'),
+            ('space', "TEXT DEFAULT 'blog'"),
+            ('icon', 'TEXT'),
+            ('description', 'TEXT'),
+        ]:
+            try:
+                conn.execute(f'ALTER TABLE categories ADD COLUMN {_col} {_def}')
+            except Exception:
+                pass
+
         conn.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -147,6 +161,17 @@ def temp_db():
             conn.execute("ALTER TABLE posts ADD COLUMN type TEXT DEFAULT 'post'")
         except:
             pass
+
+        # 知识库文档字段
+        for _col, _def in [
+            ('content_format', "TEXT DEFAULT 'html'"),
+            ('sort_order', 'INTEGER DEFAULT 0'),
+            ('source_post_id', 'INTEGER'),
+        ]:
+            try:
+                conn.execute(f'ALTER TABLE posts ADD COLUMN {_col} {_def}')
+            except Exception:
+                pass
 
         # 创建tags表
         conn.execute('''

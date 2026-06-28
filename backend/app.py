@@ -189,11 +189,11 @@ def add_security_headers(response):
     # 注意：这个CSP策略比较宽松，生产环境可能需要根据实际情况调整
     response.headers.setdefault('Content-Security-Policy',
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.quilljs.com https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.quilljs.com https://cdn.jsdelivr.net https://esm.sh; "
         "style-src 'self' 'unsafe-inline' https://cdn.quilljs.com https://cdn.jsdelivr.net https://fonts.googleapis.com; "
         "img-src 'self' data: https:; "
         "font-src 'self' https://fonts.gstatic.com; "
-        "connect-src 'self'; "
+        "connect-src 'self' https://esm.sh; "
         "object-src 'none'; "
         "frame-src 'none'; "
         "base-uri 'self';"
@@ -383,7 +383,7 @@ def allowed_file(filename):
 # =============================================================================
 # 注册蓝图
 # =============================================================================
-from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp
+from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
 from routes.drafts import drafts_bp
 
 # 注册认证蓝图
@@ -401,8 +401,11 @@ app.register_blueprint(api_bp, url_prefix='/api')
 # 注册AI蓝图
 app.register_blueprint(ai_bp)
 
-# 注册知识库蓝图
+# 注册知识库蓝图（卡片收集/时间线，保留旧 API）
 app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
+
+# 注册知识库独立空间蓝图（目录树 + 文档）
+app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
 
 # 注册草稿同步蓝图
 app.register_blueprint(drafts_bp)
@@ -842,7 +845,7 @@ def not_found_error(error):
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors"""
-    log_error(error, context='500 Internal Server Error')
+    get_log_error()(error, context='500 Internal Server Error')
     
     if app.config.get('DEBUG'):
         error_message = str(error)
@@ -854,7 +857,7 @@ def internal_error(error):
 @app.errorhandler(sqlite3.Error)
 def database_error(error):
     """Handle database errors"""
-    log_error(error, context='Database Error')
+    get_log_error()(error, context='Database Error')
     
     if app.config.get('DEBUG'):
         error_message = f"数据库错误: {str(error)}"
@@ -866,7 +869,7 @@ def database_error(error):
 @app.errorhandler(413)
 def request_entity_too_large(error):
     """Handle file too large errors"""
-    log_error(error, context='413 Payload Too Large')
+    get_log_error()(error, context='413 Payload Too Large')
     
     if request.path.startswith('/admin/upload') or request.path.startswith('/api/'):
         return jsonify({

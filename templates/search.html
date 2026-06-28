@@ -11,6 +11,15 @@
         {% endif %}
     </div>
 
+    {# 来源切换 tab #}
+    {% if query %}
+    <div class="search-source-tabs">
+        <a href="{{ url_for('search', q=query, source='blog') }}" class="source-tab {% if source == 'blog' %}active{% endif %}">博客</a>
+        <a href="{{ url_for('search', q=query, source='knowledge') }}" class="source-tab {% if source == 'knowledge' %}active{% endif %}">知识库</a>
+        <a href="{{ url_for('search', q=query, source='all') }}" class="source-tab {% if source == 'all' %}active{% endif %}">全部</a>
+    </div>
+    {% endif %}
+
     {% if posts is none %}
     <div class="search-form">
         <form action="{{ url_for('search') }}" method="get">
@@ -25,16 +34,20 @@
 
     <div class="posts-list">
         {% for post in posts %}
-        <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
+        {% set is_kb = post.post_type == 'knowledge' %}
+        <a href="{% if is_kb %}{{ url_for('knowledge.view_doc', doc_id=post.id) }}{% else %}{{ url_for('view_post', post_id=post.id) }}{% endif %}" class="post-card-link">
             <article class="post-card">
-                <h2>{{ post.title }}</h2>
+                <h2>
+                    {% if is_kb %}<span class="note-badge" style="background:var(--primary-color)">知识库</span>{% endif %}
+                    {{ post.title }}
+                </h2>
                 <div class="post-meta">
                     <span>{{ (post.created_at|localtime)[:10] }}</span>
                     {% if post.category_name %}
                     <span>· {{ post.category_name }}</span>
                     {% endif %}
                 </div>
-                <p class="post-excerpt">{{ post.content[:200] }}...</p>
+                <p class="post-excerpt">{{ post.content|striptags|truncate(200) }}</p>
             </article>
         </a>
         {% endfor %}
@@ -44,7 +57,7 @@
     {% if pagination.total_pages > 1 %}
     <div class="pagination">
         {% if pagination.page > 1 %}
-        <a href="{{ url_for('search', q=query, page=pagination.page-1, per_page=pagination.per_page) }}" class="btn">上一页</a>
+        <a href="{{ url_for('search', q=query, source=source, page=pagination.page-1, per_page=pagination.per_page) }}" class="btn">上一页</a>
         {% endif %}
 
         <span class="pagination-info">
@@ -52,7 +65,7 @@
         </span>
 
         {% if pagination.page < pagination.total_pages %}
-        <a href="{{ url_for('search', q=query, page=pagination.page+1, per_page=pagination.per_page) }}" class="btn">下一页</a>
+        <a href="{{ url_for('search', q=query, source=source, page=pagination.page+1, per_page=pagination.per_page) }}" class="btn">下一页</a>
         {% endif %}
     </div>
     {% endif %}
@@ -63,4 +76,11 @@
     </div>
     {% endif %}
 </main>
+
+<style>
+.search-source-tabs{display:flex;gap:0.5rem;margin-bottom:1.2rem}
+.source-tab{padding:0.4rem 1rem;border-radius:20px;background:var(--code-bg);color:var(--text-secondary);text-decoration:none;font-size:0.85rem;transition:all .2s}
+.source-tab.active{background:var(--primary-color);color:#fff}
+.source-tab:hover:not(.active){background:var(--border-color)}
+</style>
 {% endblock %}

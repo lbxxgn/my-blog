@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% from 'knowledge/_tree.html' import render_tree %}
+{% from 'knowledge/_breadcrumb.html' import render_breadcrumb %}
+
+{% block title %}{{ category.name }} - 知识库 - {{ site_name }}{% endblock %}
+{% block page_type %}knowledge{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/knowledge.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="container kb-layout">
+    <div class="kb-sidebar">
+        <div class="kb-sidebar-header">
+            <h2><a href="{{ url_for('knowledge.index') }}">📚 知识库</a></h2>
+            {% if can_manage %}
+            <button class="kb-mini-btn kb-add-root" data-parent-id="" title="新建顶层目录">＋</button>
+            {% endif %}
+        </div>
+        {{ render_tree(tree, active_category_id=category.id, can_manage=can_manage) }}
+    </div>
+
+    <div class="kb-main">
+        {{ render_breadcrumb(breadcrumb) }}
+
+        <div class="kb-cat-header">
+            <h1 class="kb-category-title">
+                {% if category.icon %}{{ category.icon }} {% endif %}{{ category.name }}
+            </h1>
+            {% if can_manage %}
+            <div class="kb-cat-actions">
+                <a href="{{ url_for('knowledge.new_doc') }}?cat={{ category.id }}" class="btn btn-sm btn-primary">+ 新建文档</a>
+                <button class="kb-mini-btn kb-add-sub" data-parent-id="{{ category.id }}" title="新建子目录">＋ 子目录</button>
+                <form method="POST" action="{{ url_for('knowledge.delete_category', category_id=category.id) }}"
+                      data-confirm="确定删除此目录？（子目录上移，文档解绑）" data-confirm-destructive="true" data-confirm-text="删除"
+                      style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-danger">删除目录</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        {% if category.description %}<p class="kb-category-desc">{{ category.description }}</p>{% endif %}
+
+        {% if subcategories %}
+        <section class="kb-subcategories">
+            <h3>子目录</h3>
+            <div class="kb-subcat-grid">
+                {% for sub in subcategories %}
+                <a href="{{ url_for('knowledge.view_category', category_id=sub.id) }}" class="kb-subcat-card">
+                    <span class="kb-subcat-icon">{% if sub.icon %}{{ sub.icon }}{% else %}📁{% endif %}</span>
+                    <span class="kb-subcat-name">{{ sub.name }}</span>
+                    <span class="kb-subcat-count">{{ sub.doc_count }} 篇</span>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="kb-doc-section">
+            <h3>文档</h3>
+            {% if docs %}
+            <div class="kb-doc-list">
+                {% for doc in docs %}
+                <div class="kb-doc-card-wrap">
+                    <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" class="kb-doc-card">
+                        <h4>{{ doc.title }}</h4>
+                        <div class="kb-doc-meta">
+                            <time>{{ doc.created_at|string|truncate(10, True, '') }}</time>
+                            {% if not doc.is_published %}<span class="kb-draft-badge">草稿</span>{% endif %}
+                        </div>
+                        <p class="kb-doc-excerpt">{{ doc.content|striptags|truncate(120) }}</p>
+                    </a>
+                    {% if can_manage %}
+                    <div class="kb-doc-card-actions">
+                        <a href="{{ url_for('knowledge.edit_doc', doc_id=doc.id) }}" class="kb-mini-btn">✏️ 编辑</a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="kb-empty-hint">该目录下暂无文档{% if can_manage %}，点击「+ 新建文档」{% endif %}。</p>
+            {% endif %}
+        </section>
+    </div>
+</main>
+
+{% if can_manage %}
+<div class="kb-modal" id="kb-cat-modal" style="display:none">
+    <div class="kb-modal-content">
+        <h4 id="kb-cat-modal-title">新建目录</h4>
+        <form id="kb-cat-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="parent_id" id="kb-cat-parent" value="">
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" name="name" id="kb-cat-name" required autofocus>
+            </div>
+            <div class="form-group">
+                <label>图标（emoji，可选）</label>
+                <input type="text" name="icon" maxlength="4" placeholder="📁">
+            </div>
+            <div class="form-group">
+                <label>描述（可选）</label>
+                <input type="text" name="description">
+            </div>
+            <div class="kb-modal-actions">
+                <button type="submit" class="btn btn-sm btn-primary">创建</button>
+                <button type="button" class="btn btn-sm" id="kb-cat-cancel">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('kb-cat-modal');
+    var form = document.getElementById('kb-cat-form');
+    var parentInput = document.getElementById('kb-cat-parent');
+    var titleEl = document.getElementById('kb-cat-modal-title');
+    function openModal(parentId, parentName) {
+        parentInput.value = parentId || '';
+        titleEl.textContent = parentId ? '在「' + (parentName || '') + '」下新建目录' : '新建顶层目录';
+        modal.style.display = 'flex';
+        setTimeout(function(){ document.getElementById('kb-cat-name').focus(); }, 50);
+    }
+    function closeModal() { modal.style.display = 'none'; form.reset(); parentInput.value=''; }
+    document.querySelectorAll('.kb-add-root,.kb-add-sub').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            var pid = btn.getAttribute('data-parent-id') || '';
+            var name = btn.getAttribute('data-parent-id') ? btn.closest('.kb-cat-header,.kb-tree-item').querySelector('h1,a').textContent.trim() : '';
+            openModal(pid, name);
+        });
+    });
+    document.getElementById('kb-cat-cancel').addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e){ if (e.target === modal) closeModal(); });
+    form.addEventListener('submit', function(e){
+        e.preventDefault();
+        var fd = new FormData(form);
+        fetch('{{ url_for("knowledge.new_category") }}', {method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}})
+        .then(function(r){return r.json()}).then(function(data){
+            if (data.success) { closeModal(); location.reload(); }
+            else { alert(data.error || '创建失败'); }
+        }).catch(function(e){ alert('网络错误: ' + e); });
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -26,7 +26,12 @@ from models import (
     search_posts, get_posts_by_author,
     get_user_by_username, get_user_by_id, create_user, update_user, delete_user, get_all_users,
     get_db_connection, create_optimized_image_record,
-    get_user_ai_config, save_ai_tag_history
+    get_user_ai_config, save_ai_tag_history,
+    get_category_tree, get_category_path, get_subcategories, get_doc_count_by_category,
+    create_kb_category, update_kb_category, move_kb_category, delete_kb_category,
+    create_knowledge_doc, get_knowledge_doc, get_knowledge_docs_by_category,
+    update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
+    archive_card_to_knowledge, get_card_by_id,
 )
 from backend.routes.ai import _run_structured_prompt
 from auth_decorators import login_required, can_manage_users
@@ -1525,3 +1530,14 @@ def mobile_upload_image():
             'error': f'上传失败: {str(e)}',
             'message': '图片处理过程中发生错误'
         }), 500
+
+
+# =============================================================================
+# 知识库管理已迁移至 /knowledge/ 独立空间（内嵌管理），此处保留重定向兼容
+# =============================================================================
+
+@admin_bp.route('/knowledge')
+@login_required
+def knowledge_admin():
+    """重定向到知识库独立空间"""
+    return redirect(url_for('knowledge.index'))

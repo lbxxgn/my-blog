@@ -16,5 +16,6 @@ from .admin import admin_bp
 from .api import api_bp
 from .ai import ai_bp
 from .knowledge_base import knowledge_base_bp
+from .knowledge import knowledge_bp
 
-__all__ = ['auth_bp', 'blog_bp', 'admin_bp', 'api_bp', 'ai_bp', 'knowledge_base_bp']
+__all__ = ['auth_bp', 'blog_bp', 'admin_bp', 'api_bp', 'ai_bp', 'knowledge_base_bp', 'knowledge_bp']

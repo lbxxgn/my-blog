@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from 'knowledge/_tree.html' import render_tree %}
+{% from 'knowledge/_breadcrumb.html' import render_breadcrumb %}
+
+{% block title %}{{ doc.title }} - 知识库 - {{ site_name }}{% endblock %}
+{% block page_type %}knowledge{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/knowledge.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="container kb-layout">
+    <div class="kb-sidebar">
+        <div class="kb-sidebar-header">
+            <h2><a href="{{ url_for('knowledge.index') }}">📚 知识库</a></h2>
+        </div>
+        {{ render_tree(tree, active_category_id=doc.category_id, can_manage=can_manage) }}
+    </div>
+
+    <div class="kb-main kb-doc-page">
+        {{ render_breadcrumb(breadcrumb) }}
+
+        <article class="kb-article">
+            <div class="kb-article-header">
+                <h1 class="kb-article-title">{{ doc.title }}</h1>
+                {% if can_manage %}
+                <div class="kb-article-actions">
+                    <a href="{{ url_for('knowledge.edit_doc', doc_id=doc.id) }}" class="btn btn-sm">✏️ 编辑</a>
+                    <form method="POST" action="{{ url_for('knowledge.delete_doc', doc_id=doc.id) }}"
+                          data-confirm="确定删除此文档？" data-confirm-destructive="true" data-confirm-text="删除"
+                          style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger">删除</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            <div class="kb-article-meta">
+                {% if doc.category_name %}<span>📁 {{ doc.category_name }}</span>{% endif %}
+                <time>创建于 {{ doc.created_at|string|truncate(10, True, '') }}</time>
+                {% if doc.updated_at and doc.updated_at|string|truncate(10, True, '') != doc.created_at|string|truncate(10, True, '') %}
+                <time>更新于 {{ doc.updated_at|string|truncate(10, True, '') }}</time>
+                {% endif %}
+                {% if not doc.is_published %}<span class="kb-draft-badge">草稿</span>{% endif %}
+            </div>
+
+            {% if tags %}
+            <div class="kb-article-tags">
+                {% for tag in tags %}
+                <span class="kb-tag">#{{ tag.name }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="kb-article-body" id="kb-article-body">
+                {{ doc.content_html|safe }}
+            </div>
+        </article>
+
+        <aside class="kb-toc" id="kb-toc">
+            <h4>目录</h4>
+            <nav id="kb-toc-nav"></nav>
+        </aside>
+    </div>
+</main>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ static_file('js/knowledge-toc.js') }}"></script>
+{% endblock %}

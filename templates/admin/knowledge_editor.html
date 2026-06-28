@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}{% if doc %}编辑文档{% else %}新建文档{% endif %} - 知识库 - {{ site_name }}{% endblock %}
+{% block page_type %}admin{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@toast-ui/editor@3.2.2/dist/toastui-editor.min.css">
+{% endblock %}
+
+{% block content %}
+<main class="container kb-editor-page">
+    <div class="dashboard-header">
+        <h2>{% if doc %}编辑文档{% else %}新建文档{% endif %}</h2>
+        <a href="{{ url_for('admin.knowledge_admin') }}" class="btn">返回知识库管理</a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{% if doc %}{{ url_for('admin.knowledge_edit_doc', doc_id=doc.id) }}{% else %}{{ url_for('admin.knowledge_new_doc') }}{% endif %}" id="kb-doc-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="content" id="content-hidden">
+
+        <div class="form-group">
+            <label for="title">标题</label>
+            <input type="text" id="title" name="title" required value="{{ doc.title|default('') }}">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="category_id">目录</label>
+                <select id="category_id" name="category_id" required>
+                    <option value="">请选择目录</option>
+                    {% for cat in tree_flattened|default([]) %}
+                    <option value="{{ cat.id }}" {% if doc and doc.category_id == cat.id %}selected{% endif %}>{{ cat.indent|default('') }}{{ cat.name }}</option>
+                    {% endfor %}
+                    {% if doc and doc.category_id %}
+                        {% set found = false %}
+                        {% for cat in tree_flattened|default([]) %}{% if cat.id == doc.category_id %}{% set found = true %}{% endif %}{% endfor %}
+                        {% if not found %}<option value="{{ doc.category_id }}" selected>{{ doc.category_name|default('ID:' ~ doc.category_id) }}</option>{% endif %}
+                    {% endif %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="tags">标签（逗号分隔）</label>
+                <input type="text" id="tags" name="tags" value="{% if tags %}{% for t in tags %}{{ t.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}">
+            </div>
+            <div class="form-group form-narrow">
+                <label for="sort_order">排序</label>
+                <input type="number" id="sort_order" name="sort_order" value="{{ doc.sort_order|default(0) }}" min="0">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>内容（Markdown）</label>
+            <div id="toast-editor"></div>
+        </div>
+
+        <div class="form-actions">
+            <label class="checkbox-label">
+                <input type="checkbox" name="is_published" {% if not doc or doc.is_published %}checked{% endif %}>
+                发布
+            </label>
+            <button type="submit" class="btn btn-primary" id="save-btn">保存</button>
+            {% if doc %}
+            <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" class="btn" target="_blank">预览</a>
+            <form method="POST" action="{{ url_for('admin.knowledge_delete_doc', doc_id=doc.id) }}"
+                  data-confirm="确定删除此文档？" data-confirm-destructive="true" data-confirm-text="删除"
+                  style="display:inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger">删除</button>
+            </form>
+            {% endif %}
+        </div>
+    </form>
+</main>
+
+<style>
+.kb-editor-page .dashboard-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem}
+.kb-editor-page .form-group{margin-bottom:1rem}
+.kb-editor-page label{display:block;font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.3rem;font-weight:500}
+.kb-editor-page input[type=text],.kb-editor-page input[type=number],.kb-editor-page select{
+    width:100%;padding:0.5rem 0.75rem;border:1px solid var(--border-color);border-radius:8px;
+    background:var(--bg-color);color:var(--text-color);font-size:0.95rem}
+.kb-editor-page .form-row{display:grid;grid-template-columns:2fr 2fr 1fr;gap:1rem}
+.kb-editor-page .form-narrow{max-width:120px}
+#toast-editor{margin-top:0.25rem}
+.form-actions{display:flex;align-items:center;gap:0.75rem;margin-top:1.5rem;flex-wrap:wrap}
+.checkbox-label{display:flex;align-items:center;gap:0.4rem;font-size:0.9rem;cursor:pointer}
+.checkbox-label input{width:auto}
+@media(max-width:768px){.kb-editor-page .form-row{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/@toast-ui/editor@3.2.2/dist/toastui-editor.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var initialContent = {% if doc %}{{ doc.content|tojson }}{% else %}""{% endif %};
+    var editor = new toastui.Editor({
+        el: document.querySelector('#toast-editor'),
+        initialEditType: 'wysiwyg',
+        previewStyle: 'vertical',
+        height: '600px',
+        initialValue: initialContent,
+        toolbarItems: [
+            ['heading', 'bold', 'italic', 'strike'],
+            ['hr', 'quote'],
+            ['ul', 'ol', 'task', 'indent', 'outdent'],
+            ['table', 'image', 'link'],
+            ['code', 'codeblock']
+        ]
+    });
+
+    document.getElementById('kb-doc-form').addEventListener('submit', function(e) {
+        var contentField = document.getElementById('content-hidden');
+        contentField.value = editor.getMarkdown();
+    });
+});
+</script>
+{% endblock %}

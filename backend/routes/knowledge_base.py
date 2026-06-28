@@ -287,7 +287,9 @@ def get_recent_captures():
 @knowledge_base_bp.route('/quick-note', methods=['GET', 'POST'])
 @login_required
 def quick_note():
-    """快速记事页面"""
+    """快速记事页面（已迁移至知识库独立空间，重定向）"""
+    if request.method == 'GET':
+        return redirect(url_for('knowledge.index'))
     if request.method == 'POST':
         # Handle both form and JSON requests
         try:
@@ -344,7 +346,8 @@ def quick_note():
 @knowledge_base_bp.route('/timeline')
 @login_required
 def timeline():
-    """时间线页面"""
+    """时间线页面（已迁移至知识库独立空间，重定向）"""
+    return redirect(url_for('knowledge.index'))
     cursor_time = request.args.get('cursor')
 
     result = get_timeline_items(
@@ -385,7 +388,8 @@ def timeline():
 @knowledge_base_bp.route('/incubator')
 @login_required
 def incubator():
-    """孵化箱页面"""
+    """孵化箱页面（已迁移至知识库独立空间，重定向）"""
+    return redirect(url_for('knowledge.index'))
     status = request.args.get('status', 'incubating')
 
     # Get cards by status

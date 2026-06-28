@@ -1,0 +1,288 @@
+"""
+知识库路由（独立空间）
+
+提供结构化知识库的浏览与管理功能（登录后内嵌管理）：
+- GET  /knowledge                      首页（目录树 + 最近文档）
+- GET  /knowledge/category/<id>        目录页（子目录 + 文档列表 + 面包屑）
+- GET  /knowledge/doc/<id>             文档详情（面包屑 + Markdown 渲染 + TOC）
+- GET  /knowledge/search               知识库内搜索
+- GET  /knowledge/doc/new             新建文档（编辑器）
+- POST /knowledge/doc/new
+- GET  /knowledge/doc/<id>/edit        编辑文档（编辑器）
+- POST /knowledge/doc/<id>/edit
+- POST /knowledge/doc/<id>/delete       删除文档
+- POST /knowledge/category/new         创建子目录
+- POST /knowledge/category/<id>/delete 删除目录
+- POST /knowledge/reorder              拖拽排序/移动 API
+- GET  /knowledge/card/<id>/archive    卡片归档
+- POST /knowledge/card/<id>/archive
+"""
+
+from flask import Blueprint, request, redirect, url_for, render_template, abort, session, flash, jsonify
+import markdown2
+import bleach
+
+from auth_decorators import login_required
+from logger import log_operation
+from models import (
+    get_category_tree, get_category_path, get_subcategories,
+    get_doc_count_by_category, get_descendant_category_ids,
+    get_knowledge_doc, get_knowledge_docs_by_category, get_recent_knowledge_docs,
+    get_post_tags, search_posts, get_category_by_id,
+    create_kb_category, update_kb_category, move_kb_category, delete_kb_category,
+    create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
+    archive_card_to_knowledge, get_card_by_id,
+)
+
+knowledge_bp = Blueprint('knowledge', __name__)
+
+
+def _render_markdown(content):
+    """渲染 Markdown 为安全的 HTML（与博客渲染保持一致）"""
+    html = markdown2.markdown(content, extras=['fenced-code-blocks', 'tables', 'header-ids'])
+    return bleach.clean(
+        html,
+        tags=['p', 'a', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote',
+              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'br', 'hr', 'table', 'thead', 'tbody',
+              'tr', 'th', 'td', 'img', 'div', 'span'],
+        attributes={
+            'a': ['href', 'title', 'rel'],
+            'img': ['src', 'alt', 'title', 'width', 'height'],
+            '*': ['class', 'id'],
+        },
+        strip_comments=False,
+    )
+
+
+def _flatten_tree(tree, depth=0):
+    """将分类树扁平化为带缩进提示的列表（供下拉选择用）"""
+    result = []
+    for node in tree:
+        result.append({'id': node['id'], 'name': node['name'],
+                       'indent': '　' * depth + ('└ ' if depth > 0 else '')})
+        if node.get('children'):
+            result.extend(_flatten_tree(node['children'], depth + 1))
+    return result
+
+
+def _is_logged_in():
+    return session.get('user_id') is not None
+
+
+# =============================================================================
+# 浏览
+# =============================================================================
+
+@knowledge_bp.route('/')
+@login_required
+def index():
+    """知识库首页：左侧目录树 + 右侧最近文档"""
+    tree = get_category_tree('knowledge')
+    recent_docs = get_recent_knowledge_docs(limit=10, include_drafts=True)
+    return render_template('knowledge/index.html', tree=tree, recent_docs=recent_docs,
+                           can_manage=_is_logged_in())
+
+
+@knowledge_bp.route('/category/<int:category_id>')
+@login_required
+def view_category(category_id):
+    """目录页：子目录 + 文档列表 + 面包屑"""
+    category = get_category_by_id(category_id)
+    if not category or category.get('space') != 'knowledge':
+        abort(404)
+
+    breadcrumb = get_category_path(category_id)
+    subcategories = get_subcategories(category_id, space='knowledge')
+    docs = get_knowledge_docs_by_category(category_id, include_subcategories=False, include_drafts=True)
+
+    for sub in subcategories:
+        sub['doc_count'] = get_doc_count_by_category(sub['id'])
+
+    tree = get_category_tree('knowledge')
+    return render_template(
+        'knowledge/category.html',
+        category=category, breadcrumb=breadcrumb,
+        subcategories=subcategories, docs=docs, tree=tree,
+        can_manage=_is_logged_in(),
+    )
+
+
+@knowledge_bp.route('/doc/<int:doc_id>')
+@login_required
+def view_doc(doc_id):
+    """文档详情：面包屑 + Markdown 渲染 + TOC"""
+    doc = get_knowledge_doc(doc_id)
+    if not doc:
+        abort(404)
+
+    doc['content_html'] = _render_markdown(doc['content'])
+    tags = get_post_tags(doc_id)
+
+    breadcrumb = []
+    if doc.get('category_id'):
+        breadcrumb = get_category_path(doc['category_id'])
+
+    tree = get_category_tree('knowledge')
+    return render_template(
+        'knowledge/doc.html', doc=doc, tags=tags,
+        breadcrumb=breadcrumb, tree=tree,
+        can_manage=_is_logged_in(),
+    )
+
+
+@knowledge_bp.route('/search')
+@login_required
+def search():
+    """知识库内搜索"""
+    q = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+
+    if not q:
+        return render_template('knowledge/search.html', query='', posts=[], total=0,
+                               page=1, total_pages=1)
+
+    result = search_posts(q, include_drafts=True, page=page, per_page=per_page,
+                          post_type_filter='knowledge')
+    tree = get_category_tree('knowledge')
+    return render_template('knowledge/search.html', query=q, tree=tree, can_manage=_is_logged_in(), **result)
+
+
+# =============================================================================
+# 管理（内嵌在知识库空间内）
+# =============================================================================
+
+@knowledge_bp.route('/category/new', methods=['POST'])
+@login_required
+def new_category():
+    """创建子目录"""
+    name = request.form.get('name', '').strip()
+    parent_id = request.form.get('parent_id', type=int)
+    icon = request.form.get('icon', '').strip() or None
+    description = request.form.get('description', '').strip() or None
+    if not name:
+        return jsonify({'success': False, 'error': '名称不能为空'}), 400
+    category_id = create_kb_category(name, parent_id=parent_id, space='knowledge',
+                                      icon=icon, description=description)
+    if category_id:
+        return jsonify({'success': True, 'id': category_id})
+    return jsonify({'success': False, 'error': '名称已存在'}), 400
+
+
+@knowledge_bp.route('/category/<int:category_id>/delete', methods=['POST'])
+@login_required
+def delete_category(category_id):
+    """删除目录"""
+    delete_kb_category(category_id)
+    return jsonify({'success': True})
+
+
+@knowledge_bp.route('/reorder', methods=['POST'])
+@login_required
+def reorder():
+    """拖拽排序/移动 API（分类或文档）"""
+    data = request.get_json(silent=True) or request.form.to_dict()
+    item_type = data.get('type')
+    try:
+        item_id = int(data.get('id'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': '缺少或无效的 id'}), 400
+    parent_id_raw = data.get('parent_id')
+    new_parent_id = int(parent_id_raw) if parent_id_raw else None
+    try:
+        new_sort_order = int(data.get('sort_order', 0))
+    except (TypeError, ValueError):
+        new_sort_order = 0
+    try:
+        if item_type == 'category':
+            success = move_kb_category(item_id, new_parent_id, new_sort_order)
+        elif item_type == 'doc':
+            success = reorder_knowledge_doc(item_id, new_sort_order, category_id=new_parent_id)
+        else:
+            return jsonify({'success': False, 'error': '未知类型'}), 400
+        return jsonify({'success': success})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@knowledge_bp.route('/doc/new', methods=['GET', 'POST'])
+@login_required
+def new_doc():
+    """新建文档"""
+    tree = get_category_tree('knowledge')
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '')
+        category_id = request.form.get('category_id', type=int)
+        is_published = request.form.get('is_published') is not None
+        tags = request.form.get('tags', '').strip()
+        tag_names = [t.strip() for t in tags.split(',') if t.strip()] if tags else []
+        sort_order = request.form.get('sort_order', type=int, default=0)
+        if not title or not category_id:
+            return render_template('knowledge/editor.html', tree=tree,
+                                   tree_flattened=_flatten_tree(tree), doc=None,
+                                   error='标题和目录不能为空')
+        doc_id = create_knowledge_doc(title, content, category_id,
+                                      tag_names=tag_names, sort_order=sort_order,
+                                      is_published=is_published, author_id=session['user_id'])
+        return redirect(url_for('knowledge.view_doc', doc_id=doc_id))
+    # 预选目录
+    preselect_cat = request.args.get('cat', type=int)
+    return render_template('knowledge/editor.html', tree=tree,
+                           tree_flattened=_flatten_tree(tree), doc=None, preselect_cat=preselect_cat)
+
+
+@knowledge_bp.route('/doc/<int:doc_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_doc(doc_id):
+    """编辑文档"""
+    tree = get_category_tree('knowledge')
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '')
+        category_id = request.form.get('category_id', type=int)
+        is_published = request.form.get('is_published') is not None
+        tags = request.form.get('tags', '').strip()
+        tag_names = [t.strip() for t in tags.split(',') if t.strip()] if tags else []
+        sort_order = request.form.get('sort_order', type=int)
+        if not title or not category_id:
+            return render_template('knowledge/editor.html', tree=tree,
+                                   tree_flattened=_flatten_tree(tree), doc=get_knowledge_doc(doc_id),
+                                   error='标题和目录不能为空')
+        update_knowledge_doc(doc_id, title, content, category_id, is_published,
+                             tag_names=tag_names, sort_order=sort_order)
+        return redirect(url_for('knowledge.view_doc', doc_id=doc_id))
+    doc = get_knowledge_doc(doc_id)
+    if not doc:
+        abort(404)
+    tags = get_post_tags(doc_id)
+    return render_template('knowledge/editor.html', tree=tree,
+                           tree_flattened=_flatten_tree(tree), doc=doc, tags=tags)
+
+
+@knowledge_bp.route('/doc/<int:doc_id>/delete', methods=['POST'])
+@login_required
+def delete_doc(doc_id):
+    """删除文档"""
+    delete_knowledge_doc(doc_id)
+    return redirect(url_for('knowledge.index'))
+
+
+@knowledge_bp.route('/card/<int:card_id>/archive', methods=['GET', 'POST'])
+@login_required
+def archive_card(card_id):
+    """卡片归档到知识库目录"""
+    tree = get_category_tree('knowledge')
+    card = get_card_by_id(card_id)
+    if not card:
+        flash('卡片不存在', 'error')
+        return redirect(url_for('knowledge.index'))
+    if request.method == 'POST':
+        category_id = request.form.get('category_id', type=int)
+        if not category_id:
+            return render_template('knowledge/archive.html', tree=tree,
+                                   tree_flattened=_flatten_tree(tree), card=card, error='请选择目标目录')
+        doc_id = archive_card_to_knowledge(card_id, category_id)
+        return redirect(url_for('knowledge.view_doc', doc_id=doc_id))
+    return render_template('knowledge/archive.html', tree=tree,
+                           tree_flattened=_flatten_tree(tree), card=card)

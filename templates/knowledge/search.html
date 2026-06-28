@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from 'knowledge/_tree.html' import render_tree %}
+
+{% block title %}搜索：{{ query }} - 知识库 - {{ site_name }}{% endblock %}
+{% block page_type %}knowledge{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/knowledge.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="container kb-layout">
+    <div class="kb-sidebar">
+        <div class="kb-sidebar-header">
+            <h2><a href="{{ url_for('knowledge.index') }}">📚 知识库</a></h2>
+        </div>
+        {% if tree %}{{ render_tree(tree, can_manage=can_manage) }}{% endif %}
+    </div>
+
+    <div class="kb-main">
+        <form action="{{ url_for('knowledge.search') }}" method="get" class="kb-search-bar">
+            <input type="text" name="q" placeholder="搜索知识库..." value="{{ query }}" autofocus>
+            <button type="submit">搜索</button>
+        </form>
+
+        {% if query %}
+        <p class="kb-search-count">找到 <strong>{{ total }}</strong> 篇与「{{ query }}」相关的文档</p>
+
+        {% if posts %}
+        <div class="kb-doc-list">
+            {% for post in posts %}
+            <a href="{{ url_for('knowledge.view_doc', doc_id=post.id) }}" class="kb-doc-card">
+                <h3>{{ post.title }}</h3>
+                <div class="kb-doc-meta">
+                    {% if post.category_name %}<span class="kb-doc-cat">📁 {{ post.category_name }}</span>{% endif %}
+                    <time>{{ post.created_at|string|truncate(10, True, '') }}</time>
+                </div>
+                <p class="kb-doc-excerpt">{{ post.content|striptags|truncate(120) }}</p>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="kb-empty-hint">没有找到匹配的文档。</p>
+        {% endif %}
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

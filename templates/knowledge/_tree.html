@@ -1,0 +1,24 @@
+{# 递归渲染知识库目录树。用法：{% from 'knowledge/_tree.html' import render_tree %} #}
+{% macro render_tree(nodes, active_category_id=None, can_manage=False) %}
+<ul class="kb-tree">
+    {% for node in nodes %}
+    <li class="kb-tree-node" data-cat-id="{{ node.id }}">
+        <div class="kb-tree-item {% if active_category_id == node.id %}active{% endif %}">
+            <span class="kb-tree-toggle">{% if node.children %}▾{% else %}•{% endif %}</span>
+            {% if node.icon %}<span class="kb-tree-icon">{{ node.icon }}</span>{% endif %}
+            <a href="{{ url_for('knowledge.view_category', category_id=node.id) }}">{{ node.name }}</a>
+            {% if can_manage %}
+            <span class="kb-tree-actions">
+                <button class="kb-mini-btn kb-add-sub" data-parent-id="{{ node.id }}" title="新建子目录">+</button>
+            </span>
+            {% endif %}
+        </div>
+        {% if node.children %}
+        <ul class="kb-tree-children">
+            {{ render_tree(node.children, active_category_id, can_manage) }}
+        </ul>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+{% endmacro %}

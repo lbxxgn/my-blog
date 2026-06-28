@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% from 'knowledge/_tree.html' import render_tree %}
+
+{% block title %}知识库 - {{ site_name }}{% endblock %}
+{% block page_type %}knowledge{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/knowledge.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="container kb-layout">
+    <div class="kb-sidebar">
+        <div class="kb-sidebar-header">
+            <h2>📚 知识库</h2>
+            {% if can_manage %}
+            <button class="kb-mini-btn kb-add-root" data-parent-id="" title="新建顶层目录">＋</button>
+            {% endif %}
+        </div>
+        {% if tree %}
+            {{ render_tree(tree, can_manage=can_manage) }}
+        {% else %}
+            <p class="kb-empty-hint">暂无目录{% if can_manage %}，点击右上角 ＋ 创建{% endif %}</p>
+        {% endif %}
+    </div>
+
+    <div class="kb-main">
+        <div class="kb-main-header">
+            <h1>最近文档</h1>
+            <div class="kb-main-actions">
+                <form action="{{ url_for('knowledge.search') }}" method="get" class="kb-search-inline">
+                    <input type="text" name="q" placeholder="搜索知识库..." value="{{ request.args.get('q', '') }}">
+                    <button type="submit">🔍</button>
+                </form>
+                {% if can_manage %}
+                <a href="{{ url_for('knowledge.new_doc') }}" class="btn btn-sm btn-primary">+ 新建文档</a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if recent_docs %}
+        <div class="kb-doc-list">
+            {% for doc in recent_docs %}
+            <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" class="kb-doc-card">
+                <h3>{{ doc.title }}</h3>
+                <div class="kb-doc-meta">
+                    {% if doc.category_name %}<span class="kb-doc-cat">📁 {{ doc.category_name }}</span>{% endif %}
+                    <time>{{ doc.created_at|string|truncate(10, True, '') }}</time>
+                    {% if not doc.is_published %}<span class="kb-draft-badge">草稿</span>{% endif %}
+                </div>
+                <p class="kb-doc-excerpt">{{ doc.content|striptags|truncate(120) }}</p>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="kb-empty-state">
+            <p>知识库还是空的。</p>
+            {% if can_manage %}<p>点击「+ 新建文档」开始，或在左侧目录树点 ＋ 创建目录。</p>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</main>
+
+{# 创建目录弹窗 #}
+{% if can_manage %}
+<div class="kb-modal" id="kb-cat-modal" style="display:none">
+    <div class="kb-modal-content">
+        <h4 id="kb-cat-modal-title">新建目录</h4>
+        <form id="kb-cat-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="parent_id" id="kb-cat-parent" value="">
+            <div class="form-group">
+                <label>名称</label>
+                <input type="text" name="name" id="kb-cat-name" required autofocus>
+            </div>
+            <div class="form-group">
+                <label>图标（emoji，可选）</label>
+                <input type="text" name="icon" maxlength="4" placeholder="📁">
+            </div>
+            <div class="form-group">
+                <label>描述（可选）</label>
+                <input type="text" name="description">
+            </div>
+            <div class="kb-modal-actions">
+                <button type="submit" class="btn btn-sm btn-primary">创建</button>
+                <button type="button" class="btn btn-sm" id="kb-cat-cancel">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('kb-cat-modal');
+    var form = document.getElementById('kb-cat-form');
+    var parentInput = document.getElementById('kb-cat-parent');
+    var titleEl = document.getElementById('kb-cat-modal-title');
+
+    function openModal(parentId, parentName) {
+        parentInput.value = parentId || '';
+        titleEl.textContent = parentId ? '在「' + (parentName || '') + '」下新建目录' : '新建顶层目录';
+        modal.style.display = 'flex';
+        setTimeout(function(){ document.getElementById('kb-cat-name').focus(); }, 50);
+    }
+    function closeModal() { modal.style.display = 'none'; form.reset(); parentInput.value=''; }
+
+    document.querySelectorAll('.kb-add-root').forEach(function(btn){
+        btn.addEventListener('click', function(){ openModal('', ''); });
+    });
+    document.addEventListener('click', function(e){
+        var btn = e.target.closest('.kb-add-sub');
+        if (btn) {
+            var parentId = btn.getAttribute('data-parent-id');
+            var name = btn.closest('.kb-tree-item').querySelector('a').textContent;
+            openModal(parentId, name);
+        }
+    });
+    document.getElementById('kb-cat-cancel').addEventListener('click', closeModal);
+    modal.addEventListener('click', function(e){ if (e.target === modal) closeModal(); });
+
+    form.addEventListener('submit', function(e){
+        e.preventDefault();
+        var fd = new FormData(form);
+        fetch('{{ url_for("knowledge.new_category") }}', {
+            method: 'POST', body: fd,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then(function(r){return r.json()}).then(function(data){
+            if (data.success) { closeModal(); location.reload(); }
+            else { alert(data.error || '创建失败'); }
+        }).catch(function(e){ alert('网络错误: ' + e); });
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,10 @@
+{# 知识库面包屑导航。用法：{% from 'knowledge/_breadcrumb.html' import render_breadcrumb %} #}
+{% macro render_breadcrumb(breadcrumb) %}
+<nav class="kb-breadcrumb">
+    <a href="{{ url_for('knowledge.index') }}">知识库</a>
+    {% for item in breadcrumb %}
+    <span class="kb-breadcrumb-sep">/</span>
+    <a href="{{ url_for('knowledge.view_category', category_id=item.id) }}">{{ item.name }}</a>
+    {% endfor %}
+</nav>
+{% endmacro %}
