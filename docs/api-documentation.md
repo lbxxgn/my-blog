@@ -1,7 +1,7 @@
 # Simple Blog API 文档
 
-**版本**: v2.2
-**最后更新**: 2026-03-19
+**版本**: v2.3
+**最后更新**: 2026-06-28
 **基础URL**: `http://your-domain.com`
 
 ---
@@ -19,6 +19,8 @@
 - [AI功能API](#ai功能api)
 - [文件上传API](#文件上传api)
 - [草稿API](#草稿api)
+- [新知识空间API](#新知识空间api)
+- [导入导出API](#导入导出api)
 - [工具API](#工具api)
 
 ---
@@ -41,13 +43,10 @@ Content-Type: application/x-www-form-urlencoded
 | password | string | 是 | 密码 |
 | remember_device | string | 否 | 记住设备（"1"/"true"） |
 
-**响应示例：**
-```json
-{
-  "success": true,
-  "redirect": "/admin"
-}
-```
+**响应说明：**
+- 成功时返回 HTTP 302 重定向到 `/admin`（或请求中安全的 `next` 参数）
+- 失败时重新渲染登录页面
+- 此端点返回 HTML 页面，不是 JSON
 
 ### 登出
 
@@ -276,6 +275,30 @@ POST /post/{post_id}/verify-password
 }
 ```
 
+### 沉淀文章到知识库
+
+```http
+POST /post/{post_id}/precipitate
+```
+
+**需要认证**: 是
+
+**请求参数：**
+```json
+{
+  "category_id": 1
+}
+```
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "doc_id": 456,
+  "redirect": "/knowledge/doc/456"
+}
+```
+
 ### 添加文章
 
 ```http
@@ -326,6 +349,77 @@ GET /archive?days={7}&year={2026}&month={3}
 | days | int | 最近N天（7/30/90/365） |
 | year | int | 年份 |
 | month | int | 月份 |
+
+### 清除会话密码记录
+
+```http
+POST /clear-session
+```
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "message": "Session已清除"
+}
+
+### 导入数据
+
+#### 导入 JSON
+```http
+POST /admin/import/json
+Content-Type: multipart/form-data
+```
+
+**请求参数：**
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| file | file | 是 | 导出的 JSON 文件 |
+
+#### 导入 Markdown
+```http
+POST /admin/import/markdown
+Content-Type: multipart/form-data
+```
+
+**请求参数：**
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| file | file | 是 | Markdown 文件或 ZIP 包 |
+| category_id | int | 否 | 默认分类 |
+
+### 导出数据
+
+#### 导出 JSON
+```http
+GET /admin/export/json
+```
+
+**响应：** 下载 `blog_export_YYYYMMDD_HHMMSS.json`。
+
+#### 导出 Markdown
+```http
+GET /admin/export/markdown
+```
+
+### 将文章转为知识库文档
+
+```http
+POST /post/{post_id}/precipitate
+```
+
+**需要认证**: 是
+
+将博客文章沉淀为知识库文档，返回新文档的跳转地址。
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "redirect": "/knowledge/doc/456"
+}
+```
+```
 
 ### 获取我的文章（移动端）
 
@@ -491,6 +585,14 @@ POST /admin/tags/new
 POST /admin/tags/{tag_id}/delete
 ```
 
+### 评论管理列表
+
+```http
+GET /admin/comments
+```
+
+**需要认证**: 是
+
 ---
 
 ## 💬 评论API
@@ -587,16 +689,26 @@ POST /admin/users/{user_id}/edit
 POST /admin/users/{user_id}/delete
 ```
 
----
-
-## 📚 知识库API
-
-> 注意：知识库API端点已豁免CSRF保护（浏览器扩展需求）
-
-### 提交卡片/文章
+### 用户列表
 
 ```http
-POST /api/plugin/submit
+GET /admin/users
+```
+
+**需要认证**: 是（仅管理员）
+
+---
+
+## 📚 知识库API（旧版插件/卡片 API）
+
+> 注意：以下端点已注册在 `/knowledge_base` 前缀下，并已豁免 CSRF 保护（浏览器扩展需求）。旧的 `/api/plugin/*` 与 `/api/cards/*` 别名仍保留兼容，但实际 URL 以 `/knowledge_base` 为准。
+
+### 浏览器扩展 API
+
+#### 提交卡片/文章
+
+```http
+POST /knowledge_base/api/plugin/submit
 ```
 
 **认证**: API Key 或 Session
@@ -624,10 +736,10 @@ POST /api/plugin/submit
 }
 ```
 
-### 同步标注
+#### 同步标注
 
 ```http
-POST /api/plugin/sync-annotations
+POST /knowledge_base/api/plugin/sync-annotations
 ```
 
 **认证**: API Key 或 Session
@@ -653,10 +765,10 @@ POST /api/plugin/sync-annotations
 **颜色选项:** yellow, blue, green, pink, orange, purple
 **类型选项:** highlight, note, bookmark
 
-### 获取页面标注
+#### 获取页面标注
 
 ```http
-GET /api/plugin/annotations?url={url}
+GET /knowledge_base/api/plugin/annotations?url={url}
 ```
 
 **认证**: API Key 或 Session
@@ -680,10 +792,10 @@ GET /api/plugin/annotations?url={url}
 }
 ```
 
-### 获取最近捕获
+#### 获取最近捕获
 
 ```http
-GET /api/plugin/recent?limit={10}
+GET /knowledge_base/api/plugin/recent?limit={10}
 ```
 
 **认证**: API Key 或 Session
@@ -707,26 +819,20 @@ GET /api/plugin/recent?limit={10}
 }
 ```
 
-### 快速记事
+#### 已弃用的页面路由
+
+以下旧版页面路由现已重定向或废弃，建议使用新的 `/knowledge/*` 空间：
+
+- `GET /knowledge_base/timeline` → 重定向到 `/knowledge/`
+- `GET /knowledge_base/incubator` → 重定向到 `/knowledge/`
+- `GET/POST /knowledge_base/quick-note` → GET 重定向到 `/knowledge/`，POST 仍可创建笔记（但不推荐）
+
+### 卡片管理 API
+
+#### 获取卡片列表
 
 ```http
-POST /quick-note
-```
-
-**需要认证**: 是
-
-**请求参数：**
-```json
-{
-  "title": "标题",
-  "content": "内容"
-}
-```
-
-### 获取卡片列表
-
-```http
-GET /api/cards?status={idea}&limit={20}
+GET /knowledge_base/api/cards?status={idea}&limit={20}
 ```
 
 **需要认证**: 是
@@ -737,16 +843,16 @@ GET /api/cards?status={idea}&limit={20}
 | status | string | 筛选状态：idea/incubating/draft |
 | limit | int | 返回数量 |
 
-### 获取卡片详情
+#### 获取卡片详情
 
 ```http
-GET /api/cards/{card_id}
+GET /knowledge_base/api/cards/{card_id}
 ```
 
-### 更新卡片
+#### 更新卡片
 
 ```http
-PUT /api/cards/{card_id}
+PUT /knowledge_base/api/cards/{card_id}
 ```
 
 **请求参数：**
@@ -758,16 +864,16 @@ PUT /api/cards/{card_id}
 }
 ```
 
-### 删除卡片
+#### 删除卡片
 
 ```http
-DELETE /api/cards/{card_id}
+DELETE /knowledge_base/api/cards/{card_id}
 ```
 
-### 卡片状态转换
+#### 卡片状态转换
 
 ```http
-PUT /api/cards/{card_id}/status
+PUT /knowledge_base/api/cards/{card_id}/status
 ```
 
 **请求参数：**
@@ -777,25 +883,25 @@ PUT /api/cards/{card_id}/status
 }
 ```
 
-### 合并卡片
+#### 合并卡片
 
 ```http
-POST /api/cards/merge
+POST /knowledge_base/api/cards/merge
 ```
 
 **请求参数：**
 ```json
 {
   "card_ids": [1, 2, 3],
-  "title": "合并后的标题",
-  "content": "合并后的内容"
+  "action": "create_post",
+  "post_id": null
 }
 ```
 
-### AI生成卡片标签
+#### AI生成卡片标签
 
 ```http
-POST /api/cards/generate-tags
+POST /knowledge_base/api/cards/generate-tags
 ```
 
 **请求参数：**
@@ -805,24 +911,172 @@ POST /api/cards/generate-tags
 }
 ```
 
-### AI合并卡片
+#### AI合并卡片
 
 ```http
-POST /api/cards/ai-merge
+POST /knowledge_base/api/cards/ai-merge
 ```
 
 **请求参数：**
 ```json
 {
-  "card_ids": [1, 2, 3]
+  "card_ids": [1, 2, 3],
+  "merge_style": "comprehensive"
 }
 ```
 
-### 转换为文章
+#### 转换为文章
 
 ```http
-POST /api/card/{card_id}/convert-to-post
+POST /knowledge_base/api/card/{card_id}/convert-to-post
 ```
+
+---
+
+## 📖 知识空间 API
+
+> 新版独立知识空间，URL 前缀为 `/knowledge`。需要登录（Session Cookie）。
+
+### 目录树与页面
+
+#### 知识库首页
+```http
+GET /knowledge/
+```
+
+#### 分类详情
+```http
+GET /knowledge/category/{category_id}
+```
+
+#### 文档详情
+```http
+GET /knowledge/doc/{doc_id}
+```
+
+#### 知识库内搜索
+```http
+GET /knowledge/search?q={keyword}
+```
+
+### 文档管理
+
+#### 新建文档
+```http
+GET/POST /knowledge/doc/new
+```
+
+**POST 请求参数：**
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| title | string | 是 | 文档标题 |
+| content | string | 是 | Markdown 内容 |
+| category_id | int | 是 | 所属目录 |
+| tags | string | 否 | 逗号分隔标签 |
+| sort_order | int | 否 | 排序值 |
+| is_published | bool | 否 | 是否发布 |
+
+#### 编辑文档
+```http
+GET/POST /knowledge/doc/{doc_id}/edit
+```
+
+#### 删除文档
+```http
+POST /knowledge/doc/{doc_id}/delete
+```
+
+### 目录管理
+
+#### 新建目录
+```http
+POST /knowledge/category/new
+```
+
+**请求参数：**
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| name | string | 是 | 目录名称 |
+| parent_id | int | 否 | 父目录 ID（空为根目录） |
+| icon | string | 否 | 图标 |
+| description | string | 否 | 描述 |
+
+#### 删除目录
+```http
+POST /knowledge/category/{category_id}/delete
+```
+
+#### 拖拽排序/移动目录
+```http
+POST /knowledge/reorder
+```
+
+**请求参数：**
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| type | string | 是 | `category` 或 `doc` |
+| id | int | 是 | 被移动项 ID |
+| parent_id | int/空 | 否 | 新父级 ID（空为根目录） |
+| sort_order | int | 是 | 新排序值 |
+
+### 编辑器辅助接口
+
+#### 编辑器内图片上传
+```http
+POST /knowledge/doc/upload-image
+Content-Type: multipart/form-data
+```
+
+**请求参数：**
+| 参数 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| file | file | 是 | 图片文件 |
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "url": "/static/uploads/images/20260629_abc123.png",
+  "filename": "20260629_abc123.png"
+}
+```
+
+#### 自动保存草稿
+```http
+POST /knowledge/doc/{doc_id}/autosave
+```
+
+**请求参数：**
+```json
+{
+  "title": "文档标题",
+  "content": "Markdown 内容"
+}
+```
+
+#### 获取最新草稿
+```http
+GET /knowledge/doc/{doc_id}/draft
+```
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "draft": {
+    "title": "草稿标题",
+    "content": "草稿内容",
+    "updated_at": "2026-06-29T10:00:00"
+  }
+}
+```
+
+### 归档旧卡片
+```http
+POST /knowledge/card/{card_id}/archive
+```
+
+将旧版知识卡片归档到知识空间。
 
 ---
 
@@ -853,6 +1107,30 @@ POST /admin/ai/generate-tags
   "tokens_used": 250,
   "model": "gpt-3.5-turbo",
   "cost": 0.0001
+}
+```
+
+### 生成标题
+
+```http
+POST /admin/ai/generate-title
+```
+
+**需要认证**: 是
+
+**请求参数：**
+```json
+{
+  "content": "文章内容"
+}
+```
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "title": "生成的标题",
+  "tokens_used": 120
 }
 ```
 
@@ -1322,8 +1600,10 @@ GET /api/image/original-url?hash={abc123}
 
 以下端点已豁免 CSRF 保护（用于浏览器扩展和移动端）：
 
-- `/api/plugin/submit` - 浏览器扩展提交
-- `/api/plugin/sync-annotations` - 浏览器扩展标注同步
+- `/knowledge_base/api/plugin/submit` - 浏览器扩展提交
+- `/knowledge_base/api/plugin/sync-annotations` - 浏览器扩展标注同步
+- `/knowledge_base/api/plugin/annotations` - 浏览器扩展获取批注
+- `/knowledge_base/api/plugin/recent` - 浏览器扩展最近捕获
 - `/mobile/upload` - 移动端图片上传
 - `/admin/ai/test` - AI 配置测试
 

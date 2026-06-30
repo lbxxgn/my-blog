@@ -21,6 +21,10 @@
 from flask import Blueprint, request, redirect, url_for, render_template, abort, session, flash, jsonify
 import markdown2
 import bleach
+from werkzeug.utils import secure_filename
+from datetime import datetime
+from pathlib import Path
+import os
 
 from auth_decorators import login_required
 from logger import log_operation
@@ -33,6 +37,8 @@ from models import (
     create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
     archive_card_to_knowledge, get_card_by_id,
 )
+from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
+from models.draft import save_draft, get_drafts
 
 knowledge_bp = Blueprint('knowledge', __name__)
 
@@ -188,7 +194,7 @@ def reorder():
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': '缺少或无效的 id'}), 400
     parent_id_raw = data.get('parent_id')
-    new_parent_id = int(parent_id_raw) if parent_id_raw else None
+    new_parent_id = int(parent_id_raw) if parent_id_raw and str(parent_id_raw).lower() not in ('', 'none', 'null') else None
     try:
         new_sort_order = int(data.get('sort_order', 0))
     except (TypeError, ValueError):
@@ -286,3 +292,130 @@ def archive_card(card_id):
         return redirect(url_for('knowledge.view_doc', doc_id=doc_id))
     return render_template('knowledge/archive.html', tree=tree,
                            tree_flattened=_flatten_tree(tree), card=card)
+
+
+# =============================================================================
+# 编辑器辅助 API
+# =============================================================================
+
+def _allowed_file(filename):
+    """检查文件扩展名是否允许"""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@knowledge_bp.route('/doc/upload-image', methods=['POST'])
+@login_required
+def upload_image():
+    """知识库编辑器图片上传"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': '没有文件上传'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': '未选择文件'}), 400
+
+    if not _allowed_file(file.filename):
+        return jsonify({'success': False, 'error': '不支持的文件类型'}), 400
+
+    file_content = file.read()
+    file.seek(0)
+    file_size = len(file_content)
+    max_file_size = 50 * 1024 * 1024
+    if file_size > max_file_size:
+        return jsonify({'success': False, 'error': f'文件大小超过限制（最大{max_file_size//1024//1024}MB）'}), 400
+
+    try:
+        from PIL import Image
+        import io
+        img = Image.open(io.BytesIO(file_content))
+        detected_type = img.format.lower() if img.format else None
+        allowed_types = ['jpeg', 'jpg', 'png', 'gif', 'bmp', 'webp', 'tiff', 'mpo', 'heic', 'heif']
+        if detected_type not in allowed_types:
+            return jsonify({'success': False, 'error': f'无效的图片文件类型: {detected_type}'}), 400
+        width, height = img.size
+        if width > 8192 or height > 8192:
+            return jsonify({'success': False, 'error': '图片尺寸过大'}), 400
+        if detected_type in ['mpo', 'heic', 'heif']:
+            if img.mode in ('RGBA', 'P', 'LA'):
+                img = img.convert('RGB')
+            elif img.mode != 'RGB':
+                img = img.convert('RGB')
+            jpeg_buffer = io.BytesIO()
+            img.save(jpeg_buffer, format='JPEG', quality=95)
+            file_content = jpeg_buffer.getvalue()
+            file_type = 'jpg'
+        else:
+            file_type = 'jpg' if detected_type == 'jpeg' else detected_type
+    except ImportError:
+        file_type = secure_filename(file.filename).rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
+    except Exception:
+        return jsonify({'success': False, 'error': '图片文件损坏或格式错误'}), 400
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    ext = file_type or 'png'
+    random_suffix = os.urandom(4).hex()
+    base_filename = f"{timestamp}_{random_suffix}"
+    images_dir = Path(UPLOAD_FOLDER) / 'images'
+    images_dir.mkdir(parents=True, exist_ok=True)
+    original_path = images_dir / f"{base_filename}.{ext}"
+
+    try:
+        with open(original_path, 'wb') as f:
+            f.write(file_content)
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'文件保存失败: {str(e)}'}), 500
+
+    image_url = f"/static/uploads/images/{original_path.name}"
+    return jsonify({
+        'success': True,
+        'url': image_url,
+        'filename': original_path.name
+    })
+
+
+@knowledge_bp.route('/doc/<int:doc_id>/autosave', methods=['POST'])
+@login_required
+def autosave_doc(doc_id):
+    """自动保存知识库文档草稿"""
+    data = request.get_json(silent=True) or {}
+    title = (data.get('title') or '').strip()
+    content = data.get('content', '')
+
+    doc = get_knowledge_doc(doc_id)
+    if not doc:
+        return jsonify({'success': False, 'error': '文档不存在'}), 404
+
+    result = save_draft(
+        user_id=session['user_id'],
+        post_id=doc_id,
+        title=title or doc['title'],
+        content=content,
+        category_id=doc.get('category_id'),
+        tags=[],
+        device_info='kb-editor'
+    )
+
+    if result.get('success'):
+        return jsonify({
+            'success': True,
+            'saved_at': result.get('updated_at')
+        })
+    return jsonify({'success': False, 'error': result.get('error', '保存失败')}), 500
+
+
+@knowledge_bp.route('/doc/<int:doc_id>/draft', methods=['GET'])
+@login_required
+def draft_doc(doc_id):
+    """获取知识库文档草稿"""
+    drafts = get_drafts(user_id=session['user_id'], post_id=doc_id)
+    if drafts:
+        latest = drafts[0]
+        return jsonify({
+            'success': True,
+            'draft': {
+                'title': latest.get('title'),
+                'content': latest.get('content'),
+                'saved_at': latest.get('updated_at')
+            }
+        })
+    return jsonify({'success': True, 'draft': None})

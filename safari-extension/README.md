@@ -1,6 +1,6 @@
 # Safari Extension - 知识库快速捕获
 
-Safari浏览器扩展，用于快速保存网页内容到个人知识库。
+Safari 浏览器扩展，用于快速保存网页内容到个人知识库。
 
 ## 系统要求
 
@@ -29,39 +29,31 @@ Safari浏览器扩展，用于快速保存网页内容到个人知识库。
 
 ### 在 iOS Safari 上安装 (可选)
 
-iOS上安装稍微复杂一些，需要：
-- 使用Safari Web Extension Converter转换为iOS应用
-- 在Xcode中编译并安装到设备
+iOS 上安装稍微复杂一些，需要：
+- 使用 Safari Web Extension Converter 转换为 iOS 应用
+- 在 Xcode 中编译并安装到设备
 
-**建议：主要在macOS上使用，iOS上可以直接用浏览器添加到主屏幕的方式访问你的知识库Web界面**
+**建议：主要在 macOS 上使用，iOS 上可以直接用浏览器添加到主屏幕的方式访问你的知识库 Web 界面**
 
 ## 配置
 
-### 生成API密钥
+### 生成 API 密钥
 
-在backend目录下运行：
+在 `browser-extension/` 目录下运行（Safari 与 Chrome 共用同一套 API 密钥）：
 
 ```bash
-cd backend
-export ADMIN_USERNAME='admin'
-export ADMIN_PASSWORD='AdminPass123!'
-python3 -c "
-from app import app, create_admin_user
-from models import generate_api_key, get_user_by_username
-with app.app_context():
-    create_admin_user()
-    user = get_user_by_username('admin')
-    key = generate_api_key(user['id'])
-    print(f'API Key: {key}')
-"
+cd browser-extension
+python3 generate-api-key.py
+# 输入你的用户名（如 admin）
 ```
 
 ### 配置扩展
 
-1. 点击Safari工具栏中的扩展图标
+1. 点击 Safari 工具栏中的扩展图标
 2. 点击设置 (齿轮图标 ⚙️)
-3. 输入你的API密钥
-4. 保存设置
+3. 输入你的 API 密钥
+4. 确认 API URL 为 `http://localhost:5001/knowledge_base`（本地开发）或远程服务器地址加 `/knowledge_base`
+5. 保存设置
 
 ## 使用方法
 
@@ -85,16 +77,16 @@ with app.app_context():
 3. 输入笔记内容
 4. 保存时笔记会附加到捕获内容上
 
-## 与Chrome版本的区别
+## 与 Chrome 版本的区别
 
-Safari版本与Chrome版本**功能完全相同**，代码复用率95%+：
+Safari 版本与 Chrome 版本**功能完全相同**，代码复用率 95%+：
 
 - ✅ 相同的浮动工具栏
 - ✅ 相同的快捷捕获功能
-- ✅ 相同的API通信
+- ✅ 相同的 API 通信
 - ✅ 相同的标签和笔记支持
 
-唯一的区别是`manifest.json`中添加了Safari特定配置：
+唯一的区别是 `manifest.json` 中添加了 Safari 特定配置：
 
 ```json
 "browser_specific_settings": {
@@ -104,12 +96,14 @@ Safari版本与Chrome版本**功能完全相同**，代码复用率95%+：
 }
 ```
 
+**注意**：插件 API 的实际路径为 `/knowledge_base/api/plugin/*`，因此本地默认 API URL 是 `http://localhost:5001/knowledge_base`。
+
 ## 故障排除
 
 ### 扩展无法加载？
 
-**检查Safari版本：**
-- 打开 `Safari > 关于Safari`
+**检查 Safari 版本：**
+- 打开 `Safari > 关于 Safari`
 - 确保版本 >= 14.0
 
 **启用开发者模式：**
@@ -130,13 +124,17 @@ Safari版本与Chrome版本**功能完全相同**，代码复用率95%+：
 
 **确认后端服务运行中：**
 ```bash
-cd backend
-python3 app.py
+source .venv/bin/activate
+python backend/app.py
 ```
 
-**验证API密钥：**
+**验证 API URL：**
+- 本地开发应为 `http://localhost:5001/knowledge_base`
+- 远程服务器应为 `https://your-domain.com/knowledge_base`
+
+**验证 API 密钥：**
 - 打开扩展设置
-- 重新输入API密钥
+- 重新输入 API 密钥
 - 点击 `测试连接`
 
 **查看错误日志：**
@@ -147,7 +145,7 @@ python3 app.py
 
 当你修改代码后：
 
-1. 在Safari中打开 `Safari > 偏好设置 > 扩展`
+1. 在 Safari 中打开 `Safari > 偏好设置 > 扩展`
 2. 取消勾选扩展
 3. 重新勾选扩展
 4. 或者点击 `开发 > Web 扩展 > 重新加载 [扩展名称]`
@@ -158,9 +156,9 @@ python3 app.py
 
 ```
 safari-extension/
-├── manifest.json          # 扩展配置 (包含Safari特定设置)
+├── manifest.json          # 扩展配置 (包含 Safari 特定设置)
 ├── background/
-│   ├── api-client.js      # API客户端
+│   ├── api-client.js      # API 客户端
 │   ├── auth-manager.js    # 认证管理
 │   └── service-worker.js  # 后台服务工作
 ├── content/
@@ -176,12 +174,12 @@ safari-extension/
 └── icons/                 # 图标资源
 ```
 
-### 与Chrome版本同步
+### 与 Chrome 版本同步
 
-当你修改Chrome版本时，只需要：
+当你修改 Chrome 版本时，只需要：
 
-1. **JavaScript/CSS文件** - 直接复制到safari-extension对应目录
-2. **manifest.json** - 合并修改，保留`browser_specific_settings`字段
+1. **JavaScript/CSS 文件** - 直接复制到 safari-extension 对应目录
+2. **manifest.json** - 合并修改，保留 `browser_specific_settings` 字段
 
 快速同步命令：
 ```bash
@@ -190,20 +188,20 @@ cp browser-extension/background/*.js safari-extension/background/
 cp browser-extension/content/*.* safari-extension/content/
 cp browser-extension/popup/*.* safari-extension/popup/
 
-# 然后手动合并manifest.json的修改
+# 然后手动合并 manifest.json 的修改
 ```
 
-## 发布到App Store (可选)
+## 发布到 App Store (可选)
 
 如果你想公开发布：
 
-1. **注册Apple Developer账号** ($99/年)
-2. **使用Safari Extension Converter转换**
+1. **注册 Apple Developer 账号** ($99/年)
+2. **使用 Safari Extension Converter 转换**
    ```bash
    xcrun safari-web-extension-converter /path/to/safari-extension
    ```
-3. **在Xcode中配置应用信息**
-4. **上传到App Store Connect**
+3. **在 Xcode 中配置应用信息**
+4. **上传到 App Store Connect**
 5. **等待审核**
 
 **注意：个人使用不需要以上步骤，直接加载未签名扩展即可**
@@ -212,7 +210,7 @@ cp browser-extension/popup/*.* safari-extension/popup/
 
 遇到问题？
 
-1. 查看主项目的 `browser-extension/README.md` 获取更多API文档
+1. 查看主项目的 `browser-extension/README.md` 获取更多 API 文档
 2. 检查 `browser-extension/TESTING.md` 了解测试方法
 3. 查看浏览器控制台的错误日志
 

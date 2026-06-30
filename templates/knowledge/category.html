@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from 'knowledge/_tree.html' import render_tree %}
+{% from 'knowledge/_tree.html' import render_tree with context %}
 {% from 'knowledge/_breadcrumb.html' import render_breadcrumb %}
 
 {% block title %}{{ category.name }} - 知识库 - {{ site_name }}{% endblock %}
@@ -18,6 +18,23 @@
             <button class="kb-mini-btn kb-add-root" data-parent-id="" title="新建顶层目录">＋</button>
             {% endif %}
         </div>
+        {% if can_manage %}
+        <div class="kb-sidebar-cat-actions">
+            <div class="kb-sidebar-cat-name">
+                {% if category.icon %}<span>{{ category.icon }}</span>{% endif %}
+                <span>{{ category.name }}</span>
+            </div>
+            <div class="kb-sidebar-cat-btns">
+                <button class="kb-mini-btn kb-add-sub" data-parent-id="{{ category.id }}" data-parent-name="{{ category.name }}" title="新建子目录">＋ 子目录</button>
+                <form method="POST" action="{{ url_for('knowledge.delete_category', category_id=category.id) }}"
+                      data-confirm="确定删除此目录？（子目录上移，文档解绑）" data-confirm-destructive="true" data-confirm-text="删除"
+                      style="display:inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="kb-mini-btn kb-delete-cat" title="删除目录">删除目录</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
         {{ render_tree(tree, active_category_id=category.id, can_manage=can_manage) }}
     </div>
 
@@ -31,13 +48,6 @@
             {% if can_manage %}
             <div class="kb-cat-actions">
                 <a href="{{ url_for('knowledge.new_doc') }}?cat={{ category.id }}" class="btn btn-sm btn-primary">+ 新建文档</a>
-                <button class="kb-mini-btn kb-add-sub" data-parent-id="{{ category.id }}" title="新建子目录">＋ 子目录</button>
-                <form method="POST" action="{{ url_for('knowledge.delete_category', category_id=category.id) }}"
-                      data-confirm="确定删除此目录？（子目录上移，文档解绑）" data-confirm-destructive="true" data-confirm-text="删除"
-                      style="display:inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-sm btn-danger">删除目录</button>
-                </form>
             </div>
             {% endif %}
         </div>
@@ -129,7 +139,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.kb-add-root,.kb-add-sub').forEach(function(btn){
         btn.addEventListener('click', function(){
             var pid = btn.getAttribute('data-parent-id') || '';
-            var name = btn.getAttribute('data-parent-id') ? btn.closest('.kb-cat-header,.kb-tree-item').querySelector('h1,a').textContent.trim() : '';
+            var name = btn.getAttribute('data-parent-name') || '';
+            if (!name && pid) {
+                var item = btn.closest('.kb-tree-item');
+                if (item) name = item.querySelector('a').textContent.trim();
+            }
             openModal(pid, name);
         });
     });

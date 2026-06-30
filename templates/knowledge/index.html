@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from 'knowledge/_tree.html' import render_tree %}
+{% from 'knowledge/_tree.html' import render_tree with context %}
 
 {% block title %}知识库 - {{ site_name }}{% endblock %}
 {% block page_type %}knowledge{% endblock %}

@@ -243,14 +243,16 @@ def get_drafts(user_id: int, post_id: Optional[int] = None) -> List[Dict]:
     try:
         if post_id:
             cursor.execute('''
-                SELECT id, post_id, title, updated_at, device_info
+                SELECT id, post_id, title, content, category_id, tags,
+                       updated_at, device_info
                 FROM drafts
                 WHERE user_id = ? AND post_id = ?
                 ORDER BY updated_at DESC
             ''', (user_id, post_id))
         else:
             cursor.execute('''
-                SELECT id, post_id, title, updated_at, device_info
+                SELECT id, post_id, title, content, category_id, tags,
+                       updated_at, device_info
                 FROM drafts
                 WHERE user_id = ?
                 ORDER BY updated_at DESC

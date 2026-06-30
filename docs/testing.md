@@ -2,20 +2,31 @@
 
 ## 📊 测试覆盖情况
 
-### 现有测试文件（7个）
+### 现有测试文件
 
-| 文件 | 描述 | 测试数量 |
-|------|------|----------|
-| conftest.py | pytest配置和fixture | - |
-| test_ai_merger.py | AI卡片合并测试 | ~10 |
-| test_image_processing.py | 图片处理测试 | ~40 |
-| test_models.py | 数据模型测试 | ~50 |
-| test_routes.py | 路由测试 | ~60 |
-| test_drafts.py | 草稿同步测试 | ~40 |
-| test_knowledge_base.py | 知识库测试 | ~35 |
-| test_admin_features.py | 管理功能测试 | ~45 |
+| 文件 | 描述 |
+|------|------|
+| `conftest.py` | pytest 配置和共享 fixtures |
+| `test_admin_features.py` | 管理后台功能 |
+| `test_ai_merger.py` | AI 卡片合并 |
+| `test_db_check.py` | 数据库完整性检查 |
+| `test_drafts.py` | 草稿同步 |
+| `test_image_cleanup_tool.py` | 图片清理工具 |
+| `test_image_edge_cases.py` | 图片边界情况 |
+| `test_image_processing.py` | 图片处理与优化 |
+| `test_import_blog.py` | 博客导入 |
+| `test_import_posts.py` | 文章导入 |
+| `test_kb_editor_api.py` | 知识库编辑器后端 API（图片上传、自动保存、目录排序） |
+| `test_knowledge_base.py` | 旧版知识库 |
+| `test_migrate_db.py` | 数据库迁移 |
+| `test_models.py` | 核心数据模型 |
+| `test_models_edge_cases.py` | 模型边界情况 |
+| `test_routes.py` | 路由行为 |
+| `test_routes_edge_cases.py` | 路由边界情况 |
+| `test_security.py` | 安全（CSRF、XSS、速率限制、CSP、Cookie） |
+| `e2e_kb_editor.py` | 端到端知识库编辑器测试（CDP + Chrome） |
 
-**总计**: 约280个测试用例
+**当前测试总数**: 271 个单元/集成测试（运行 `pytest` 统计），外加 1 个 E2E 脚本。
 
 ### 已覆盖的功能模块
 
@@ -28,13 +39,15 @@
 
 #### ✅ 新增功能测试
 - **草稿同步** - 多设备自动保存、冲突检测
-- **知识库** - 卡片管理、时间线、孵化器
+- **知识库** - 卡片管理、目录树、文档 CRUD、拖拽排序、编辑器 API
 - **浏览器扩展API** - 卡片提交、标注同步
-- **AI辅助** - 标签生成、智能合并、内容续写
-- **图片优化** - 多尺寸生成、WebP转换、HEIC支持
+- **AI辅助** - 标签生成、智能合并、内容续写、整理建议
+- **图片优化** - 多尺寸生成、WebP 转换、HEIC 支持、清理工具
 - **批量操作** - 批量更新分类、删除、发布、添加标签
-- **导入导出** - JSON/Markdown格式
+- **导入导出** - JSON/Markdown 格式
 - **用户管理** - CRUD、角色管理
+- **Passkey / WebAuthn** - 注册、认证
+- **安全** - CSRF、XSS、速率限制、CSP
 
 ## 🚀 运行测试
 
@@ -98,15 +111,18 @@ pytest tests/ --durations=10
 
 ### Fixtures
 
-**测试客户端**:
-- `client` - Flask测试客户端
+**测试客户端与认证**:
+- `client` - Flask 测试客户端
+- `csrf_client` - 已注入 CSRF token 的测试客户端
+- `limited_client` - 用于测试速率限制的客户端
 - `test_admin_user` - 管理员用户
 - `test_user` - 普通用户
 
-**测试数据**:
-- `temp_db` - 临时数据库
+**数据库与数据**:
+- `init_database` / `temp_db` - 临时数据库
 - `test_post` - 测试文章
 - `test_category` - 测试分类
+- `test_tag` - 测试标签
 
 ## 🎯 测试最佳实践
 

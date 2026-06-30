@@ -5,7 +5,9 @@
 ## 🚀 快速开始
 
 - [快速启动](startup.md) - 详细的环境配置和启动步骤
-- [快速升级参考](../QUICKSTART.md) - 一行命令快速升级
+- [快速升级参考](../QUICKSTART.md) - 一行命令快速升级与启动
+- [前端构建指南](frontend-build.md) - React/Vite 知识库编辑器构建说明
+- [知识库重构说明](knowledge-base-refactor.md) - 新版独立知识空间介绍
 
 ## 📦 部署运维
 
@@ -29,13 +31,14 @@
 
 - [架构说明](ARCHITECTURE.md) - 模块划分与关键流程
 
-## 📚 API文档
+## 📚 API 文档
 
-- [API文档](api-documentation.md) - 完整的REST API参考
+- [API 文档](api-documentation.md) - 完整的 REST API 参考
 
 ## 🔧 工具文档
 
-- [Backend工具](../backend/README.md) - 图片清理等工具使用说明
+- [Backend 工具](../backend/README.md) - 图片清理等工具使用说明
+- [前端构建指南](frontend-build.md) - 新版知识库编辑器构建与排错
 
 ## 🗃️ 历史归档
 
@@ -43,4 +46,4 @@
 
 ---
 
-**提示**: 如果您是第一次使用，建议从 [快速启动](startup.md) 开始。
+**提示**: 如果您是第一次使用，建议从 [快速启动](startup.md) 开始；如果需要使用新版知识库编辑器，请先阅读 [前端构建指南](frontend-build.md)。

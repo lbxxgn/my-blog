@@ -63,12 +63,12 @@
     box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
 }
 
-.write-fab--note .write-fab__icon {
+.write-fab--doc .write-fab__icon {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     box-shadow: 0 4px 18px rgba(102, 126, 234, 0.3);
 }
 
-.write-fab--note:hover .write-fab__icon {
+.write-fab--doc:hover .write-fab__icon {
     box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4);
 }
 

@@ -86,14 +86,16 @@ Passkey 是网站的快捷登录方式。
 本地开发时请尽量使用：
 
 ```txt
-http://localhost:5005
+http://localhost:5001
 ```
 
 不要直接用：
 
 ```txt
-http://127.0.0.1:5005
+http://127.0.0.1:5001
 ```
+
+> 生产环境请通过环境变量 `PASSKEY_RP_ID` 和 `PASSKEY_ALLOWED_ORIGINS` 配置正确的域名。
 
 ### 4. 忘了密码怎么办
 

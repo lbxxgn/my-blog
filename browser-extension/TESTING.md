@@ -12,39 +12,35 @@ Before testing the extension, ensure you have:
 
 ```bash
 # From the project root
-cd backend
-python3 app.py
+python3 backend/app.py
 ```
 
-Verify the server is running by visiting `http://localhost:5001`
+Verify the server is running by visiting `http://localhost:5001`.
 
 ## Step 2: Get or Create an API Key
 
-You need an API key to use the extension. Here's how to get one:
-
-### Option A: From Python Shell
+You need an API key to use the extension. The easiest way is:
 
 ```bash
-cd backend
-python3
+cd browser-extension
+python3 generate-api-key.py
+# enter your username (e.g. admin)
 ```
 
-```python
-from models import get_user_by_username, generate_api_key
-
-# Get your user
-user = get_user_by_username('your_username')
-user_id = user['id']
-
-# Generate API key
-api_key = generate_api_key(user_id)
-print(f"Your API key: {api_key}")
-```
-
-### Option B: Direct Database Query
+Or manually from the project root:
 
 ```bash
-sqlite3 blog.db
+python3 - <<'PY'
+from backend.models import get_user_by_username, generate_api_key
+user = get_user_by_username('admin')
+print(generate_api_key(user['id']))
+PY
+```
+
+### Direct Database Query (optional)
+
+```bash
+sqlite3 db/simple_blog.db
 ```
 
 ```sql
@@ -70,10 +66,10 @@ SELECT * FROM api_keys;
 ## Step 4: Configure the Extension
 
 1. Click the extension icon in your browser toolbar
-2. You'll see a status indicator (red = not configured, green = configured)
-3. Click the **Settings (⚙️)** button
-4. Paste your API key when prompted
-5. The status should turn green
+2. Click the **Settings (⚙️)** button
+3. Paste your API key
+4. The API URL should be `http://localhost:5001/knowledge_base` for local development (change it only if your backend is on a different origin)
+5. Click **Save**
 
 ## Step 5: Test Content Capture
 
@@ -88,19 +84,24 @@ SELECT * FROM api_keys;
 Check that the content was saved:
 
 ```bash
-sqlite3 blog.db
+sqlite3 db/simple_blog.db
 ```
 
 ```sql
 -- View saved cards
-SELECT id, title, substr(content, 1, 50) as content_preview,
+SELECT id, title, substr(content, 1, 50) AS content_preview,
        source, created_at
 FROM cards
 ORDER BY created_at DESC
 LIMIT 5;
 ```
 
-Or visit `http://localhost:5001` if your knowledge base has a web interface.
+You can also verify the plugin API directly:
+
+```bash
+curl "http://localhost:5001/knowledge_base/api/plugin/recent?limit=1" \
+  -H "X-API-Key: your-api-key-here"
+```
 
 ## Step 7: Test Advanced Features
 
@@ -137,21 +138,18 @@ Or visit `http://localhost:5001` if your knowledge base has a web interface.
 **Solutions:**
 1. Check API key is configured:
    - Click extension icon → Settings
-   - Status should be green (not red)
+   - API key should be present
 
 2. Verify backend is running:
    - Visit `http://localhost:5001` in browser
-   - Should see your application or an API response
+   - Should see your application
 
-3. Check browser console (F12) for detailed error messages:
-   - Look for red error messages
-   - Note the specific error code or message
+3. Check browser console (F12) for detailed error messages
 
 4. Verify API key is valid:
-   ```python
-   from models import validate_api_key
-   validate_api_key('your-api-key-here')
-   # Should return user_id, not None
+   ```bash
+   curl "http://localhost:5001/knowledge_base/api/plugin/recent?limit=1" \
+     -H "X-API-Key: your-api-key-here"
    ```
 
 ### Extension Not Loading
@@ -169,12 +167,9 @@ Or visit `http://localhost:5001` if your knowledge base has a web interface.
 For more detailed logging:
 
 1. Open `chrome://extensions/`
-2. Find "Knowledge Base Extension"
-3. Click "Errors" button to see any errors
-4. Click "Inspect" to open DevTools for:
-   - Background service worker logs
-   - Popup console
-   - Content script logs
+2. Find the extension card
+3. Click **Inspect views: service worker** to see background logs
+4. Use **Inspect popup** (right-click the extension icon) to see popup logs
 
 ## Test Checklist
 
@@ -182,23 +177,12 @@ Use this checklist to verify all features work:
 
 - [ ] Extension loads without errors
 - [ ] API key can be configured
-- [ ] Status indicator shows green (connected)
 - [ ] Text selection triggers toolbar appearance
 - [ ] Save button (📌) works
 - [ ] Save with tags (🏷️) works
 - [ ] Save with note (✏️) works
 - [ ] Content appears in database
-- [ ] Quick note button opens knowledge base
 - [ ] Settings dialog can update API key
-
-## Next Steps After Testing
-
-Once testing is complete:
-
-1. **Report any issues** found during testing
-2. **Suggest improvements** for UI/UX
-3. **Test on different websites** to ensure compatibility
-4. **Test on different browsers** (Chrome, Edge, Brave, etc.)
 
 ## Manual Testing Script
 

@@ -31,6 +31,7 @@ from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
 from urllib.parse import urlparse, urljoin
+import json
 import os
 import re
 import sqlite3
@@ -259,6 +260,57 @@ app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
 app.config['PERMANENT_SESSION_LIFETIME'] = PERMANENT_SESSION_LIFETIME
 
 # =============================================================================
+# Vite 前端资源 manifest 读取
+# =============================================================================
+_vite_manifest_cache = None
+_vite_manifest_mtime = 0
+
+
+def get_vite_manifest():
+    """读取并缓存 Vite 构建产物 manifest"""
+    global _vite_manifest_cache, _vite_manifest_mtime
+    manifest_path = BASE_DIR / 'static' / 'frontend' / '.vite' / 'manifest.json'
+    if not manifest_path.exists():
+        return {}
+    mtime = manifest_path.stat().st_mtime
+    if _vite_manifest_cache is None or mtime != _vite_manifest_mtime:
+        try:
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                _vite_manifest_cache = json.load(f)
+            _vite_manifest_mtime = mtime
+        except Exception:
+            return {}
+    return _vite_manifest_cache
+
+
+def vite_asset(entry: str = 'src/main.tsx'):
+    """根据 Vite manifest 返回前端资源文件路径
+
+    返回：{ 'js': [...], 'css': [...], 'assets': [...] }
+    """
+    manifest = get_vite_manifest()
+    item = manifest.get(entry)
+    if not item:
+        return {'js': [], 'css': [], 'assets': []}
+
+    js_files = [item.get('file')] if item.get('file') else []
+    css_files = item.get('css', [])
+    asset_files = item.get('assets', [])
+
+    # 处理 imports（rolldown runtime 等）
+    for imp in item.get('imports', []):
+        imp_item = manifest.get(imp)
+        if imp_item and imp_item.get('file') and imp_item.get('file') not in js_files:
+            js_files.append(imp_item.get('file'))
+
+    return {
+        'js': [f"frontend/{p}" for p in js_files],
+        'css': [f"frontend/{p}" for p in css_files],
+        'assets': [f"frontend/{p}" for p in asset_files],
+    }
+
+
+# =============================================================================
 # 模板上下文处理器
 # =============================================================================
 @app.context_processor
@@ -269,6 +321,7 @@ def inject_site_settings():
         site_description=SITE_DESCRIPTION,
         site_author=SITE_AUTHOR,
         remember_device_days=REMEMBER_DEVICE_DAYS,
+        vite_asset=vite_asset,
     )
 
 # =============================================================================

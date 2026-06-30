@@ -1,272 +1,66 @@
 {% extends "base.html" %}
 
 {% block title %}{% if doc %}编辑文档{% else %}新建文档{% endif %} - 知识库 - {{ site_name }}{% endblock %}
-{% block page_type %}knowledge{% endblock %}
+{% block page_type %}kb-editor{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='vendor/toastui-editor.min.css') }}">
+{% set assets = vite_asset('src/main.tsx') %}
+{% for css_file in assets.css %}
+<link rel="stylesheet" href="{{ url_for('static', filename=css_file) }}">
+{% endfor %}
 <link rel="stylesheet" href="{{ static_file('css/knowledge.css') }}">
 {% endblock %}
 
 {% block content %}
-<main class="container kb-layout">
-    <div class="kb-main kb-editor-page">
-        <div class="kb-editor-header">
-            <h2>{% if doc %}编辑文档{% else %}新建文档{% endif %}</h2>
-            <a href="{% if doc %}{{ url_for('knowledge.view_doc', doc_id=doc.id) }}{% else %}{{ url_for('knowledge.index') }}{% endif %}" class="btn">← 返回</a>
-        </div>
+{% set assets = vite_asset('src/main.tsx') %}
+<div id="kb-editor-root"></div>
 
-        {% if error %}
-        <div class="flash flash-error">{{ error }}</div>
-        {% endif %}
-
-        <form method="POST" action="{% if doc %}{{ url_for('knowledge.edit_doc', doc_id=doc.id) }}{% else %}{{ url_for('knowledge.new_doc') }}{% endif %}" id="kb-doc-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="content" id="content-hidden">
-
-            <div class="form-group">
-                <label for="title">标题</label>
-                <input type="text" id="title" name="title" required value="{{ doc.title|default('') }}">
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="category_id">目录</label>
-                    <select id="category_id" name="category_id" required>
-                        <option value="">请选择目录</option>
-                        {% for cat in tree_flattened|default([]) %}
-                        <option value="{{ cat.id }}" {% if preselect_cat == cat.id %}selected{% endif %} {% if doc and doc.category_id == cat.id %}selected{% endif %}>{{ cat.indent|default('') }}{{ cat.name }}</option>
-                        {% endfor %}
-                        {% if doc and doc.category_id %}
-                            {% set found = false %}
-                            {% for cat in tree_flattened|default([]) %}{% if cat.id == doc.category_id %}{% set found = true %}{% endif %}{% endfor %}
-                            {% if not found %}<option value="{{ doc.category_id }}" selected>{{ doc.category_name|default('ID:' ~ doc.category_id) }}</option>{% endif %}
-                        {% endif %}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="tags">标签（逗号分隔）</label>
-                    <input type="text" id="tags" name="tags" value="{% if tags %}{% for t in tags %}{{ t.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}">
-                </div>
-                <div class="form-group form-narrow">
-                    <label for="sort_order">排序</label>
-                    <input type="number" id="sort_order" name="sort_order" value="{{ doc.sort_order|default(0) }}" min="0">
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>内容（Markdown）</label>
-                <div id="toast-editor"></div>
-<script id="doc-init-data" type="application/json">{% if doc %}{"content":{{ doc.content|tojson }}}{% else %}{}{% endif %}</script>
-            </div>
-
-            <div class="form-actions">
-                <label class="checkbox-label">
-                    <input type="checkbox" name="is_published" {% if not doc or doc.is_published %}checked{% endif %}>
-                    发布
-                </label>
-                <button type="submit" class="btn btn-primary" id="save-btn">保存</button>
-                {% if doc %}
-                <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" class="btn" target="_blank">预览</a>
-                <form method="POST" action="{{ url_for('knowledge.delete_doc', doc_id=doc.id) }}"
-                      data-confirm="确定删除此文档？" data-confirm-destructive="true" data-confirm-text="删除"
-                      style="display:inline">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-danger">删除</button>
-                </form>
-                {% endif %}
-            </div>
-        </form>
-    </div>
-</main>
-
-<style>
-.kb-editor-page{max-width:960px}
-.kb-editor-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem}
-.kb-editor-page .form-group{margin-bottom:1rem}
-.kb-editor-page label{display:block;font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.3rem;font-weight:500}
-.kb-editor-page input[type=text],.kb-editor-page input[type=number],.kb-editor-page select{
-    width:100%;padding:0.5rem 0.75rem;border:1px solid var(--border-color);border-radius:8px;
-    background:var(--bg-color);color:var(--text-color);font-size:0.95rem}
-.kb-editor-page .form-row{display:grid;grid-template-columns:2fr 2fr 1fr;gap:1rem}
-.kb-editor-page .form-narrow{max-width:120px}
-#toast-editor{margin-top:0.25rem}
-.form-actions{display:flex;align-items:center;gap:0.75rem;margin-top:1.5rem;flex-wrap:wrap}
-.checkbox-label{display:flex;align-items:center;gap:0.4rem;font-size:0.9rem;cursor:pointer}
-.checkbox-label input{width:auto}
-@media(max-width:768px){.kb-editor-page .form-row{grid-template-columns:1fr}}
-
-.toastui-editor-defaultUI-toolbar {
-    border-color: var(--border-color) !important;
-    background: var(--bg-color) !important;
+<script id="kb-editor-init" type="application/json">
+{
+  "isNew": {{ 'true' if not doc else 'false' }},
+  "doc": {% if doc %}{
+    "id": {{ doc.id }},
+    "title": {{ doc.title|tojson }},
+    "content": {{ doc.content|tojson }},
+    "category_id": {{ doc.category_id|default('null', true) }},
+    "is_published": {{ 'true' if doc.is_published else 'false' }},
+    "sort_order": {{ doc.sort_order|default(0, true) }},
+    "excerpt": {{ doc.excerpt|default('')|tojson }}
+  }{% else %}null{% endif %},
+  "tags": {% if tags %}[{% for t in tags %}{"name": {{ t.name|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]{% else %}[]{% endif %},
+  "tree": {{ tree|tojson }},
+  "treeFlattened": {{ tree_flattened|tojson }},
+  "preselectCat": {{ preselect_cat|default('null', true) }},
+  "csrfToken": {{ csrf_token()|tojson }},
+  "saveUrl": {{ url_for('knowledge.edit_doc' if doc else 'knowledge.new_doc', doc_id=doc.id if doc else none)|tojson }},
+  "previewUrl": {{ (url_for('knowledge.view_doc', doc_id=doc.id) if doc else none)|tojson }},
+  "deleteUrl": {{ (url_for('knowledge.delete_doc', doc_id=doc.id) if doc else none)|tojson }},
+  "autoSaveUrl": {{ (url_for('knowledge.autosave_doc', doc_id=doc.id) if doc else none)|tojson }},
+  "draftUrl": {{ (url_for('knowledge.draft_doc', doc_id=doc.id) if doc else none)|tojson }},
+  "uploadImageUrl": {{ url_for('knowledge.upload_image')|tojson }},
+  "aiOrganizeUrl": {{ url_for('ai.organize_content')|tojson }},
+  "aiSummaryUrl": {{ url_for('ai.generate_summary')|tojson }},
+  "aiContinueUrl": {{ url_for('ai.continue_writing')|tojson }},
+  "aiRecommendUrl": {{ url_for('ai.recommend_posts')|tojson }},
+  "cardsUrl": {{ url_for('knowledge_base.card_list')|tojson }}
 }
-.toastui-editor-toolbar {
-    border-color: var(--border-color) !important;
-    background: var(--bg-color) !important;
-    padding: 2px 4px !important;
-}
-.toastui-editor-toolbar button {
-    width: 30px !important;
-    height: 30px !important;
-    min-width: 30px !important;
-    margin: 2px !important;
-    padding: 0 !important;
-    border-radius: 6px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: transparent !important;
-    border: none !important;
-    cursor: pointer !important;
-    transition: background .15s !important;
-}
-.toastui-editor-toolbar button:hover {
-    background: var(--code-bg) !important;
-}
-.toastui-editor-toolbar button.active {
-    background: rgba(26,188,156,0.12) !important;
-}
-.toastui-editor-toolbar button svg {
-    width: 16px !important;
-    height: 16px !important;
-    fill: var(--text-color) !important;
-}
-.toastui-editor-toolbar button:hover svg {
-    fill: var(--primary-color) !important;
-}
-.toastui-editor-toolbar-divider {
-    background: var(--border-color) !important;
-    margin: 4px 4px !important;
-}
-.toastui-editor-defaultUI {
-    border: 1px solid var(--border-color) !important;
-    border-radius: 10px !important;
-    overflow: hidden !important;
-}
-.toastui-editor-main {
-    background: var(--bg-color) !important;
-}
-.toastui-editor-contents {
-    font-size: 0.95rem !important;
-    line-height: 1.7 !important;
-    color: var(--text-color) !important;
-    padding: 1rem 1.25rem !important;
-}
-.toastui-editor-contents h1,
-.toastui-editor-contents h2,
-.toastui-editor-contents h3,
-.toastui-editor-contents h4 {
-    color: var(--heading-color) !important;
-    border-bottom: none !important;
-}
-.toastui-editor-contents p {
-    color: var(--text-color) !important;
-}
-.toastui-editor-contents blockquote {
-    border-left: 3px solid var(--primary-color) !important;
-    color: var(--text-secondary) !important;
-}
-.toastui-editor-contents pre {
-    background: var(--code-bg) !important;
-    border: 1px solid var(--code-border) !important;
-    border-radius: 8px !important;
-    padding: 1rem !important;
-}
-.toastui-editor-contents code {
-    font-family: var(--font-mono) !important;
-    background: var(--code-bg) !important;
-    color: var(--text-color) !important;
-    padding: 0.1rem 0.3rem !important;
-    border-radius: 4px !important;
-}
-.toastui-editor-contents pre code {
-    background: none !important;
-    padding: 0 !important;
-}
-.toastui-editor-md-splitter {
-    background: var(--border-color) !important;
-}
-.toastui-editor-md-tab-container {
-    background: var(--bg-color) !important;
-    border-bottom: 1px solid var(--border-color) !important;
-}
-.toastui-editor-md-tab {
-    font-size: 0.8rem !important;
-    color: var(--text-secondary) !important;
-}
-.toastui-editor-md-tab.active {
-    color: var(--primary-color) !important;
-    border-bottom: 2px solid var(--primary-color) !important;
-}
-.toastui-editor-ww-container {
-    background: var(--bg-color) !important;
-}
-.toastui-editor-defaultUI-toolbar input[type=file] {
-    display: none;
-}
-.toastui-editor-popup {
-    border: 1px solid var(--border-color) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
-    background: var(--bg-color) !important;
-}
-.toastui-editor-popup button {
-    background: var(--primary-color) !important;
-    color: #fff !important;
-    border: none !important;
-    border-radius: 6px !important;
-    padding: 0.4rem 0.8rem !important;
-    cursor: pointer !important;
-}
-.toastui-editor-popup input {
-    border: 1px solid var(--border-color) !important;
-    border-radius: 6px !important;
-    padding: 0.4rem 0.6rem !important;
-    background: var(--bg-color) !important;
-    color: var(--text-color) !important;
-}
-
-.toastui-editor-md-preview {
-    background: var(--bg-color) !important;
-}
-.toastui-editor-md-preview .toastui-editor-contents {
-    padding: 1rem 1.25rem !important;
-}
-</style>
-{% endblock %}
-
-{% block scripts %}
-<script type="module">
-import Editor from "https://esm.sh/@toast-ui/editor@3.2.2?bundle";
-
-document.addEventListener('DOMContentLoaded', function () {
-    var container = document.querySelector('#toast-editor');
-    if (!container) return;
-    var initEl = document.getElementById('doc-init-data');
-    var initialContent = '';
-    if (initEl) {
-        try { var data = JSON.parse(initEl.textContent); initialContent = data.content || ''; } catch(e) {}
-    }
-    var editor = new Editor({
-        el: container,
-        height: '500px',
-        initialEditType: 'markdown',
-        previewStyle: 'vertical',
-        initialValue: initialContent,
-        usageStatistics: false,
-        toolbarItems: [
-            ['heading', 'bold', 'italic', 'strike'],
-            ['hr', 'quote'],
-            ['ul', 'ol', 'task'],
-            ['table', 'image', 'link'],
-            ['code', 'codeblock'],
-            ['scrollSync'],
-        ],
-    });
-    document.getElementById('kb-doc-form').addEventListener('submit', function () {
-        var contentField = document.getElementById('content-hidden');
-        contentField.value = editor.getMarkdown();
-    });
-});
 </script>
+
+<script>
+(function() {
+  var initEl = document.getElementById('kb-editor-init');
+  if (initEl) {
+    try {
+      window.__KB_EDITOR_INIT__ = JSON.parse(initEl.textContent);
+    } catch (e) {
+      console.error('Failed to parse editor init data:', e);
+      window.__KB_EDITOR_INIT__ = {};
+    }
+  }
+})();
+</script>
+
+{% for js_file in assets.js %}
+<script type="module" src="{{ url_for('static', filename=js_file) }}"></script>
+{% endfor %}
 {% endblock %}

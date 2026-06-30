@@ -33,14 +33,17 @@ Simple Blog 是一个基于 Flask 的现代化博客系统，采用模块化蓝�
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| Flask | 3.0+ | Web 框架 |
+| Flask | 3.1+ | Web 框架 |
 | SQLite | 3.x | 数据库（FTS5 全文搜索） |
 | Python | 3.11+ | 运行环境 |
 | Flask-WTF | 1.2+ | CSRF 保护 |
-| Flask-Limiter | 3.5+ | 速率限制 |
+| Flask-Limiter | 3.x+ | 速率限制 |
+| Flask-Caching | 3.x+ | 简单缓存 |
 | webauthn | 2.7+ | Passkey 认证 |
 | Pillow | 10.0+ | 图片处理 |
 | pillow-heif | 0.13+ | HEIC 格式支持 |
+| qrcode | - | 分享二维码 |
+| html2text | - | Markdown 转换 |
 
 ### AI 集成
 
@@ -54,9 +57,15 @@ Simple Blog 是一个基于 Flask 的现代化博客系统，采用模块化蓝�
 
 | 技术 | 用途 |
 |------|------|
-| Vanilla JavaScript | 核心交互 |
-| Quill.js | 富文本编辑器 |
-| 原生 CSS | 样式系统 |
+| Jinja2 | 服务器端模板渲染 |
+| Vanilla JavaScript | 博客/后台核心交互 |
+| Quill.js | 传统富文本编辑器 |
+| 原生 CSS | 样式系统、响应式、暗黑模式 |
+| React 19.2 | 新版知识库编辑器框架 |
+| Vite 8.1 | 前端构建工具与 manifest |
+| TypeScript 6.0 | 编辑器类型安全 |
+| BlockNote 0.51 | 块编辑器 |
+| Mantine 9.4 | React UI 组件库 |
 | Markdown2 | Markdown 渲染 |
 | Bleach | HTML 清理 |
 
@@ -65,17 +74,25 @@ Simple Blog 是一个基于 Flask 的现代化博客系统，采用模块化蓝�
 ## 项目结构
 
 ```
-simple-blog/
+my-blog/
 │
 ├── backend/                      # 后端代码
 │   ├── __init__.py              # 后端包标记
-│   ├── app.py                   # 应用主入口
+│   ├── app.py                   # 应用主入口、蓝图注册、Vite 清单读取
 │   ├── config.py                # 配置管理（唯一配置入口）
 │   ├── logger.py                # 日志系统
+│   ├── auth_decorators.py       # 登录与权限装饰器
+│   ├── image_cleanup_tool.py    # 图片清理工具
+│   ├── db_check.py              # 数据库完整性检查
+│   ├── migrate_db.py            # 统一数据库迁移入口
+│   ├── export.py                # 数据导出
+│   ├── import_blog.py           # 博客导入
+│   ├── import_posts.py          # 文章导入
 │   │
 │   ├── models/                  # 数据模型层
-│   │   ├── models.py           # 数据库模型和操作
-│   │   └── init_db.py          # 数据库初始化
+│   │   ├── models.py           # 数据库模型和核心操作
+│   │   ├── draft.py            # 草稿模型
+│   │   └── __init__.py         # 模型导出
 │   │
 │   ├── routes/                  # 路由模块（蓝图）
 │   │   ├── __init__.py         # 蓝图注册
@@ -84,81 +101,98 @@ simple-blog/
 │   │   ├── admin.py            # 管理后台路由
 │   │   ├── api.py              # RESTful API
 │   │   ├── ai.py               # AI 功能路由
-│   │   ├── knowledge_base.py   # 知识库路由
+│   │   ├── knowledge_base.py   # 旧版插件 API
+│   │   ├── knowledge.py        # 新版知识空间
 │   │   └── drafts.py           # 草稿同步路由
 │   │
 │   ├── ai_services/            # AI 服务层
 │   │   ├── __init__.py
 │   │   ├── tag_generator.py    # 标签生成服务
-│   │   ├── providers/          # AI 提供商适配器
-│   │   │   ├── openai.py
-│   │   │   ├── volcengine.py
-│   │   │   └── dashscope.py
+│   │   ├── card_merger.py      # AI 卡片合并
+│   │   ├── base.py             # 提供商抽象基类
+│   │   ├── openai_provider.py
+│   │   ├── volcengine_provider.py
+│   │   ├── volcengine_coding_provider.py
+│   │   ├── zhipu_coding_provider.py
+│   │   └── dashscope_provider.py
 │   │
 │   ├── utils/                  # 工具函数
-│   │   ├── asset_version.py    # 静态资源版本管理
+│   │   ├── asset_version.py    # 旧版静态资源版本管理
+│   │   ├── asset_optimizer.py  # 资源优化与路径映射
+│   │   ├── image_cleanup.py    # 图片清理逻辑
+│   │   ├── image_processor.py  # 图片处理
 │   │   └── template_helpers.py # 模板辅助函数
 │   │
-│   └── tasks/                  # 后台任务
-│       ├── image_optimization_task.py  # 图片优化任务
+│   ├── tasks/                  # 后台任务
+│   │   └── image_optimization_task.py  # 图片优化任务
+│   │
+│   └── migrations/             # 数据库迁移脚本
+│       ├── migrate_add_access_control.py
+│       ├── migrate_add_post_type.py
+│       ├── migrate_ai_features.py
+│       ├── migrate_drafts.py
+│       ├── migrate_image_optimization.py
+│       ├── migrate_knowledge_base.py
+│       └── migrate_multiauthor.py
+│
+├── frontend/                    # 新版知识库编辑器（React + Vite）
+│   ├── package.json
+│   ├── vite.config.ts
+│   ├── tsconfig.json
+│   └── src/
 │
 ├── templates/                   # Jinja2 模板
-│   ├── base.html              # 基础模板
-│   ├── index.html             # 首页
-│   ├── post.html              # 文章详情
-│   ├── login.html             # 登录页
-│   │
-│   ├── admin/                 # 管理后台模板
-│   │   ├── dashboard.html     # 仪表板
-│   │   ├── editor.html        # 编辑器
-│   │   ├── ai_settings.html   # AI 设置
-│   │   └── ai_history.html    # AI 历史
-│   │
-│   └── incubator.html         # 孵化箱
+│   ├── base.html                # 基础模板
+│   ├── index.html               # 首页
+│   ├── post.html                # 文章详情
+│   ├── login.html               # 登录页
+│   ├── change_password.html     # 修改密码 / Passkey 管理
+│   ├── admin/                   # 管理后台模板
+│   └── knowledge/               # 知识空间模板
+│       ├── index.html
+│       ├── category.html
+│       ├── doc.html
+│       ├── editor.html
+│       └── _tree.html
 │
-├── static/                     # 静态资源
-│   ├── css/                   # 样式文件
-│   │   ├── style.css          # 主样式
-│   │   ├── mobile-weibo.css   # 移动端样式
-│   │   ├── pc-feed.css        # PC 信息流样式
-│   │   └── lightbox.css       # 图片灯箱
-│   │
-│   ├── js/                    # JavaScript 文件
-│   │   ├── main.js            # 主脚本
-│   │   ├── editor.js          # 编辑器逻辑
-│   │   ├── mobile-editor.js   # 移动端编辑器
-│   │   ├── draft-sync.js      # 草稿同步
-│   │   ├── passkeys.js        # Passkey 登录
-│   │   └── shortcuts.js       # 快捷键
-│   │
-│   └── uploads/               # 用户上传内容
-│       ├── images/            # 原始图片
-│       └── optimized/         # 优化后的图片
+├── static/                      # 静态资源
+│   ├── css/                    # 样式文件
+│   ├── js/                     # 传统 JavaScript
+│   ├── vendor/                 # 第三方库
+│   ├── uploads/                # 用户上传内容
+│   ├── manifest.json           # 旧版资源清单
+│   └── frontend/               # Vite 构建产物（运行 npm run build 生成）
+│       └── .vite/manifest.json
 │
-├── db/                         # 数据库目录
-│   └── simple_blog.db         # SQLite 数据库
+├── db/                          # 数据库目录
+│   └── simple_blog.db          # SQLite 数据库
 │
-├── logs/                       # 日志目录
+├── logs/                        # 日志目录
 │
-├── browser-extension/          # 浏览器扩展
-│   ├── manifest.json
-│   ├── popup.html
-│   └── content.js
+├── browser-extension/           # Chrome 扩展（Manifest V3）
 │
-├── safari-extension/           # Safari 扩展
+├── safari-extension/            # Safari 扩展
 │
-├── tests/                      # 测试代码
-├── scripts/                    # 项目脚本与诊断工具
-│   └── diagnostics/            # 诊断脚本
-├── .github/workflows/          # CI 配置
-│   └── ci.yml                  # 最小自动检查
+├── tests/                       # 测试代码
+├── scripts/                     # 项目脚本与诊断工具
+│   ├── start.sh
+│   ├── install-service.sh
+│   ├── upgrade.sh
+│   ├── rollback.sh
+│   ├── verify_upgrade.sh
+│   ├── generate_manifest.py
+│   └── diagnostics/
 │
-└── docs/                       # 文档
+├── .github/workflows/           # CI 配置
+├── docs/                        # 文档
+└── requirements.txt             # Python 依赖
 ```
 
 ---
 
 ## 数据模型
+
+> 注：以下 SQL 取自 `backend/models/models.py::init_db()` 及相关迁移脚本。实际建表使用 `CREATE TABLE IF NOT EXISTS`，并在后续通过 `ALTER TABLE ADD COLUMN` 渐进式增加列，以保证旧数据库平滑升级。
 
 ### 核心表结构
 
@@ -168,9 +202,17 @@ CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    role TEXT DEFAULT 'author',      -- admin/editor/author
-    is_active INTEGER DEFAULT 1,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    role TEXT NOT NULL DEFAULT 'author',   -- admin/editor/author
+    display_name TEXT,
+    bio TEXT,
+    avatar_url TEXT,
+    is_active BOOLEAN DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    ai_tag_generation_enabled BOOLEAN DEFAULT 1,
+    ai_provider TEXT DEFAULT 'openai',
+    ai_api_key TEXT,
+    ai_model TEXT DEFAULT 'gpt-3.5-turbo'
 );
 ```
 
@@ -180,14 +222,24 @@ CREATE TABLE posts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     content TEXT NOT NULL,
-    author_id INTEGER REFERENCES users(id),
+    is_published BOOLEAN DEFAULT 0,
     category_id INTEGER REFERENCES categories(id),
-    is_published INTEGER DEFAULT 0,
-    access_level TEXT DEFAULT 'public',  -- public/login/password/private
-    password TEXT,
-    allow_comments INTEGER DEFAULT 1,
+    author_id INTEGER DEFAULT 1 REFERENCES users(id),
+    access_level TEXT DEFAULT 'public',   -- public/login/password/private
+    access_password TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- 以下列通过迁移脚本渐进式添加
+    post_type TEXT DEFAULT 'blog',        -- blog / knowledge
+    type TEXT DEFAULT 'post',             -- post / note
+    source_card_ids TEXT,
+    excerpt TEXT,
+    metadata TEXT,
+    parent_note_id INTEGER,
+    link_count INTEGER DEFAULT 0,
+    content_format TEXT DEFAULT 'html',   -- html / markdown
+    sort_order INTEGER DEFAULT 0,
+    source_post_id INTEGER
 );
 ```
 
@@ -196,15 +248,23 @@ CREATE TABLE posts (
 CREATE VIRTUAL TABLE posts_fts USING fts5(
     title,
     content,
-    content_rowid=rowid
+    content='posts',
+    content_rowid='rowid'
 );
 ```
+> FTS 索引不再通过触发器自动维护，而是在 `posts` 的增删改查操作中手动同步。
 
 #### 分类表 (categories)
 ```sql
 CREATE TABLE categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL UNIQUE,
+    parent_id INTEGER,
+    slug TEXT,
+    sort_order INTEGER DEFAULT 0,
+    space TEXT DEFAULT 'blog',        -- blog / knowledge
+    icon TEXT,
+    description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -220,8 +280,8 @@ CREATE TABLE tags (
 #### 文章标签关联表 (post_tags)
 ```sql
 CREATE TABLE post_tags (
-    post_id INTEGER REFERENCES posts(id),
-    tag_id INTEGER REFERENCES tags(id),
+    post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+    tag_id INTEGER REFERENCES tags(id) ON DELETE CASCADE,
     PRIMARY KEY (post_id, tag_id)
 );
 ```
@@ -230,24 +290,28 @@ CREATE TABLE post_tags (
 ```sql
 CREATE TABLE comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    post_id INTEGER REFERENCES posts(id),
+    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     author_name TEXT NOT NULL,
     author_email TEXT,
     content TEXT NOT NULL,
-    is_visible INTEGER DEFAULT 1,
+    is_visible BOOLEAN DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-#### Passkey 表 (passkeys)
+#### Passkey 表 (user_passkeys)
 ```sql
-CREATE TABLE passkeys (
+CREATE TABLE user_passkeys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER REFERENCES users(id),
-    credential_id TEXT UNIQUE NOT NULL,
-    public_key TEXT NOT NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    credential_id BLOB NOT NULL UNIQUE,
+    public_key BLOB NOT NULL,
     sign_count INTEGER DEFAULT 0,
     device_name TEXT,
+    transports TEXT,
+    credential_device_type TEXT,
+    backup_eligible BOOLEAN DEFAULT 0,
+    backup_state BOOLEAN DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_used_at TIMESTAMP
 );
@@ -257,12 +321,13 @@ CREATE TABLE passkeys (
 ```sql
 CREATE TABLE cards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES users(id),
     title TEXT,
     content TEXT NOT NULL,
-    status TEXT DEFAULT 'idea',      -- idea/incubating/draft
     tags TEXT,
-    source TEXT,
+    status TEXT DEFAULT 'idea',       -- idea/incubating/draft/published
+    source TEXT DEFAULT 'web',
+    linked_article_id INTEGER REFERENCES posts(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -285,13 +350,72 @@ CREATE TABLE drafts (
 CREATE TABLE optimized_images (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     original_path TEXT NOT NULL,
+    original_hash TEXT,
     thumbnail_path TEXT,
     medium_path TEXT,
     large_path TEXT,
-    feed_path TEXT,
-    status TEXT DEFAULT 'pending',    -- pending/processing/completed/failed
     original_size INTEGER,
     optimized_size INTEGER,
+    status TEXT DEFAULT 'pending',    -- pending/processing/completed/failed
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+```
+
+#### 卡片标注表 (card_annotations)
+```sql
+CREATE TABLE card_annotations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    card_id INTEGER REFERENCES cards(id),
+    source_url TEXT NOT NULL,
+    annotation_text TEXT,
+    xpath TEXT,
+    color TEXT DEFAULT 'yellow',
+    note TEXT,
+    annotation_type TEXT DEFAULT 'highlight',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### API 密钥表 (api_keys)
+```sql
+CREATE TABLE api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    api_key TEXT NOT NULL UNIQUE,
+    is_active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### 笔记链接表 (note_links)
+```sql
+CREATE TABLE note_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    target_post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    link_text TEXT,
+    link_context TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_post_id, target_post_id)
+);
+```
+
+#### AI 使用记录表 (ai_tag_history)
+```sql
+CREATE TABLE ai_tag_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    prompt TEXT,
+    generated_tags TEXT,
+    model_used TEXT,
+    tokens_used INTEGER,
+    cost DECIMAL(10, 6),
+    currency TEXT DEFAULT 'USD',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -320,8 +444,11 @@ app.register_blueprint(api_bp, url_prefix='/api')
 # AI 蓝图
 app.register_blueprint(ai_bp, url_prefix='/admin/ai')
 
-# 知识库蓝图
+# 旧版知识库/插件 API 蓝图
 app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
+
+# 新版知识空间蓝图
+app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
 
 # 草稿同步蓝图
 app.register_blueprint(drafts_bp)
@@ -334,14 +461,15 @@ app.register_blueprint(mobile_bp, url_prefix='/mobile')
 
 | 蓝图 | 前缀 | 职责 | 主要端点 |
 |------|------|------|----------|
-| `auth_bp` | 无 | 用户认证 | `/login`, `/logout`, `/passkeys/*` |
-| `blog_bp` | 无 | 公开内容 | `/`, `/post/<id>`, `/search` |
-| `admin_bp` | `/admin` | 管理后台 | `/admin`, `/admin/new`, `/admin/edit` |
-| `api_bp` | `/api` | REST API | `/api/posts`, `/api/share/qrcode` |
-| `ai_bp` | `/admin/ai` | AI 功能 | `/admin/ai/generate-tags` |
-| `knowledge_base_bp` | `/knowledge_base` | 知识库 | `/api/plugin/submit`, `/api/cards` |
+| `auth_bp` | 无 | 用户认证 | `/login`, `/logout`, `/change-password`, `/passkeys/*` |
+| `blog_bp` | 无 | 公开内容 | `/`, `/post/<id>`, `/search`, `/archive`, `/category/<id>`, `/author/<id>` |
+| `admin_bp` | `/admin` | 管理后台 | `/admin`, `/admin/new`, `/admin/edit/<id>`, `/admin/users/*`, `/admin/import/*`, `/admin/export/*` |
+| `api_bp` | `/api` | REST API | `/api/posts`, `/api/share/qrcode`, `/api/image/original-url` |
+| `ai_bp` | `/admin/ai` | AI 功能 | `/admin/ai/generate-tags`, `/admin/ai/generate-summary`, `/admin/ai/recommend-posts`, `/admin/ai/continue-writing`, `/admin/ai/organize-content`, `/admin/ai/configure`, `/admin/ai/history` |
+| `knowledge_base_bp` | `/knowledge_base` | 插件 API（旧） | `/knowledge_base/api/plugin/submit`, `/knowledge_base/api/plugin/sync-annotations`, `/knowledge_base/api/plugin/annotations`, `/knowledge_base/api/cards/*` |
+| `knowledge_bp` | `/knowledge` | 知识空间（新） | `/knowledge/`, `/knowledge/category/<id>`, `/knowledge/doc/<id>`, `/knowledge/doc/new`, `/knowledge/doc/<id>/edit`, `/knowledge/reorder`, `/knowledge/doc/upload-image`, `/knowledge/doc/<id>/autosave` |
 | `drafts_bp` | 无 | 草稿同步 | `/api/drafts/*` |
-| `mobile_bp` | `/mobile` | 移动端 | `/mobile/upload` |
+| `mobile_bp` | `/mobile` | 移动端 | `/mobile/upload`, `/mobile/my-posts` |
 
 ---
 
@@ -473,10 +601,14 @@ class AIProvider(ABC):
 | 功能 | 端点 | 说明 |
 |------|------|------|
 | 生成标签 | `/admin/ai/generate-tags` | AI 自动生成文章标签 |
+| 生成标题 | `/admin/ai/generate-title` | 根据内容生成标题 |
 | 生成摘要 | `/admin/ai/generate-summary` | 生成文章摘要 |
 | 推荐文章 | `/admin/ai/recommend-posts` | 推荐相关文章 |
 | 内容续写 | `/admin/ai/continue-writing` | 智能续写 |
 | 内容整理 | `/admin/ai/organize-content` | 智能整理建议 |
+| AI 配置 | `/admin/ai/configure` | 获取/保存 AI 配置 |
+| AI 状态 | `/admin/ai/status` | 检查 AI 是否可用 |
+| AI 历史 | `/admin/ai/history` | 查看 AI 调用记录 |
 
 ---
 
@@ -530,53 +662,46 @@ function getOptimizedImageUrl(originalUrl, size) {
 
 ## 前端架构
 
-### 模板继承
+### 模板层
 
-```django
-{# base.html #}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{% block title %}{% endblock %}</title>
-    {% block head %}{% endblock %}
-</head>
-<body>
-    {% block header %}{% endblock %}
-    {% block content %}{% endblock %}
-    {% block footer %}{% endblock %}
-</body>
-</html>
+项目使用 Jinja2 模板，基础模板 `templates/base.html` 定义页面骨架，各功能页面通过 `{% extends %}` 继承并填充 `title`、`content`、`scripts` 等块。
+
+### 传统前端（博客与后台）
+
+- `static/js/` 包含原生 JavaScript 模块：主交互 `main.js`、编辑器 `editor.js`、草稿同步 `draft-sync.js`、快捷键 `shortcuts.js`、Passkey `passkeys.js`、移动端编辑器 `mobile-editor.js` 等。
+- `static/css/` 包含主题样式、响应式布局、移动端适配、图片灯箱等样式文件。
+- 静态资源版本由 `static/manifest.json` 与 `backend/utils/asset_version.py` 管理，模板通过 `?v=hash` 防止缓存。
+
+### 新版知识库编辑器
+
+知识库文档编辑器是一个独立的 React + Vite 前端片段：
+
+| 文件/目录 | 说明 |
+|----------|------|
+| `frontend/package.json` | 依赖：React 19.2、Vite 8.1、BlockNote 0.51、Mantine 9.4 |
+| `frontend/vite.config.ts` | 构建到 `../static/frontend/`，启用 manifest |
+| `frontend/src/main.tsx` | 挂载入口 |
+| `frontend/src/KbEditorApp.tsx` | 编辑器主组件：标题、目录、标签、排序、发布、保存、自动保存、AI 面板 |
+| `frontend/src/components/KbBlockNoteEditor.tsx` | BlockNote 编辑器封装 |
+| `frontend/src/components/AiPanel.tsx` | AI 整理/摘要/续写/历史卡片 |
+| `frontend/src/components/TocPanel.tsx` | 文档大纲 |
+| `frontend/src/hooks/useAutoSave.ts` | 3 秒防抖自动保存 + 草稿恢复 |
+| `frontend/src/styles/kb-editor.css` | 编辑器样式 |
+
+构建流程：
+
+```bash
+cd frontend
+npm install
+npm run build
 ```
 
-### JavaScript 模块化
-
-```javascript
-// main.js - 主入口
-document.addEventListener('DOMContentLoaded', () => {
-    // 初始化各模块
-    Editor.init();
-    DraftSync.init();
-    Shortcuts.init();
-    Passkeys.init();
-});
-```
+产物写入 `static/frontend/`，生成 `static/frontend/.vite/manifest.json`。Flask 在 `backend/app.py` 中通过 `get_vite_manifest()` 与 `vite_asset()` 读取清单，并在 `templates/knowledge/editor.html` 中注入对应的 JS/CSS 路径。
 
 ### 状态管理
 
-使用 LocalStorage 存储草稿和用户设置：
-
-```javascript
-// 草稿自动保存
-class DraftSync {
-    static save(postId, content) {
-        const key = `draft_${postId}`;
-        localStorage.setItem(key, JSON.stringify({
-            content,
-            timestamp: Date.now()
-        }));
-    }
-}
-```
+- 服务器端草稿：通过 `/api/drafts/*` 与知识库编辑器的 `/knowledge/doc/<id>/autosave` 实现多设备同步。
+- 本地状态：LocalStorage 用于保存 UI 偏好（如侧边栏折叠状态）和临时草稿。
 
 ---
 
@@ -584,15 +709,28 @@ class DraftSync {
 
 ### 浏览器扩展集成
 
+提供 Chrome / Safari 扩展（`browser-extension/`、`safari-extension/`），基于 Manifest V3：
+
 ```
 浏览器扩展
     ↓
-API Key 认证
+API Key 认证（X-API-Key）
     ↓
-POST /api/plugin/submit
+POST /knowledge_base/api/plugin/submit
     ↓
-创建文章或卡片
+创建卡片或博客文章
 ```
+
+主要插件端点（均在 `/knowledge_base` 蓝图下）：
+
+| 端点 | 说明 |
+|------|------|
+| `POST /knowledge_base/api/plugin/submit` | 提交捕获内容 |
+| `POST /knowledge_base/api/plugin/sync-annotations` | 同步网页高亮/批注 |
+| `GET /knowledge_base/api/plugin/annotations` | 获取某 URL 的批注 |
+| `GET /knowledge_base/api/plugin/recent` | 获取最近捕获 |
+
+这些端点已豁免 CSRF 保护，使用 `api_keys` 表中的密钥认证。扩展默认连接 `http://localhost:5001/knowledge_base`，可在设置中修改为远程服务器地址。
 
 ### 移动端支持
 
@@ -647,7 +785,9 @@ log_error(error, context='Error context')
 |------|------|
 | `logs/app.log` | 应用日志 |
 | `logs/error.log` | 错误日志 |
-| `logs/access.log` | 访问日志 |
+| `logs/login.log` | 登录日志 |
+| `logs/operation.log` | 操作日志 |
+| `logs/sql.log` | SQL 查询日志 |
 
 ---
 

@@ -1,0 +1,425 @@
+/* 知识库 BlockNote 编辑器样式 */
+
+body[data-page="kb-editor"] main {
+  padding-top: 0;
+}
+
+.kb-editor-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: flex-start;
+  padding: 0 2rem 1rem;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.kb-editor-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.kb-editor-right {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kb-editor-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem 0;
+}
+
+.kb-editor-sidebar {
+  flex-shrink: 0;
+  position: sticky;
+  top: 1rem;
+  align-self: flex-start;
+  background: var(--gradient-card, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.kb-editor-form {
+  margin-bottom: 1rem;
+}
+
+.kb-form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.kb-form-row-3 {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr;
+  gap: 1rem;
+}
+
+.kb-form-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.kb-form-group-wide {
+  flex: 1 1 100%;
+}
+
+.kb-form-group-narrow {
+  max-width: 120px;
+}
+
+.kb-form-group label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+  margin-bottom: 0.3rem;
+  font-weight: 500;
+}
+
+.kb-form-group input,
+.kb-form-group select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-color, #fff);
+  color: var(--text-color, #111);
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.kb-editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  background: var(--gradient-card, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 10px;
+}
+
+.kb-save-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+}
+
+.kb-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #9ca3af;
+}
+
+.kb-status-idle .kb-status-dot { background: #9ca3af; }
+.kb-status-saving .kb-status-dot { background: #f59e0b; animation: pulse 1s infinite; }
+.kb-status-saved .kb-status-dot { background: #10b981; }
+.kb-status-error .kb-status-dot { background: #ef4444; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.kb-draft-hint {
+  margin-left: 0.5rem;
+  color: var(--primary-color, #1abc9c);
+}
+
+.kb-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.kb-editor-actions .btn-secondary {
+  background: var(--code-bg, #f3f4f6);
+  color: var(--text-color, #111);
+  border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.kb-editor-actions .btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.kb-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.kb-editor-canvas {
+  background: var(--bg-color, #fff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 12px;
+  padding: 1rem;
+  min-height: 500px;
+}
+
+.kb-blocknote-wrapper .bn-editor {
+  padding: 0 0.5rem;
+}
+
+.kb-editor-loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary, #666);
+}
+
+/* 侧边栏面板 */
+.kb-panel-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.kb-panel-tabs button {
+  flex: 1;
+  padding: 0.6rem 0.4rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #666);
+  transition: all 0.15s;
+}
+
+.kb-panel-tabs button:hover {
+  color: var(--primary-color, #1abc9c);
+  background: rgba(26, 188, 156, 0.05);
+}
+
+.kb-panel-tabs button.active {
+  color: var(--primary-color, #1abc9c);
+  border-bottom: 2px solid var(--primary-color, #1abc9c);
+  font-weight: 600;
+}
+
+.kb-panel-content {
+  padding: 1rem;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
+.kb-panel-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-secondary, #666);
+  font-size: 0.9rem;
+}
+
+/* 目录大纲面板 */
+.kb-toc-panel h4,
+.kb-meta-panel h4,
+.kb-ai-panel h4,
+.kb-ai-panel h5 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--heading-color, #111);
+}
+
+.kb-toc-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.kb-toc-panel li {
+  margin: 0.2rem 0;
+}
+
+.kb-toc-panel a {
+  display: block;
+  padding: 0.25rem 0.4rem;
+  color: var(--text-secondary, #666);
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kb-toc-panel a:hover {
+  color: var(--primary-color, #1abc9c);
+  background: rgba(26, 188, 156, 0.08);
+}
+
+.kb-toc-level-2 { padding-left: 0.8rem; }
+.kb-toc-level-3 { padding-left: 1.6rem; }
+
+/* 元信息面板 */
+.kb-meta-panel dl {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.kb-meta-panel dt {
+  color: var(--text-secondary, #666);
+  margin-top: 0.6rem;
+}
+
+.kb-meta-panel dd {
+  margin: 0.2rem 0 0;
+  color: var(--text-color, #111);
+  font-weight: 500;
+}
+
+/* AI 面板 */
+.kb-ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.kb-ai-section {
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  padding-bottom: 1rem;
+}
+
+.kb-ai-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.kb-ai-btn,
+.kb-ai-search button,
+.kb-ai-card-actions button {
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-radius: 6px;
+  background: var(--primary-color, #1abc9c);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: opacity 0.15s;
+}
+
+.kb-ai-btn:hover,
+.kb-ai-search button:hover,
+.kb-ai-card-actions button:hover {
+  opacity: 0.9;
+}
+
+.kb-ai-btn:disabled,
+.kb-ai-search button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.kb-ai-btn-secondary {
+  background: var(--code-bg, #f3f4f6);
+  color: var(--text-color, #111);
+  border: 1px solid var(--border-color, #e5e7eb);
+}
+
+.kb-ai-suggestion {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--code-bg, #f9fafb);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.kb-ai-suggestion p {
+  margin: 0.3rem 0;
+}
+
+.kb-ai-search {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.kb-ai-search input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  background: var(--bg-color, #fff);
+  color: var(--text-color, #111);
+  font-size: 0.85rem;
+}
+
+.kb-ai-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.kb-ai-card-item {
+  padding: 0.6rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-color, #fff);
+}
+
+.kb-ai-card-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+}
+
+.kb-ai-card-preview {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #666);
+  margin-bottom: 0.5rem;
+}
+
+.kb-ai-card-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.kb-ai-card-actions button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+
+.kb-ai-status {
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #666);
+  background: var(--code-bg, #f9fafb);
+  border-radius: 6px;
+}
+
+/* 响应式 */
+@media (max-width: 900px) {
+  .kb-editor-layout {
+    flex-direction: column;
+  }
+  .kb-editor-sidebar {
+    position: relative;
+    width: 100%;
+    top: 0;
+  }
+  .kb-form-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 暗色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .kb-editor-canvas,
+  .kb-editor-sidebar,
+  .kb-editor-footer-actions {
+    background: var(--bg-color, #1f2937);
+  }
+}

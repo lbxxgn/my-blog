@@ -10,8 +10,8 @@
 
 适用入口：
 
-- [登录页](/Users/gn/simple-blog/templates/login.html)
-- [修改密码页 / 快捷登录管理](/Users/gn/simple-blog/templates/change_password.html)
+- [登录页](../templates/login.html)
+- [修改密码页 / 快捷登录管理](../templates/change_password.html)
 
 ---
 
@@ -25,7 +25,7 @@
 webauthn>=2.7,<3.0
 ```
 
-见 [requirements.txt](/Users/gn/simple-blog/requirements.txt)
+见 [requirements.txt](../requirements.txt)
 
 ### 数据库变更
 
@@ -49,11 +49,11 @@ CREATE TABLE IF NOT EXISTS user_passkeys (
 );
 ```
 
-初始化逻辑见 [backend/models/models.py](/Users/gn/simple-blog/backend/models/models.py)
+初始化逻辑见 [backend/models/models.py](../backend/models/models.py)
 
 ### 新增接口
 
-见 [backend/routes/auth.py](/Users/gn/simple-blog/backend/routes/auth.py)：
+见 [backend/routes/auth.py](../backend/routes/auth.py)：
 
 - `POST /passkeys/register/begin`
 - `POST /passkeys/register/finish`
@@ -91,7 +91,7 @@ export PASSKEY_RP_ID="your-domain.com"
 export PASSKEY_ALLOWED_ORIGINS="https://your-domain.com"
 ```
 
-相关配置见 [backend/config.py](/Users/gn/simple-blog/backend/config.py)
+相关配置见 [backend/config.py](../backend/config.py)
 
 ### 4. 重启服务
 
@@ -126,14 +126,14 @@ sudo systemctl restart simple-blog
 本地请优先使用：
 
 ```txt
-http://localhost:5005
+http://localhost:5001
 ```
 
 不建议用：
 
 ```txt
-http://127.0.0.1:5005
-http://192.168.x.x:5005
+http://127.0.0.1:5001
+http://192.168.x.x:5001
 ```
 
 原因：

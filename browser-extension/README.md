@@ -32,23 +32,15 @@ Chrome Extension (Manifest V3) for quick content capture and web page annotation
 1. Make sure the backend server is running at `http://localhost:5001`
 2. Generate an API key:
    ```bash
-   cd backend
-   export ADMIN_USERNAME='admin'
-   export ADMIN_PASSWORD='AdminPass123!'
-   python3 -c "
-   from app import app, create_admin_user
-   from models import generate_api_key, get_user_by_username
-   with app.app_context():
-       create_admin_user()
-       user = get_user_by_username('admin')
-       key = generate_api_key(user['id'])
-       print(f'API Key: {key}')
-   "
+   cd browser-extension
+   python3 generate-api-key.py
+   # enter your username (e.g. admin)
    ```
 3. Click the extension icon in toolbar
 4. Click settings (gear icon ⚙️)
 5. Enter your API Key
-6. You're ready to capture!
+6. The default API URL is `http://localhost:5001/knowledge_base`; change it only if your backend is on a different origin
+7. You're ready to capture!
 
 #### For Remote Server (Production)
 
@@ -67,11 +59,11 @@ Chrome Extension (Manifest V3) for quick content capture and web page annotation
 
 **Option 2: Use as Development Extension (For Testing)**
 
-The extension comes with `localhost:5001` permission. To test with a remote server:
+The extension comes with `http://localhost:5001/*` permission. To test with a remote server:
 
 1. Click extension icon
 2. Click settings (⚙️)
-3. Enter your API URL (e.g., `https://blog.example.com`)
+3. Enter your API URL (e.g. `https://blog.example.com/knowledge_base`)
 4. Click "Test Connection" to verify
 5. Save settings
 6. Chrome will prompt for additional permissions - accept them
@@ -79,14 +71,8 @@ The extension comes with `localhost:5001` permission. To test with a remote serv
 **Server Setup** (on your server):
 
 1. Deploy the Simple Blog backend to your server
-2. Configure CORS to allow the extension:
-   ```python
-   # In your Flask app configuration
-   CORS_ORIGINS = [
-       'chrome-extension://*',  # For development
-   ]
-   ```
-3. Ensure HTTPS is enabled (required for extensions from web store)
+2. Ensure HTTPS is enabled (required for extensions from web store)
+3. The plugin API endpoints are already CSRF-exempt and accept `X-API-Key` authentication
 
 ---
 
@@ -131,8 +117,17 @@ The extension comes with `localhost:5001` permission. To test with a remote serv
 The extension communicates with the backend via REST API. All endpoints require API key authentication.
 
 ### Base URL
+
+For local development:
+
 ```
-http://localhost:5001
+http://localhost:5001/knowledge_base
+```
+
+For production, use your server's origin plus `/knowledge_base`:
+
+```
+https://your-domain.com/knowledge_base
 ```
 
 ### Authentication
@@ -152,7 +147,7 @@ headers: {
 
 Create a new knowledge card from captured content.
 
-**Endpoint:** `POST /api/plugin/submit`
+**Endpoint:** `POST /knowledge_base/api/plugin/submit`
 
 **Request:**
 ```json
@@ -160,17 +155,30 @@ Create a new knowledge card from captured content.
   "title": "Page Title",
   "content": "Selected text content",
   "source_url": "https://example.com/page",
+  "url": "https://example.com/page",
   "tags": ["tag1", "tag2"],
-  "annotation_type": "capture"
+  "annotation_type": "capture",
+  "create_as_post": false
 }
 ```
 
-**Response (Success):**
+**Response (Success - Card):**
 ```json
 {
   "success": true,
   "card_id": 123,
+  "type": "card",
   "message": "Saved successfully"
+}
+```
+
+**Response (Success - Post):**
+```json
+{
+  "success": true,
+  "post_id": 456,
+  "type": "post",
+  "message": "文章创建成功"
 }
 ```
 
@@ -191,7 +199,7 @@ Create a new knowledge card from captured content.
 
 Save page annotations (highlights) to backend.
 
-**Endpoint:** `POST /api/plugin/sync-annotations`
+**Endpoint:** `POST /knowledge_base/api/plugin/sync-annotations`
 
 **Request:**
 ```json
@@ -222,7 +230,7 @@ Save page annotations (highlights) to backend.
 
 Retrieve all annotations for a specific URL.
 
-**Endpoint:** `GET /api/plugin/annotations?url={url}`
+**Endpoint:** `GET /knowledge_base/api/plugin/annotations?url={url}`
 
 **Response:**
 ```json
@@ -235,10 +243,36 @@ Retrieve all annotations for a specific URL.
       "xpath": "/html/body/p[1]",
       "color": "yellow",
       "note": "My note",
-      "created_at": "2026-01-31 12:00:00"
+      "annotation_type": "highlight",
+      "created_at": "2026-03-19T10:00:00"
     }
   ],
   "count": 1
+}
+```
+
+#### 4. Get Recent Captures
+
+Retrieve recently captured cards.
+
+**Endpoint:** `GET /knowledge_base/api/plugin/recent?limit={10}`
+
+**Response:**
+```json
+{
+  "success": true,
+  "cards": [
+    {
+      "id": 1,
+      "title": "标题",
+      "content": "内容",
+      "tags": ["tag1"],
+      "status": "idea",
+      "source": "plugin",
+      "created_at": "2026-03-19T10:00:00"
+    }
+  ],
+  "count": 10
 }
 ```
 
@@ -252,33 +286,40 @@ Retrieve all annotations for a specific URL.
 browser-extension/
 ├── manifest.json          # Extension configuration (Manifest V3)
 ├── background/
-│   └── service-worker.js # Service worker (background scripts)
+│   ├── api-client.js      # API client
+│   ├── auth-manager.js    # Authentication manager
+│   └── service-worker.js  # Service worker (background scripts)
 ├── content/
-│   ├── content-bundle.js # Injected into web pages (no ES6 imports)
-│   └── content.css       # Styles for injected content
+│   ├── content-bundle.js  # Injected into web pages (no ES6 imports)
+│   ├── content.css        # Styles for injected content
+│   ├── content.js
+│   ├── selector.js
+│   └── toolbar.js         # Floating toolbar
 ├── popup/
-│   ├── popup.html        # Popup interface
-│   ├── popup.js          # Popup logic
-│   └── popup.css         # Popup styles
+│   ├── popup.html         # Popup interface
+│   ├── popup.js           # Popup logic
+│   └── popup.css          # Popup styles
 ├── icons/
-│   ├── icon16.png        # 16x16 icon
-│   ├── icon48.png        # 48x48 icon
-│   └── icon128.png       # 128x128 icon
-├── generate-api-key.py   # Utility to generate API keys
-├── setup-test.sh         # Verification script
-├── TESTING.md            # Testing guide
-└── README.md             # This file
+│   ├── icon16.png         # 16x16 icon
+│   ├── icon48.png         # 48x48 icon
+│   └── icon128.png        # 128x128 icon
+├── generate-api-key.py    # Utility to generate API keys
+├── setup-test.sh          # Verification script
+├── TESTING.md             # Testing guide
+└── README.md              # This file
 ```
 
 ### Key Implementation Details
 
 1. **No ES6 Modules in Content Scripts**: Chrome doesn't support ES6 imports in content scripts. All code is bundled in `content-bundle.js`.
 
-2. **Service Worker Limitations**: Dynamic imports don't work in Service Workers. All API client code is inlined in `service-worker.js`.
+2. **Service Worker Limitations**: Dynamic imports don't work in Service Workers. All API client code is inlined or bundled in `service-worker.js`.
 
 3. **CSRF Exemption**: Browser extensions can't handle CSRF tokens, so the plugin API endpoints are exempted from CSRF protection.
 
-4. **Console Logging**: Extensive logging for debugging:
+4. **API Base Path**: The plugin API is registered under the `/knowledge_base` blueprint, so the full local base URL is `http://localhost:5001/knowledge_base`.
+
+5. **Console Logging**: Extensive logging for debugging:
    - 🔑 API key operations
    - 📤 Outgoing requests
    - 📥 Incoming responses
@@ -296,8 +337,7 @@ browser-extension/
 3. Select text and verify toolbar appears
 4. Click save button
 5. Check backend database for new card:
-   ```python
-   # In backend directory
+   ```bash
    sqlite3 db/simple_blog.db "SELECT * FROM cards ORDER BY id DESC LIMIT 5"
    ```
 
@@ -309,15 +349,10 @@ The backend has comprehensive tests:
 # Run all tests
 pytest tests/ -v
 
-# Run only knowledge base tests
-pytest tests/test_routes.py::TestKnowledgeBaseRoutes -v
-pytest tests/test_models.py::TestKnowledgeBaseModels -v
+# Run knowledge base related tests
+pytest tests/test_knowledge_base.py -v
+pytest tests/test_security.py -v
 ```
-
-**Test Coverage:**
-- 66 total tests (all passing)
-- 9 plugin API route tests
-- 16 knowledge base model tests
 
 ---
 
@@ -354,17 +389,16 @@ pytest tests/test_models.py::TestKnowledgeBaseModels -v
 
 ### Save failing with "API error: 404" or connection refused?
 
-**Cause:** Backend server not running.
+**Cause:** Backend server not running or wrong API URL.
 
 **Solutions:**
 1. Start backend server:
    ```bash
-   cd backend
-   export ADMIN_USERNAME='admin'
-   export ADMIN_PASSWORD='AdminPass123!'
-   python3 app.py
+   source .venv/bin/activate
+   python backend/app.py
    ```
-2. Verify server is running: `curl http://localhost:5001/`
+2. Verify API URL in extension settings ends with `/knowledge_base` for local development
+3. Verify server is running: `curl http://localhost:5001/knowledge_base/api/plugin/recent?limit=1 -H "X-API-Key: your-key"`
 
 ### "No response from extension" error?
 
@@ -379,6 +413,13 @@ pytest tests/test_models.py::TestKnowledgeBaseModels -v
 ---
 
 ## Changelog
+
+### v1.1.0 (Current)
+
+**Updated:**
+- Plugin API base URL updated to `/knowledge_base`
+- Settings support custom remote API URL
+- Popup shows recent captures via `/knowledge_base/api/plugin/recent`
 
 ### v1.0.0 (2026-01-31)
 
@@ -395,11 +436,6 @@ pytest tests/test_models.py::TestKnowledgeBaseModels -v
 - Service Worker dynamic import limitation
 - CSRF token exemption
 
-**Known Issues:**
-- No offline queue (requests fail if backend unavailable)
-- Hardcoded API URL (localhost:5001 only)
-- Popup "Recent Captures" not implemented (needs backend endpoint)
-
 ---
 
 ## License
@@ -408,4 +444,4 @@ MIT
 
 ## Contributing
 
-Contributions welcome! Please see [CODE_REVIEW_2026-01-31.md](../docs/CODE_REVIEW_2026-01-31.md) for known issues and improvement suggestions.
+Issues and PRs are welcome!

@@ -24,10 +24,20 @@
 .kb-main-header h1{margin:0;font-size:1.5rem}
 
 /* 面包屑 */
-.kb-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:0.3rem;font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem}
+.kb-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:0.3rem;font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;justify-content:flex-start;padding-left:0}
 .kb-breadcrumb a{text-decoration:none;color:var(--text-secondary)}
 .kb-breadcrumb a:hover{color:var(--primary-color)}
 .kb-breadcrumb-sep{opacity:0.5}
+
+/* 侧边栏当前目录管理 */
+.kb-sidebar-cat-actions{padding:0.5rem 0.75rem;border-bottom:1px solid var(--border-color);margin-bottom:0.5rem}
+.kb-sidebar-cat-name{font-weight:600;margin-bottom:0.4rem;display:flex;align-items:center;gap:0.3rem;color:var(--heading-color)}
+.kb-sidebar-cat-btns{display:flex;gap:0.5rem;flex-wrap:wrap}
+.kb-sidebar-cat-btns .kb-mini-btn{display:inline-flex;align-items:center;gap:0.25rem;padding:0.3rem 0.6rem;border-radius:6px;font-size:0.8rem;line-height:1.4;border:1px solid var(--border-color);background:var(--bg-color,#fff);transition:all .15s}
+.kb-sidebar-cat-btns .kb-add-sub{color:var(--primary-color);border-color:rgba(26,188,156,0.4)}
+.kb-sidebar-cat-btns .kb-add-sub:hover{background:var(--primary-color);color:#fff;border-color:var(--primary-color)}
+.kb-sidebar-cat-btns .kb-delete-cat{color:var(--error-color,#ef4444);border-color:rgba(239,68,68,0.4)}
+.kb-sidebar-cat-btns .kb-delete-cat:hover{background:var(--error-color,#ef4444);color:#fff;border-color:var(--error-color,#ef4444)}
 
 /* 文档卡片列表 */
 .kb-doc-list{display:flex;flex-direction:column;gap:0.75rem}
@@ -49,8 +59,9 @@
 .kb-subcat-count{font-size:0.75rem;color:var(--text-secondary)}
 
 /* 文档详情 */
-.kb-doc-page{display:flex;gap:2rem;align-items:flex-start}
-.kb-article{flex:1;min-width:0;max-width:760px}
+.kb-doc-page{display:flex;flex-wrap:wrap;gap:2rem;align-items:flex-start}
+.kb-breadcrumb{flex-basis:100%;margin-bottom:0.25rem;font-size:0.8rem}
+.kb-article{flex:1;min-width:0;max-width:960px}
 .kb-category-title{font-size:1.6rem;margin-bottom:0.5rem;color:var(--heading-color)}
 .kb-category-desc{color:var(--text-secondary);margin-bottom:1.5rem}
 .kb-article-title{font-size:1.8rem;margin-bottom:0.5rem;color:var(--heading-color)}
@@ -118,6 +129,31 @@
 .kb-modal-content input{width:100%;padding:0.4rem 0.6rem;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-color);color:var(--text-color);font-size:0.9rem}
 .kb-modal-actions{display:flex;gap:0.5rem;margin-top:0.5rem}
 
+/* 侧边栏折叠 */
+.kb-sidebar-toggle{background:none;border:none;cursor:pointer;font-size:0.9rem;color:var(--text-secondary);padding:0.2rem;line-height:1;transition:color .15s,transform .2s}
+.kb-sidebar-toggle:hover{color:var(--primary-color)}
+.kb-sidebar{transition:width .2s}
+.kb-sidebar.collapsed{width:42px;overflow:hidden}
+.kb-sidebar.collapsed .kb-sidebar-header h2,
+.kb-sidebar.collapsed .kb-tree,
+.kb-sidebar.collapsed .kb-sidebar-cat-actions,
+.kb-sidebar.collapsed .kb-empty-hint{display:none}
+.kb-sidebar.collapsed .kb-sidebar-toggle{transform:rotate(180deg)}
+.kb-layout{transition:gap .2s}
+.kb-layout.sidebar-collapsed{gap:0.75rem}
+.kb-layout.sidebar-collapsed .kb-article{max-width:1100px}
+
+/* 目录树拖拽排序 */
+.kb-tree-drag-handle{cursor:grab;color:var(--text-secondary);padding:0 2px;margin-right:2px;opacity:.5;line-height:1;user-select:none}
+.kb-tree-drag-handle:hover{opacity:1;color:var(--primary-color)}
+.kb-tree-drag-handle:active{cursor:grabbing}
+.kb-tree-item.dragging{opacity:.5}
+.kb-tree-item{position:relative}
+.kb-tree-item.drop-before::before,.kb-tree-item.drop-after::after{content:"";position:absolute;left:0;right:0;height:2px;background:var(--primary-color);pointer-events:none}
+.kb-tree-item.drop-before::before{top:-1px}
+.kb-tree-item.drop-after::after{bottom:-1px}
+.kb-tree-item.drop-inside{outline:2px dashed var(--primary-color);outline-offset:-2px;background:rgba(26,188,156,0.08)}
+
 /* 移动端：侧边栏折叠为顶部抽屉 */
 @media(max-width:768px){
   .kb-layout{flex-direction:column}
@@ -126,4 +162,5 @@
   .kb-doc-page{flex-direction:column}
   .kb-toc{display:none}
   .kb-article{max-width:100%}
+  .kb-sidebar-toggle{display:none}
 }
