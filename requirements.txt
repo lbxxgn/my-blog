@@ -24,6 +24,10 @@ requests>=2.31.0
 tqdm>=4.66.0
 webauthn>=2.7,<3.0
 
+# Asset Build
+cssmin>=0.2.0
+jsmin>=3.0.0
+
 # Testing Dependencies
 pytest>=7.4.0
 pytest-cov>=4.1.0
