@@ -31,7 +31,12 @@ export async function clearAPIKey() {
 
 // Validate API key with backend
 export async function validateAPIKey(apiKey) {
-  const API_BASE = 'http://localhost:5001/knowledge_base';
+  const DEFAULT_API_URL = 'http://localhost:5001/knowledge_base';
+  const API_BASE = await new Promise((resolve) => {
+    chrome.storage.local.get(['apiUrl'], (result) => {
+      resolve(result.apiUrl || DEFAULT_API_URL);
+    });
+  });
 
   try {
     const response = await fetch(`${API_BASE}/api/plugin/validate`, {

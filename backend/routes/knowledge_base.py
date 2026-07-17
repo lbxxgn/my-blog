@@ -1,27 +1,25 @@
 """
 知识库路由
 
-提供浏览器插件API端点和页面路由：
+提供浏览器插件API端点和卡片管理API：
 - /api/plugin/* - 浏览器插件API
-- /quick-note - 快速记事页面
-- /timeline - 时间线页面
-- /incubator - 孵化箱页面
+- /quick-note - 快速记事（GET 重定向到知识库空间，POST 创建笔记）
+- /timeline、/incubator - 已迁移至知识库独立空间，仅保留重定向
 - /api/cards/* - 卡片管理API
 """
 
-from flask import Blueprint, request, jsonify, g, session, redirect, url_for, render_template
-from functools import wraps
-from auth_decorators import login_required
+from flask import Blueprint, request, jsonify, g, session, redirect, url_for
+from auth_decorators import login_required, api_key_required
 from models import (
     create_card, get_card_by_id, get_cards_by_user,
-    update_card_status, update_card, delete_card, get_timeline_items,
-    get_user_by_id, merge_cards_to_post, get_user_ai_config, ai_merge_cards_to_post,
+    update_card_status, update_card, delete_card,
+    merge_cards_to_post, get_user_ai_config, ai_merge_cards_to_post,
     create_annotation, get_annotations_by_url, create_post,
     get_category_by_name, create_category
 )
 import json
 from datetime import datetime
-from logger import log_operation
+from logger import log_operation, api_internal_error
 
 knowledge_base_bp = Blueprint('knowledge_base', __name__)
 
@@ -36,29 +34,6 @@ knowledge_base_bp = Blueprint('knowledge_base', __name__)
 VALID_ANNOTATION_COLORS = ['yellow', 'blue', 'green', 'pink', 'orange', 'purple']
 VALID_ANNOTATION_TYPES = ['highlight', 'note', 'bookmark']
 MAX_CONTENT_LENGTH = 1024 * 1024  # 1MB max content size
-
-
-def api_key_required(f):
-    """API密钥认证装饰器"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' in session:
-            g.user_id = session['user_id']
-            return f(*args, **kwargs)
-
-        from models import validate_api_key
-
-        api_key = request.headers.get('X-API-Key')
-        user_id = validate_api_key(api_key)
-
-        if not user_id:
-            return jsonify({'success': False, 'error': 'Invalid or missing API key'}), 401
-
-        # Store user_id in flask.g for use in the route
-        g.user_id = user_id
-        return f(*args, **kwargs)
-
-    return decorated_function
 
 
 def validate_annotation_data(annotation):
@@ -85,12 +60,17 @@ def validate_content_length(content):
     return True, None
 
 
+@knowledge_base_bp.route('/api/plugin/validate', methods=['POST'])
+@api_key_required
+def plugin_validate():
+    """验证 API Key 是否有效（浏览器扩展配置页使用）"""
+    return jsonify({'success': True, 'user_id': g.user_id})
+
+
 @knowledge_base_bp.route('/api/plugin/submit', methods=['POST'])
 @api_key_required
 def plugin_submit():
     """接收浏览器插件提交的内容"""
-    from models import create_card, create_post, get_category_by_name, create_category
-
     data = request.get_json()
     title = data.get('title', 'Untitled')
     content = data.get('content', '')
@@ -161,7 +141,7 @@ def plugin_submit():
                 'message': 'Saved successfully'
             })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @knowledge_base_bp.route('/api/plugin/sync-annotations', methods=['POST'])
@@ -209,7 +189,7 @@ def sync_annotations():
             'count': len(annotation_ids)
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @knowledge_base_bp.route('/api/plugin/annotations', methods=['GET'])
@@ -243,7 +223,7 @@ def get_annotations():
             'count': len(formatted_annotations)
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @knowledge_base_bp.route('/api/plugin/recent', methods=['GET'])
@@ -277,7 +257,7 @@ def get_recent_captures():
             'count': len(formatted_cards)
         })
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 # =============================================================================
@@ -336,11 +316,9 @@ def quick_note():
             import traceback
             traceback.print_exc()  # 打印到控制台
             if request.is_json:
-                return jsonify({'success': False, 'error': str(e)}), 500
+                return api_internal_error(e)
             else:
                 return redirect(url_for('knowledge_base.timeline'))
-
-    return render_template('quick_note.html')
 
 
 @knowledge_base_bp.route('/timeline')
@@ -348,41 +326,6 @@ def quick_note():
 def timeline():
     """时间线页面（已迁移至知识库独立空间，重定向）"""
     return redirect(url_for('knowledge.index'))
-    cursor_time = request.args.get('cursor')
-
-    result = get_timeline_items(
-        user_id=session['user_id'],
-        limit=20,
-        cursor_time=cursor_time
-    )
-
-    # Get user info
-    user = get_user_by_id(session['user_id'])
-
-    # Get card stats
-    all_cards = get_cards_by_user(session['user_id'])
-
-    # Get post stats
-    from models import get_posts_by_author
-    posts_result = get_posts_by_author(session['user_id'], include_drafts=True, per_page=10000)
-    all_posts = posts_result['posts']
-
-    # Combined stats
-    stats = {
-        'total': len(all_cards) + len(all_posts),
-        'cards': len(all_cards),
-        'posts': len(all_posts),
-        'ideas': len([c for c in all_cards if c['status'] == 'idea']),
-        'incubating': len([c for c in all_cards if c['status'] == 'incubating']),
-        'drafts': len([c for c in all_cards if c['status'] == 'draft']) + len([p for p in all_posts if not p['is_published']])
-    }
-
-    return render_template('timeline.html',
-                         items=result['items'],
-                         next_cursor=result['next_cursor'],
-                         has_more=result['has_more'],
-                         stats=stats,
-                         user=user)
 
 
 @knowledge_base_bp.route('/incubator')
@@ -390,15 +333,6 @@ def timeline():
 def incubator():
     """孵化箱页面（已迁移至知识库独立空间，重定向）"""
     return redirect(url_for('knowledge.index'))
-    status = request.args.get('status', 'incubating')
-
-    # Get cards by status
-    cards = get_cards_by_user(session['user_id'], status=status)
-
-    # Get user info
-    user = get_user_by_id(session['user_id'])
-
-    return render_template('incubator.html', cards=cards, user=user, current_status=status)
 
 
 # =============================================================================
@@ -504,7 +438,7 @@ def merge_cards():
         return jsonify({'success': True, 'post_id': post_id})
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @knowledge_base_bp.route('/api/cards/generate-tags', methods=['POST'])
@@ -561,7 +495,7 @@ def generate_card_tags():
         # AI service unavailable or not configured
         return jsonify({'success': False, 'error': str(e)}), 503
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @knowledge_base_bp.route('/api/cards/ai-merge', methods=['POST'])
@@ -604,7 +538,7 @@ def ai_merge_cards():
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @knowledge_base_bp.route('/api/card/<int:card_id>/convert-to-post', methods=['POST'])
@@ -655,4 +589,4 @@ def convert_card_to_post(card_id):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)

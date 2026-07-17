@@ -36,21 +36,12 @@ class AssetOptimizer:
 
         # 处理CSS文件
         if path.endswith('.css'):
-            # 主样式表使用合并包
-            if path == 'css/style.css':
-                return f"{url_for('static', filename='css/bundle.css')}?v={self.build_version}"
             # 移动端样式单独加载
-            elif path == 'css/mobile-weibo.css':
+            if path == 'css/mobile-weibo.css':
                 return f"{url_for('static', filename='css/mobile-weibo.css')}?v={self.build_version}"
             # PC端信息流样式单独加载
             elif path == 'css/pc-feed.css':
                 return f"{url_for('static', filename='css/pc-feed.css')}?v={self.build_version}"
-
-        # 处理JavaScript文件
-        elif path.endswith('.js'):
-            # 主脚本使用合并包
-            if path == 'js/main.js':
-                return f"{url_for('static', filename='js/bundle.js')}?v={self.build_version}"
 
         # 对于其他文件，使用单独的压缩版本
         if self.use_minified:

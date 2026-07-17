@@ -98,4 +98,5 @@ static_build/manifest.json
 
 # Build and diagnostic artifacts
 node_modules/
+static_build/
 scripts/diagnostics/lazyload-performance-report.txt

@@ -7,6 +7,7 @@ API路由
 from flask import Blueprint, request, jsonify, url_for, current_app
 
 from models import get_all_posts_cursor
+from logger import api_internal_error
 
 # 创建 API 蓝图
 api_bp = Blueprint('api', __name__)
@@ -18,7 +19,6 @@ def get_cache():
 
 
 @api_bp.route('/posts')
-@api_bp.route('/api/posts')  # 兼容旧版API路径
 def api_posts_cursor():
     """
     获取文章列表的 API 端点，使用游标分页
@@ -174,4 +174,4 @@ def get_original_image_url():
         return jsonify(response)
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)

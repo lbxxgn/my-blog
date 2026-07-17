@@ -460,7 +460,7 @@ def precipitate_to_knowledge(post_id):
 
 
 @blog_bp.route('/post/<int:post_id>/verify-password', methods=['POST'])
-def verify_post_password(post_id):
+def verify_post_password_route(post_id):
     """验证密码保护文章的密码"""
     data = request.get_json()
     password = data.get('password', '')

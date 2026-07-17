@@ -40,7 +40,7 @@ def generate_manifest():
                     'versioned': versioned_name
                 }
 
-                print(f'✓ {rel_path} -> {versioned}')
+                print(f'✓ {rel_path} -> {versioned_name}')
 
             except Exception as e:
                 print(f'✗ {file_path}: {e}')

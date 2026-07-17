@@ -139,8 +139,8 @@ install_dependencies() {
     source .venv/bin/activate
 
     # 检查requirements.txt是否存在
-    if [ -f "$PROJECT_ROOT/backend/requirements.txt" ]; then
-        pip install -r backend/requirements.txt --quiet >> "$LOG_FILE" 2>&1
+    if [ -f "$PROJECT_ROOT/requirements.txt" ]; then
+        pip install -r "$PROJECT_ROOT/requirements.txt" --quiet >> "$LOG_FILE" 2>&1
         log "依赖安装完成 ✓"
     else
         log_warning "requirements.txt 不存在"
@@ -154,22 +154,12 @@ run_migrations() {
     source .venv/bin/activate
     export DATABASE_URL="sqlite:///db/simple_blog.db"
 
-    # 运行drafts表迁移
-    if [ -f "$PROJECT_ROOT/backend/migrations/migrate_drafts.py" ]; then
-        log "创建草稿同步表..."
-        python3 backend/migrations/migrate_drafts.py >> "$LOG_FILE" 2>&1
-        log "drafts表迁移完成 ✓"
+    # 版本化迁移运行器：自动应用所有未执行的迁移并记录版本
+    if python3 -m backend.migrations >> "$LOG_FILE" 2>&1; then
+        log "数据库迁移完成 ✓"
     else
-        log_warning "migrate_drafts.py 不存在，跳过"
-    fi
-
-    # 运行图片优化表迁移
-    if [ -f "$PROJECT_ROOT/backend/migrations/migrate_image_optimization.py" ]; then
-        log "创建图片优化表..."
-        python3 backend/migrations/migrate_image_optimization.py >> "$LOG_FILE" 2>&1
-        log "optimized_images表迁移完成 ✓"
-    else
-        log_warning "migrate_image_optimization.py 不存在，跳过"
+        log_error "数据库迁移失败，请检查日志: $LOG_FILE"
+        return 1
     fi
 }
 
@@ -177,9 +167,9 @@ run_migrations() {
 generate_manifest() {
     log "生成静态资源manifest..."
 
-    if [ -f "$PROJECT_ROOT/generate_manifest.py" ]; then
+    if [ -f "$PROJECT_ROOT/scripts/generate_manifest.py" ]; then
         source .venv/bin/activate
-        python3 generate_manifest.py >> "$LOG_FILE" 2>&1
+        python3 scripts/generate_manifest.py >> "$LOG_FILE" 2>&1
         log "manifest生成完成 ✓"
     else
         log_warning "generate_manifest.py 不存在，使用AssetVersionManager生成"
@@ -228,7 +218,12 @@ start_application() {
 
     source .venv/bin/activate
     export ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
-    export ADMIN_PASSWORD="${ADMIN_PASSWORD:-AdminPass123456}"
+    # 不再提供硬编码默认密码：后端强制要求 ADMIN_PASSWORD，未设置时给出提示并失败
+    if [ -z "$ADMIN_PASSWORD" ]; then
+        log_error "请先设置 ADMIN_PASSWORD 环境变量（至少12位，含大小写字母和数字）"
+        return 1
+    fi
+    export ADMIN_PASSWORD
     export DATABASE_URL="sqlite:///db/simple_blog.db"
 
     nohup python3 backend/app.py > /tmp/flask.log 2>&1 &
