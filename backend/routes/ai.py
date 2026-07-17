@@ -17,7 +17,7 @@ from models import (
     get_ai_usage_stats, get_all_posts
 )
 from auth_decorators import login_required
-from logger import log_operation, log_error
+from logger import log_operation, log_error, api_internal_error
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +253,7 @@ def generate_tags():
         log_error(e, context='AI标签生成失败')
         return jsonify({
             'success': False,
-            'error': f'生成失败: {str(e)}'
+            'error': '标签生成失败，请稍后重试'
         }), 500
 
 
@@ -332,7 +332,7 @@ def ai_settings():
             log_error(e, context='更新AI配置失败')
             return jsonify({
                 'success': False,
-                'error': f'更新失败: {str(e)}'
+                'error': '配置更新失败，请稍后重试'
             }), 500
 
 
@@ -491,7 +491,7 @@ def generate_summary():
 
     except Exception as e:
         logger.error(f"AI summary generation error: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @ai_bp.route('/recommend-posts', methods=['POST'])
@@ -563,7 +563,7 @@ def recommend_posts():
 
     except Exception as e:
         logger.error(f"AI recommendation error: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @ai_bp.route('/continue-writing', methods=['POST'])
@@ -621,7 +621,7 @@ def continue_writing():
 
     except Exception as e:
         logger.error(f"AI writing continuation error: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @ai_bp.route('/organize-content', methods=['POST'])

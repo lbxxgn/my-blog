@@ -344,6 +344,33 @@ class TestBrowserExtensionAPI:
         validated_user_id = validate_api_key('')
         assert validated_user_id is None
 
+    def test_validate_api_key_legacy_plaintext_upgrade(self, temp_db):
+        """旧的明文存储密钥仍可验证，且命中后自动升级为哈希存储"""
+        password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
+        user_id = create_user('legacykeyuser', password_hash, role='author')
+
+        # 模拟旧版明文存储
+        import sqlite3
+        import backend.config as config
+        db_path = config.DATABASE_URL.replace('sqlite:///', '')
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            "INSERT INTO api_keys (user_id, api_key, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+            (user_id, 'legacy-plaintext-key-123'))
+        conn.commit()
+        conn.close()
+
+        # 明文密钥仍可验证
+        assert validate_api_key('legacy-plaintext-key-123') == user_id
+
+        # 验证后应已升级为哈希存储（不再是明文）
+        conn = sqlite3.connect(db_path)
+        stored = conn.execute(
+            "SELECT api_key FROM api_keys WHERE user_id = ?", (user_id,)).fetchone()[0]
+        conn.close()
+        assert stored != 'legacy-plaintext-key-123'
+        assert len(stored) == 64  # sha256 hex
+
     def test_create_card(self, temp_db):
         """测试创建知识库卡片"""
         password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')

@@ -27,7 +27,7 @@ from pathlib import Path
 import os
 
 from auth_decorators import login_required
-from logger import log_operation
+from logger import log_operation, api_internal_error
 from models import (
     get_category_tree, get_category_path, get_subcategories,
     get_doc_count_by_category, get_descendant_category_ids,
@@ -208,7 +208,7 @@ def reorder():
             return jsonify({'success': False, 'error': '未知类型'}), 400
         return jsonify({'success': success})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 @knowledge_bp.route('/doc/new', methods=['GET', 'POST'])
