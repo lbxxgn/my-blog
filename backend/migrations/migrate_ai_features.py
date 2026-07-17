@@ -5,12 +5,17 @@ AI功能数据库迁移脚本
 """
 import sqlite3
 import shutil
+import sys
 from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent))
+
+import backend.config as config
 
 
 def migrate_database():
     # 数据库路径
-    db_path = Path(__file__).parent.parent.parent / 'db' / 'simple_blog.db'
+    db_path = Path(config.DATABASE_URL.replace('sqlite:///', ''))
 
     if not db_path.exists():
         print(f"❌ 数据库文件不存在: {db_path}")

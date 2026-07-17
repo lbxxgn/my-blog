@@ -22,7 +22,7 @@ from pathlib import Path
 PROJECT_DIR = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_DIR))
 
-from backend.config import DATABASE_URL
+import backend.config as config
 
 
 def backup_database(db_path):
@@ -116,7 +116,7 @@ def create_indexes(cursor):
 
 
 def migrate():
-    db_path = Path(DATABASE_URL.replace('sqlite:///', ''))
+    db_path = Path(config.DATABASE_URL.replace('sqlite:///', ''))
     if not db_path.exists():
         print(f"❌ 数据库文件不存在: {db_path}")
         sys.exit(1)

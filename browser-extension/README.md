@@ -2,6 +2,9 @@
 
 Chrome Extension (Manifest V3) for quick content capture and web page annotation, syncing to the Simple Blog knowledge base backend.
 
+> **代码同步说明**：本目录是扩展共享代码（`popup/`、`content/`、`background/`）的权威源，
+> `safari-extension/` 中的同名文件由 `../scripts/sync-extensions.sh` 从本目录复制，请勿直接修改 safari 侧共享文件。
+
 ## Table of Contents
 
 - [Installation](#installation)

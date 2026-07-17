@@ -2,14 +2,18 @@
 迁移脚本：添加文章访问控制功能
 """
 import sqlite3
-import os
+import sys
+from pathlib import Path
 
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), '../../db/simple_blog.db')
+sys.path.append(str(Path(__file__).parent.parent))
+
+import backend.config as config
 
 
 def migrate():
     """添加文章访问控制字段"""
-    conn = sqlite3.connect(DATABASE_PATH)
+    db_path = config.DATABASE_URL.replace('sqlite:///', '')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     try:

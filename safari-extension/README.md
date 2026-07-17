@@ -2,6 +2,10 @@
 
 Safari 浏览器扩展，用于快速保存网页内容到个人知识库。
 
+> **代码同步说明**：本扩展的 `popup/`、`content/`、`background/` 与 `browser-extension/` 完全相同，
+> 权威源在 `browser-extension/`。修改共享文件后请运行 `../scripts/sync-extensions.sh` 同步到本目录；
+> 本目录只需维护 `manifest.json`、`icons/` 与本 README。
+
 ## 系统要求
 
 - **Safari 14+** (macOS Big Sur 11.0+ 或 iOS 14+)
