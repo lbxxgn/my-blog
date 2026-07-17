@@ -701,9 +701,27 @@ GET /admin/users
 
 ## 📚 知识库API（旧版插件/卡片 API）
 
-> 注意：以下端点已注册在 `/knowledge_base` 前缀下，并已豁免 CSRF 保护（浏览器扩展需求）。旧的 `/api/plugin/*` 与 `/api/cards/*` 别名仍保留兼容，但实际 URL 以 `/knowledge_base` 为准。
+> 注意：以下端点已注册在 `/knowledge_base` 前缀下，其中浏览器扩展端点已豁免 CSRF 保护（使用 API Key 认证）。不存在 `/api/plugin/*` 的根路径别名，客户端必须以 `/knowledge_base` 为 base URL。
 
 ### 浏览器扩展 API
+
+#### 验证 API Key
+
+```http
+POST /knowledge_base/api/plugin/validate
+```
+
+**认证**: API Key（`X-API-Key` 请求头）或 Session
+
+**响应示例：**
+```json
+{
+  "success": true,
+  "user_id": 1
+}
+```
+
+密钥无效或缺失时返回 `401`：`{"success": false, "error": "Invalid or missing API key"}`
 
 #### 提交卡片/文章
 
@@ -1363,9 +1381,9 @@ POST /mobile/upload
 Content-Type: multipart/form-data
 ```
 
-**需要认证**: 是
+**需要认证**: 是（Session 或 `X-API-Key` 请求头）
 
-> 注意：此端点已豁免 CSRF 保护
+> 注意：此端点已豁免 CSRF 保护，使用 API Key 认证时不受 CSRF 影响
 
 ---
 

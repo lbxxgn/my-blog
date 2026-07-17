@@ -84,24 +84,33 @@ my-blog/
 │   ├── auth_decorators.py       # 登录与权限装饰器
 │   ├── image_cleanup_tool.py    # 图片清理工具
 │   ├── db_check.py              # 数据库完整性检查
-│   ├── migrate_db.py            # 统一数据库迁移入口
+│   ├── migrate_db.py            # 旧版多用户迁移脚本（新迁移请用 migrations/ 运行器）
 │   ├── export.py                # 数据导出
 │   ├── import_blog.py           # 博客导入
 │   ├── import_posts.py          # 文章导入
 │   │
-│   ├── models/                  # 数据模型层
-│   │   ├── models.py           # 数据库模型和核心操作
+│   ├── models/                  # 数据模型层（按领域拆分）
+│   │   ├── db.py               # 连接/上下文/分页/建表初始化/FTS
+│   │   ├── posts.py            # 文章 CRUD/搜索/访问控制
+│   │   ├── categories.py       # 博客分类
+│   │   ├── knowledge.py        # 知识库分类树/文档/沉淀
+│   │   ├── tags.py             # 标签
+│   │   ├── comments.py         # 评论与图片优化记录
+│   │   ├── users.py            # 用户/Passkey/AI 配置/API Key
+│   │   ├── cards.py            # 卡片与标注
+│   │   ├── utils.py            # HTML 清理与文本截断
 │   │   ├── draft.py            # 草稿模型
+│   │   ├── models.py           # re-export 兼容壳（勿新增代码）
 │   │   └── __init__.py         # 模型导出
 │   │
 │   ├── routes/                  # 路由模块（蓝图）
 │   │   ├── __init__.py         # 蓝图注册
 │   │   ├── auth.py             # 认证路由（登录/Passkey）
 │   │   ├── blog.py             # 博客公开路由
-│   │   ├── admin.py            # 管理后台路由
+│   │   ├── admin.py            # 管理后台路由（含移动端上传蓝图）
 │   │   ├── api.py              # RESTful API
 │   │   ├── ai.py               # AI 功能路由
-│   │   ├── knowledge_base.py   # 旧版插件 API
+│   │   ├── knowledge_base.py   # 旧版插件 API（页面已重定向到 knowledge）
 │   │   ├── knowledge.py        # 新版知识空间
 │   │   └── drafts.py           # 草稿同步路由
 │   │
@@ -110,6 +119,7 @@ my-blog/
 │   │   ├── tag_generator.py    # 标签生成服务
 │   │   ├── card_merger.py      # AI 卡片合并
 │   │   ├── base.py             # 提供商抽象基类
+│   │   ├── openai_compatible.py # OpenAI 兼容 API 共享实现
 │   │   ├── openai_provider.py
 │   │   ├── volcengine_provider.py
 │   │   ├── volcengine_coding_provider.py
@@ -126,7 +136,9 @@ my-blog/
 │   ├── tasks/                  # 后台任务
 │   │   └── image_optimization_task.py  # 图片优化任务
 │   │
-│   └── migrations/             # 数据库迁移脚本
+│   └── migrations/             # 版本化数据库迁移
+│       ├── __init__.py         # 迁移运行器（schema_migrations 版本表）
+│       ├── __main__.py         # python -m backend.migrations 入口
 │       ├── migrate_add_access_control.py
 │       ├── migrate_add_post_type.py
 │       ├── migrate_ai_features.py
@@ -192,7 +204,7 @@ my-blog/
 
 ## 数据模型
 
-> 注：以下 SQL 取自 `backend/models/models.py::init_db()` 及相关迁移脚本。实际建表使用 `CREATE TABLE IF NOT EXISTS`，并在后续通过 `ALTER TABLE ADD COLUMN` 渐进式增加列，以保证旧数据库平滑升级。
+> 注：以下 SQL 取自 `backend/models/db.py::init_db()` 及相关迁移脚本。实际建表使用 `CREATE TABLE IF NOT EXISTS`，并在后续通过 `ALTER TABLE ADD COLUMN` 渐进式增加列，以保证旧数据库平滑升级。
 
 ### 核心表结构
 
@@ -820,10 +832,18 @@ log_error(error, context='Error context')
 
 ### 数据库迁移
 
+迁移由版本化运行器管理（`schema_migrations` 表记录已应用版本）：
+
 ```bash
-# 运行迁移脚本
-python backend/migrations/migrate_<feature>.py
+# 应用所有待执行迁移
+python -m backend.migrations
+
+# 查看迁移状态
+python -m backend.migrations status
 ```
+
+新增迁移：在 `backend/migrations/` 新建 `migrate_xxx.py`（提供幂等的 `migrate()` 函数），
+并在 `backend/migrations/__init__.py` 的 `MIGRATIONS` 注册表末尾追加条目。
 
 ### 版本升级
 
@@ -832,10 +852,10 @@ python backend/migrations/migrate_<feature>.py
 git pull origin main
 
 # 更新依赖
-pip install -r backend/requirements.txt
+pip install -r requirements.txt
 
 # 运行迁移
-python backend/migrations/migrate_xxx.py
+python -m backend.migrations
 
 # 重启服务
 sudo systemctl restart simple-blog

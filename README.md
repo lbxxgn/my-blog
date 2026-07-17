@@ -62,7 +62,7 @@ python backend/app.py
 - **传统前端**：Vanilla JS + Quill 编辑器
 - **新版知识库编辑器**：React 19.2 + Vite 8.1 + BlockNote 0.51 + Mantine 9
 - **AI**：OpenAI API / 火山引擎 / 阿里百炼
-- **测试**：pytest + pytest-cov（271 个测试）
+- **测试**：pytest + pytest-cov（275 个测试）
 
 ## 项目结构
 
@@ -126,14 +126,14 @@ my-blog/
 ## 开发
 
 ```bash
-# 快速检查（语法 + 图片相关关键测试）
+# 完整检查（lint + 全部测试，与 CI 一致）
 make check
 
 # 运行全部测试
 make test
 
-# 构建静态资源
-make build-assets
+# 构建前端（React 知识库编辑器，详见 docs/frontend-build.md）
+cd frontend && npm run build
 
 # 启动开发服务器
 make run
