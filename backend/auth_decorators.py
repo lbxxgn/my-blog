@@ -25,6 +25,35 @@ def login_required(f):
     return decorated_function
 
 
+def api_key_required(f):
+    """
+    API密钥认证装饰器（适用于无CSRF保护的API端点）
+
+    优先使用已登录的session，否则校验 X-API-Key 请求头。
+    认证失败返回401 JSON。
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        from flask import g, jsonify
+
+        if 'user_id' in session:
+            g.user_id = session['user_id']
+            return f(*args, **kwargs)
+
+        from models import validate_api_key
+
+        api_key = request.headers.get('X-API-Key')
+        user_id = validate_api_key(api_key)
+
+        if not user_id:
+            return jsonify({'success': False, 'error': 'Invalid or missing API key'}), 401
+
+        g.user_id = user_id
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
 def role_required(*allowed_roles):
     """
     要求特定角色的装饰器

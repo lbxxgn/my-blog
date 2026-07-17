@@ -34,8 +34,8 @@ from models import (
     archive_card_to_knowledge, get_card_by_id,
 )
 from backend.routes.ai import _run_structured_prompt
-from auth_decorators import login_required, can_manage_users
-from logger import log_operation, log_error, log_sql
+from auth_decorators import login_required, can_manage_users, can_edit_post, can_delete_post, api_key_required
+from logger import log_operation, log_error, log_sql, api_internal_error
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 import re
 import threading
@@ -197,7 +197,7 @@ def image_optimization_status(optimization_id):
         })
     except Exception as e:
         logger.error(f'Error fetching optimization status: {e}')
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 
 def validate_password_strength(password):
@@ -363,7 +363,7 @@ def new_post():
 
 
 @admin_bp.route('/edit/<int:post_id>', methods=['GET', 'POST'])
-@login_required
+@can_edit_post
 def edit_post(post_id):
     """编辑现有文章"""
     post = get_post_by_id(post_id)
@@ -436,7 +436,7 @@ def edit_post(post_id):
 
 
 @admin_bp.route('/delete/<int:post_id>', methods=['POST'])
-@login_required
+@can_delete_post
 def delete_post_route(post_id):
     """删除文章"""
     post = get_post_by_id(post_id)
@@ -458,7 +458,7 @@ def delete_post_route(post_id):
 
 
 @admin_bp.route('/convert-note/<int:post_id>', methods=['POST'])
-@login_required
+@can_edit_post
 def convert_note_to_post(post_id):
     """将笔记转换为文章"""
     post = get_post_by_id(post_id)
@@ -559,11 +559,12 @@ def batch_update_category():
     except sqlite3.Error as e:
         if conn:
             conn.rollback()
-        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
+        log_error(e, context='批量操作数据库错误')
+        return jsonify({'success': False, 'message': '数据库操作失败，请稍后重试'}), 500
     except Exception as e:
         if conn:
             conn.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return api_internal_error(e)
     finally:
         if conn:
             conn.close()
@@ -631,7 +632,7 @@ def batch_delete():
         if conn:
             conn.rollback()
         log_error(e, context='批量删除文章', user_id=user_id)
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return api_internal_error(e)
     finally:
         if conn:
             conn.close()
@@ -702,11 +703,12 @@ def batch_publish():
     except sqlite3.Error as e:
         if conn:
             conn.rollback()
-        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
+        log_error(e, context='批量操作数据库错误')
+        return jsonify({'success': False, 'message': '数据库操作失败，请稍后重试'}), 500
     except Exception as e:
         if conn:
             conn.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return api_internal_error(e)
     finally:
         if conn:
             conn.close()
@@ -800,11 +802,12 @@ def batch_add_tags():
     except sqlite3.Error as e:
         if conn:
             conn.rollback()
-        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
+        log_error(e, context='批量操作数据库错误')
+        return jsonify({'success': False, 'message': '数据库操作失败，请稍后重试'}), 500
     except Exception as e:
         if conn:
             conn.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return api_internal_error(e)
     finally:
         if conn:
             conn.close()
@@ -879,11 +882,12 @@ def batch_update_access():
     except sqlite3.Error as e:
         if conn:
             conn.rollback()
-        return jsonify({'success': False, 'message': f'数据库错误: {str(e)}'}), 500
+        log_error(e, context='批量操作数据库错误')
+        return jsonify({'success': False, 'message': '数据库操作失败，请稍后重试'}), 500
     except Exception as e:
         if conn:
             conn.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return api_internal_error(e)
     finally:
         if conn:
             conn.close()
@@ -1413,13 +1417,14 @@ mobile_bp = Blueprint('mobile', __name__)
 
 
 @mobile_bp.route('/upload', methods=['POST'])
+@api_key_required
 def mobile_upload_image():
     """
     移动端专用图片上传接口
 
     特点:
         - 无需CSRF token（适合移动端）
-        - 无需登录认证（方便第三方应用）
+        - 需要登录session或 X-API-Key 请求头认证
         - 返回绝对URL路径
         - 支持HEIC格式自动转换
         - 详细的错误信息

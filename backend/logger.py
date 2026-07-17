@@ -5,6 +5,7 @@
 import logging
 import logging.handlers
 import os
+import time
 from pathlib import Path
 from datetime import datetime
 from functools import wraps
@@ -125,6 +126,17 @@ def log_error(error, context=None, user_id=None):
         print(f"Failed to write error log: {e}")
 
 
+def api_internal_error(e, context=None):
+    """
+    记录完整异常到错误日志，并返回脱敏的统一500 JSON响应。
+
+    避免把 str(e)（可能包含SQL、路径等内部信息）直接返回给客户端。
+    """
+    from flask import jsonify
+    log_error(e, context=context)
+    return jsonify({'success': False, 'error': '服务器内部错误'}), 500
+
+
 def log_sql(operation, sql, params=None, result=None, execution_time=None):
     """记录 SQL 操作日志（追加模式）"""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -138,7 +150,7 @@ def log_sql(operation, sql, params=None, result=None, execution_time=None):
         log_entry += f" | 执行时间: {execution_time:.2f}ms"
         # 慢查询警告
         if execution_time > 100:
-            logger.warning(f"慢查询警告 ({execution_time:.2f}ms): {sql}")
+            logging.getLogger(__name__).warning(f"慢查询警告 ({execution_time:.2f}ms): {sql}")
     log_entry += "\n"
 
     try:

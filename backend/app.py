@@ -40,8 +40,11 @@ from pathlib import Path
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# 同时加入项目根目录与 backend/ 目录，
+# 保证 `python backend/app.py` 与 `gunicorn backend.app:app` 两种加载方式都可用
+for _p in (str(PROJECT_ROOT), str(CURRENT_DIR)):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 # =============================================================================
 # 项目配置导入
@@ -400,8 +403,6 @@ def excerpt_filter(value, max_length=200):
     from models import get_post_excerpt
     return get_post_excerpt(value, max_length)
 
-import re
-from datetime import datetime
 
 def extract_first_image(content):
     """从内容中提取第一张图片"""
@@ -479,6 +480,7 @@ app.register_blueprint(mobile_bp, url_prefix='/mobile')
 # 仅豁免真正需要跨端调用的接口
 csrf.exempt(app.view_functions['knowledge_base.plugin_submit'])
 csrf.exempt(app.view_functions['knowledge_base.sync_annotations'])
+csrf.exempt(app.view_functions['knowledge_base.plugin_validate'])
 csrf.exempt(app.view_functions['mobile.mobile_upload_image'])
 csrf.exempt(app.view_functions['ai.test_ai_config'])
 
@@ -952,4 +954,6 @@ if __name__ == '__main__':
     auto_regenerate_assets()
     # macOS ControlCenter often uses port 5000, so we use 5001
     port = int(os.environ.get('PORT', 5001))
-    app.run(debug=DEBUG, host='0.0.0.0', port=port)
+    # 开发服务器默认仅监听本机；对外服务请使用 gunicorn（见 DEPLOYMENT.md）
+    host = os.environ.get('HOST', '127.0.0.1')
+    app.run(debug=DEBUG, host=host, port=port)

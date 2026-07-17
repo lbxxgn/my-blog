@@ -9,14 +9,14 @@ Type=simple
 # ============================================
 # 用户配置（根据实际情况修改）
 # ============================================
-# 方式一：使用 root 用户（简单但不够安全）
-User=root
-Group=root
-
-# 方式二：使用专用用户（推荐，更安全）
+# 方式一：使用专用用户（推荐，更安全）
 # 需要先创建用户：sudo useradd -r -s /bin/false simpleblog
-# User=simpleblog
-# Group=simpleblog
+User=simpleblog
+Group=simpleblog
+
+# 方式二：使用 root 用户（简单但不够安全，不推荐）
+# User=root
+# Group=root
 
 # ============================================
 # 路径配置（修改为实际部署路径）
@@ -45,7 +45,9 @@ EnvironmentFile=-/path/to/simple-blog/.env
 # ============================================
 # 启动命令
 # ============================================
-ExecStart=/usr/bin/python3 /path/to/simple-blog/backend/app.py
+# 生产环境使用 gunicorn（勿用 Flask 开发服务器对外服务）
+# 绑定 127.0.0.1，由 Nginx 反向代理对外；workers 可按 CPU 核数调整
+ExecStart=/path/to/simple-blog/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5001 backend.app:app
 
 # ============================================
 # 重启策略
@@ -68,8 +70,8 @@ StandardError=append:/path/to/simple-blog/logs/error.log
 # ============================================
 # 安全加固（可选）
 # ============================================
-NoNewPrivileges=false
-PrivateTmp=false
+NoNewPrivileges=true
+PrivateTmp=true
 
 # 资源限制（根据需要调整）
 # LimitNOFILE=65536

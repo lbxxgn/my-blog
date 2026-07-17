@@ -90,8 +90,8 @@ Environment="PORT=$SERVICE_PORT"
 # 从 .env 文件加载环境变量（不存在不报错）
 EnvironmentFile=-$DEPLOY_PATH/.env
 
-# 启动命令
-ExecStart=$PYTHON_PATH $DEPLOY_PATH/backend/app.py
+# 启动命令（生产环境使用 gunicorn，绑定本机由 Nginx 反代）
+ExecStart=$PYTHON_PATH -m gunicorn --workers 2 --bind 127.0.0.1:$SERVICE_PORT backend.app:app
 
 # 重启策略
 Restart=always

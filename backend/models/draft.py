@@ -267,17 +267,22 @@ def get_drafts(user_id: int, post_id: Optional[int] = None) -> List[Dict]:
     finally:
         conn.close()
 
-def get_draft(draft_id: int) -> Optional[Dict]:
-    """获取单个草稿详情"""
+def get_draft(draft_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
+    """获取单个草稿详情。传入 user_id 时校验归属，防止越权读取他人草稿。"""
     ensure_drafts_table()
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        cursor.execute('''
-            SELECT * FROM drafts WHERE id = ?
-        ''', (draft_id,))
+        if user_id is not None:
+            cursor.execute('''
+                SELECT * FROM drafts WHERE id = ? AND user_id = ?
+            ''', (draft_id, user_id))
+        else:
+            cursor.execute('''
+                SELECT * FROM drafts WHERE id = ?
+            ''', (draft_id,))
 
         row = cursor.fetchone()
         if row:
@@ -291,37 +296,48 @@ def get_draft(draft_id: int) -> Optional[Dict]:
         conn.close()
 
 def resolve_conflict(conflict_draft_id: int, current_draft_id: int,
-                     action: str, merged_data: Optional[Dict] = None) -> Dict:
-    """解决草稿冲突"""
+                     action: str, merged_data: Optional[Dict] = None,
+                     user_id: Optional[int] = None) -> Dict:
+    """解决草稿冲突。传入 user_id 时只允许操作本人草稿，防止越权删除/修改。"""
     ensure_drafts_table()
 
     conn = get_db_connection()
     cursor = conn.cursor()
+
+    # 属主过滤子句：仅在传入 user_id 时启用
+    owner_clause = ' AND user_id = ?' if user_id is not None else ''
+    owner_param = (user_id,) if user_id is not None else ()
 
     try:
         conn.execute('BEGIN TRANSACTION')
 
         if action == 'keep_current':
             # 删除对方草稿
-            cursor.execute('DELETE FROM drafts WHERE id = ?', (conflict_draft_id,))
+            cursor.execute(
+                f'DELETE FROM drafts WHERE id = ?{owner_clause}',
+                (conflict_draft_id,) + owner_param)
 
         elif action == 'keep_other':
             # 删除当前草稿
-            cursor.execute('DELETE FROM drafts WHERE id = ?', (current_draft_id,))
+            cursor.execute(
+                f'DELETE FROM drafts WHERE id = ?{owner_clause}',
+                (current_draft_id,) + owner_param)
 
         elif action == 'merge' and merged_data:
             # 更新当前草稿为合并后的内容
-            cursor.execute('''
+            cursor.execute(f'''
                 UPDATE drafts
                 SET title = ?, content = ?, category_id = ?, tags = ?
-                WHERE id = ?
+                WHERE id = ?{owner_clause}
             ''', (merged_data['title'], merged_data['content'],
                   merged_data.get('category_id'),
                   json.dumps(merged_data.get('tags', [])),
-                  current_draft_id))
+                  current_draft_id) + owner_param)
 
             # 删除对方草稿
-            cursor.execute('DELETE FROM drafts WHERE id = ?', (conflict_draft_id,))
+            cursor.execute(
+                f'DELETE FROM drafts WHERE id = ?{owner_clause}',
+                (conflict_draft_id,) + owner_param)
 
         conn.commit()
         return {'success': True, 'message': '冲突已解决'}

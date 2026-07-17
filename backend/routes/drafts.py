@@ -1,6 +1,7 @@
 """草稿同步API路由"""
 from flask import Blueprint, request, jsonify, session
 from functools import wraps
+from logger import api_internal_error
 from models.draft import (
     save_draft,
     get_drafts,
@@ -44,7 +45,7 @@ def api_save_draft():
             return jsonify(result), 500
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 @drafts_bp.route('/api/drafts', methods=['GET'])
 @login_required
@@ -58,14 +59,14 @@ def api_get_drafts():
         return jsonify({'success': True, 'drafts': drafts}), 200
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 @drafts_bp.route('/api/drafts/<int:draft_id>', methods=['GET'])
 @login_required
 def api_get_draft(draft_id):
     """获取单个草稿"""
     try:
-        draft = get_draft(draft_id)
+        draft = get_draft(draft_id, user_id=session['user_id'])
         if not draft:
             return jsonify({'success': False, 'error': '草稿不存在'}), 404
 
@@ -74,7 +75,7 @@ def api_get_draft(draft_id):
         return jsonify(payload), 200
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 @drafts_bp.route('/api/drafts/<int:draft_id>', methods=['PUT'])
 @login_required
@@ -83,7 +84,7 @@ def api_update_draft(draft_id):
     try:
         data = request.get_json() or {}
         user_id = session['user_id']
-        current = get_draft(draft_id)
+        current = get_draft(draft_id, user_id=user_id)
 
         if not current:
             return jsonify({'success': False, 'error': '草稿不存在'}), 404
@@ -115,7 +116,7 @@ def api_update_draft(draft_id):
         return jsonify(payload), 200
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 @drafts_bp.route('/api/drafts/resolve', methods=['POST'])
 @login_required
@@ -126,7 +127,7 @@ def api_resolve_conflict():
 
         if 'resolution' in data and 'draft_id' in data:
             resolution = data.get('resolution')
-            draft = get_draft(data['draft_id'])
+            draft = get_draft(data['draft_id'], user_id=session['user_id'])
             if not draft:
                 return jsonify({'success': False, 'error': '草稿不存在'}), 404
 
@@ -147,7 +148,8 @@ def api_resolve_conflict():
             conflict_draft_id=data['conflict_draft_id'],
             current_draft_id=data['current_draft_id'],
             action=data['action'],
-            merged_data=data.get('merged_data')
+            merged_data=data.get('merged_data'),
+            user_id=session['user_id']
         )
 
         if result['success']:
@@ -156,7 +158,7 @@ def api_resolve_conflict():
             return jsonify(result), 500
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)
 
 @drafts_bp.route('/api/drafts/<int:draft_id>', methods=['DELETE'])
 @login_required
@@ -172,4 +174,4 @@ def api_delete_draft(draft_id):
             return jsonify(result), 500
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return api_internal_error(e)

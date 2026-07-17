@@ -158,7 +158,7 @@ Environment="PYTHONPATH=/var/www/my-blog"
 Environment="PORT=5001"
 EnvironmentFile=-/var/www/my-blog/.env
 
-ExecStart=/var/www/my-blog/.venv/bin/python /var/www/my-blog/backend/app.py
+ExecStart=/var/www/my-blog/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5001 backend.app:app
 
 # 重启策略
 Restart=always
