@@ -1,0 +1,54 @@
+# Simple Blog - 最简 HTTP(80) 反向代理配置
+# ============================================================
+# 适用：无域名 / 无证书，直接用公网 IP 通过 80 端口访问。
+#
+# 用法（替换 /path/to/my-blog 为项目实际路径）：
+#   nginx -t -c /path/to/nginx-http.conf.example    # 校验
+#   nginx  -c /path/to/nginx-http.conf.example       # 运行
+#   或把内容贴进 /etc/nginx/nginx.conf
+#
+# 注意：HTTP 下 Passkey/WebAuthn 不可用（需 HTTPS 安全上下文）。
+# macOS：mime.types 改为 /opt/homebrew/etc/nginx/mime.types
+# ============================================================
+
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    sendfile      on;
+    keepalive_timeout 65;
+
+    # 图片上传对齐 backend/config.py 的 MAX_CONTENT_LENGTH (100MB)
+    client_max_body_size 100m;
+
+    upstream simple_blog {
+        server 127.0.0.1:5001;
+    }
+
+    server {
+        listen 80;
+        server_name _;                       # 匹配任意主机名 / IP
+
+        # 静态资源由 nginx 直发（含 /static/frontend/ Vite 产物）
+        location /static/ {
+            alias /path/to/my-blog/static/;
+            expires 30d;
+            access_log off;
+        }
+
+        # 其余请求转发到 Flask
+        location / {
+            proxy_pass http://simple_blog;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 120s;          # AI 接口可能较慢
+        }
+    }
+}

@@ -522,6 +522,8 @@ server {
 
 > 上方为最小示例。仓库根目录的 [`nginx.conf.example`](nginx.conf.example) 是一份完整生产配置，已包含 `client_max_body_size 100m`（对齐 `MAX_CONTENT_LENGTH` 图片上传限制）、AI 接口读写超时、gzip、安全头、upstream keepalive 等，并通过 `nginx -t` 语法校验。部署时以其为基础替换 `YOUR_DOMAIN`、`/path/to/my-blog`、证书路径即可。
 
+> 无域名 / 无证书、仅用公网 IP 通过 80 端口访问？用 [`nginx-http.conf.example`](nginx-http.conf.example)（最简 HTTP 版，已去 HTTPS/证书/gzip/安全头，只保留 mime 类型、100MB 上传、AI 超时）。注意 HTTP 下 Passkey 不可用。
+
 ### 4. 启用安全选项
 
 在服务文件中确保启用：
