@@ -520,6 +520,8 @@ server {
 }
 ```
 
+> 上方为最小示例。仓库根目录的 [`nginx.conf.example`](nginx.conf.example) 是一份完整生产配置，已包含 `client_max_body_size 100m`（对齐 `MAX_CONTENT_LENGTH` 图片上传限制）、AI 接口读写超时、gzip、安全头、upstream keepalive 等，并通过 `nginx -t` 语法校验。部署时以其为基础替换 `YOUR_DOMAIN`、`/path/to/my-blog`、证书路径即可。
+
 ### 4. 启用安全选项
 
 在服务文件中确保启用：

@@ -1,0 +1,200 @@
+# Simple Blog - NGINX 完整主配置示例
+# ============================================================
+# 这是一份自包含的 nginx.conf，可直接作为主配置运行：
+#   nginx -t -c /path/to/nginx.conf.example
+#   nginx -c /path/to/nginx.conf.example
+# 或替换系统的 /etc/nginx/nginx.conf。
+#
+# 上游：Flask 应用（开发：python backend/app.py；生产：gunicorn）
+# 默认绑定 127.0.0.1:5001，由 NGINX 在 80/443 对外提供。
+#
+# 部署前需替换的占位符：
+#   1. YOUR_DOMAIN          -> 你的域名
+#   2. /path/to/my-blog     -> 项目实际部署路径
+#   3. 证书路径             -> /etc/ssl/certs/blog.pem 等
+#
+# 平台差异：
+#   - Linux（systemd）：如本文件所示即可
+#   - macOS Homebrew：见各处行内注释（mime.types、pid、user）
+#     路径放 /opt/homebrew/etc/nginx/nginx.conf，brew services reload nginx
+#   - 本地无 HTTPS：用文末“本地 HTTP 测试” server 块替换 80/443 块
+#     （Passkey/WebAuthn 需安全上下文，HTTP 下不可用）
+# ============================================================
+
+# 运行用户：Linux 用 nginx；macOS Homebrew 无该用户，请注释此行（以当前用户运行）
+# user nginx;
+
+worker_processes auto;
+# pid /run/nginx.pid;          # macOS: /opt/homebrew/var/run/nginx.pid
+
+events {
+    worker_connections 1024;
+    multi_accept on;
+}
+
+http {
+    include       /etc/nginx/mime.types;          # macOS: /opt/homebrew/etc/nginx/mime.types
+    default_type  application/octet-stream;
+
+    # 全局日志（可被 server 内覆盖）
+    access_log /var/log/nginx/access.log;
+    error_log  /var/log/nginx/error.log;
+
+    sendfile        on;
+    tcp_nopush      on;
+    tcp_nodelay     on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    server_tokens   off;                            # 隐藏版本号
+
+    # 上传大小：与 backend/config.py 的 MAX_CONTENT_LENGTH (100MB) 对齐，
+    # 否则图片上传会被 NGINX 先于 Flask 拦截（413 Request Entity Too Large）
+    client_max_body_size 100m;
+
+    # ============================================================
+    # 压缩
+    # ============================================================
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_comp_level 5;
+    gzip_proxied any;
+    gzip_types
+        text/plain
+        text/css
+        text/javascript
+        application/javascript
+        application/json
+        application/xml
+        image/svg+xml;
+
+    # ============================================================
+    # 上游连接池（keepalive 复用，减少到 Flask 的连接开销）
+    # ============================================================
+    upstream simple_blog {
+        server 127.0.0.1:5001;
+        keepalive 32;
+    }
+
+    # ----------------------------------------------------------------
+    # 80 端口：跳转 HTTPS（Passkey / WebAuthn 必须运行在 HTTPS 下）
+    # ----------------------------------------------------------------
+    server {
+        listen 80;
+        listen [::]:80;
+        server_name YOUR_DOMAIN;
+
+        # Let's Encrypt 证书签发占位（webroot 方式）
+        location /.well-known/acme-challenge/ {
+            root /var/www/letsencrypt;
+        }
+
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # 443 端口：主服务
+    # ----------------------------------------------------------------
+    server {
+        listen 443 ssl;
+        listen [::]:443 ssl;
+        http2 on;
+        server_name YOUR_DOMAIN;
+
+        ssl_certificate     /etc/ssl/certs/blog.pem;
+        ssl_certificate_key /etc/ssl/private/blog.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+        ssl_session_cache   shared:SSL:10m;
+        ssl_session_timeout 1d;
+
+        access_log /var/log/nginx/my-blog.access.log;
+        error_log  /var/log/nginx/my-blog.error.log;
+
+        # ============================================================
+        # 静态资源：由 NGINX 直发，不经过 Flask
+        # ============================================================
+
+        # Vite 构建产物（知识库编辑器，文件名带哈希 -> 可长期不可变缓存）
+        # 注意：该 location 含自己的 add_header，会覆盖下方 server 级安全头
+        location /static/frontend/ {
+            alias /path/to/my-blog/static/frontend/;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+
+        # 传统静态资源（js / css / uploads / vendor / manifest.json）
+        location /static/ {
+            alias /path/to/my-blog/static/;
+            expires 30d;
+            add_header Cache-Control "public";
+            access_log off;
+        }
+
+        # ============================================================
+        # 其余请求 -> 转发到 Flask
+        # ============================================================
+        location / {
+            proxy_pass http://simple_blog;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";          # 配合 upstream keepalive
+
+            proxy_set_header Host              $host;
+            proxy_set_header X-Real-IP         $remote_addr;
+            proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host  $host;
+
+            # 超时：AI 接口（标签/摘要/续写）可能较慢，给足读写时间
+            proxy_connect_timeout 10s;
+            proxy_send_timeout    120s;
+            proxy_read_timeout    120s;
+
+            # 缓冲（默认 on）；若将来加 SSE/流式接口，需在对应 location 关闭
+            proxy_buffering   on;
+            proxy_buffer_size 16k;
+            proxy_buffers     8 32k;
+        }
+
+        # ============================================================
+        # 安全头（HTTPS 已由 80->443 重定向保证）
+        # 生产可启用 HSTS；首次部署/换域名阶段建议先注释，避免锁死
+        # ============================================================
+        add_header X-Frame-Options        "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy         "strict-origin-when-cross-origin" always;
+        # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    }
+
+    # ============================================================
+    # 附：本地 HTTP 测试（无证书时使用，注释掉上面的 80/443 块即可）
+    # ============================================================
+    # server {
+    #     listen 80;
+    #     server_name localhost;
+    #     client_max_body_size 100m;
+    #
+    #     location /static/frontend/ {
+    #         alias /path/to/my-blog/static/frontend/;
+    #         expires 1y;
+    #         add_header Cache-Control "public, immutable";
+    #         access_log off;
+    #     }
+    #     location /static/ {
+    #         alias /path/to/my-blog/static/;
+    #         expires 30d;
+    #         access_log off;
+    #     }
+    #     location / {
+    #         proxy_pass http://127.0.0.1:5001;
+    #         proxy_http_version 1.1;
+    #         proxy_set_header Host $host;
+    #         proxy_set_header X-Real-IP $remote_addr;
+    #         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #         proxy_set_header X-Forwarded-Proto $scheme;
+    #     }
+    # }
+}
