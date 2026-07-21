@@ -158,15 +158,15 @@ Environment="PYTHONPATH=/var/www/my-blog"
 Environment="PORT=5001"
 EnvironmentFile=-/var/www/my-blog/.env
 
-ExecStart=/var/www/my-blog/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5001 backend.app:app
+ExecStart=/var/www/my-blog/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5001 backend.app:app
 
 # 关于监听地址：
-# - 默认 --bind 127.0.0.1:5001 仅接受服务器本机连接，适用于前面架 nginx
-#   反向代理的场景（远程通过 nginx 的 80/443 端口访问，推荐，可配 HTTPS）。
-# - 若无反向代理、需要远程直接访问 5001 端口，改为 --bind 0.0.0.0:5001，
-#   并放行防火墙/云安全组（如 sudo ufw allow 5001）。
-# - 开发服务器（python backend/app.py）同理：默认只绑 127.0.0.1，
-#   对外需在 .env 中设置 HOST=0.0.0.0。
+# - 默认 --bind 0.0.0.0:5001 监听所有网卡，远程可直接访问 5001 端口
+#   （需放行防火墙/云安全组，如 sudo ufw allow 5001）。
+# - 若前面架了 nginx 反向代理，建议改绑 127.0.0.1:5001 仅接受本机转发，
+#   远程通过 nginx 的 80/443 端口访问（可配 HTTPS）。
+# - 开发服务器（python backend/app.py）同理：默认绑 0.0.0.0，
+#   仅需本机访问时在 .env 中设置 HOST=127.0.0.1。
 
 # 重启策略
 Restart=always

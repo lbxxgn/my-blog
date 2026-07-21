@@ -954,6 +954,6 @@ if __name__ == '__main__':
     auto_regenerate_assets()
     # macOS ControlCenter often uses port 5000, so we use 5001
     port = int(os.environ.get('PORT', 5001))
-    # 开发服务器默认仅监听本机；对外服务请使用 gunicorn（见 DEPLOYMENT.md）
-    host = os.environ.get('HOST', '127.0.0.1')
+    # 默认监听所有网卡，可通过 HOST 环境变量覆盖（如仅需本机访问设 HOST=127.0.0.1）
+    host = os.environ.get('HOST', '0.0.0.0')
     app.run(debug=DEBUG, host=host, port=port)
