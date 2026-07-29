@@ -10,7 +10,7 @@ function togglePublish() {
     }
 
     if (!content) {
-        alert('请填写文章内容');
+        (window.showAppToast || alert)('请填写文章内容', 'error');
         contentInput.focus();
         return;
     }

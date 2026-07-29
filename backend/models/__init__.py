@@ -29,6 +29,7 @@ __all__ = [
     'update_post_access',
     'verify_post_password',
     'search_posts',
+    'get_adjacent_posts',
 
     # Category functions
     'create_category',

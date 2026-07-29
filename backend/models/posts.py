@@ -23,6 +23,7 @@ __all__ = [
     'update_post_access',
     'verify_post_password',
     'search_posts',
+    'get_adjacent_posts',
 ]
 
 
@@ -308,6 +309,35 @@ def get_post_by_id(post_id):
     post = cursor.fetchone()
     conn.close()
     return dict(post) if post else None
+
+def get_adjacent_posts(post_id):
+    """
+    获取相邻的上一篇/下一篇文章（仅已发布的公开博客文章，按 id 排序）
+
+    Returns:
+        dict: {'prev': {'id', 'title'} | None, 'next': {'id', 'title'} | None}
+        prev 为较早一篇（id 更小），next 为较新一篇（id 更大）
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    base_where = "is_published = 1 AND post_type = 'blog' AND access_level = 'public'"
+    cursor.execute(f'''
+        SELECT id, title FROM posts
+        WHERE id < ? AND {base_where}
+        ORDER BY id DESC LIMIT 1
+    ''', (post_id,))
+    prev_post = cursor.fetchone()
+    cursor.execute(f'''
+        SELECT id, title FROM posts
+        WHERE id > ? AND {base_where}
+        ORDER BY id ASC LIMIT 1
+    ''', (post_id,))
+    next_post = cursor.fetchone()
+    conn.close()
+    return {
+        'prev': dict(prev_post) if prev_post else None,
+        'next': dict(next_post) if next_post else None,
+    }
 
 def search_posts(query, include_drafts=False, page=1, per_page=20, post_type_filter='all'):
     """

@@ -11,6 +11,15 @@
         {% endif %}
     </div>
 
+    {# 搜索框常驻，结果页可直接换关键词 #}
+    <div class="search-form">
+        <form action="{{ url_for('search') }}" method="get">
+            <input type="hidden" name="source" value="{{ source }}">
+            <input type="text" name="q" value="{{ query }}" placeholder="输入搜索关键词..." class="search-input">
+            <button type="submit" class="btn btn-primary">搜索</button>
+        </form>
+    </div>
+
     {# 来源切换 tab #}
     {% if query %}
     <div class="search-source-tabs">
@@ -21,12 +30,6 @@
     {% endif %}
 
     {% if posts is none %}
-    <div class="search-form">
-        <form action="{{ url_for('search') }}" method="get">
-            <input type="text" name="q" placeholder="输入搜索关键词..." class="search-input">
-            <button type="submit" class="btn btn-primary">搜索</button>
-        </form>
-    </div>
     {% elif posts %}
     <div class="search-info">
         找到 {{ pagination.total }} 个结果
@@ -39,7 +42,7 @@
             <article class="post-card">
                 <h2>
                     {% if is_kb %}<span class="note-badge" style="background:var(--primary-color)">知识库</span>{% endif %}
-                    {{ post.title }}
+                    {{ post.title|highlight(query) }}
                 </h2>
                 <div class="post-meta">
                     <span>{{ (post.created_at|localtime)[:10] }}</span>
@@ -47,7 +50,7 @@
                     <span>· {{ post.category_name }}</span>
                     {% endif %}
                 </div>
-                <p class="post-excerpt">{{ post.content|striptags|truncate(200) }}</p>
+                <p class="post-excerpt">{{ (post.content|striptags|truncate(200))|highlight(query) }}</p>
             </article>
         </a>
         {% endfor %}
@@ -71,8 +74,13 @@
     {% endif %}
     {% else %}
     <div class="empty-state">
-        <p>未找到相关文章</p>
-        <a href="{{ url_for('index') }}">返回首页</a>
+        <p>未找到与「{{ query }}」相关的内容</p>
+        <p class="empty-hint">换个关键词试试，或者：</p>
+        <div class="empty-actions">
+            <a href="{{ url_for('blog.list_all_tags') }}" class="btn">🏷 浏览全部标签</a>
+            <a href="{{ url_for('blog.archive') }}" class="btn">📅 按时间归档</a>
+            <a href="{{ url_for('index') }}" class="btn">返回首页</a>
+        </div>
     </div>
     {% endif %}
 </main>
@@ -82,5 +90,9 @@
 .source-tab{padding:0.4rem 1rem;border-radius:20px;background:var(--code-bg);color:var(--text-secondary);text-decoration:none;font-size:0.85rem;transition:all .2s}
 .source-tab.active{background:var(--primary-color);color:#fff}
 .source-tab:hover:not(.active){background:var(--border-color)}
+.search-form{margin-bottom:1.2rem}
+.post-card mark{background:rgba(26,188,156,.25);color:inherit;border-radius:3px;padding:0 2px}
+.empty-hint{color:var(--text-secondary);font-size:.9rem;margin-top:.5rem}
+.empty-actions{display:flex;gap:.75rem;justify-content:center;margin-top:1rem;flex-wrap:wrap}
 </style>
 {% endblock %}

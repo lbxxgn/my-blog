@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ post.title }} - 我的博客{% endblock %}
+{% block title %}{{ post.title }} - {{ site_name }}{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/share.css') }}">
@@ -336,6 +336,26 @@ header {
     </section>
 
     <div class="post-navigation">
+        {% if adjacent and (adjacent.prev or adjacent.next) %}
+        <div class="post-adjacent">
+            {% if adjacent.prev %}
+            <a href="{{ url_for('view_post', post_id=adjacent.prev.id) }}" class="post-adjacent-card post-adjacent-prev">
+                <span class="post-adjacent-label">← 上一篇</span>
+                <span class="post-adjacent-title">{{ adjacent.prev.title }}</span>
+            </a>
+            {% else %}
+            <span class="post-adjacent-card post-adjacent-empty"></span>
+            {% endif %}
+            {% if adjacent.next %}
+            <a href="{{ url_for('view_post', post_id=adjacent.next.id) }}" class="post-adjacent-card post-adjacent-next">
+                <span class="post-adjacent-label">下一篇 →</span>
+                <span class="post-adjacent-title">{{ adjacent.next.title }}</span>
+            </a>
+            {% else %}
+            <span class="post-adjacent-card post-adjacent-empty"></span>
+            {% endif %}
+        </div>
+        {% endif %}
         <a href="{{ url_for('index') }}" class="back-link">← 返回首页</a>
     </div>
 </div>
@@ -361,7 +381,7 @@ header {
   modal.addEventListener('click', function(e){ if (e.target === modal) modal.style.display = 'none'; });
   confirmBtn.addEventListener('click', function(){
     var catId = catSelect.value;
-    if (!catId) { alert('请选择目标目录'); return; }
+    if (!catId) { showAppToast('请选择目标目录', 'error'); return; }
     confirmBtn.disabled = true;
     confirmBtn.textContent = '沉淀中...';
     fetch('{{ url_for("blog.precipitate_to_knowledge", post_id=post.id) }}', {
@@ -370,18 +390,25 @@ header {
       body: JSON.stringify({category_id: parseInt(catId)})
     }).then(function(r){return r.json()}).then(function(data){
       if (data.success) {
-        alert('已沉淀为知识库文档');
+        showAppToast('已沉淀为知识库文档');
         window.open(data.redirect, '_blank');
         modal.style.display = 'none';
       } else {
-        alert('失败: ' + (data.error || '未知错误'));
+        showAppToast('失败: ' + (data.error || '未知错误'), 'error');
       }
-    }).catch(function(e){ alert('网络错误: ' + e); })
+    }).catch(function(){ showAppToast('网络错误，请稍后重试', 'error'); })
       .finally(function(){ confirmBtn.disabled = false; confirmBtn.textContent = '确认沉淀'; });
   });
 })();
 </script>
 <style>
+.post-adjacent{display:flex;gap:1rem;margin-bottom:1.5rem}
+.post-adjacent-card{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding:14px 18px;background:var(--bg-color);border:1px solid var(--border-color);border-radius:10px;text-decoration:none;color:var(--text-color);transition:border-color .2s}
+a.post-adjacent-card:hover{border-color:var(--primary-color)}
+.post-adjacent-next{text-align:right}
+.post-adjacent-empty{visibility:hidden}
+.post-adjacent-label{font-size:12px;color:var(--text-secondary)}
+.post-adjacent-title{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .precipitate-section{margin:1.5rem 0;text-align:center}
 .precipitate-btn{background:var(--gradient-secondary);color:#fff;border:none}
 .precipitate-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:2000}

@@ -19,7 +19,7 @@ from models import (
     get_tag_by_id, get_post_tags, get_comments_by_post, create_comment,
     search_posts, get_posts_by_tag, get_posts_by_author, get_user_by_id,
     check_post_access, verify_post_password, get_popular_tags, get_db_connection,
-    get_category_tree, precipitate_post_to_knowledge,
+    get_category_tree, precipitate_post_to_knowledge, get_adjacent_posts,
 )
 
 # 创建博客蓝图
@@ -432,7 +432,11 @@ def view_post(post_id):
     # 知识库分类树（用于"沉淀到知识库"弹窗，仅登录用户）
     kb_tree = get_category_tree('knowledge') if session.get('user_id') else None
 
-    return render_template('post.html', post=post, comments=comments, post_url=post_url, kb_tree=kb_tree)
+    # 上一篇/下一篇（仅公开博客文章）
+    adjacent = get_adjacent_posts(post_id)
+
+    return render_template('post.html', post=post, comments=comments, post_url=post_url,
+                           kb_tree=kb_tree, adjacent=adjacent)
 
 
 @blog_bp.route('/post/<int:post_id>/precipitate', methods=['POST'])

@@ -81,11 +81,6 @@ def get_setup_logging():
     from logger import setup_logging
     return setup_logging
 
-def get_asset_optimizer():
-    """获取asset_optimizer实例"""
-    from utils.asset_optimizer import asset_optimizer
-    return asset_optimizer
-
 def get_log_error():
     """获取log_error函数"""
     from logger import log_error
@@ -144,9 +139,12 @@ app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # =============================================================================
-# 初始化静态资源优化器
+# 初始化静态资源版本管理（内容哈希 -> ?v=hash，配合长缓存头）
 # =============================================================================
-get_asset_optimizer().init_app(app)
+app.asset_manager = AssetVersionManager(app.static_folder)
+# 启动时刷新 manifest，保证与当前文件内容一致
+app.asset_manager.regenerate()
+register_template_helpers(app)
 
 # =============================================================================
 # HTTP缓存优化：为静态文件添加缓存头
@@ -325,6 +323,7 @@ def inject_site_settings():
         site_author=SITE_AUTHOR,
         remember_device_days=REMEMBER_DEVICE_DAYS,
         vite_asset=vite_asset,
+        current_year=datetime.now().year,
     )
 
 # =============================================================================
@@ -402,6 +401,21 @@ def excerpt_filter(value, max_length=200):
     """Jinja2过滤器：获取文章摘要（清理HTML并截断）"""
     from models import get_post_excerpt
     return get_post_excerpt(value, max_length)
+
+@app.template_filter('highlight')
+def highlight_filter(text, query):
+    """Jinja2过滤器：转义文本后高亮搜索关键词（<mark> 包裹，大小写不敏感）"""
+    from markupsafe import Markup, escape
+    if text is None:
+        return ''
+    escaped_text = str(escape(text))
+    if not query:
+        return Markup(escaped_text)
+    escaped_query = str(escape(query))
+    if not escaped_query:
+        return Markup(escaped_text)
+    pattern = re.compile(re.escape(escaped_query), re.IGNORECASE)
+    return Markup(pattern.sub(lambda m: '<mark>' + m.group(0) + '</mark>', escaped_text))
 
 
 def extract_first_image(content):

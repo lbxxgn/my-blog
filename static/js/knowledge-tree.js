@@ -156,9 +156,9 @@
         }).then(function(r) { return r.json(); })
           .then(function(data) {
               if (data && data.success) location.reload();
-              else alert((data && data.error) || '排序失败');
+              else (window.showAppToast || alert)((data && data.error) || '排序失败', 'error');
           })
-          .catch(function(err) { alert('网络错误: ' + err); });
+          .catch(function(err) { (window.showAppToast || alert)('网络错误: ' + err, 'error'); });
     });
 
     tree.addEventListener('click', function(e) {
