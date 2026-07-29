@@ -365,3 +365,112 @@ async function continueAIWriting() {
         showAiToolsStatus('error', `❌ 网络错误: ${error.message}`);
     }
 }
+
+// Restructure full article with AI (language + formatting)
+async function restructureAIContent() {
+    const title = document.getElementById('title').value.trim();
+
+    // Send raw HTML so image/link tags can be preserved by the AI
+    let content;
+    if (window.quill) {
+        content = window.quill.root.innerHTML;
+    } else {
+        content = document.getElementById('content').value.trim();
+    }
+
+    if (!title) {
+        showAiToolsStatus('error', '❌ 请先输入文章标题');
+        return;
+    }
+
+    if (!content || content.replace(/<[^>]*>/g, '').trim().length < 100) {
+        showAiToolsStatus('error', '❌ 文章内容太短，请至少写100字后再使用重组');
+        return;
+    }
+
+    // Get post ID from URL if editing
+    const pathParts = window.location.pathname.split('/');
+    let postId = pathParts[pathParts.length - 1];
+    if (isNaN(parseInt(postId))) {
+        postId = null;
+    }
+
+    showAiToolsStatus('loading', '🤖 AI正在重组全文语言与格式...');
+
+    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
+
+    try {
+        const response = await fetch('/admin/ai/restructure', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                post_id: postId,
+                title: title,
+                content: content
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            const restructured = data.content;
+            const body = document.getElementById('aiRestructureResultBody');
+            if (body) {
+                body.innerHTML = restructured;
+            }
+            setAiResultCardVisibility('aiRestructureResultCard', true);
+
+            const applyButton = document.getElementById('applyRestructure');
+            if (applyButton) {
+                applyButton.textContent = '替换全文';
+                applyButton.onclick = async () => {
+                    if (!window.quill) {
+                        showAiToolsStatus('error', '❌ 编辑器未初始化');
+                        return;
+                    }
+                    // Second click after applying = undo
+                    if (applyButton.dataset.applied === '1') {
+                        if (window.__restructureBackup != null) {
+                            replaceEditorContent(window.__restructureBackup);
+                            window.__restructureBackup = null;
+                        }
+                        applyButton.dataset.applied = '';
+                        applyButton.textContent = '替换全文';
+                        showAiToolsStatus('success', '已恢复替换前的内容。');
+                        return;
+                    }
+                    const confirmFn = window.showAppConfirm || ((msg) => Promise.resolve(window.confirm(msg)));
+                    const ok = await confirmFn('将用 AI 重组后的版本替换全文，替换后可再点一次按钮恢复原内容。继续吗？');
+                    if (!ok) return;
+                    window.__restructureBackup = window.quill.root.innerHTML;
+                    replaceEditorContent(restructured);
+                    applyButton.dataset.applied = '1';
+                    applyButton.textContent = '撤销替换';
+                    showAiToolsStatus('success', '已用 AI 重组版本替换全文，可再次点击按钮撤销。');
+                    showEditorToast('全文已替换为 AI 重组版本');
+                };
+            }
+            openAiAssistPanel();
+            showAiToolsStatus('success', `✅ 重组完成，预览无误后点击"替换全文" (${data.tokens_used} tokens, ${data.model})`);
+        } else {
+            showAiToolsStatus('error', `❌ ${data.error || '生成失败'}`);
+        }
+    } catch (error) {
+        showAiToolsStatus('error', `❌ 网络错误: ${error.message}`);
+    }
+}
+
+function replaceEditorContent(html) {
+    if (!window.quill) return;
+    const textarea = document.getElementById('content');
+    window.quill.root.innerHTML = html;
+    if (textarea) {
+        textarea.value = window.quill.root.innerHTML;
+    }
+    window.dispatchEvent(new CustomEvent('editor:content-change', {
+        detail: { html: window.quill.root.innerHTML, text: window.quill.getText().trim() }
+    }));
+}

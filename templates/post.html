@@ -259,6 +259,19 @@ header {
     <!-- 沉淀到知识库（仅登录用户） -->
     <div class="precipitate-section">
         <button type="button" class="btn btn-sm precipitate-btn" id="precipitate-btn">📥 沉淀到知识库</button>
+        <button type="button" class="btn btn-sm mentor-btn" id="mentor-btn">🧭 导师点评</button>
+        <div class="precipitate-modal" id="mentor-modal" style="display:none">
+            <div class="precipitate-modal-content mentor-modal-content">
+                <h4>🧭 AI 导师点评</h4>
+                <div class="mentor-result" id="mentor-result"></div>
+                <div class="precipitate-actions">
+                    <button type="button" class="btn btn-sm btn-primary" id="mentor-publish" disabled>发表为评论</button>
+                    <button type="button" class="btn btn-sm" id="mentor-copy" disabled>复制</button>
+                    <button type="button" class="btn btn-sm" id="mentor-close">关闭</button>
+                </div>
+                <p class="precipitate-hint">点评由 AI 生成，仅供参考；"发表为评论"会以「AI 导师」名义发布到本文评论区。</p>
+            </div>
+        </div>
         <div class="precipitate-modal" id="precipitate-modal" style="display:none">
             <div class="precipitate-modal-content">
                 <h4>选择目标目录</h4>
@@ -401,6 +414,85 @@ header {
   });
 })();
 </script>
+<script>
+(function(){
+  var btn = document.getElementById('mentor-btn');
+  if (!btn) return;
+  var modal = document.getElementById('mentor-modal');
+  var resultEl = document.getElementById('mentor-result');
+  var publishBtn = document.getElementById('mentor-publish');
+  var copyBtn = document.getElementById('mentor-copy');
+  var closeBtn = document.getElementById('mentor-close');
+  var currentComment = '';
+  var loaded = false;
+
+  closeBtn.addEventListener('click', function(){ modal.style.display = 'none'; });
+  modal.addEventListener('click', function(e){ if (e.target === modal) modal.style.display = 'none'; });
+
+  btn.addEventListener('click', function(){
+    modal.style.display = 'flex';
+    if (loaded) return;
+    resultEl.textContent = '导师正在阅读你的文章...';
+    btn.disabled = true;
+    var postContent = document.querySelector('.post-content');
+    fetch('/admin/ai/mentor-comment', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
+      body: JSON.stringify({
+        title: {{ post.title|tojson }},
+        content: postContent ? postContent.innerText.slice(0, 6000) : '',
+        post_id: {{ post.id }}
+      })
+    }).then(function(r){ return r.json(); }).then(function(data){
+      if (data.success) {
+        currentComment = data.comment;
+        loaded = true;
+        resultEl.textContent = data.comment;
+        publishBtn.disabled = false;
+        copyBtn.disabled = false;
+      } else {
+        resultEl.textContent = '生成失败：' + (data.error || '未知错误');
+      }
+    }).catch(function(){
+      resultEl.textContent = '网络错误，请稍后重试。';
+    }).finally(function(){ btn.disabled = false; });
+  });
+
+  copyBtn.addEventListener('click', function(){
+    if (!currentComment) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(currentComment).then(function(){ showAppToast('已复制'); });
+    } else {
+      showAppToast('当前浏览器不支持一键复制', 'error');
+    }
+  });
+
+  publishBtn.addEventListener('click', function(){
+    if (!currentComment) return;
+    var content = currentComment.length > 990 ? currentComment.slice(0, 990) + '……' : currentComment;
+    publishBtn.disabled = true;
+    publishBtn.textContent = '发表中...';
+    fetch('{{ url_for("add_comment", post_id=post.id) }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token() }}'},
+      body: new URLSearchParams({author_name: 'AI 导师', author_email: '', content: content})
+    }).then(function(r){
+      if (r.ok) {
+        showAppToast('点评已发表到评论区');
+        location.reload();
+      } else {
+        showAppToast('发表失败，请稍后重试', 'error');
+        publishBtn.disabled = false;
+        publishBtn.textContent = '发表为评论';
+      }
+    }).catch(function(){
+      showAppToast('网络错误，请稍后重试', 'error');
+      publishBtn.disabled = false;
+      publishBtn.textContent = '发表为评论';
+    });
+  });
+})();
+</script>
 <style>
 .post-adjacent{display:flex;gap:1rem;margin-bottom:1.5rem}
 .post-adjacent-card{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding:14px 18px;background:var(--bg-color);border:1px solid var(--border-color);border-radius:10px;text-decoration:none;color:var(--text-color);transition:border-color .2s}
@@ -417,5 +509,8 @@ a.post-adjacent-card:hover{border-color:var(--primary-color)}
 .precipitate-modal-content select{width:100%;padding:0.5rem;border:1px solid var(--border-color);border-radius:6px;margin-bottom:0.75rem;background:var(--bg-color);color:var(--text-color)}
 .precipitate-actions{display:flex;gap:0.5rem}
 .precipitate-hint{font-size:0.75rem;color:var(--text-secondary);margin-top:0.75rem;margin-bottom:0}
+.mentor-btn{background:var(--gradient-primary);color:#fff;border:none}
+.mentor-modal-content{width:min(560px,92%);max-width:92%}
+.mentor-result{white-space:pre-wrap;line-height:1.7;max-height:50vh;overflow-y:auto;margin-bottom:1rem;font-size:0.95rem}
 </style>
 {% endblock %}

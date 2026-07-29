@@ -139,6 +139,7 @@
                         <button type="button" class="btn btn-secondary" id="aiTagAssistBtn">生成标签</button>
                         <button type="button" class="btn btn-secondary" id="aiSummaryAssistBtn">生成摘要</button>
                         <button type="button" class="btn btn-secondary" id="aiContinueAssistBtn">AI续写</button>
+                        <button type="button" class="btn btn-secondary" id="aiRestructureBtn">重组全文</button>
                         <button type="button" class="btn btn-secondary" id="aiRecommendAssistBtn">相关文章</button>
                     </div>
                 </div>
@@ -186,6 +187,13 @@
                             <button type="button" class="btn btn-secondary btn-sm" id="applyGeneratedContinuation">插入到末尾</button>
                         </div>
                         <div class="ai-result-body" id="aiContinuationResultBody"></div>
+                    </section>
+                    <section id="aiRestructureResultCard" class="ai-result-card" hidden>
+                        <div class="ai-result-header">
+                            <strong>AI 重组结果</strong>
+                            <button type="button" class="btn btn-secondary btn-sm" id="applyRestructure">替换全文</button>
+                        </div>
+                        <div class="ai-result-body" id="aiRestructureResultBody"></div>
                     </section>
                     <section id="aiRecommendationResultCard" class="ai-result-card" hidden>
                         <div class="ai-result-header">

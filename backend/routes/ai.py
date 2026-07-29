@@ -798,3 +798,148 @@ def generate_title():
         'title': title,
         'source': source
     })
+
+
+@ai_bp.route('/mentor-comment', methods=['POST'])
+@login_required
+def mentor_comment():
+    """
+    人生导师式点评 API
+
+    针对文章中表达的想法，给出真诚、具体的回应与指导。
+    """
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    content = (data.get('content') or '').strip()
+
+    if not content:
+        return jsonify({'success': False, 'error': '内容不能为空'}), 400
+
+    user_id = session.get('user_id')
+    user_ai_config = get_user_ai_config(user_id)
+
+    try:
+        result = _run_structured_prompt(
+            user_ai_config,
+            system_prompt=(
+                '你是一位睿智、温和而真诚的人生导师，长期阅读作者的博客，了解Ta的思考习惯。'
+                '你的点评不是泛泛的夸奖，而是像一个真正关心作者的朋友那样回应。'
+            ),
+            user_prompt=f"""请阅读下面这篇博客文章，以人生导师的身份给作者一段点评与指导。
+
+要求：
+1. 先具体指出文章中最打动你或最有价值的一个想法（引用原文细节，不要空泛）
+2. 温和地指出作者可能忽略的角度、潜在的盲区或可以想得更深的地方
+3. 结合文章主题，给作者一个具体、可执行的小建议或值得继续思考的问题
+4. 语气真诚、温暖但不谄媚，像写信一样自然分段，不要使用列表和标题
+5. 全文 300 字以内，直接输出点评正文，不要任何开场白或落款
+
+文章标题：{title or '（无标题）'}
+
+文章内容：
+{content[:4000]}
+""",
+            max_tokens=900,
+            temperature=0.7
+        )
+    except Exception as e:
+        logger.error(f"AI mentor comment error: {e}")
+        return api_internal_error(e)
+
+    if not result:
+        return jsonify({'success': False, 'error': 'AI功能未启用，请先在 AI 设置中启用并配置密钥'}), 400
+
+    save_ai_tag_history(
+        user_id=user_id,
+        post_id=data.get('post_id'),
+        action='mentor_comment',
+        provider=user_ai_config.get('ai_provider'),
+        model_used=result.get('model'),
+        tokens_used=result.get('tokens_used', 0),
+        input_tokens=result.get('input_tokens', 0),
+        output_tokens=result.get('output_tokens', 0),
+        result_preview=result['content'][:100]
+    )
+
+    return jsonify({
+        'success': True,
+        'comment': result['content'],
+        'tokens_used': result['tokens_used'],
+        'model': result['model']
+    })
+
+
+@ai_bp.route('/restructure', methods=['POST'])
+@login_required
+def restructure_content():
+    """
+    AI 重组文章语言与格式 API
+
+    保持原意不变，重新组织语言并让文章结构（HTML 格式）更合理。
+    """
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    content = (data.get('content') or '').strip()
+
+    if not content:
+        return jsonify({'success': False, 'error': '内容不能为空'}), 400
+
+    user_id = session.get('user_id')
+    user_ai_config = get_user_ai_config(user_id)
+
+    try:
+        result = _run_structured_prompt(
+            user_ai_config,
+            system_prompt=(
+                '你是一位专业的中文编辑，擅长把零散、缺乏条理的文字整理成结构清晰、'
+                '读起来顺畅的文章，同时完全尊重作者的原意和个人风格。'
+            ),
+            user_prompt=f"""请重组下面这篇文章的语言和格式。
+
+要求：
+1. 完整保留作者的原意、事实、观点和个人口吻（第一人称不变），不要增删观点
+2. 把想到哪写到哪的内容按逻辑重新分段、排序，让行文有条理
+3. 合理使用 HTML 结构：<h2>/<h3> 小节标题（需要时提炼）、<p> 段落、<ul>/<ol> 列表、<strong> 重点、<blockquote> 引用
+4. 原文中的所有 <img> 标签必须原样保留在合适位置，不得丢失或修改
+5. 原文中的链接（<a>）保留
+6. 只输出重组后的 HTML 正文，不要输出解释、不要用 ``` 代码围栏包裹、不要包含文章大标题（<h1>）
+
+文章标题（仅供参考，不要输出）：{title or '（无标题）'}
+
+原文：
+{content[:6000]}
+""",
+            max_tokens=3000,
+            temperature=0.4
+        )
+    except Exception as e:
+        logger.error(f"AI restructure error: {e}")
+        return api_internal_error(e)
+
+    if not result:
+        return jsonify({'success': False, 'error': 'AI功能未启用，请先在 AI 设置中启用并配置密钥'}), 400
+
+    # 去掉模型可能残留的代码围栏
+    html = result['content'].strip()
+    if html.startswith('```'):
+        html = re.sub(r'^```[a-zA-Z]*\s*', '', html)
+        html = re.sub(r'\s*```$', '', html)
+
+    save_ai_tag_history(
+        user_id=user_id,
+        post_id=data.get('post_id'),
+        action='restructure',
+        provider=user_ai_config.get('ai_provider'),
+        model_used=result.get('model'),
+        tokens_used=result.get('tokens_used', 0),
+        input_tokens=result.get('input_tokens', 0),
+        output_tokens=result.get('output_tokens', 0),
+        result_preview=html[:100]
+    )
+
+    return jsonify({
+        'success': True,
+        'content': html,
+        'tokens_used': result['tokens_used'],
+        'model': result['model']
+    })
