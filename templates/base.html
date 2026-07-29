@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf_token" content="{{ csrf_token() }}">
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
     <!-- JetBrains Mono for code blocks -->
@@ -30,12 +30,16 @@
 {% set current_page_type = current_page_type|trim or 'site' %}
 {% set mobile_shell_enabled = current_page_type == 'home' %}
 <body data-page="{{ current_page_type }}">
+    <script>
+        // 首帧前应用主题，避免暗色闪烁（FOUC）；与 base.js 的切换逻辑保持同一数据源
+        (function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}if(t==='dark'){document.body.classList.add('dark-theme');}}catch(e){}})();
+    </script>
     <!-- 移动端全局返回按钮（非首页显示） -->
     {% if not mobile_shell_enabled %}
     {% if current_page_type.startswith('admin') %}
     <button class="mobile-back-btn global" onclick="window.location.href='{{ url_for('index') }}'" aria-label="返回首页">←</button>
     {% else %}
-    <button class="mobile-back-btn global" onclick="history.back()" aria-label="返回">←</button>
+    <button class="mobile-back-btn global" onclick="if(window.history.length>1){window.history.back();}else{window.location.href='{{ url_for('index') }}';}" aria-label="返回">←</button>
     {% endif %}
     {% endif %}
     <header>
@@ -393,7 +397,7 @@
 {% endif %}
 
     <footer>
-        <p>&copy; 2025 我的博客. All rights reserved.</p>
+        <p>&copy; {{ current_year }} {{ site_name }}. All rights reserved.</p>
     </footer>
 
     <script src="{{ static_file('js/main.js') }}"></script>
@@ -402,10 +406,6 @@
     <!-- 首页无限滚动（pull-refresh 依赖 window.InfiniteScroll） -->
     <script src="{{ static_file('js/infinite-scroll.js') }}"></script>
     <script src="{{ static_file('js/pull-refresh.js') }}"></script>
-    <!-- 加载更多按钮（无 #posts-container 时自动跳过） -->
-    <script src="{{ static_file('js/pagination.js') }}"></script>
-    <!-- 恢复 localStorage 保存的主题 -->
-    <script src="{{ static_file('js/theme.js') }}"></script>
     <!-- 全局键盘快捷键 -->
     <script src="{{ static_file('js/shortcuts.js') }}"></script>
     <!-- Frontend enhancements: scroll animations, reading progress -->

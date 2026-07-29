@@ -79,9 +79,9 @@
                 if (innerIcon) innerIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
                 if (innerText) innerText.textContent = newTheme === 'dark' ? '亮色' : '暗色';
             });
-            // Set initial icon
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            themeToggleNav.querySelector('.theme-toggle-nav-icon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+            // Set initial icon from the actual applied theme (inline script may follow system preference)
+            const isDarkNow = document.body.classList.contains('dark-theme');
+            themeToggleNav.querySelector('.theme-toggle-nav-icon').textContent = isDarkNow ? '☀️' : '🌙';
         }
     });
 
@@ -346,3 +346,15 @@ document.addEventListener('click', async function(event) {
         window.location.href = trigger.href;
     }
 }, true);
+
+// Flash 消息：5 秒后自动淡出移除
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('main .alert').forEach(function(el) {
+        el.setAttribute('role', 'alert');
+        setTimeout(function() {
+            el.style.transition = 'opacity 0.4s ease';
+            el.style.opacity = '0';
+            setTimeout(function() { el.remove(); }, 400);
+        }, 5000);
+    });
+});

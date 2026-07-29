@@ -160,9 +160,10 @@
         readerExit.addEventListener('click', exitReaderMode);
     }
 
-    // Keyboard shortcut: R to toggle, Esc to exit
+    // Keyboard shortcut: R to toggle, Esc to exit (only on pages with a reader-mode toggle)
     document.addEventListener('keydown', function(e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (!readerToggle) return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
         if (e.key === 'r' || e.key === 'R') {
             toggleReaderMode();
         } else if (e.key === 'Escape' && document.body.classList.contains('reader-mode')) {
@@ -175,12 +176,7 @@
         enterReaderMode();
     }
 
-    /* --- System Dark Mode Detection --- */
-    if (!localStorage.getItem('theme')) {
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.body.classList.add('dark-theme');
-        }
-    }
+    /* --- System Dark Mode Detection: handled by the inline script in base.html --- */
 
     /* --- Mobile Bottom Nav Auto-Hide --- */
     var bottomNav = document.querySelector('.mobile-bottom-nav');
@@ -215,4 +211,49 @@
             }
         }, { passive: true });
     }
+
+    /* --- Post TOC (wide screens, blog post pages) --- */
+    function initPostToc() {
+        var content = document.querySelector('.post-content');
+        if (!content) return;
+
+        var headings = content.querySelectorAll('h2, h3');
+        if (headings.length < 3) return;
+
+        var toc = document.createElement('aside');
+        toc.className = 'post-toc';
+        var ul = document.createElement('ul');
+        headings.forEach(function(h, i) {
+            if (!h.id) h.id = 'post-toc-head-' + i;
+            var li = document.createElement('li');
+            if (h.tagName === 'H3') li.className = 'toc-l3';
+            var a = document.createElement('a');
+            a.href = '#' + h.id;
+            a.textContent = h.textContent;
+            li.appendChild(a);
+            ul.appendChild(li);
+        });
+        var title = document.createElement('div');
+        title.className = 'post-toc-title';
+        title.textContent = '目录';
+        toc.appendChild(title);
+        toc.appendChild(ul);
+        document.body.appendChild(toc);
+
+        // 滚动高亮当前小节
+        if ('IntersectionObserver' in window) {
+            var links = toc.querySelectorAll('a');
+            var observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        links.forEach(function(l) { l.classList.remove('active'); });
+                        var active = toc.querySelector('a[href="#' + entry.target.id + '"]');
+                        if (active) active.classList.add('active');
+                    }
+                });
+            }, { rootMargin: '0px 0px -70% 0px' });
+            Array.prototype.forEach.call(headings, function(h) { observer.observe(h); });
+        }
+    }
+    document.addEventListener('DOMContentLoaded', initPostToc);
 })();

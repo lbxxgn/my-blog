@@ -6,6 +6,7 @@
 
     let isLoading = false;
     let hasMore = true;
+    let loadFailed = false;
     let currentPage = 1;
     let observer = null;
 
@@ -87,7 +88,7 @@
         indicator.className = 'load-more-indicator';
         indicator.innerHTML = `
             <span class="spinner"></span>
-            <span class="load-more-text">下拉加载更多</span>
+            <span class="load-more-text">加载更多</span>
         `;
 
         // 添加到容器后面
@@ -189,14 +190,32 @@
         } catch (error) {
             console.error('[InfiniteScroll] Failed to load more posts:', error);
             currentPage--; // 回退页码
+            loadFailed = true;
         } finally {
             isLoading = false;
-            hideLoadingIndicator();
+            if (loadFailed) {
+                loadFailed = false;
+                showErrorIndicator();
+            } else {
+                hideLoadingIndicator();
+            }
 
             if (!hasMore) {
                 showNoMoreIndicator();
             }
         }
+    }
+
+    function showErrorIndicator() {
+        const indicator = document.getElementById('loadMoreIndicator');
+        if (!indicator) return;
+
+        indicator.innerHTML = '<button type="button" class="load-more-retry" style="background:none;border:none;color:var(--primary-color,#3498db);cursor:pointer;font-size:inherit;padding:8px 16px;">加载失败，点击重试</button>';
+        const retryBtn = indicator.querySelector('.load-more-retry');
+        retryBtn.addEventListener('click', function() {
+            showLoadingIndicator();
+            loadMorePosts();
+        });
     }
 
     function appendPosts(posts) {
@@ -347,7 +366,7 @@
             if (hasMore) {
                 indicator.innerHTML = `
                     <span style="display: inline-block; width: 20px; height: 20px;"></span>
-                    <span style="margin-left: 10px;">下拉加载更多</span>
+                    <span style="margin-left: 10px;">加载更多</span>
                 `;
             }
         }
