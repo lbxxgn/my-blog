@@ -75,6 +75,12 @@ def _is_logged_in():
     return session.get('user_id') is not None
 
 
+def _wants_json():
+    """判断当前请求是否期望 JSON 响应（编辑器 fetch 保存）"""
+    return (request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or request.accept_mimetypes.best == 'application/json')
+
+
 # =============================================================================
 # 浏览
 # =============================================================================
@@ -225,12 +231,23 @@ def new_doc():
         tag_names = [t.strip() for t in tags.split(',') if t.strip()] if tags else []
         sort_order = request.form.get('sort_order', type=int, default=0)
         if not title or not category_id:
+            if _wants_json():
+                return jsonify({'success': False, 'error': '标题和目录不能为空'}), 400
             return render_template('knowledge/editor.html', tree=tree,
                                    tree_flattened=_flatten_tree(tree), doc=None,
                                    error='标题和目录不能为空')
         doc_id = create_knowledge_doc(title, content, category_id,
                                       tag_names=tag_names, sort_order=sort_order,
                                       is_published=is_published, author_id=session['user_id'])
+        if _wants_json():
+            return jsonify({
+                'success': True,
+                'doc_id': doc_id,
+                'redirect': url_for('knowledge.view_doc', doc_id=doc_id),
+                'edit_url': url_for('knowledge.edit_doc', doc_id=doc_id),
+                'autosave_url': url_for('knowledge.autosave_doc', doc_id=doc_id),
+                'draft_url': url_for('knowledge.draft_doc', doc_id=doc_id),
+            })
         return redirect(url_for('knowledge.view_doc', doc_id=doc_id))
     # 预选目录
     preselect_cat = request.args.get('cat', type=int)
@@ -252,11 +269,20 @@ def edit_doc(doc_id):
         tag_names = [t.strip() for t in tags.split(',') if t.strip()] if tags else []
         sort_order = request.form.get('sort_order', type=int)
         if not title or not category_id:
+            if _wants_json():
+                return jsonify({'success': False, 'error': '标题和目录不能为空'}), 400
             return render_template('knowledge/editor.html', tree=tree,
                                    tree_flattened=_flatten_tree(tree), doc=get_knowledge_doc(doc_id),
                                    error='标题和目录不能为空')
         update_knowledge_doc(doc_id, title, content, category_id, is_published,
                              tag_names=tag_names, sort_order=sort_order)
+        if _wants_json():
+            return jsonify({
+                'success': True,
+                'doc_id': doc_id,
+                'is_published': is_published,
+                'redirect': url_for('knowledge.view_doc', doc_id=doc_id),
+            })
         return redirect(url_for('knowledge.view_doc', doc_id=doc_id))
     doc = get_knowledge_doc(doc_id)
     if not doc:

@@ -134,14 +134,21 @@ class TestKbAutosave:
         assert resp.status_code == 404
 
     def test_autosave_requires_login(self, client):
-        """未登录应被重定向"""
+        """未登录的 JSON 请求应返回 401，页面请求仍重定向到登录页"""
         resp = client.post(
             "/knowledge/doc/1/autosave",
             data=json.dumps({"content": "x"}),
             content_type="application/json",
         )
-        assert resp.status_code == 302
-        assert "/login" in resp.headers.get("Location", "")
+        assert resp.status_code == 401
+        assert resp.get_json()["success"] is False
+
+        resp_form = client.post(
+            "/knowledge/doc/1/autosave",
+            data={"content": "x"},
+        )
+        assert resp_form.status_code == 302
+        assert "/login" in resp_form.headers.get("Location", "")
 
     def test_draft_endpoint_returns_saved_draft(self, client, test_admin_user):
         """自动保存后可通过 draft 接口取回草稿"""

@@ -19,6 +19,12 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if session.get('user_id') is None:
+            # AJAX/JSON 请求返回 401，由前端统一提示并跳转登录
+            if (request.is_json or request.path.startswith('/api/')
+                    or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                    or request.accept_mimetypes.best == 'application/json'):
+                from flask import jsonify
+                return jsonify({'success': False, 'error': '登录已过期，请重新登录'}), 401
             flash('请先登录', 'warning')
             return redirect(url_for('auth.login', next=request.url))
         return f(*args, **kwargs)

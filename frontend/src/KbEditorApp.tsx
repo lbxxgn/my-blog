@@ -32,12 +32,21 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('未修改');
+  // 新建文档首次保存后切换为"编辑已有文档"，避免重复创建
+  const [isNewDoc, setIsNewDoc] = useState(init.isNew);
+  const [docId, setDocId] = useState<number | undefined>(init.doc?.id);
+  const [saveUrl, setSaveUrl] = useState(init.saveUrl);
+  const [autoSaveUrl, setAutoSaveUrl] = useState(init.autoSaveUrl);
+  const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
+  const navigatingRef = useRef(false);
 
-  const { draftInfo, markDirty } = useAutoSave({
-    docId: init.doc?.id,
-    autoSaveUrl: init.autoSaveUrl,
+  const { draftInfo, draft, dismissDraft, clearLocalDraft, markDirty } = useAutoSave({
+    docId,
+    autoSaveUrl,
     draftUrl: init.draftUrl,
     csrfToken: init.csrfToken,
+    isNew: isNewDoc,
     getContent: async () => {
       if (!editorInstance) return { title, content: '' };
       const md = await editorInstance.blocksToMarkdownLossy(editorInstance.document);
@@ -45,13 +54,18 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
     },
   });
 
-  const handleEditorChange = useCallback(() => {
+  const handleDirty = useCallback(() => {
     markDirty();
-    setSaveStatus('idle');
-    setStatusMessage('有未保存修改');
+    setDirty(true);
   }, [markDirty]);
 
-  const handleSave = useCallback(async () => {
+  const handleEditorChange = useCallback(() => {
+    handleDirty();
+    setSaveStatus('idle');
+    setStatusMessage('有未保存修改');
+  }, [handleDirty]);
+
+  const handleSave = useCallback(async (stay: boolean) => {
     const editor = editorRef.current;
     if (!editor || !formRef.current || !contentFieldRef.current) {
       setSaveStatus('error');
@@ -81,28 +95,96 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
     try {
       const markdown = await editor.blocksToMarkdownLossy(editor.document);
       contentFieldRef.current.value = markdown;
-      formRef.current.submit();
+      const res = await fetch(saveUrl, {
+        method: 'POST',
+        body: new FormData(formRef.current),
+        headers: {
+          'X-CSRFToken': init.csrfToken,
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json',
+        },
+      });
+      const data = await res.json().catch(() => ({} as Record<string, unknown>));
+      if (!res.ok || !data.success) {
+        throw new Error(
+          (data.error as string) ||
+            (res.status === 401 ? '登录已过期，请重新登录' : `保存失败 (${res.status})`)
+        );
+      }
+      setSaveStatus('saved');
+      setStatusMessage(`已保存 ${new Date().toLocaleTimeString()}`);
+      setDirty(false);
+      clearLocalDraft();
+      // 新建文档首次保存：切换为编辑模式，后续保存走 edit 路由
+      if (isNewDoc && data.doc_id) {
+        setIsNewDoc(false);
+        setDocId(data.doc_id as number);
+        if (data.edit_url) setSaveUrl(data.edit_url as string);
+        if (data.autosave_url) setAutoSaveUrl(data.autosave_url as string);
+        if (data.edit_url) window.history.replaceState(null, '', data.edit_url as string);
+      }
+      if (!stay) {
+        navigatingRef.current = true;
+        window.location.href = (data.redirect as string) || window.location.href;
+        return;
+      }
     } catch (e) {
-      setIsSaving(false);
       setSaveStatus('error');
       setStatusMessage('保存失败：' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setIsSaving(false);
     }
-  }, [editorInstance, title, categoryId]);
+  }, [editorInstance, title, categoryId, saveUrl, isNewDoc, init.csrfToken, clearLocalDraft]);
 
-  const handlePublish = useCallback(async () => {
-    if (isSaving || !editorInstance || isPublished) return;
+  // 发布 / 取消发布：切换状态后保存并留在编辑器
+  const handlePublishToggle = useCallback(async () => {
+    if (isSaving || !editorInstance) return;
     // Ensure the hidden is_published input is rendered before submitting.
-    flushSync(() => setIsPublished(true));
-    await handleSave();
+    flushSync(() => setIsPublished(!isPublished));
+    await handleSave(true);
   }, [handleSave, isPublished, isSaving, editorInstance]);
+
+  // 恢复草稿：回填标题和正文
+  const handleRestoreDraft = useCallback(async () => {
+    if (!draft) return;
+    if (draft.title) {
+      setTitle(draft.title);
+    }
+    const editor = editorRef.current;
+    if (editor && draft.content) {
+      try {
+        const blocks = await editor.tryParseMarkdownToBlocks(draft.content);
+        editor.replaceBlocks(editor.document, blocks);
+      } catch (e) {
+        console.error('恢复草稿失败:', e);
+      }
+    }
+    handleDirty();
+    dismissDraft();
+  }, [draft, handleDirty, dismissDraft]);
 
   // Expose save handler for automated end-to-end tests.
   useEffect(() => {
     editorRef.current = editorInstance;
   }, [editorInstance]);
   useEffect(() => {
-    (window as any).__KB_SAVE__ = handleSave;
+    (window as any).__KB_SAVE__ = () => handleSave(true);
   }, [handleSave]);
+
+  // 未保存修改时离开页面前提醒
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dirtyRef.current && !navigatingRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
 
   const saveButtonLabel = isSaving
     ? '保存中...'
@@ -113,11 +195,26 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
   return (
     <div className="kb-editor-layout">
       <main className="kb-editor-main">
+        {draft && (
+          <div className="kb-draft-banner">
+            <span>
+              检测到{draft.saved_at ? ` ${new Date(draft.saved_at).toLocaleString()} ` : ''}的
+              {draft.source === 'local' ? '本地' : ''}草稿
+            </span>
+            <button type="button" className="btn btn-primary" onClick={handleRestoreDraft}>
+              恢复草稿
+            </button>
+            <button type="button" className="btn" onClick={dismissDraft}>
+              忽略
+            </button>
+          </div>
+        )}
         <form
           ref={formRef}
           method="POST"
-          action={init.saveUrl}
+          action={saveUrl}
           className="kb-editor-form"
+          onSubmit={(e) => e.preventDefault()}
         >
           <input type="hidden" name="csrf_token" value={init.csrfToken} />
           <input type="hidden" name="content" ref={contentFieldRef} />
@@ -134,7 +231,7 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
-                  markDirty();
+                  handleDirty();
                 }}
                 placeholder="输入文档标题"
               />
@@ -151,7 +248,7 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
                 value={categoryId}
                 onChange={(e) => {
                   setCategoryId(e.target.value ? Number(e.target.value) : '');
-                  markDirty();
+                  handleDirty();
                 }}
               >
                 <option value="">请选择目录</option>
@@ -171,7 +268,7 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
                 value={tags}
                 onChange={(e) => {
                   setTags(e.target.value);
-                  markDirty();
+                  handleDirty();
                 }}
               />
             </div>
@@ -185,7 +282,7 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
                 value={sortOrder}
                 onChange={(e) => {
                   setSortOrder(Number(e.target.value));
-                  markDirty();
+                  handleDirty();
                 }}
               />
             </div>
@@ -219,16 +316,24 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={handlePublish}
-              disabled={isSaving || !editorInstance || isPublished}
+              onClick={handlePublishToggle}
+              disabled={isSaving || !editorInstance}
             >
-              {isPublished ? '已发布' : '发布'}
+              {isPublished ? '取消发布' : '发布'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => handleSave(false)}
+              disabled={isSaving || !editorInstance}
+            >
+              保存并查看
             </button>
             <button
               type="button"
               data-testid="kb-save-btn"
               className="btn btn-primary"
-              onClick={handleSave}
+              onClick={() => handleSave(true)}
               disabled={isSaving || !editorInstance}
             >
               {saveButtonLabel}
