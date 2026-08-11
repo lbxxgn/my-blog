@@ -21,6 +21,7 @@ saveDraft();});}
 const publishBtn=document.getElementById('mobileEditorPublish');if(publishBtn){publishBtn.addEventListener('click',publishPost);}
 initToolbarButtons();initSelectors();}
 function initToolbarButtons(){const imageBtn=document.getElementById('toolbarImage');if(imageBtn){imageBtn.addEventListener('click',function(){const input=document.getElementById('mobileEditorImageInput');if(input)input.click();});}
+const indentBtn=document.getElementById('toolbarIndent');if(indentBtn){indentBtn.addEventListener('click',function(){insertAtCursor('　　');});}
 const imageInput=document.getElementById('mobileEditorImageInput');if(imageInput){imageInput.addEventListener('change',handleImageSelect);}
 const tagsBtn=document.getElementById('toolbarTags');if(tagsBtn){tagsBtn.addEventListener('click',openQuickTagInput);}
 const categoryBtn=document.getElementById('toolbarCategory');if(categoryBtn){categoryBtn.addEventListener('click',openCategorySelector);}
@@ -153,13 +154,15 @@ const response=await fetch('/admin/upload',{method:'POST',headers:csrfToken?{'X-
 const imageUrl=payload.url||payload.urls?.large||payload.urls?.original||payload.urls?.medium||payload.urls?.thumbnail;if(!imageUrl){throw new Error(`第 ${index+1}张图片上传后没有返回可用地址`);}
 uploadedUrls.push(imageUrl);}
 setPublishButtonState('发送中...');return uploadedUrls;}
-function composePostContent(content,imageUrls){const trimmedContent=String(content||'').trim();if(!imageUrls||imageUrls.length===0){return trimmedContent;}
+function preserveLeadingSpaces(text){// 将每行行首的空格/制表符转换为 &nbsp;，防止发布时被 trim 或 Markdown 吞掉
+return String(text||'').replace(/^[ \t]+/gm,function(match){const expanded=match.replace(/\t/g,'    ');return '&nbsp;'.repeat(expanded.length);});}
+function composePostContent(content,imageUrls){const trimmedContent=preserveLeadingSpaces(content).replace(/\s+$/,'');if(!imageUrls||imageUrls.length===0){return trimmedContent;}
 const imageMarkup=imageUrls.map(url=>`<img src="${escapeHtmlAttr(url)}"alt="">`).join('\n');return trimmedContent?`${trimmedContent}\n\n${imageMarkup}`:imageMarkup;}
 async function dataUrlToFile(dataUrl,fallbackName){if(!dataUrl||typeof dataUrl!=='string'||!dataUrl.startsWith('data:')){return null;}
 const response=await fetch(dataUrl);const blob=await response.blob();const mimeType=blob.type||'image/png';const extension=mimeType.split('/')[1]||'png';return new File([blob],fallbackName.replace(/\.\w+$/,`.${extension}`),{type:mimeType});}
 async function parseJsonResponse(response){const responseClone=response.clone();try{return await response.json();}catch(error){const text=await responseClone.text();return{success:false,error:text||'服务器返回了无法解析的响应'};}}
 function insertAtCursor(text){const textarea=document.getElementById('mobileEditorTextarea');if(!textarea)return;const start=textarea.selectionStart||0;const end=textarea.selectionEnd||0;textarea.value=`${textarea.value.slice(0,start)}${text}${textarea.value.slice(end)}`;textarea.selectionStart=textarea.selectionEnd=start+text.length;textarea.focus();saveDraft();updatePublishButton();}
-function buildTitleFromContent(content,imageCount=0){const normalized=String(content||'').replace(/<img[^>]*>/gi,' ').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();const fallbackDate=formatMobilePostDate();if(!normalized){return imageCount>0?`图片随记 · ${fallbackDate}`:`移动随记 · ${fallbackDate}`;}
+function buildTitleFromContent(content,imageCount=0){const normalized=String(content||'').replace(/<img[^>]*>/gi,' ').replace(/<[^>]+>/g,' ').replace(/&nbsp;/gi,' ').replace(/\s+/g,' ').trim();const fallbackDate=formatMobilePostDate();if(!normalized){return imageCount>0?`图片随记 · ${fallbackDate}`:`移动随记 · ${fallbackDate}`;}
 const titleCandidate=normalized.replace(/[。！？!?.，,、；;：:]+$/,'').slice(0,24).trim();if(titleCandidate.length>=6){return titleCandidate;}
 return`${titleCandidate||'移动随记'}· ${fallbackDate}`;}
 function formatMobilePostDate(){const now=new Date();const year=now.getFullYear();const month=String(now.getMonth()+1).padStart(2,'0');const day=String(now.getDate()).padStart(2,'0');return`${year}-${month}-${day}`;}

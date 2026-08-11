@@ -43,6 +43,8 @@ from flask import current_app
 
 def _auto_title(content: str) -> str:
     text = re.sub(r'<[^>]+>', ' ', content or '')
+    # 正文中的 &nbsp;（首行缩进）不应出现在标题里
+    text = text.replace('&nbsp;', ' ')
     text = re.sub(r'\s+', ' ', text).strip()
     if not text:
         return '未命名记录'
