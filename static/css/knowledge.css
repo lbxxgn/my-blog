@@ -68,7 +68,9 @@
 .kb-article-meta{display:flex;gap:1rem;font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.75rem}
 .kb-article-tags{display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:1.5rem}
 .kb-tag{font-size:0.8rem;color:var(--primary-color);background:rgba(26,188,156,0.1);padding:0.15rem 0.6rem;border-radius:12px}
-.kb-article-body{line-height:var(--line-height);font-size:1rem;color:var(--text-color)}
+.kb-article-body{line-height:var(--line-height);font-size:1rem;color:var(--text-color);--paragraph-spacing:1rem}
+/* Preserve leading spaces authored in the editor (e.g. mobile first-line indentation). */
+.kb-article-body p,.kb-article-body li{white-space:pre-wrap}
 .kb-article-body h1,.kb-article-body h2,.kb-article-body h3{color:var(--heading-color);margin-top:1.5rem;margin-bottom:0.6rem}
 .kb-article-body h1{font-size:1.5rem}.kb-article-body h2{font-size:1.3rem}.kb-article-body h3{font-size:1.1rem}
 .kb-article-body p{margin-bottom:var(--paragraph-spacing)}

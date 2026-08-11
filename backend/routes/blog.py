@@ -7,11 +7,17 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app, has_app_context
 import markdown2
 import bleach
+from bleach.css_sanitizer import CSSSanitizer
 import logging
 import json
 import re
 
 logger = logging.getLogger(__name__)
+
+# Allow inline indentation styles used by the editor quick-indent feature.
+_POST_CONTENT_CSS_SANITIZER = CSSSanitizer(
+    allowed_css_properties=['text-indent', 'padding-left', 'margin-left']
+)
 
 from models import (
     get_all_posts, get_all_posts_cursor, get_post_by_id,
@@ -406,6 +412,8 @@ def view_post(post_id):
     )
 
     # 清理 HTML 防止 XSS 攻击
+    # 保留 text-indent / padding-left / margin-left 等缩进样式，
+    # 这样移动端/桌面端的首行缩进在阅读页能正常显示。
     post['content_html'] = bleach.clean(
         post['content_html'],
         tags=['p', 'a', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote',
@@ -414,8 +422,9 @@ def view_post(post_id):
         attributes={
             'a': ['href', 'title', 'rel'],
             'img': ['src', 'alt', 'title', 'width', 'height'],
-            '*': ['class']
+            '*': ['class', 'style']
         },
+        css_sanitizer=_POST_CONTENT_CSS_SANITIZER,
         strip_comments=False
     )
     post['content_html'] = rewrite_post_image_sources(post['content_html'], size='medium')

@@ -270,6 +270,13 @@ nav h1 a:hover {
     color: var(--text-color);
 }
 
+/* Preserve leading spaces authored in the editor (e.g. mobile first-line indentation).
+   text-indent from inline styles is still preferred, but this keeps raw spaces visible. */
+.post-content p,
+.post-content li {
+    white-space: pre-wrap;
+}
+
 .post-content h1,
 .post-content h2,
 .post-content h3,

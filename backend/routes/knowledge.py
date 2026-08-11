@@ -26,6 +26,8 @@ from datetime import datetime
 from pathlib import Path
 import os
 
+from bleach.css_sanitizer import CSSSanitizer
+
 from auth_decorators import login_required
 from logger import log_operation, api_internal_error
 from models import (
@@ -42,6 +44,11 @@ from models.draft import save_draft, get_drafts
 
 knowledge_bp = Blueprint('knowledge', __name__)
 
+# 允许阅读页保留编辑器产生的缩进样式。
+_KB_CONTENT_CSS_SANITIZER = CSSSanitizer(
+    allowed_css_properties=['text-indent', 'padding-left', 'margin-left']
+)
+
 
 def _render_markdown(content):
     """渲染 Markdown 为安全的 HTML（与博客渲染保持一致）"""
@@ -54,8 +61,9 @@ def _render_markdown(content):
         attributes={
             'a': ['href', 'title', 'rel'],
             'img': ['src', 'alt', 'title', 'width', 'height'],
-            '*': ['class', 'id'],
+            '*': ['class', 'id', 'style'],
         },
+        css_sanitizer=_KB_CONTENT_CSS_SANITIZER,
         strip_comments=False,
     )
 
