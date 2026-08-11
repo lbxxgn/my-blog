@@ -45,9 +45,34 @@ from models.draft import save_draft, get_drafts
 knowledge_bp = Blueprint('knowledge', __name__)
 
 # 允许阅读页保留编辑器产生的缩进样式。
-_KB_CONTENT_CSS_SANITIZER = CSSSanitizer(
-    allowed_css_properties=['text-indent', 'padding-left', 'margin-left']
-)
+_KB_ALLOWED_CSS = {'text-indent', 'padding-left', 'margin-left'}
+
+
+class _SimpleCSSSanitizer:
+    """Minimal CSS sanitizer fallback when tinycss2 is unavailable."""
+
+    def __init__(self, allowed_properties):
+        self.allowed_properties = {p.lower() for p in allowed_properties}
+
+    def sanitize(self, css):
+        if not css:
+            return ''
+        cleaned = []
+        for decl in css.split(';'):
+            decl = decl.strip()
+            if not decl or ':' not in decl:
+                continue
+            prop = decl.split(':', 1)[0].strip().lower()
+            if prop in self.allowed_properties:
+                cleaned.append(decl)
+        return '; '.join(cleaned) + ';' if cleaned else ''
+
+
+try:
+    from bleach.css_sanitizer import CSSSanitizer
+    _KB_CONTENT_CSS_SANITIZER = CSSSanitizer(allowed_css_properties=list(_KB_ALLOWED_CSS))
+except Exception:  # pragma: no cover
+    _KB_CONTENT_CSS_SANITIZER = _SimpleCSSSanitizer(_KB_ALLOWED_CSS)
 
 
 def _render_markdown(content):

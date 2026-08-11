@@ -7,7 +7,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app, has_app_context
 import markdown2
 import bleach
-from bleach.css_sanitizer import CSSSanitizer
 import logging
 import json
 import re
@@ -15,9 +14,41 @@ import re
 logger = logging.getLogger(__name__)
 
 # Allow inline indentation styles used by the editor quick-indent feature.
-_POST_CONTENT_CSS_SANITIZER = CSSSanitizer(
-    allowed_css_properties=['text-indent', 'padding-left', 'margin-left']
-)
+# Production images may not have tinycss2 installed, so provide a tiny fallback.
+_POST_CONTENT_ALLOWED_CSS = {'text-indent', 'padding-left', 'margin-left'}
+
+
+class _SimpleCSSSanitizer:
+    """Minimal CSS sanitizer that only keeps allowed declarations.
+
+    Used when bleach's tinycss2 backend is unavailable."""
+
+    def __init__(self, allowed_properties):
+        self.allowed_properties = {p.lower() for p in allowed_properties}
+
+    def sanitize(self, css):
+        if not css:
+            return ''
+        cleaned = []
+        for decl in css.split(';'):
+            decl = decl.strip()
+            if not decl:
+                continue
+            if ':' not in decl:
+                continue
+            prop = decl.split(':', 1)[0].strip().lower()
+            if prop in self.allowed_properties:
+                cleaned.append(decl)
+        return '; '.join(cleaned) + ';' if cleaned else ''
+
+
+try:
+    from bleach.css_sanitizer import CSSSanitizer
+    _POST_CONTENT_CSS_SANITIZER = CSSSanitizer(
+        allowed_css_properties=list(_POST_CONTENT_ALLOWED_CSS)
+    )
+except Exception:  # pragma: no cover
+    _POST_CONTENT_CSS_SANITIZER = _SimpleCSSSanitizer(_POST_CONTENT_ALLOWED_CSS)
 
 from models import (
     get_all_posts, get_all_posts_cursor, get_post_by_id,
