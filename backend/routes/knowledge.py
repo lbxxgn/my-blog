@@ -47,12 +47,15 @@ _KB_ALLOWED_CSS = {'text-indent', 'padding-left', 'margin-left'}
 
 
 class _SimpleCSSSanitizer:
-    """Minimal CSS sanitizer fallback when tinycss2 is unavailable."""
+    """Minimal CSS sanitizer fallback when tinycss2 is unavailable.
+
+    bleach's sanitizer calls ``sanitize_css`` on the object passed via the
+    ``css_sanitizer`` argument, so the method name must match exactly."""
 
     def __init__(self, allowed_properties):
         self.allowed_properties = {p.lower() for p in allowed_properties}
 
-    def sanitize(self, css):
+    def sanitize_css(self, css):
         if not css:
             return ''
         cleaned = []
@@ -64,6 +67,9 @@ class _SimpleCSSSanitizer:
             if prop in self.allowed_properties:
                 cleaned.append(decl)
         return '; '.join(cleaned) + ';' if cleaned else ''
+
+    # Older bleach releases used ``sanitize``; keep both for compatibility.
+    sanitize = sanitize_css
 
 
 try:
