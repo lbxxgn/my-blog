@@ -8,7 +8,8 @@ gunicorn>=21.2; sys_platform != 'win32'
 
 # Text Processing
 markdown2>=2.4,<3.0
-bleach>=6.0.0
+# bleach[css] 会带上 tinycss2，CSSSanitizer 依赖它
+bleach[css]>=6.0.0
 html2text>=2024.2.26
 
 # AI Services
