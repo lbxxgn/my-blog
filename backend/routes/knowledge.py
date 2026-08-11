@@ -26,8 +26,6 @@ from datetime import datetime
 from pathlib import Path
 import os
 
-from bleach.css_sanitizer import CSSSanitizer
-
 from auth_decorators import login_required
 from logger import log_operation, api_internal_error
 from models import (
