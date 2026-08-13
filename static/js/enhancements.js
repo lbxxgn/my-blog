@@ -172,8 +172,12 @@
     });
 
     // Restore reader mode if previously active for this post
-    if (localStorage.getItem(readerKey) === '1') {
+    // (only on pages with a toggle; stale keys elsewhere, e.g. 'reader-mode:/'
+    // left by the old global R shortcut, must not hide the site header)
+    if (readerToggle && localStorage.getItem(readerKey) === '1') {
         enterReaderMode();
+    } else if (!readerToggle && localStorage.getItem(readerKey) === '1') {
+        localStorage.removeItem(readerKey);
     }
 
     /* --- System Dark Mode Detection: handled by the inline script in base.html --- */
