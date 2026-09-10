@@ -148,8 +148,8 @@ ASSET_BUILD_VERSION = os.environ.get('ASSET_BUILD_VERSION', str(int(time.time())
 # =============================================================================
 
 # AI默认配置
-AI_DEFAULT_PROVIDER = os.environ.get('AI_DEFAULT_PROVIDER') or 'openai'
-AI_DEFAULT_MODEL = os.environ.get('AI_DEFAULT_MODEL') or 'gpt-3.5-turbo'
+AI_DEFAULT_PROVIDER = os.environ.get('AI_DEFAULT_PROVIDER') or 'dashscope'
+AI_DEFAULT_MODEL = os.environ.get('AI_DEFAULT_MODEL') or 'qwen-turbo'
 
 # AI功能限流（每小时最大请求次数）
 AI_RATE_LIMIT_PER_HOUR = int(os.environ.get('AI_RATE_LIMIT_PER_HOUR', 10))
@@ -162,16 +162,6 @@ AI_HISTORY_ENABLED = os.environ.get('AI_HISTORY_ENABLED', 'True').lower() in ('t
 
 # 支持的AI提供商和模型
 AI_SUPPORTED_PROVIDERS = {
-    'openai': {
-        'name': 'OpenAI',
-        'models': ['gpt-3.5-turbo', 'gpt-4o', 'gpt-4-turbo', 'gpt-4'],
-        'default_model': 'gpt-3.5-turbo'
-    },
-    'volcengine': {
-        'name': '火山引擎',
-        'models': ['doubao-pro-32k', 'doubao-pro-4k', 'doubao-lite-4k'],
-        'default_model': 'doubao-pro-4k'
-    },
     'dashscope': {
         'name': '阿里百炼',
         'models': [
@@ -189,10 +179,14 @@ AI_SUPPORTED_PROVIDERS = {
         ],
         'default_model': 'qwen-turbo'
     },
-    # 未来可添加更多提供商
-    # 'claude': {
-    #     'name': 'Anthropic Claude',
-    #     'models': ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229', 'claude-3-opus-20240229'],
-    #     'default_model': 'claude-3-haiku-20240307'
-    # },
+    'deepseek': {
+        'name': 'DeepSeek',
+        'models': ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp'],
+        'default_model': 'deepseek-v4-flash'
+    },
+    'custom': {
+        'name': '自定义 (OpenAI 兼容)',
+        'models': [],
+        'default_model': ''
+    },
 }

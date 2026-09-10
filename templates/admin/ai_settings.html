@@ -37,8 +37,9 @@
 
             <div class="ai-provider-notice">
                 <strong>说明：</strong>
-                火山方舟 Coding Plan 支持通过 OpenAI 兼容端点接入。
-                如果控制台给你的模型名和下拉默认值不同，直接填下面的“自定义模型 ID”即可。
+                支持阿里百炼、DeepSeek，以及任意 OpenAI 兼容接口（自定义）。
+                选择"自定义"时需填写 Base URL 与模型 ID；
+                如果控制台给你的模型名和下拉默认值不同，直接填下面的"自定义模型 ID"即可。
             </div>
 
             <div class="ai-setting-item">
@@ -62,6 +63,16 @@
                        placeholder="可选：填写控制台中的实际模型 ID，优先级高于下拉框">
                 <p class="setting-description">
                     如果服务商控制台里的模型名和下拉默认值不一致，可以直接在这里填真实模型 ID。
+                </p>
+            </div>
+
+            <div class="ai-setting-item" id="baseUrlItem" style="display: none;">
+                <label for="aiBaseUrl">Base URL</label>
+                <input type="text" id="aiBaseUrl" class="form-control"
+                       placeholder="例如：https://api.example.com/v1"
+                       {% if ai_config and ai_config.ai_base_url %}value="{{ ai_config.ai_base_url }}"{% endif %}>
+                <p class="setting-description">
+                    仅"自定义 (OpenAI 兼容)"提供商需要填写，指向服务的 OpenAI 兼容端点。
                 </p>
             </div>
 
@@ -120,8 +131,8 @@
         <div class="ai-section ai-info-section">
             <h3>成本说明</h3>
 
-            <!-- OpenAI -->
-            <h4 style="margin-top: 0; color: var(--text-color);">OpenAI (美元)</h4>
+            <!-- DeepSeek -->
+            <h4 style="margin-top: 0; color: var(--text-color);">DeepSeek (人民币，高峰时段价)</h4>
             <table class="cost-table">
                 <thead>
                     <tr>
@@ -133,61 +144,22 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td>GPT-3.5-turbo</td>
-                        <td>$0.0005</td>
-                        <td>$0.0015</td>
-                        <td>~$0.0005</td>
+                        <td>deepseek-v4-flash <span style="font-size: 0.85em; color: var(--text-secondary);">推荐</span></td>
+                        <td>¥0.003</td>
+                        <td>¥0.009</td>
+                        <td>~¥0.001</td>
                     </tr>
                     <tr>
-                        <td>GPT-4o</td>
-                        <td>$0.005</td>
-                        <td>$0.015</td>
-                        <td>~$0.005</td>
+                        <td>deepseek-v4-pro</td>
+                        <td>¥0.009</td>
+                        <td>¥0.027</td>
+                        <td>~¥0.004</td>
                     </tr>
                     <tr>
-                        <td>GPT-4-turbo</td>
-                        <td>$0.01</td>
-                        <td>$0.03</td>
-                        <td>~$0.01</td>
-                    </tr>
-                    <tr>
-                        <td>GPT-4</td>
-                        <td>$0.03</td>
-                        <td>$0.06</td>
-                        <td>~$0.03</td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <!-- 火山引擎 -->
-            <h4 style="margin-top: 1.5rem; color: var(--text-color);">火山引擎 (人民币)</h4>
-            <table class="cost-table">
-                <thead>
-                    <tr>
-                        <th>模型</th>
-                        <th>输入 (每1K tokens)</th>
-                        <th>输出 (每1K tokens)</th>
-                        <th>预估单次成本</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>doubao-pro-32k</td>
-                        <td>¥0.00012</td>
-                        <td>¥0.00012</td>
-                        <td>~¥0.00004</td>
-                    </tr>
-                    <tr>
-                        <td>doubao-pro-4k</td>
-                        <td>¥0.00004</td>
-                        <td>¥0.00004</td>
-                        <td>~¥0.00001</td>
-                    </tr>
-                    <tr>
-                        <td>doubao-lite-4k</td>
-                        <td>¥0.00003</td>
-                        <td>¥0.00003</td>
-                        <td>~¥0.00001</td>
+                        <td>deepseek-v4-flash-vision-exp</td>
+                        <td>¥0.003</td>
+                        <td>¥0.009</td>
+                        <td>~¥0.001</td>
                     </tr>
                 </tbody>
             </table>
@@ -252,9 +224,15 @@
                 更多模型：qwen-coder-plus-1106, qwen-coder-plus-latest, qwen-long-2025-01-25, qwen-vl-max-latest
             </p>
 
+            <!-- 自定义提供商 -->
+            <h4 style="margin-top: 1.5rem; color: var(--text-color);">自定义提供商</h4>
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                自定义 (OpenAI 兼容) 提供商的定价取决于你接入的服务，成本按 0 估算。
+            </p>
+
             <p class="info-text">
                 <strong>提示：</strong>每次生成约使用200-300 tokens（输入） + 50 tokens（输出）。
-                国内模型（火山引擎、阿里百炼）成本明显低于OpenAI，推荐优先使用。
+                国内模型（阿里百炼、DeepSeek）成本明显低于海外服务，推荐优先使用。
             </p>
         </div>
     </div>
@@ -513,6 +491,7 @@ function updateModelOptions() {
     const provider = document.getElementById('aiProvider').value;
     const modelSelect = document.getElementById('aiModel');
     const customModelInput = document.getElementById('aiModelCustom');
+    const baseUrlItem = document.getElementById('baseUrlItem');
     const currentConfig = {{ ai_config|tojson }};
 
     modelSelect.innerHTML = '';
@@ -540,6 +519,18 @@ function updateModelOptions() {
             customModelInput.style.display = 'none';
             customModelInput.value = '';
         }
+
+        // 自定义提供商：没有预设模型，必须手填模型 ID
+        if (providerInfo.models.length === 0) {
+            modelSelect.style.display = 'none';
+            customModelInput.placeholder = '必填：填写模型 ID，例如 gpt-4o-mini';
+        } else {
+            modelSelect.style.display = 'block';
+            customModelInput.placeholder = '可选：填写控制台中的实际模型 ID，优先级高于下拉框';
+        }
+
+        // 仅自定义提供商需要 Base URL
+        baseUrlItem.style.display = providerInfo.requires_base_url ? 'block' : 'none';
     }
 }
 
@@ -560,7 +551,8 @@ async function testConfig() {
     const config = {
         ai_provider: document.getElementById('aiProvider').value,
         ai_model: document.getElementById('aiModelCustom').value.trim() || document.getElementById('aiModel').value,
-        ai_api_key: document.getElementById('apiKey').value
+        ai_api_key: document.getElementById('apiKey').value,
+        ai_base_url: document.getElementById('aiBaseUrl').value.trim()
     };
 
     // Get CSRF token from meta tag
@@ -603,7 +595,8 @@ async function saveConfig() {
         ai_tag_generation_enabled: document.getElementById('aiEnabled').checked,
         ai_provider: document.getElementById('aiProvider').value,
         ai_model: document.getElementById('aiModelCustom').value.trim() || document.getElementById('aiModel').value,
-        ai_api_key: document.getElementById('apiKey').value
+        ai_api_key: document.getElementById('apiKey').value,
+        ai_base_url: document.getElementById('aiBaseUrl').value.trim()
     };
 
     console.log('Saving AI config:', {

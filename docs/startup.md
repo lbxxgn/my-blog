@@ -630,23 +630,22 @@ cd frontend && npm install && npm run build && cd ..
 
 **支持的 AI 提供商：**
 
-#### 1. OpenAI
-- **模型**: GPT-3.5-turbo, GPT-4o, GPT-4-turbo, GPT-4
-- **成本**: ~$0.001-0.002/次
-- **适用场景**: 英文内容，高质量要求
-- **密钥获取**: https://platform.openai.com/api-keys
-
-#### 2. 火山引擎（豆包）
-- **模型**: doubao-pro-32k, doubao-pro-4k, doubao-lite-4k
-- **成本**: ~¥0.00001-0.00004/次（最低）
-- **适用场景**: 中文内容，成本敏感
-- **密钥获取**: https://console.volcengine.com/ark
-
-#### 3. 阿里百炼（通义千问）
+#### 1. 阿里百炼（通义千问）
 - **模型**: qwen-flash, qwen-turbo, qwen-plus, qwen-max
 - **成本**: ~¥0.0001-0.002/次
 - **适用场景**: 中文内容，性价比高
 - **密钥获取**: https://dashscope.console.aliyun.com/
+
+#### 2. DeepSeek
+- **模型**: deepseek-v4-flash, deepseek-v4-pro, deepseek-v4-flash-vision-exp（实验性，支持图片理解）
+- **成本**: ~¥0.001-0.004/次（高峰时段价，空闲时段半价）
+- **适用场景**: 中英文内容，推理任务
+- **密钥获取**: https://platform.deepseek.com/
+
+#### 3. 自定义（OpenAI 兼容）
+- **模型**: 任意，需手动填写模型 ID
+- **配置**: 除 API 密钥外，还需填写服务的 OpenAI 兼容 Base URL（如 `https://api.example.com/v1`）
+- **适用场景**: 接入其他提供 OpenAI 兼容接口的服务
 
 ### 方式二：通过环境变量配置
 
@@ -654,15 +653,16 @@ cd frontend && npm install && npm run build && cd ..
 
 ```bash
 # AI 默认提供商和模型
-AI_DEFAULT_PROVIDER=openai
-AI_DEFAULT_MODEL=gpt-3.5-turbo
+AI_DEFAULT_PROVIDER=dashscope
+AI_DEFAULT_MODEL=qwen-turbo
 
 # 对应的 API 密钥
-OPENAI_API_KEY=sk-xxxxx
-# 或
-VOLCENGINE_API_KEY=xxxxx
-# 或
 DASHSCOPE_API_KEY=sk-xxxxx
+# 或
+DEEPSEEK_API_KEY=sk-xxxxx
+
+# 自定义提供商的 Base URL（仅 AI_PROVIDER=custom 时需要）
+AI_BASE_URL=https://api.example.com/v1
 
 # 限流与长度限制
 AI_RATE_LIMIT_PER_HOUR=10
@@ -704,16 +704,12 @@ AI_TAG_GENERATION_ENABLED=1
 ### 成本优化建议
 
 1. **中文内容优先使用国内模型**
-   - 火山引擎：成本最低（¥0.00001/次）
-   - 阿里百炼：性价比高（¥0.0001/次）
+   - 阿里百炼 qwen-flash：性价比高（¥0.00004/次）
+   - DeepSeek deepseek-v4-flash：成本低（¥0.001/次）
 
-2. **英文内容或高质量要求使用 OpenAI**
-   - GPT-3.5-turbo：速度快，质量好（$0.001/次）
-   - GPT-4o：质量最高（$0.002/次）
-
-3. **批量操作成本控制**
-   - 使用火山引擎批量生成标签
-   - 重要文章使用 OpenAI 或阿里百炼
+2. **批量操作成本控制**
+   - 使用阿里百炼 qwen-flash 或 DeepSeek 批量生成标签
+   - 重要文章使用 qwen-max 或 deepseek-v4-pro
 
 ---
 

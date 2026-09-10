@@ -30,6 +30,7 @@ MIGRATIONS = [
     ('005_ai_features', 'AI 配置与历史表', 'backend.migrations.migrate_ai_features', 'migrate_database'),
     ('006_access_control', '文章访问控制字段', 'backend.migrations.migrate_add_access_control', 'migrate'),
     ('007_add_post_type', '文章类型字段', 'backend.migrations.migrate_add_post_type', 'migrate'),
+    ('008_ai_provider_cleanup', 'AI 提供商清理与 ai_base_url 字段', 'backend.migrations.migrate_ai_provider_cleanup', 'migrate'),
 ]
 
 

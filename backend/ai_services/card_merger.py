@@ -64,9 +64,10 @@ class AICardMerger:
 
         # Call LLM
         provider = TagGenerator.create_provider(
-            provider_name=user_config.get('ai_provider', 'openai'),
+            provider_name=user_config.get('ai_provider', 'dashscope'),
             api_key=user_config.get('ai_api_key'),
-            model=user_config.get('ai_model')
+            model=user_config.get('ai_model'),
+            base_url=user_config.get('ai_base_url')
         )
 
         # Generate completion

@@ -30,9 +30,10 @@ class TestAICardMerger:
         # Mock user config
         user_config = {
             'ai_tag_generation_enabled': True,
-            'ai_provider': 'openai',
+            'ai_provider': 'dashscope',
             'ai_api_key': 'test-key',
-            'ai_model': 'gpt-3.5-turbo'
+            'ai_model': 'qwen-turbo',
+            'ai_base_url': None
         }
 
         create_completion = Mock(return_value=SimpleNamespace(
@@ -47,7 +48,7 @@ class TestAICardMerger:
             usage=SimpleNamespace(total_tokens=123)
         ))
         fake_provider = SimpleNamespace(
-            model='gpt-3.5-turbo',
+            model='qwen-turbo',
             client=SimpleNamespace(
                 chat=SimpleNamespace(
                     completions=SimpleNamespace(create=create_completion)
@@ -73,9 +74,10 @@ class TestAICardMerger:
         assert result['tokens_used'] == 123
 
         create_provider.assert_called_once_with(
-            provider_name='openai',
+            provider_name='dashscope',
             api_key='test-key',
-            model='gpt-3.5-turbo'
+            model='qwen-turbo',
+            base_url=None
         )
         generate_tags.assert_called_once()
 

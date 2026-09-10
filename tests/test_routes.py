@@ -76,9 +76,9 @@ class TestAuthRoutes:
         response = client.get('/admin/ai/configure')
         assert response.status_code == 200
         html = response.get_data(as_text=True)
-        assert 'OpenAI 兼容端点' in html
-        assert '火山方舟 Coding Plan' in html
-        assert '智谱 Coding Plan' in html
+        assert '阿里百炼' in html
+        assert 'DeepSeek' in html
+        assert '自定义 (OpenAI 兼容)' in html
 
     def test_passkey_register_begin_requires_login(self, client):
         response = client.post('/passkeys/register/begin', json={})

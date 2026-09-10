@@ -8,11 +8,9 @@ high-level interface for tag generation.
 import logging
 from typing import Dict, List, Optional, Any
 from .base import BaseLLMProvider
-from .openai_provider import OpenAIProvider
-from .volcengine_provider import VolcengineProvider
-from .volcengine_coding_provider import VolcengineCodingProvider
-from .zhipu_coding_provider import ZhipuCodingProvider
 from .dashscope_provider import DashscopeProvider
+from .deepseek_provider import DeepSeekProvider
+from .custom_provider import CustomOpenAIProvider
 
 logger = logging.getLogger(__name__)
 
@@ -22,24 +20,22 @@ class TagGenerator:
 
     # Supported providers
     SUPPORTED_PROVIDERS = {
-        'openai': OpenAIProvider,
-        'volcengine': VolcengineProvider,
-        'volcengine_codingplan': VolcengineCodingProvider,
-        'zhipu_codingplan': ZhipuCodingProvider,
         'dashscope': DashscopeProvider,
-        # 'claude': ClaudeProvider,  # Future implementation
-        # 'qwen': QwenProvider,      # Future implementation
+        'deepseek': DeepSeekProvider,
+        'custom': CustomOpenAIProvider,
     }
 
     @classmethod
-    def create_provider(cls, provider_name: str, api_key: str, model: str = None) -> BaseLLMProvider:
+    def create_provider(cls, provider_name: str, api_key: str, model: str = None,
+                        base_url: str = None) -> BaseLLMProvider:
         """
         Factory method to create LLM provider
 
         Args:
-            provider_name: Name of the provider (openai, claude, qwen)
+            provider_name: Name of the provider (dashscope, deepseek, custom)
             api_key: API key for the provider
             model: Model name (optional, uses provider default if not specified)
+            base_url: API base URL (required for the custom provider)
 
         Returns:
             Provider instance
@@ -60,15 +56,13 @@ class TagGenerator:
         # Set default model if not specified
         if not model:
             default_models = {
-                'openai': 'gpt-3.5-turbo',
-                'volcengine': 'doubao-pro-4k',
-                'volcengine_codingplan': 'doubao-seed-2.0-lite',
-                'zhipu_codingplan': 'glm-4.7',
                 'dashscope': 'qwen-turbo',
-                'claude': 'claude-3-haiku-20240307',
-                'qwen': 'qwen-turbo',
+                'deepseek': 'deepseek-v4-flash',
             }
-            model = default_models.get(provider_name, 'default')
+            model = default_models.get(provider_name)
+
+        if provider_name == 'custom':
+            return provider_class(api_key=api_key, model=model, base_url=base_url)
 
         return provider_class(api_key=api_key, model=model)
 
@@ -92,6 +86,7 @@ class TagGenerator:
                 - ai_provider: str
                 - ai_api_key: str
                 - ai_model: str (optional)
+                - ai_base_url: str (optional, required for the custom provider)
             existing_tags: Existing tags (for updates)
             max_tags: Maximum tags to generate
 
@@ -104,9 +99,10 @@ class TagGenerator:
             return None
 
         # Get required configuration
-        provider = user_config.get('ai_provider', 'openai')
+        provider = user_config.get('ai_provider', 'dashscope')
         api_key = user_config.get('ai_api_key')
         model = user_config.get('ai_model')
+        base_url = user_config.get('ai_base_url')
 
         # Validate API key
         if not api_key:
@@ -115,7 +111,7 @@ class TagGenerator:
 
         try:
             # Create provider
-            llm_provider = cls.create_provider(provider, api_key, model)
+            llm_provider = cls.create_provider(provider, api_key, model, base_url=base_url)
 
             # Generate tags
             result = llm_provider.generate_tags(
@@ -156,9 +152,10 @@ class TagGenerator:
             }
 
         try:
-            provider = user_config.get('ai_provider', 'openai')
+            provider = user_config.get('ai_provider', 'dashscope')
             model = user_config.get('ai_model')
-            llm_provider = cls.create_provider(provider, api_key, model)
+            base_url = user_config.get('ai_base_url')
+            llm_provider = cls.create_provider(provider, api_key, model, base_url=base_url)
 
             # Test connection
             if llm_provider.test_connection():
@@ -187,50 +184,6 @@ class TagGenerator:
         """
         return [
             {
-                'id': 'openai',
-                'name': 'OpenAI',
-                'description': 'GPT-3.5-turbo, GPT-4, GPT-4o',
-                'default_model': 'gpt-3.5-turbo',
-                'models': ['gpt-3.5-turbo', 'gpt-4o', 'gpt-4-turbo', 'gpt-4'],
-                'currency': 'USD'
-            },
-            {
-                'id': 'volcengine',
-                'name': '火山引擎',
-                'description': '豆包系列模型',
-                'default_model': 'doubao-pro-4k',
-                'models': ['doubao-pro-32k', 'doubao-pro-4k', 'doubao-lite-4k'],
-                'currency': 'CNY'
-            },
-            {
-                'id': 'volcengine_codingplan',
-                'name': '火山方舟 Coding Plan',
-                'description': 'OpenAI 兼容端点，覆盖豆包、GLM、Kimi、DeepSeek、MiniMax 等模型',
-                'default_model': 'doubao-seed-2.0-lite',
-                'models': [
-                    'doubao-seed-2.0-lite',
-                    'glm-5.2',
-                    'kimi-k2.7-code',
-                    'deepseek-v4-pro',
-                    'deepseek-v4-flash',
-                    'minimax-m3',
-                    'minimax-m2.7',
-                    'kimi-k2.6',
-                    'doubao-seed-2.1-turbo',
-                ],
-                'currency': 'CNY',
-                'allow_custom_model': True
-            },
-            {
-                'id': 'zhipu_codingplan',
-                'name': '智谱 Coding Plan',
-                'description': '智谱编码规划端点，适合代码与结构化整理',
-                'default_model': 'glm-4.7',
-                'models': ['glm-4.7', 'glm-5'],
-                'currency': 'CNY',
-                'allow_custom_model': True
-            },
-            {
                 'id': 'dashscope',
                 'name': '阿里百炼',
                 'description': '通义千问系列',
@@ -250,14 +203,24 @@ class TagGenerator:
                 ],
                 'currency': 'CNY'
             },
-            # Future providers can be added here
-            # {
-            #     'id': 'claude',
-            #     'name': 'Anthropic Claude',
-            #     'description': 'Claude 3 Haiku, Sonnet, Opus',
-            #     'default_model': 'claude-3-haiku-20240307',
-            #     'models': ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229', 'claude-3-opus-20240229']
-            # },
+            {
+                'id': 'deepseek',
+                'name': 'DeepSeek',
+                'description': 'deepseek-v4-flash / deepseek-v4-pro',
+                'default_model': 'deepseek-v4-flash',
+                'models': ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp'],
+                'currency': 'CNY'
+            },
+            {
+                'id': 'custom',
+                'name': '自定义 (OpenAI 兼容)',
+                'description': '任意 OpenAI 兼容接口，需填写 Base URL 与模型 ID',
+                'default_model': '',
+                'models': [],
+                'currency': 'USD',
+                'allow_custom_model': True,
+                'requires_base_url': True
+            },
         ]
 
     @classmethod
@@ -290,9 +253,10 @@ class TagGenerator:
             raise ValueError("API密钥未配置")
 
         try:
-            provider = user_config.get('ai_provider', 'openai')
+            provider = user_config.get('ai_provider', 'dashscope')
             model = user_config.get('ai_model')
-            llm_provider = cls.create_provider(provider, api_key, model)
+            base_url = user_config.get('ai_base_url')
+            llm_provider = cls.create_provider(provider, api_key, model, base_url=base_url)
 
             result = llm_provider.generate_summary(
                 title=title,
@@ -340,9 +304,10 @@ class TagGenerator:
             raise ValueError("API密钥未配置")
 
         try:
-            provider = user_config.get('ai_provider', 'openai')
+            provider = user_config.get('ai_provider', 'dashscope')
             model = user_config.get('ai_model')
-            llm_provider = cls.create_provider(provider, api_key, model)
+            base_url = user_config.get('ai_base_url')
+            llm_provider = cls.create_provider(provider, api_key, model, base_url=base_url)
 
             result = llm_provider.recommend_related_posts(
                 current_post_id=current_post_id,
@@ -388,9 +353,10 @@ class TagGenerator:
             raise ValueError("API密钥未配置")
 
         try:
-            provider = user_config.get('ai_provider', 'openai')
+            provider = user_config.get('ai_provider', 'dashscope')
             model = user_config.get('ai_model')
-            llm_provider = cls.create_provider(provider, api_key, model)
+            base_url = user_config.get('ai_base_url')
+            llm_provider = cls.create_provider(provider, api_key, model, base_url=base_url)
 
             result = llm_provider.continue_writing(
                 title=title,

@@ -1,9 +1,9 @@
 """
 OpenAI 兼容 API 的共享 Provider 基类
 
-OpenAI / DashScope / Volcengine 均提供 OpenAI 兼容的 chat completions API，
-三者实现仅有 BASE_URL、模型定价表、币种等差异。本基类收敛公共逻辑，
-子类只需声明类属性（参考 volcengine_coding_provider 的既有范式）。
+DashScope / DeepSeek 等均提供 OpenAI 兼容的 chat completions API，
+各实现仅有 BASE_URL、模型定价表、币种等差异。本基类收敛公共逻辑，
+子类只需声明类属性（参考 dashscope_provider 的既有范式）。
 
 新增 OpenAI 兼容服务商时，继承本类并设置：
     PROVIDER_NAME / BASE_URL / DEFAULT_MODEL / COST_PER_1K_TOKENS / CURRENCY

@@ -49,9 +49,9 @@ Simple Blog 是一个基于 Flask 的现代化博客系统，采用模块化蓝�
 
 | 提供商 | SDK | 模型 |
 |--------|-----|------|
-| OpenAI | openai | GPT-3.5/GPT-4 |
-| 火山引擎 | 自定义 | 豆包系列 |
-| 阿里百炼 | 自定义 | 通义千问系列 |
+| 阿里百炼 | openai（兼容模式） | 通义千问系列 |
+| DeepSeek | openai（兼容模式） | deepseek-v4-flash / deepseek-v4-pro |
+| 自定义 | openai（兼容模式） | 任意 OpenAI 兼容接口（自备 Base URL） |
 
 ### 前端
 
@@ -120,11 +120,9 @@ my-blog/
 │   │   ├── card_merger.py      # AI 卡片合并
 │   │   ├── base.py             # 提供商抽象基类
 │   │   ├── openai_compatible.py # OpenAI 兼容 API 共享实现
-│   │   ├── openai_provider.py
-│   │   ├── volcengine_provider.py
-│   │   ├── volcengine_coding_provider.py
-│   │   ├── zhipu_coding_provider.py
-│   │   └── dashscope_provider.py
+│   │   ├── dashscope_provider.py
+│   │   ├── deepseek_provider.py
+│   │   └── custom_provider.py
 │   │
 │   ├── utils/                  # 工具函数
 │   │   ├── asset_version.py    # 旧版静态资源版本管理
@@ -577,12 +575,12 @@ class TagGenerator:
     """AI 标签生成器"""
 
     @staticmethod
-    def create_provider(provider_name, api_key, model):
+    def create_provider(provider_name, api_key, model, base_url=None):
         """创建 AI 提供商实例"""
         providers = {
-            'openai': OpenAIProvider,
-            'volcengine': VolcengineProvider,
             'dashscope': DashscopeProvider,
+            'deepseek': DeepSeekProvider,
+            'custom': CustomOpenAIProvider,  # 需传入 base_url
         }
         return providers[provider_name](api_key, model)
 

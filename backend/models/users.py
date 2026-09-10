@@ -276,7 +276,8 @@ def get_user_ai_config(user_id):
             ai_tag_generation_enabled,
             ai_provider,
             ai_api_key,
-            ai_model
+            ai_model,
+            ai_base_url
         FROM users
         WHERE id = ?
     ''', (user_id,))
@@ -286,9 +287,10 @@ def get_user_ai_config(user_id):
     if row:
         return {
             'ai_tag_generation_enabled': bool(row['ai_tag_generation_enabled']) if row['ai_tag_generation_enabled'] is not None else True,
-            'ai_provider': row['ai_provider'] or 'openai',
+            'ai_provider': row['ai_provider'] or 'dashscope',
             'ai_api_key': row['ai_api_key'],
-            'ai_model': row['ai_model'] or 'gpt-3.5-turbo'
+            'ai_model': row['ai_model'] or 'qwen-turbo',
+            'ai_base_url': row['ai_base_url']
         }
     return None
 
@@ -304,6 +306,7 @@ def update_user_ai_config(user_id, ai_config):
             - ai_provider: str (optional)
             - ai_api_key: str (optional)
             - ai_model: str (optional)
+            - ai_base_url: str (optional)
 
     Returns:
         bool: 更新是否成功
@@ -336,6 +339,11 @@ def update_user_ai_config(user_id, ai_config):
             updates.append('ai_model = ?')
             params.append(ai_config['ai_model'])
             logger.info(f"Update AI config: ai_model = {ai_config['ai_model']}")
+
+        if 'ai_base_url' in ai_config:
+            updates.append('ai_base_url = ?')
+            params.append(ai_config['ai_base_url'])
+            logger.info(f"Update AI config: ai_base_url = {ai_config['ai_base_url']}")
 
         if updates:
             params.append(user_id)

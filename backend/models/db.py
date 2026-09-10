@@ -265,9 +265,10 @@ def init_db(db_path=None):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             ai_tag_generation_enabled BOOLEAN DEFAULT 1,
-            ai_provider TEXT DEFAULT 'openai',
+            ai_provider TEXT DEFAULT 'dashscope',
             ai_api_key TEXT,
-            ai_model TEXT DEFAULT 'gpt-3.5-turbo'
+            ai_model TEXT DEFAULT 'qwen-turbo',
+            ai_base_url TEXT
         )
     ''')
 

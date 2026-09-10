@@ -103,9 +103,10 @@ def _run_structured_prompt(user_config, system_prompt: str, user_prompt: str, ma
         return None
 
     provider = TagGenerator.create_provider(
-        user_config.get('ai_provider', 'openai'),
+        user_config.get('ai_provider', 'dashscope'),
         user_config.get('ai_api_key'),
-        user_config.get('ai_model')
+        user_config.get('ai_model'),
+        base_url=user_config.get('ai_base_url')
     )
 
     if not getattr(provider, 'client', None) and hasattr(provider, '_init_client'):
@@ -312,6 +313,17 @@ def ai_settings():
                 if model:
                     ai_config['ai_model'] = model
 
+            if 'ai_base_url' in data:
+                base_url = (data['ai_base_url'] or '').strip()
+                ai_config['ai_base_url'] = base_url or None
+
+            # 自定义提供商必须填写 Base URL
+            if ai_config.get('ai_provider') == 'custom' and not ai_config.get('ai_base_url'):
+                return jsonify({
+                    'success': False,
+                    'error': '自定义提供商需要填写 Base URL'
+                }), 400
+
             # 更新配置
             success = update_user_ai_config(user_id, ai_config)
 
@@ -356,9 +368,10 @@ def test_ai_config():
             # 使用表单中的配置进行测试
             ai_config = {
                 'ai_tag_generation_enabled': True,
-                'ai_provider': form_config.get('ai_provider', 'openai'),
+                'ai_provider': form_config.get('ai_provider', 'dashscope'),
                 'ai_api_key': form_config.get('ai_api_key'),
-                'ai_model': form_config.get('ai_model')
+                'ai_model': form_config.get('ai_model'),
+                'ai_base_url': form_config.get('ai_base_url')
             }
         else:
             # 使用数据库中保存的配置
