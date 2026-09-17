@@ -34,7 +34,7 @@ from models import (
     archive_card_to_knowledge, get_card_by_id,
 )
 from backend.routes.ai import _run_structured_prompt
-from auth_decorators import login_required, can_manage_users, can_edit_post, can_delete_post, api_key_required
+from auth_decorators import login_required, can_manage_users, can_edit_post, can_delete_post, api_key_required, get_current_user
 from logger import log_operation, log_error, log_sql, api_internal_error
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 import re
@@ -133,6 +133,32 @@ def normalize_post_ids(raw_value):
             continue
         result.append(int(value))
     return result
+
+
+def filter_operable_post_ids(post_ids):
+    """
+    按当前用户角色过滤批量操作的文章ID，与 can_edit_post 规则一致：
+    admin/editor 可操作所有文章，author 只能操作自己的文章。
+    返回 (可操作ID列表, 因无权限被跳过的数量)。
+    """
+    user = get_current_user()
+    if user and user.get('role') in ('admin', 'editor'):
+        return post_ids, 0
+    if not post_ids:
+        return [], 0
+    author_id = user.get('id') if user else None
+    conn = get_db_connection()
+    try:
+        placeholders = ','.join('?' * len(post_ids))
+        rows = conn.execute(
+            f'SELECT id FROM posts WHERE author_id = ? AND id IN ({placeholders})',
+            (author_id, *post_ids)
+        ).fetchall()
+        allowed = {row[0] for row in rows}
+        result = [pid for pid in post_ids if pid in allowed]
+        return result, len(post_ids) - len(result)
+    finally:
+        conn.close()
 
 
 def allowed_file(filename):
@@ -295,6 +321,8 @@ def new_post():
         access_password = request.form.get('access_password', '') if access_level == 'password' else None
 
         if not content:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': '内容不能为空'}), 400
             flash('内容不能为空', 'error')
             categories = get_all_categories()
             return render_template('admin/editor.html',
@@ -358,6 +386,13 @@ def new_post():
             flash('文章发布成功', 'success')
         else:
             flash('草稿保存成功', 'success')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'post_id': post_id,
+                'is_published': is_published,
+                'redirect': url_for('blog.view_post', post_id=post_id)
+            })
         return redirect(url_for('blog.view_post', post_id=post_id))
 
     categories = get_all_categories()
@@ -501,6 +536,10 @@ def batch_update_category():
         if not post_ids:
             return jsonify({'success': False, 'message': '未选择任何文章'}), 400
 
+        post_ids, skipped = filter_operable_post_ids(post_ids)
+        if not post_ids:
+            return jsonify({'success': False, 'message': '没有可操作的文章（只能操作自己的文章）'}), 403
+
         # 将空字符串转换为None表示未分类
         if category_id == '' or category_id == 'none':
             category_id = None
@@ -590,6 +629,11 @@ def batch_delete():
         if not post_ids:
             return jsonify({'success': False, 'message': '未选择任何文章'}), 400
 
+        # 与单篇删除（can_delete_post）一致：仅管理员可删除
+        user = get_current_user()
+        if not user or user.get('role') != 'admin':
+            return jsonify({'success': False, 'message': '只有管理员可以删除文章'}), 403
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
@@ -663,6 +707,10 @@ def batch_publish():
 
         if not post_ids:
             return jsonify({'success': False, 'message': '未选择任何文章'}), 400
+
+        post_ids, skipped = filter_operable_post_ids(post_ids)
+        if not post_ids:
+            return jsonify({'success': False, 'message': '没有可操作的文章（只能操作自己的文章）'}), 403
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -739,6 +787,10 @@ def batch_add_tags():
 
         if not post_ids:
             return jsonify({'success': False, 'message': '未选择任何文章'}), 400
+
+        post_ids, skipped = filter_operable_post_ids(post_ids)
+        if not post_ids:
+            return jsonify({'success': False, 'message': '没有可操作的文章（只能操作自己的文章）'}), 403
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -837,6 +889,10 @@ def batch_update_access():
 
         if access_level not in ['public', 'password', 'private']:
             return jsonify({'success': False, 'message': '无效的访问权限类型'}), 400
+
+        post_ids, skipped = filter_operable_post_ids(post_ids)
+        if not post_ids:
+            return jsonify({'success': False, 'message': '没有可操作的文章（只能操作自己的文章）'}), 403
 
         conn = get_db_connection()
         cursor = conn.cursor()

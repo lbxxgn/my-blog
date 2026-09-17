@@ -108,19 +108,19 @@ async function publishPost(){
 
         const response = await fetch('/admin/new', {
             method: 'POST',
-            headers: {'X-CSRFToken': csrfToken},
+            headers: {'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest'},
             body: formData
         });
 
-        if (response.ok) {
+        const payload = await parseJsonResponse(response);
+        if (response.ok && payload.success) {
             success = true;
-            const destinationUrl = response.redirected ? response.url : null;
             clearDraft();
             closeMobileEditor();
             setEditorStatus('');
             showToast('发送成功');
-            if (destinationUrl) {
-                setTimeout(() => { window.location.href = destinationUrl; }, 500);
+            if (payload.redirect) {
+                setTimeout(() => { window.location.href = payload.redirect; }, 500);
                 return;
             }
             const refreshed = window.InfiniteScroll && typeof window.InfiniteScroll.refresh === 'function'
@@ -132,8 +132,8 @@ async function publishPost(){
             }
             setTimeout(() => { window.location.href = '/'; }, 500);
         } else {
-            const error = await response.text();
-            throw new Error(error || '发布失败');
+            // 校验失败/登录过期等：后端返回 JSON 错误，草稿保留
+            throw new Error(payload.message || payload.error || '发布失败，请稍后重试');
         }
     } catch (error) {
         console.error('Publish error:', error);

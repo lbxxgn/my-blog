@@ -386,3 +386,69 @@ class TestCommentManagement:
 
         response = client.post(f'/admin/comments/{comment_id}/delete')
         assert response.status_code in [200, 302]
+
+
+@pytest.mark.usefixtures("client", "test_admin_user")
+class TestBatchPermissions:
+    """批量操作的权限校验：author 不能动他人文章，删除仅 admin"""
+
+    def _create_author(self):
+        from backend.models import create_user
+        from werkzeug.security import generate_password_hash
+        return create_user(
+            'batch_author',
+            generate_password_hash('AuthorPass123!', method='pbkdf2:sha256'),
+            role='author'
+        )
+
+    def _login(self, client, username, password):
+        return client.post('/login', data={'username': username, 'password': password})
+
+    def test_batch_delete_forbidden_for_author(self, client, test_admin_user, temp_db):
+        """author 调用批量删除应返回 403，文章仍在"""
+        from backend.models import create_post, get_post_by_id
+
+        post_id = create_post('Admin Post', 'Content', True, None, test_admin_user['id'])
+        self._create_author()
+        self._login(client, 'batch_author', 'AuthorPass123!')
+
+        response = client.post('/admin/batch-delete', data={'post_ids': [post_id]})
+
+        assert response.status_code == 403
+        assert get_post_by_id(post_id) is not None
+
+    def test_batch_publish_filters_other_users_posts(self, client, test_admin_user, temp_db):
+        """author 批量发布时，他人文章被过滤（403），自己的文章正常处理"""
+        from backend.models import create_post, get_post_by_id
+
+        other_post = create_post('Other Post', 'Content', False, None, test_admin_user['id'])
+        author_id = self._create_author()
+        own_post = create_post('Own Post', 'Content', False, None, author_id)
+        self._login(client, 'batch_author', 'AuthorPass123!')
+
+        # 只选他人文章 → 403，文章保持未发布
+        response = client.post('/admin/batch-publish', data={'post_ids': [other_post], 'publish': 'true'})
+        assert response.status_code == 403
+        assert get_post_by_id(other_post)['is_published'] in (0, False)
+
+        # 混合选择 → 只处理自己的文章
+        response = client.post('/admin/batch-publish', data={'post_ids': [other_post, own_post], 'publish': 'true'})
+        assert response.status_code == 200
+        assert get_post_by_id(own_post)['is_published'] in (1, True)
+        assert get_post_by_id(other_post)['is_published'] in (0, False)
+
+    def test_batch_update_category_filters_other_users_posts(self, client, test_admin_user, temp_db):
+        """author 批量改分类时，他人文章不受影响"""
+        from backend.models import create_post, create_category, get_post_by_id
+
+        category_id = create_category('Perm Cat', 'perm-cat')
+        other_post = create_post('Other Post', 'Content', True, None, test_admin_user['id'])
+        author_id = self._create_author()
+        own_post = create_post('Own Post', 'Content', True, None, author_id)
+        self._login(client, 'batch_author', 'AuthorPass123!')
+
+        response = client.post('/admin/batch-update-category',
+                               data={'post_ids': [other_post, own_post], 'category_id': category_id})
+        assert response.status_code == 200
+        assert str(get_post_by_id(own_post)['category_id']) == str(category_id)
+        assert get_post_by_id(other_post)['category_id'] is None

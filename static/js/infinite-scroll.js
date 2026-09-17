@@ -410,6 +410,16 @@
             hasMore = currentPage < (data.total_pages || 1);
             isLoading = false;
 
+            // 重置加载更多按钮的游标/状态，避免刷新后用过期游标跳过新文章
+            const loadMoreBtn = document.getElementById('load-more');
+            if (loadMoreBtn) {
+                delete loadMoreBtn.dataset.cursor;
+                if (data.next_cursor) {
+                    loadMoreBtn.dataset.cursor = data.next_cursor;
+                }
+                loadMoreBtn.disabled = false;
+            }
+
             if (posts.length === 0) {
                 container.innerHTML = '<div class="empty-state"><p>还没有发布任何文章。</p></div>';
                 return true;

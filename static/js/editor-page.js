@@ -21,8 +21,19 @@ function togglePublish() {
     // Set publish status to true
     checkbox.checked = true;
 
+    // 清理草稿缓存与服务端草稿，避免发布后再次提示恢复
+    if (window.draftSync) {
+        window.draftSync.clearDraftCache();
+        window.draftSync.cleanupServerDraft();
+    }
+
     // Submit the form (title will be auto-generated if empty)
-    form.submit();
+    // 用 requestSubmit 触发 submit 事件，确保草稿缓存/服务端草稿被清理
+    if (form.requestSubmit) {
+        form.requestSubmit();
+    } else {
+        form.submit();
+    }
 }
 
 // Toggle password field visibility
