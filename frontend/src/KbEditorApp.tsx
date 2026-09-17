@@ -294,10 +294,10 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
             initialMarkdown={init.doc?.content || ''}
             uploadImageUrl={init.uploadImageUrl}
             csrfToken={init.csrfToken}
-            onChange={(editor) => {
+            onReady={(editor) => {
               setEditorInstance(editor);
-              handleEditorChange();
             }}
+            onChange={handleEditorChange}
           />
         </div>
 

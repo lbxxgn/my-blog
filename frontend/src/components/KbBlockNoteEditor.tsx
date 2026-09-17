@@ -10,6 +10,7 @@ interface KbBlockNoteEditorProps {
   initialMarkdown: string;
   uploadImageUrl: string;
   csrfToken: string;
+  onReady?: (editor: BlockNoteEditor) => void;
   onChange?: (editor: BlockNoteEditor) => void;
 }
 
@@ -17,6 +18,7 @@ export function KbBlockNoteEditor({
   initialMarkdown,
   uploadImageUrl,
   csrfToken,
+  onReady,
   onChange,
 }: KbBlockNoteEditorProps) {
   const [isReady, setIsReady] = useState(false);
@@ -50,15 +52,15 @@ export function KbBlockNoteEditor({
   // Subscribe to editor content changes after initial content is loaded.
   useEffect(() => {
     if (!isReady) return;
-    // Notify parent that the editor instance is ready.
-    onChange?.(editor);
+    // Notify parent that the editor instance is ready (does not mark dirty).
+    onReady?.(editor);
     const unsub = editor.onChange(() => {
       onChange?.(editor);
     });
     return () => {
       unsub();
     };
-  }, [editor, isReady, onChange]);
+  }, [editor, isReady, onReady, onChange]);
 
   if (!isReady) {
     return <div className="kb-editor-loading">正在加载编辑器...</div>;

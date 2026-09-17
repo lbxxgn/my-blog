@@ -494,6 +494,30 @@ class TestCommentRoutes:
 
         assert response.status_code == 200
 
+    def test_add_comment_xhr_success(self, client, test_post):
+        """AJAX 评论成功返回 JSON"""
+        response = client.post(f'/post/{test_post["id"]}/comment', data={
+            'author_name': 'XHR Author',
+            'author_email': '',
+            'content': 'XHR comment'
+        }, headers={'X-Requested-With': 'XMLHttpRequest'})
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+
+    def test_add_comment_xhr_validation(self, client, test_post):
+        """AJAX 评论校验失败返回 400 JSON，前端据此保留已输入内容"""
+        response = client.post(f'/post/{test_post["id"]}/comment', data={
+            'author_name': '',
+            'content': 'XHR comment'
+        }, headers={'X-Requested-With': 'XMLHttpRequest'})
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['success'] is False
+        assert data['error']
+
 
 class TestKnowledgeBaseRoutes:
     """知识库API路由测试"""

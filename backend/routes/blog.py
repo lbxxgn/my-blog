@@ -620,19 +620,27 @@ def add_comment(post_id):
     author_email = request.form.get('author_email', '').strip()
     content = request.form.get('content', '').strip()
 
-    if not author_name or not content:
-        flash('姓名和评论内容不能为空', 'error')
+    # AJAX 提交返回 JSON，前端失败时保留已输入内容
+    is_xhr = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def comment_error(message, status=400):
+        if is_xhr:
+            return jsonify({'success': False, 'error': message}), status
+        flash(message, 'error')
         return redirect(url_for('blog.view_post', post_id=post_id))
+
+    if not author_name or not content:
+        return comment_error('姓名和评论内容不能为空')
 
     if len(author_name) > 50:
-        flash('姓名过长', 'error')
-        return redirect(url_for('blog.view_post', post_id=post_id))
+        return comment_error('姓名过长')
 
     if len(content) > 1000:
-        flash('评论内容过长', 'error')
-        return redirect(url_for('blog.view_post', post_id=post_id))
+        return comment_error('评论内容过长')
 
     create_comment(post_id, author_name, author_email, content)
+    if is_xhr:
+        return jsonify({'success': True, 'message': '评论提交成功'})
     flash('评论提交成功', 'success')
     return redirect(url_for('blog.view_post', post_id=post_id))
 

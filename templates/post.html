@@ -493,6 +493,38 @@ header {
   });
 })();
 </script>
+<script>
+// 评论 AJAX 提交：失败时保留已输入内容并提示，避免刷新丢稿
+(function(){
+  var form = document.querySelector('.comment-form');
+  if (!form) return;
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var submitBtn = form.querySelector('button[type="submit"]');
+    var originalText = submitBtn ? submitBtn.textContent : '';
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '发送中...'; }
+    fetch(form.action, {
+      method: 'POST',
+      headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
+      body: new FormData(form)
+    }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(data){
+        return {ok: r.ok, data: data};
+      });
+    }).then(function(res){
+      if (res.ok && res.data.success) {
+        location.reload();
+        return;
+      }
+      showAppToast(res.data.error || '评论提交失败，请稍后重试', 'error');
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText; }
+    }).catch(function(){
+      showAppToast('网络错误，评论未发送，内容已保留', 'error');
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText; }
+    });
+  });
+})();
+</script>
 <style>
 .post-adjacent{display:flex;gap:1rem;margin-bottom:1.5rem}
 .post-adjacent-card{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding:14px 18px;background:var(--bg-color);border:1px solid var(--border-color);border-radius:10px;text-decoration:none;color:var(--text-color);transition:border-color .2s}

@@ -120,7 +120,7 @@
     position: absolute;
     top: 100%;
     left: 0;
-    background: white;
+    background: var(--card-bg, white);
     min-width: 180px;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
@@ -139,13 +139,13 @@
 .dropdown-menu li a {
     display: block;
     padding: 10px 20px;
-    color: #333;
+    color: var(--text-color, #333);
     text-decoration: none;
     transition: background 0.2s ease;
 }
 
 .dropdown-menu li a:hover {
-    background: #f5f5f5;
+    background: var(--code-bg, #f5f5f5);
 }
 
 /* Active state for open dropdowns */
@@ -327,6 +327,11 @@
             <div class="container" style="padding: 16px;">
                 <h2 style="margin-bottom: 20px; font-size: 20px;">个人中心</h2>
 
+                <button type="button" id="mobileThemeToggle" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; border: 1px solid var(--border-color); color: var(--text-color); font-size: 16px; cursor: pointer; margin-bottom: 20px; width: 100%;">
+                    <span style="font-size: 24px;" id="mobileThemeIcon">🌙</span>
+                    <span style="flex: 1; text-align: left;" id="mobileThemeText">暗色模式</span>
+                </button>
+
                 {% if session.get('user_id') %}
                 <div style="background: var(--gradient-card); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border-color);">
                     <div style="display: flex; align-items: center; gap: 16px;">
@@ -387,9 +392,15 @@
         <span class="nav-item-icon">🔍</span>
         <span class="nav-item-label">发现</span>
     </a>
+    {% if session.get('user_id') %}
     <a href="javascript:" class="nav-item publish-btn" data-page="publish">
         <span class="nav-item-icon">+</span>
     </a>
+    {% else %}
+    <a href="{{ url_for('login') }}" class="nav-item publish-btn" aria-label="登录后发布">
+        <span class="nav-item-icon">+</span>
+    </a>
+    {% endif %}
     <a href="javascript:" class="nav-item" data-page="my-posts">
         <span class="nav-item-icon">📄</span>
         <span class="nav-item-label">文章</span>

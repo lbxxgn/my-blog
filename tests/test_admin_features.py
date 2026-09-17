@@ -452,3 +452,43 @@ class TestBatchPermissions:
         assert response.status_code == 200
         assert str(get_post_by_id(own_post)['category_id']) == str(category_id)
         assert get_post_by_id(other_post)['category_id'] is None
+
+
+@pytest.mark.usefixtures("client", "test_admin_user")
+class TestUserActivation:
+    """账户启用开关生效测试"""
+
+    def test_disable_and_enable_user(self, client, test_admin_user, temp_db):
+        """编辑用户时不勾选/勾选 is_active 能正确禁用/启用账户"""
+        from backend.models import create_user, get_user_by_id
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        user_id = create_user(
+            username='toggleuser',
+            password_hash='test_hash',
+            role='author'
+        )
+
+        # 未勾选 is_active -> 账户被禁用
+        client.post(f'/admin/users/{user_id}/edit', data={'role': 'author'})
+        assert not get_user_by_id(user_id)['is_active']
+
+        # 勾选 is_active -> 账户重新启用
+        client.post(f'/admin/users/{user_id}/edit', data={'role': 'author', 'is_active': '1'})
+        assert get_user_by_id(user_id)['is_active']
+
+    def test_cannot_disable_self(self, client, test_admin_user, temp_db):
+        """管理员不能禁用自己的账户"""
+        from backend.models import get_user_by_id
+
+        client.post('/login', data={
+            'username': test_admin_user['username'],
+            'password': test_admin_user['password']
+        })
+
+        client.post(f'/admin/users/{test_admin_user["id"]}/edit', data={'role': 'admin'})
+        assert get_user_by_id(test_admin_user['id'])['is_active']

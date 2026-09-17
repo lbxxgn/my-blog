@@ -13,6 +13,25 @@ function reloadAfterToast(delay = 650) {
     setTimeout(() => window.location.reload(), delay);
 }
 
+// 解析批量操作响应，保留 HTTP 状态码以区分会话过期
+async function parseActionResponse(response) {
+    const data = await response.json().catch(() => ({}));
+    return { status: response.status, data };
+}
+
+// 失败提示兜底：401 提示登录过期并跳转，其余取 message/error，避免显示 undefined
+function actionFailureMessage(result) {
+    if (result.status === 401) {
+        setTimeout(() => { window.location.href = '/login'; }, 800);
+        return '登录已过期，请重新登录';
+    }
+    return '操作失败：' + (result.data.message || result.data.error || '未知错误');
+}
+
+function actionErrorMessage(error) {
+    return '操作失败：' + (error && error.message ? error.message : error);
+}
+
 function getSelectedPostRows() {
     return Array.from(selectedPosts)
         .map(postId => document.querySelector(`tr[data-post-id="${postId}"]`))
@@ -71,8 +90,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 csrf_token: csrfToken
             })
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(parseActionResponse)
+        .then(result => {
+            const data = result.data;
             if (data.success) {
                 notifyDashboard(data.message);
                 const selectedOption = document.getElementById('batchCategorySelect').selectedOptions[0];
@@ -81,11 +101,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 closeBatchCategoryModal();
                 clearSelection();
             } else {
-                notifyDashboard('操作失败：' + data.message, 'error');
+                notifyDashboard(actionFailureMessage(result), 'error');
             }
         })
         .catch(error => {
-            notifyDashboard('操作失败：' + error, 'error');
+            notifyDashboard(actionErrorMessage(error), 'error');
         });
     });
 });
@@ -234,18 +254,19 @@ function confirmBatchDelete() {
             post_ids: postIds
         })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(parseActionResponse)
+    .then(result => {
+        const data = result.data;
         if (data.success) {
             closeBatchDeleteModal();
             notifyDashboard(data.message);
             removeSelectedRows();
         } else {
-            notifyDashboard('操作失败：' + data.message, 'error');
+            notifyDashboard(actionFailureMessage(result), 'error');
         }
     })
     .catch(error => {
-        notifyDashboard('操作失败：' + error, 'error');
+        notifyDashboard(actionErrorMessage(error), 'error');
     });
 }
 
@@ -289,18 +310,19 @@ function performBatchPublish(publish) {
             publish: publish
         })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then(parseActionResponse)
+    .then(result => {
+        const data = result.data;
         if (data.success) {
             notifyDashboard(data.message);
             getSelectedPostRows().forEach(row => updateRowStatus(row, publish));
             clearSelection();
         } else {
-            notifyDashboard('操作失败：' + data.message, 'error');
+            notifyDashboard(actionFailureMessage(result), 'error');
         }
     })
     .catch(error => {
-        notifyDashboard('操作失败：' + error, 'error');
+        notifyDashboard(actionErrorMessage(error), 'error');
     });
 }
 
@@ -377,19 +399,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     tags: tags
                 })
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(parseActionResponse)
+            .then(result => {
+                const data = result.data;
                 if (data.success) {
                     notifyDashboard(data.message);
                     closeBatchTagsModal();
                     document.getElementById('batchTagsInput').value = '';
                     clearSelection();
                 } else {
-                    notifyDashboard('操作失败：' + data.message, 'error');
+                    notifyDashboard(actionFailureMessage(result), 'error');
                 }
             })
             .catch(error => {
-                notifyDashboard('操作失败：' + error, 'error');
+                notifyDashboard(actionErrorMessage(error), 'error');
             });
         });
     }
@@ -427,19 +450,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     access_password: accessPassword
                 })
             })
-            .then(response => response.json())
-            .then(data => {
+            .then(parseActionResponse)
+            .then(result => {
+                const data = result.data;
                 if (data.success) {
                     notifyDashboard(data.message);
                     closeBatchAccessModal();
                     document.getElementById('batchAccessPassword').value = '';
                     clearSelection();
                 } else {
-                    notifyDashboard('操作失败：' + data.message, 'error');
+                    notifyDashboard(actionFailureMessage(result), 'error');
                 }
             })
             .catch(error => {
-                notifyDashboard('操作失败：' + error, 'error');
+                notifyDashboard(actionErrorMessage(error), 'error');
             });
         });
     }

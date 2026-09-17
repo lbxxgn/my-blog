@@ -1431,6 +1431,12 @@ def edit_user(user_id):
         role = request.form.get('role')
         display_name = request.form.get('display_name')
         bio = request.form.get('bio')
+        is_active = 1 if request.form.get('is_active') else 0
+
+        # 防止管理员禁用自己的账户导致被锁出后台
+        if not is_active and user_id == session.get('user_id'):
+            flash('不能禁用自己的账户', 'error')
+            return render_template('admin/user_form.html', user=user)
 
         # 如果提供新密码，验证并更新
         new_password = request.form.get('new_password')
@@ -1441,9 +1447,11 @@ def edit_user(user_id):
                 return render_template('admin/user_form.html', user=user)
 
             password_hash = generate_password_hash(new_password)
-            update_user(user_id, role=role, display_name=display_name, bio=bio, password_hash=password_hash)
+            update_user(user_id, role=role, display_name=display_name, bio=bio,
+                        password_hash=password_hash, is_active=is_active)
         else:
-            update_user(user_id, role=role, display_name=display_name, bio=bio)
+            update_user(user_id, role=role, display_name=display_name, bio=bio,
+                        is_active=is_active)
 
         flash('用户更新成功', 'success')
         return redirect(url_for('admin.user_list'))

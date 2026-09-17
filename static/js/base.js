@@ -61,28 +61,50 @@
 
         // Nav theme toggle (desktop)
         const themeToggleNav = document.getElementById('themeToggleNav');
+        const mobileThemeToggle = document.getElementById('mobileThemeToggle');
+
+        function applyTheme(newTheme) {
+            if (newTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+            } else {
+                document.body.classList.remove('dark-theme');
+            }
+            localStorage.setItem('theme', newTheme);
+            const icon = newTheme === 'dark' ? '☀️' : '🌙';
+            if (themeToggleNav) {
+                themeToggleNav.querySelector('.theme-toggle-nav-icon').textContent = icon;
+            }
+            const mobileIcon = document.getElementById('mobileThemeIcon');
+            const mobileText = document.getElementById('mobileThemeText');
+            if (mobileIcon) mobileIcon.textContent = icon;
+            if (mobileText) mobileText.textContent = newTheme === 'dark' ? '亮色模式' : '暗色模式';
+            // Sync dropdown toggle if visible
+            const innerIcon = document.querySelector('.theme-toggle-icon');
+            const innerText = document.querySelector('.theme-toggle-text');
+            if (innerIcon) innerIcon.textContent = icon;
+            if (innerText) innerText.textContent = newTheme === 'dark' ? '亮色' : '暗色';
+        }
+
+        function toggleTheme() {
+            const isDark = document.body.classList.contains('dark-theme');
+            applyTheme(isDark ? 'light' : 'dark');
+        }
+
         if (themeToggleNav) {
-            themeToggleNav.addEventListener('click', function() {
-                const isDark = document.body.classList.contains('dark-theme');
-                const newTheme = isDark ? 'light' : 'dark';
-                if (newTheme === 'dark') {
-                    document.body.classList.add('dark-theme');
-                } else {
-                    document.body.classList.remove('dark-theme');
-                }
-                localStorage.setItem('theme', newTheme);
-                // Sync icon on nav toggle
-                this.querySelector('.theme-toggle-nav-icon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
-                // Sync dropdown toggle if visible
-                const innerIcon = document.querySelector('.theme-toggle-icon');
-                const innerText = document.querySelector('.theme-toggle-text');
-                if (innerIcon) innerIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
-                if (innerText) innerText.textContent = newTheme === 'dark' ? '亮色' : '暗色';
-            });
-            // Set initial icon from the actual applied theme (inline script may follow system preference)
-            const isDarkNow = document.body.classList.contains('dark-theme');
+            themeToggleNav.addEventListener('click', toggleTheme);
+        }
+        if (mobileThemeToggle) {
+            mobileThemeToggle.addEventListener('click', toggleTheme);
+        }
+        // Set initial icon from the actual applied theme (inline script may follow system preference)
+        const isDarkNow = document.body.classList.contains('dark-theme');
+        if (themeToggleNav) {
             themeToggleNav.querySelector('.theme-toggle-nav-icon').textContent = isDarkNow ? '☀️' : '🌙';
         }
+        const mobileThemeIcon = document.getElementById('mobileThemeIcon');
+        const mobileThemeText = document.getElementById('mobileThemeText');
+        if (mobileThemeIcon) mobileThemeIcon.textContent = isDarkNow ? '☀️' : '🌙';
+        if (mobileThemeText) mobileThemeText.textContent = isDarkNow ? '亮色模式' : '暗色模式';
     });
 
 
