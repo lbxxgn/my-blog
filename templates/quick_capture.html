@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}快捷捕捉 - {{ site_name }}{% endblock %}
+
+{% block page_type %}quick-capture{% endblock %}
+
+{% block head %}
+<style>
+.quick-capture-wrap {
+    max-width: 720px;
+    margin: 24px auto;
+    padding: 0 16px;
+}
+.quick-capture-wrap h1 {
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+.quick-capture-hint {
+    color: var(--text-secondary, #666);
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+.quick-capture-title {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color, #e0e0e0);
+    background: var(--card-bg, #fff);
+    color: var(--text-color, #333);
+    font-size: 15px;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+}
+.quick-capture-content {
+    width: 100%;
+    min-height: 220px;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color, #e0e0e0);
+    background: var(--card-bg, #fff);
+    color: var(--text-color, #333);
+    font-size: 16px;
+    line-height: 1.6;
+    resize: vertical;
+    box-sizing: border-box;
+}
+.quick-capture-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 14px 0;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.quick-capture-actions {
+    display: flex;
+    gap: 10px;
+    margin-left: auto;
+}
+.btn-primary {
+    padding: 10px 22px;
+    border-radius: 999px;
+    border: none;
+    background: linear-gradient(135deg, #1abc9c 0%, #16a089 100%);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.btn-secondary {
+    padding: 10px 22px;
+    border-radius: 999px;
+    border: 1px solid var(--border-color, #e0e0e0);
+    background: var(--card-bg, #fff);
+    color: var(--text-color, #333);
+    font-size: 15px;
+    cursor: pointer;
+}
+.voice-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color, #e0e0e0);
+    background: var(--card-bg, #fff);
+    font-size: 20px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.voice-btn.recording {
+    background: linear-gradient(135deg, #e85d75, #c93d56);
+    border-color: transparent;
+    color: #fff;
+    animation: voice-pulse 1.2s ease-in-out infinite;
+}
+.voice-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+@keyframes voice-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232, 93, 117, 0.5); }
+    50% { box-shadow: 0 0 0 10px rgba(232, 93, 117, 0); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="quick-capture-wrap">
+    <h1>⚡ 快捷捕捉</h1>
+    <p class="quick-capture-hint">记录灵感、分享链接，或点麦克风语音速记。保存后可到知识库继续整理。</p>
+
+    <input type="text" id="qcTitle" class="quick-capture-title"
+           placeholder="标题（可选）" value="{{ prefill_title }}">
+    <textarea id="qcContent" class="quick-capture-content"
+              placeholder="想到什么就写下来...">{{ prefill_content }}</textarea>
+
+    <div class="quick-capture-toolbar">
+        <button type="button" id="qcVoiceBtn" class="voice-btn" title="语音速记" aria-label="语音速记">🎙️</button>
+        <div class="quick-capture-actions">
+            <button type="button" id="qcSaveNote" class="btn-secondary">存为快速记事</button>
+            <button type="button" id="qcSaveCard" class="btn-primary">存为卡片</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ static_file('js/quick-capture.js') }}"></script>
+{% endblock %}

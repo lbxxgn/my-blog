@@ -94,6 +94,36 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             'currency': self.CURRENCY,
         }
 
+    def generate_text(
+        self,
+        prompt: str,
+        system_prompt: str = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2000
+    ) -> Dict[str, any]:
+        """通用自由文本生成（每周回顾等无结构化输出要求的场景）"""
+        if not self.client:
+            self._init_client()
+
+        try:
+            text, usage = self._chat(
+                system_prompt or "你是一个乐于助人的中文写作助手。",
+                prompt, temperature=temperature, max_tokens=max_tokens)
+
+            cost = self._calculate_cost(usage.prompt_tokens, usage.completion_tokens)
+
+            logger.info(f"Generated text ({len(text)} chars), tokens: {usage.total_tokens}, "
+                        f"cost: {self.CURRENCY_SYMBOL}{cost:.6f}")
+
+            return {
+                'text': text,
+                **self._usage_dict(usage, cost),
+            }
+
+        except Exception as e:
+            logger.error(f"{self.PROVIDER_NAME} text generation error: {str(e)}")
+            raise
+
     def generate_tags(
         self,
         title: str,

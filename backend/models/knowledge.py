@@ -287,6 +287,8 @@ def update_knowledge_doc(doc_id, title, content, category_id, is_published, tag_
         success = cursor.rowcount > 0
     if success and tag_names is not None:
         set_post_tags(doc_id, tag_names)
+    if success:
+        _enqueue_doc_embedding(doc_id)
     return success
 
 
@@ -310,7 +312,10 @@ def delete_knowledge_doc(doc_id):
         _safe_delete_post_fts(cursor, doc_id)
         cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (doc_id,))
         cursor.execute('DELETE FROM posts WHERE id = ? AND post_type = ?', (doc_id, 'knowledge'))
-        return cursor.rowcount > 0
+        success = cursor.rowcount > 0
+    if success:
+        _remove_doc_embedding(doc_id)
+    return success
 
 
 # -----------------------------------------------------------------------------
@@ -372,3 +377,24 @@ def archive_card_to_knowledge(card_id, category_id, tag_names=None):
     if doc_id:
         delete_card(card_id)
     return doc_id
+
+
+# ==================== Embedding 钩子（best-effort，绝不阻断写路径） ====================
+# 注：create_knowledge_doc 经由 create_post(post_type='knowledge') 落库，
+#     create_post 的钩子已按 'doc' 类型入队，此处无需重复。
+
+def _enqueue_doc_embedding(doc_id):
+    """保存后异步更新向量"""
+    try:
+        from tasks.embedding_task import enqueue_embedding
+        enqueue_embedding('doc', doc_id)
+    except Exception:
+        pass
+
+def _remove_doc_embedding(doc_id):
+    """删除文档时清理向量"""
+    try:
+        from tasks.embedding_task import remove_embedding
+        remove_embedding('doc', doc_id)
+    except Exception:
+        pass

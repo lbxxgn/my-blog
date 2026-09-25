@@ -8,7 +8,7 @@
 - /api/cards/* - 卡片管理API
 """
 
-from flask import Blueprint, request, jsonify, g, session, redirect, url_for
+from flask import Blueprint, request, jsonify, g, session, redirect, url_for, render_template
 from auth_decorators import login_required, api_key_required
 from models import (
     create_card, get_card_by_id, get_cards_by_user,
@@ -22,6 +22,9 @@ from datetime import datetime
 from logger import log_operation, api_internal_error
 
 knowledge_base_bp = Blueprint('knowledge_base', __name__)
+
+# 快捷捕捉页（分享目标 / 语音速记入口），挂在根路径 /quick-capture
+quick_capture_bp = Blueprint('quick_capture', __name__)
 
 # Note: CSRF exemption is handled in app.py after blueprint registration
 # with: csrf.exempt(knowledge_base_bp)
@@ -326,6 +329,71 @@ def quick_note():
 def timeline():
     """时间线页面（已迁移至知识库独立空间，重定向）"""
     return redirect(url_for('knowledge.index'))
+
+
+@knowledge_base_bp.route('/api/cards', methods=['POST'])
+@login_required
+def api_create_card():
+    """Session 版建卡片端点（快捷捕捉页 / PWA 分享目标使用）
+
+    JSON {title, content, source_url?} -> create_card(source='share', status='idea')
+    """
+    data = request.get_json(silent=True) or {}
+    title = (data.get('title') or '').strip()
+    content = data.get('content') or ''
+    source_url = data.get('source_url') or ''
+
+    if not content.strip():
+        return jsonify({'success': False, 'error': '内容不能为空'}), 400
+
+    valid, error_msg = validate_content_length(content)
+    if not valid:
+        return jsonify({'success': False, 'error': error_msg}), 413
+
+    if not title:
+        title = content.strip()[:50]
+
+    try:
+        card_id = create_card(
+            user_id=session['user_id'],
+            title=title,
+            content=content,
+            tags=[],
+            status='idea',
+            source='share',
+            source_url=source_url or None
+        )
+
+        log_operation(session['user_id'], session.get('username', 'Unknown'),
+                      '快捷捕捉建卡片', f'卡片ID: {card_id}')
+
+        return jsonify({'success': True, 'id': card_id}), 201
+    except Exception as e:
+        return api_internal_error(e)
+
+
+@quick_capture_bp.route('/quick-capture')
+@login_required
+def quick_capture():
+    """快捷捕捉页：PWA 分享目标与语音速记入口
+
+    合并分享参数 ?title=&text=&url= 预填表单。
+    """
+    title = request.args.get('title', '').strip()
+    text = request.args.get('text', '').strip()
+    url = request.args.get('url', '').strip()
+
+    parts = []
+    if text:
+        parts.append(text)
+    if url and url not in text:
+        parts.append(url)
+    prefill_content = '\n\n'.join(parts)
+
+    return render_template('quick_capture.html',
+                           prefill_title=title,
+                           prefill_content=prefill_content,
+                           prefill_url=url)
 
 
 @knowledge_base_bp.route('/incubator')

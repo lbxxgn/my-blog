@@ -858,18 +858,22 @@ def list_all_tags():
 
 @blog_bp.route('/search')
 def search():
-    """搜索文章（默认博客，支持 source=all/knowledge 切换来源）"""
+    """搜索文章（默认博客，支持 source=all/knowledge/semantic 切换来源）"""
     query = request.args.get('q', '').strip()
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
-    source = request.args.get('source', 'blog')  # blog / knowledge / all
+    source = request.args.get('source', 'blog')  # blog / knowledge / all / semantic
 
     # 验证 per_page
     if per_page not in [10, 20, 40, 80]:
         per_page = 20
 
+    if source == 'semantic':
+        return _search_semantic(query, source)
+
     if not query:
-        return render_template('search.html', query='', posts=None, pagination=None, source=source)
+        return render_template('search.html', query='', posts=None, pagination=None, source=source,
+                               embedding_configured=False, semantic_items=None)
 
     post_type_filter = 'blog' if source == 'blog' else ('knowledge' if source == 'knowledge' else 'all')
     posts_data = search_posts(query, include_drafts=False, page=page, per_page=per_page,
@@ -893,7 +897,50 @@ def search():
                          end_item=end_item,
                          page_range=page_range,
                          show_ellipsis=show_ellipsis,
-                         source=source)
+                         source=source,
+                         embedding_configured=False,
+                         semantic_items=None)
+
+
+def _search_semantic(query, source):
+    """语义搜索页：结果按相似度降序，不做分页与高亮"""
+    from routes.search_helpers import (
+        EmbeddingApiError,
+        EmbeddingNotConfigured,
+        is_embedding_configured,
+        semantic_search,
+    )
+
+    user_id = session.get('user_id')
+    embedding_configured = is_embedding_configured(user_id) if user_id else False
+    semantic_items = None
+
+    if query and embedding_configured:
+        try:
+            groups = semantic_search(user_id, query, limit=20)
+        except (EmbeddingNotConfigured, EmbeddingApiError):
+            groups = None
+        if groups is not None:
+            semantic_items = []
+            label_map = {'post': '博客', 'doc': '知识库', 'card': '卡片'}
+            for group_key, source_type in (('posts', 'post'), ('docs', 'doc'), ('cards', 'card')):
+                for item in groups[group_key]:
+                    semantic_items.append({
+                        'title': item['title'],
+                        'excerpt': item['excerpt'],
+                        'url': item['url'],
+                        'score': item['score'],
+                        'source_label': label_map[source_type],
+                    })
+            semantic_items.sort(key=lambda x: x['score'], reverse=True)
+
+    return render_template('search.html',
+                           query=query,
+                           posts=None,
+                           pagination=None,
+                           source=source,
+                           embedding_configured=embedding_configured,
+                           semantic_items=semantic_items)
 
 
 @blog_bp.route('/author/<int:author_id>')

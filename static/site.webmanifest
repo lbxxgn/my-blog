@@ -3,6 +3,12 @@
   "short_name": "我的博客",
   "start_url": "/",
   "display": "standalone",
+  "share_target": {
+    "action": "/quick-capture",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "icons": [

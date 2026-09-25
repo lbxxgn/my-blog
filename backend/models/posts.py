@@ -78,6 +78,7 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
 
     conn.commit()
     conn.close()
+    _enqueue_post_embedding(post_id, post_type)
     return post_id
 
 def update_post(post_id, title, content, is_published, category_id=None, access_level=None, access_password=None, type=None):
@@ -124,6 +125,7 @@ def update_post(post_id, title, content, is_published, category_id=None, access_
 
     conn.commit()
     conn.close()
+    _enqueue_post_embedding(post_id)
     return True
 
 def delete_post(post_id):
@@ -137,6 +139,7 @@ def delete_post(post_id):
 
     conn.commit()
     conn.close()
+    _remove_post_embedding(post_id)
 
 def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None, type=None, post_type='blog'):
     """Get all posts with pagination, optionally including drafts and filtering by category and type"""
@@ -471,6 +474,7 @@ def update_post_with_tags(post_id, title, content, is_published, category_id=Non
                     )
 
         conn.commit()
+        _enqueue_post_embedding(post_id)
         return True
     except Exception as e:
         conn.rollback()
@@ -681,3 +685,23 @@ def verify_post_password(post_id, password):
     logger.info(f"[Password Verify] Password match: {result}")
 
     return result
+
+
+# ==================== Embedding 钩子（best-effort，绝不阻断写路径） ====================
+
+def _enqueue_post_embedding(post_id, post_type=None):
+    """保存后异步更新向量；post_type='knowledge' 的归为 'doc'"""
+    try:
+        from tasks.embedding_task import enqueue_embedding
+        enqueue_embedding('doc' if post_type == 'knowledge' else 'post', post_id)
+    except Exception:
+        pass
+
+def _remove_post_embedding(post_id):
+    """删除文章时清理向量（post/doc 两种类型都清，覆盖 post_type 变更过的情况）"""
+    try:
+        from tasks.embedding_task import remove_embedding
+        remove_embedding('post', post_id)
+        remove_embedding('doc', post_id)
+    except Exception:
+        pass

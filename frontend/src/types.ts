@@ -43,6 +43,7 @@ export interface EditorInitData {
   aiSummaryUrl: string;
   aiContinueUrl: string;
   aiRecommendUrl: string;
+  relatedUrl: string;
   cardsUrl: string;
   isNew: boolean;
 }

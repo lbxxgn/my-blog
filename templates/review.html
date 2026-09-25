@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}回顾 - {{ site_name }}{% endblock %}
+
+{% block page_type %}admin{% endblock %}
+
+{% block head %}
+<style>
+.review-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+}
+
+.review-header h2 {
+    margin-bottom: 4px;
+}
+
+.review-subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.review-section {
+    background: var(--gradient-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.review-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.review-section-header h3 {
+    margin: 0;
+    font-size: 17px;
+}
+
+.review-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .review-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== 写作热力图 ===== */
+.heatmap-wrap {
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.heatmap {
+    display: grid;
+    grid-template-rows: repeat(7, 11px);
+    grid-auto-flow: column;
+    grid-auto-columns: 11px;
+    gap: 3px;
+    width: max-content;
+}
+
+.hm-cell {
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+    background: var(--code-bg);
+    display: block;
+}
+
+.hm-cell.lv1 { background: var(--primary-color); opacity: .25; }
+.hm-cell.lv2 { background: var(--primary-color); opacity: .45; }
+.hm-cell.lv3 { background: var(--primary-color); opacity: .7; }
+.hm-cell.lv4 { background: var(--primary-color); }
+
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+}
+
+.heatmap-stats {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.heatmap-stats strong {
+    color: var(--primary-color);
+}
+
+/* ===== 列表通用 ===== */
+.review-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.review-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+a.review-item:hover {
+    background: var(--code-bg);
+}
+
+.review-item-year {
+    color: var(--primary-color);
+    font-weight: 700;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.review-item-title {
+    font-size: 14px;
+    min-width: 0;
+}
+
+.review-item-excerpt {
+    flex-basis: 100%;
+    color: var(--text-secondary);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.review-item-date {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-left: auto;
+}
+
+.review-badge {
+    font-size: 11px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: var(--code-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.review-empty {
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 12px 4px;
+}
+
+/* ===== 随机漫步卡片 ===== */
+.review-card {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: var(--bg-color);
+}
+
+.review-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.review-card .review-item-excerpt {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    margin-top: 6px;
+}
+
+.review-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.review-tag {
+    font-size: 11px;
+    color: var(--primary-color);
+    background: var(--code-bg);
+    border-radius: 10px;
+    padding: 1px 8px;
+}
+
+/* ===== 每周回顾 ===== */
+.weekly-status {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container review-page">
+    <div class="review-header">
+        <h2>📖 回顾</h2>
+        <p class="review-subtitle">看看过去写下的东西，偶遇被遗忘的灵感。</p>
+    </div>
+
+    <!-- 写作热力图 -->
+    <section class="review-section">
+        <div class="review-section-header">
+            <h3>✍️ 写作热力</h3>
+            <div class="heatmap-stats" id="heatmap-stats"></div>
+        </div>
+        <div class="heatmap-wrap">
+            <div class="heatmap" id="heatmap" role="img" aria-label="近一年写作活动热力图"></div>
+            <div class="heatmap-legend">
+                <span>少</span>
+                <i class="hm-cell"></i>
+                <i class="hm-cell lv1"></i>
+                <i class="hm-cell lv2"></i>
+                <i class="hm-cell lv3"></i>
+                <i class="hm-cell lv4"></i>
+                <span>多</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- 那年今日 + 随机漫步 -->
+    <div class="review-columns">
+        <section class="review-section">
+            <div class="review-section-header">
+                <h3>🕰️ 那年今日</h3>
+            </div>
+            <div id="today-list" class="review-list">
+                <p class="review-empty">加载中…</p>
+            </div>
+        </section>
+
+        <section class="review-section">
+            <div class="review-section-header">
+                <h3>🚶 随机漫步</h3>
+                <button type="button" id="random-refresh" class="btn btn-sm">换一批</button>
+            </div>
+            <div id="random-list" class="review-list">
+                <p class="review-empty">加载中…</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- 每周回顾 -->
+    <section class="review-section">
+        <div class="review-section-header">
+            <h3>🗓️ 每周回顾</h3>
+            <button type="button" id="weekly-generate" class="btn btn-sm btn-primary">立即生成本周回顾</button>
+        </div>
+        <div id="weekly-status" class="weekly-status" style="display: none;"></div>
+        <div id="weekly-list" class="review-list">
+            <p class="review-empty">加载中…</p>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ static_file('js/review.js') }}"></script>
+{% endblock %}

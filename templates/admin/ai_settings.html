@@ -97,6 +97,70 @@
             <div id="testResult" class="ai-test-result" style="display: none;"></div>
         </div>
 
+        <!-- Embedding 服务（语义搜索基础设施，与对话类 AI 配置独立） -->
+        <div class="ai-section">
+            <h3>Embedding 服务（语义搜索）</h3>
+
+            <div class="ai-provider-notice">
+                <strong>说明：</strong>
+                Embedding 用于语义搜索基础设施，与上方的对话类 AI 配置相互独立。
+                默认使用硅基流动的 <code>BAAI/bge-m3</code> 模型（免费额度申请见
+                <a href="https://siliconflow.cn" target="_blank" rel="noopener">siliconflow.cn</a>），
+                也可填写任意 OpenAI 兼容的 embeddings 端点。
+            </div>
+
+            <div class="ai-setting-item">
+                <label class="toggle-label">
+                    <input type="checkbox" id="aiEmbeddingEnabled"
+                           {% if embedding_config and embedding_config.enabled %}checked{% endif %}>
+                    <span class="toggle-slider"></span>
+                    <span class="toggle-text">启用 Embedding 语义索引</span>
+                </label>
+                <p class="setting-description">
+                    启用后，保存文章/卡片/知识库文档时会在后台自动生成向量；内容未变化时不会重复调用 API。
+                </p>
+            </div>
+
+            <div class="ai-setting-item">
+                <label for="aiEmbeddingBaseUrl">Base URL</label>
+                <input type="text" id="aiEmbeddingBaseUrl" class="form-control"
+                       placeholder="{{ embedding_default_base_url }}"
+                       {% if embedding_config and embedding_config.base_url %}value="{{ embedding_config.base_url }}"{% endif %}>
+                <p class="setting-description">
+                    留空则使用默认值 {{ embedding_default_base_url }}。
+                </p>
+            </div>
+
+            <div class="ai-setting-item">
+                <label for="aiEmbeddingApiKey">API密钥</label>
+                <input type="password" id="aiEmbeddingApiKey" class="form-control"
+                       placeholder="sk-..."
+                       {% if embedding_config and embedding_config.api_key %}value="{{ embedding_config.api_key }}"{% endif %}>
+            </div>
+
+            <div class="ai-setting-item">
+                <label for="aiEmbeddingModel">模型</label>
+                <input type="text" id="aiEmbeddingModel" class="form-control"
+                       placeholder="{{ embedding_default_model }}"
+                       {% if embedding_config and embedding_config.model %}value="{{ embedding_config.model }}"{% endif %}>
+                <p class="setting-description">
+                    留空则使用默认值 {{ embedding_default_model }}。更换模型后已有内容会在下次保存时自动重建向量。
+                </p>
+            </div>
+
+            <div class="ai-actions">
+                <button type="button" class="btn" onclick="testEmbeddingConnection()">测试连接</button>
+                {% if session.get('role') == 'admin' %}
+                <button type="button" class="btn" onclick="rebuildEmbeddings()">重建向量索引</button>
+                {% endif %}
+            </div>
+            <p class="setting-description" style="margin-top: 0.5rem;">
+                💡 Embedding 配置随上方"保存配置"按钮一起保存；"重建向量索引"会为全部历史内容补建向量（仅管理员）。
+            </p>
+
+            <div id="embeddingTestResult" class="ai-test-result" style="display: none;"></div>
+        </div>
+
         <!-- 使用统计 -->
         {% if stats %}
         <div class="ai-section">
@@ -596,7 +660,11 @@ async function saveConfig() {
         ai_provider: document.getElementById('aiProvider').value,
         ai_model: document.getElementById('aiModelCustom').value.trim() || document.getElementById('aiModel').value,
         ai_api_key: document.getElementById('apiKey').value,
-        ai_base_url: document.getElementById('aiBaseUrl').value.trim()
+        ai_base_url: document.getElementById('aiBaseUrl').value.trim(),
+        ai_embedding_enabled: document.getElementById('aiEmbeddingEnabled').checked,
+        ai_embedding_base_url: document.getElementById('aiEmbeddingBaseUrl').value.trim(),
+        ai_embedding_api_key: document.getElementById('aiEmbeddingApiKey').value,
+        ai_embedding_model: document.getElementById('aiEmbeddingModel').value.trim()
     };
 
     console.log('Saving AI config:', {
@@ -646,6 +714,82 @@ async function saveConfig() {
         console.error('Save config error:', error);
         resultDiv.classList.add('error');
         resultDiv.textContent = '❌ 保存失败: ' + error.message;
+    }
+}
+
+// Test Embedding service connection
+async function testEmbeddingConnection() {
+    const resultDiv = document.getElementById('embeddingTestResult');
+    resultDiv.style.display = 'block';
+    resultDiv.className = 'ai-test-result';
+    resultDiv.textContent = '正在测试 Embedding 连接...';
+
+    const config = {
+        ai_embedding_base_url: document.getElementById('aiEmbeddingBaseUrl').value.trim(),
+        ai_embedding_api_key: document.getElementById('aiEmbeddingApiKey').value,
+        ai_embedding_model: document.getElementById('aiEmbeddingModel').value.trim()
+    };
+
+    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
+
+    try {
+        const response = await fetch('/admin/ai/embedding/test', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(config)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.classList.add('success');
+            resultDiv.textContent = '✅ ' + data.message;
+        } else {
+            resultDiv.classList.add('error');
+            resultDiv.textContent = '❌ ' + data.message;
+        }
+    } catch (error) {
+        resultDiv.classList.add('error');
+        resultDiv.textContent = '❌ 测试失败: ' + error.message;
+    }
+}
+
+// Rebuild embedding index (admin only)
+async function rebuildEmbeddings() {
+    const resultDiv = document.getElementById('embeddingTestResult');
+    resultDiv.style.display = 'block';
+    resultDiv.className = 'ai-test-result';
+    resultDiv.textContent = '正在入队回填任务...';
+
+    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
+
+    try {
+        const response = await fetch('/admin/ai/embeddings/rebuild', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: '{}'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.classList.add('success');
+            resultDiv.textContent = '✅ ' + data.message;
+        } else {
+            resultDiv.classList.add('error');
+            resultDiv.textContent = '❌ ' + (data.error || data.message || '重建失败');
+        }
+    } catch (error) {
+        resultDiv.classList.add('error');
+        resultDiv.textContent = '❌ 重建失败: ' + error.message;
     }
 }
 </script>

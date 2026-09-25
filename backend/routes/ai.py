@@ -11,12 +11,18 @@ from flask import Blueprint, render_template, request, session, jsonify
 import logging
 
 from ai_services import TagGenerator
+from ai_services.embeddings import (
+    DEFAULT_BASE_URL as EMBEDDING_DEFAULT_BASE_URL,
+    DEFAULT_MODEL as EMBEDDING_DEFAULT_MODEL,
+    get_embedding_config, update_embedding_config, test_embedding_connection,
+)
 from models import (
+    get_db_connection,
     get_user_ai_config, update_user_ai_config,
     save_ai_tag_history, get_ai_tag_history,
     get_ai_usage_stats, get_all_posts
 )
-from auth_decorators import login_required
+from auth_decorators import login_required, admin_required
 from logger import log_operation, log_error, api_internal_error
 
 logger = logging.getLogger(__name__)
@@ -271,6 +277,7 @@ def ai_settings():
     if request.method == 'GET':
         # 获取用户当前AI配置
         ai_config = get_user_ai_config(user_id)
+        embedding_config = get_embedding_config(user_id)
         supported_providers = TagGenerator.get_supported_providers()
 
         # 获取使用统计
@@ -278,6 +285,9 @@ def ai_settings():
 
         return render_template('admin/ai_settings.html',
                              ai_config=ai_config,
+                             embedding_config=embedding_config,
+                             embedding_default_base_url=EMBEDDING_DEFAULT_BASE_URL,
+                             embedding_default_model=EMBEDDING_DEFAULT_MODEL,
                              supported_providers=supported_providers,
                              stats=stats)
 
@@ -324,8 +334,26 @@ def ai_settings():
                     'error': '自定义提供商需要填写 Base URL'
                 }), 400
 
+            # Embedding 服务配置（独立于对话类 AI 配置）
+            embedding_data = {}
+            if 'ai_embedding_enabled' in data:
+                embedding_data['ai_embedding_enabled'] = bool(data['ai_embedding_enabled'])
+            for key in ('ai_embedding_base_url', 'ai_embedding_api_key', 'ai_embedding_model'):
+                if key in data:
+                    embedding_data[key] = data[key]
+
             # 更新配置
-            success = update_user_ai_config(user_id, ai_config)
+            success = True
+            if ai_config:
+                success = update_user_ai_config(user_id, ai_config)
+            if success and embedding_data:
+                success = update_embedding_config(user_id, embedding_data)
+
+            if not ai_config and not embedding_data:
+                return jsonify({
+                    'success': False,
+                    'error': '没有需要更新的配置'
+                }), 400
 
             if success:
                 log_operation(session.get('user_id'), session.get('username'),
@@ -393,6 +421,92 @@ def test_ai_config():
             'success': False,
             'message': f'测试失败: {str(e)}'
         })
+
+
+@ai_bp.route('/embedding/test', methods=['POST'])
+@login_required
+def test_embedding():
+    """
+    测试 Embedding 服务连通性
+
+    优先使用表单中填写的配置，未填写密钥时回退到数据库中已保存的配置。
+    """
+    try:
+        user_id = session.get('user_id')
+        form = request.get_json(silent=True) or {}
+
+        if form.get('ai_embedding_api_key'):
+            config = {
+                'enabled': True,
+                'api_key': form['ai_embedding_api_key'].strip(),
+                'base_url': (form.get('ai_embedding_base_url') or '').strip() or EMBEDDING_DEFAULT_BASE_URL,
+                'model': (form.get('ai_embedding_model') or '').strip() or EMBEDDING_DEFAULT_MODEL,
+            }
+        else:
+            config = get_embedding_config(user_id)
+            if not config or not config.get('api_key'):
+                return jsonify({
+                    'success': False,
+                    'message': '未配置 Embedding API 密钥，请先输入密钥'
+                })
+
+        return jsonify(test_embedding_connection(config))
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'测试失败: {str(e)}'
+        })
+
+
+@ai_bp.route('/embeddings/rebuild', methods=['POST'])
+@admin_required
+def rebuild_embeddings():
+    """
+    重建向量索引（仅管理员）：遍历全部文章/知识库文档/卡片入队回填。
+
+    未启用 Embedding 的用户名下的实体会被 worker 静默跳过；
+    全局无用户启用时入队数为 0。
+    """
+    try:
+        from tasks.embedding_task import enqueue_embedding
+
+        enqueued = 0
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('SELECT id, post_type FROM posts')
+            for row in cursor.fetchall():
+                source_type = 'doc' if row['post_type'] == 'knowledge' else 'post'
+                if enqueue_embedding(source_type, row['id']) is not None:
+                    enqueued += 1
+            cursor.execute('SELECT id FROM cards')
+            for row in cursor.fetchall():
+                if enqueue_embedding('card', row['id']) is not None:
+                    enqueued += 1
+        finally:
+            conn.close()
+
+        if enqueued:
+            message = f'已入队 {enqueued} 条内容，向量正在后台生成'
+        else:
+            message = '没有可回填的内容（或尚未有任何用户启用 Embedding 服务）'
+
+        log_operation(session.get('user_id'), session.get('username'),
+                      f'重建向量索引: 入队 {enqueued} 条')
+
+        return jsonify({
+            'success': True,
+            'enqueued': enqueued,
+            'message': message
+        })
+
+    except Exception as e:
+        log_error(e, context='重建向量索引失败')
+        return jsonify({
+            'success': False,
+            'error': '重建向量索引失败，请稍后重试'
+        }), 500
 
 
 @ai_bp.route('/history')

@@ -125,6 +125,9 @@
             <button type="button" class="assist-toggle" data-panel-target="image">
                 图片工作台
             </button>
+            <button type="button" class="assist-toggle" data-panel-target="related">
+                相关
+            </button>
         </div>
 
         <div class="assist-panel-stack">
@@ -247,6 +250,17 @@
                 </div>
                 <div id="imageWorkbenchEmpty" class="workbench-empty">正文里还没有图片，上传后会出现在这里。</div>
                 <div id="imageWorkbenchList" class="image-workbench-list"></div>
+            </section>
+
+            <section class="editor-workbench-card assist-panel" data-panel-name="related" hidden>
+                <div class="workbench-card-header">
+                    <div>
+                        <h3>相关内容</h3>
+                        <p>写作时自动推荐相关的文章、卡片和文档（正文 200 字以上，停止输入 2 秒后检索）。</p>
+                    </div>
+                </div>
+                <div id="relatedStatus" class="save-status"></div>
+                <div id="relatedList" class="ai-result-list"></div>
             </section>
         </div>
     </section>

@@ -5,6 +5,7 @@ import { KbBlockNoteEditor } from './components/KbBlockNoteEditor';
 import { AiPanel } from './components/AiPanel';
 import { TocPanel } from './components/TocPanel';
 import { MetaPanel } from './components/MetaPanel';
+import { RelatedPanel } from './components/RelatedPanel';
 import { useAutoSave } from './hooks/useAutoSave';
 import { EditorInitData } from './types';
 
@@ -28,7 +29,7 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
   );
   const [editorInstance, setEditorInstance] = useState<BlockNoteEditor | null>(null);
   const editorRef = useRef<BlockNoteEditor | null>(null);
-  const [activePanel, setActivePanel] = useState<'ai' | 'toc' | 'meta' | null>('toc');
+  const [activePanel, setActivePanel] = useState<'ai' | 'toc' | 'meta' | 'related' | null>('toc');
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('未修改');
@@ -363,6 +364,12 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
             >
               信息
             </button>
+            <button
+              className={activePanel === 'related' ? 'active' : ''}
+              onClick={() => setActivePanel('related')}
+            >
+              🔗 相关
+            </button>
           </div>
           <div className="kb-panel-content">
             {activePanel === 'toc' && <TocPanel editor={editorInstance} />}
@@ -390,6 +397,14 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
                 treeFlattened={init.treeFlattened}
                 isPublished={isPublished}
                 doc={init.doc}
+              />
+            )}
+            {activePanel === 'related' && (
+              <RelatedPanel
+                editor={editorInstance}
+                csrfToken={init.csrfToken}
+                relatedUrl={init.relatedUrl}
+                excludeId={docId}
               />
             )}
           </div>

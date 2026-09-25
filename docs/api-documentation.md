@@ -1,7 +1,7 @@
 # Simple Blog API 文档
 
-**版本**: v2.3
-**最后更新**: 2026-06-28
+**版本**: v2.4
+**最后更新**: 2026-09-25
 **基础URL**: `http://your-domain.com`
 
 ---
@@ -14,6 +14,8 @@
 - [分类与标签API](#分类与标签api)
 - [评论API](#评论api)
 - [搜索API](#搜索api)
+- [回顾API](#回顾api)
+- [快捷捕捉API](#快捷捕捉api)
 - [用户管理API](#用户管理api)
 - [知识库API](#知识库api)
 - [AI功能API](#ai功能api)
@@ -650,6 +652,170 @@ GET /search?q={keyword}&page={1}&per_page={20}
 | q | string | 是 | - | 搜索关键词 |
 | page | int | 否 | 1 | 页码 |
 | per_page | int | 否 | 20 | 每页数量 |
+
+### 统一搜索
+
+```http
+GET /api/search/all?q={keyword}&limit={6}
+```
+
+**需要认证**: 是（登录）
+
+跨文章（已发布博客）、卡片、知识文档、网页批注的分组搜索，供命令面板使用。
+
+**查询参数：**
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| q | string | 是 | - | 搜索关键词（空则返回全空） |
+| limit | int | 否 | 6 | 每组返回上限 |
+
+**响应示例：**
+```json
+{
+  "posts": [{"id": 1, "type": "post", "title": "...", "url": "/post/1", "excerpt": "...", "date": "..."}],
+  "cards": [{"id": 3, "title": "...", "excerpt": "...", "tags": ["..."], "url": null}],
+  "docs": [{"id": 4, "title": "...", "url": "/knowledge/doc/4", "excerpt": "..."}],
+  "annotations": [{"id": 2, "card_id": 3, "text": "...", "note": "...", "source_url": "..."}]
+}
+```
+
+**错误响应：** 未登录 401
+
+### 语义搜索
+
+```http
+GET /api/search/semantic?q={keyword}&limit={20}
+GET /search?source=semantic&q={keyword}
+```
+
+**需要认证**: 是（登录）
+
+按向量语义相似度搜索，结果按 score 降序。需先在 AI 设置页配置 Embedding 服务（见 [个人效率功能说明](personal-features.md)）。
+
+**响应示例：** `{"posts": [{..., "score": 0.95}], "cards": [...], "docs": [...]}`
+
+**错误响应：**
+- `400 {"error": "embedding_not_configured"}` - 未配置 Embedding 服务
+- `502 {"error": "embedding_api_error", "detail": "..."}` - Embedding API 调用失败
+
+### 相关推荐
+
+```http
+POST /api/related
+```
+
+**需要认证**: 是（登录）
+
+根据给定文本推荐语义相关的卡片/文章/文档，用于编辑器「相关卡片」面板。
+
+**请求体：**
+```json
+{"text": "要分析的文本（≥20 字符）", "exclude_type": "post", "exclude_id": 1, "limit": 8}
+```
+
+**响应示例：** `{"items": [{"source_type": "doc", "source_id": 4, "title": "...", "excerpt": "...", "url": "/knowledge/doc/4", "score": 0.995}]}`
+
+**错误响应：** `400 {"error": "text_too_short" | "embedding_not_configured"}`
+
+---
+
+## 🔄 回顾API
+
+回顾功能页面为 `GET /review`（HTML，需登录）。相关接口：
+
+### 那年今日
+
+```http
+GET /api/review/today
+```
+
+返回当前用户历年今天（本地时区月日匹配、年份早于今年）的文章与卡片，按年份倒序。
+
+### 随机漫步
+
+```http
+GET /api/review/random
+```
+
+随机返回 5 张当前用户的卡片。
+
+### 写作热力图数据
+
+```http
+GET /api/review/activity?days={371}
+```
+
+**查询参数：**
+| 参数 | 类型 | 必需 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| days | int | 否 | 371 | 统计天数（热力图建议 371 = 53 周） |
+
+**响应示例：** `{"2026-09-24": 3, "2026-09-25": 1}`
+
+### 每周回顾列表
+
+```http
+GET /api/review/weekly
+```
+
+返回当前用户已生成的每周回顾文档（知识空间「每周回顾」分类）列表。
+
+### 生成本周回顾
+
+```http
+POST /api/review/weekly/generate
+```
+
+**需要认证**: 是；**速率限制**: 10次/小时
+
+异步生成（后台线程执行，AI 生成约需 1 分钟内）。本周已生成时返回 `200 {"status": "exists", ...}`；正常受理返回 `202`。
+
+### 生成状态轮询
+
+```http
+GET /api/review/weekly/status
+```
+
+**响应示例：** `{"running": false, "last_result": "ok"}`
+
+### 定时任务 CLI
+
+```bash
+flask weekly-review
+```
+
+对所有开启 AI 的用户逐个生成本周回顾（幂等），供 crontab 调用。
+
+---
+
+## ⚡ 快捷捕捉API
+
+### 快捷捕捉页
+
+```http
+GET /quick-capture?title={title}&text={text}&url={url}
+```
+
+**需要认证**: 是（登录）
+
+PWA 分享目标（`share_target`）落地页。`title`/`text`/`url` 合并预填到捕捉表单，可存为卡片或快速记事。
+
+### 创建卡片（Session 版）
+
+```http
+POST /knowledge_base/api/cards
+```
+
+**需要认证**: 是（登录）；**CSRF**: 需要（`X-CSRFToken` 头）
+
+**请求体：**
+```json
+{"title": "可选标题", "content": "正文（必需）", "source_url": "可选来源链接"}
+```
+
+**响应：** `201 {"id": 5}`（卡片 `source='share'`，`status='idea'`）
+
+**错误响应：** 未登录 401；缺 content 400
 
 ---
 
@@ -1637,5 +1803,6 @@ GET /api/image/original-url?hash={abc123}
 ---
 
 **更新日志：**
+- v2.4 (2026-09-25): 新增统一搜索/语义搜索/相关推荐端点，新增回顾API（那年今日/随机漫步/热力图/每周回顾），新增快捷捕捉API；配套功能见 [个人效率功能说明](personal-features.md)
 - v2.2 (2026-03-19): 更新所有 API 端点，补充 Passkey、知识库、AI 功能、移动端等遗漏端点
 - v2.2 (2026-03-16): 初始版本

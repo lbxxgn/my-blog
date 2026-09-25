@@ -64,6 +64,7 @@ def create_card(user_id, title, content, tags=None, status='idea', source='web',
     card_id = cursor.lastrowid
     conn.commit()
     conn.close()
+    _enqueue_card_embedding(card_id)
     return card_id
 
 
@@ -218,6 +219,8 @@ def update_card(card_id, title=None, content=None, tags=None, status=None):
         conn.commit()
 
     conn.close()
+    if updates:
+        _enqueue_card_embedding(card_id)
 
 
 def delete_card(card_id):
@@ -233,6 +236,7 @@ def delete_card(card_id):
     cursor.execute('DELETE FROM cards WHERE id = ?', (card_id,))
     conn.commit()
     conn.close()
+    _remove_card_embedding(card_id)
 
 
 def get_timeline_items(user_id, limit=20, cursor_time=None):
@@ -500,3 +504,22 @@ def get_annotations_by_url(user_id, source_url):
     conn.close()
 
     return annotations
+
+
+# ==================== Embedding 钩子（best-effort，绝不阻断写路径） ====================
+
+def _enqueue_card_embedding(card_id):
+    """保存后异步更新向量"""
+    try:
+        from tasks.embedding_task import enqueue_embedding
+        enqueue_embedding('card', card_id)
+    except Exception:
+        pass
+
+def _remove_card_embedding(card_id):
+    """删除卡片时清理向量"""
+    try:
+        from tasks.embedding_task import remove_embedding
+        remove_embedding('card', card_id)
+    except Exception:
+        pass

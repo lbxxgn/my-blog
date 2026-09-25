@@ -4,10 +4,18 @@ API路由
 提供 RESTful API 接口，支持游标分页等功能。
 """
 
-from flask import Blueprint, request, jsonify, url_for, current_app
+from flask import Blueprint, request, jsonify, url_for, current_app, session
 
+from auth_decorators import login_required
 from models import get_all_posts_cursor
 from logger import api_internal_error
+from routes.search_helpers import (
+    EmbeddingApiError,
+    EmbeddingNotConfigured,
+    find_related,
+    semantic_search,
+    unified_search,
+)
 
 # 创建 API 蓝图
 api_bp = Blueprint('api', __name__)
@@ -175,3 +183,86 @@ def get_original_image_url():
 
     except Exception as e:
         return api_internal_error(e)
+
+
+def _search_limit(default, maximum):
+    limit = request.args.get('limit', default, type=int)
+    if not limit or limit <= 0 or limit > maximum:
+        limit = default
+    return limit
+
+
+@api_bp.route('/search/all')
+@login_required
+def api_search_all():
+    """
+    统一关键词搜索：跨文章/卡片/知识库文档/卡片批注的 LIKE 检索
+
+    查询参数:
+        - q: 关键词（空则各分组返回空数组）
+        - limit: 每类最多返回条数（默认: 6，最大: 50）
+    """
+    q = request.args.get('q', '').strip()
+    limit = _search_limit(6, 50)
+    return jsonify(unified_search(session['user_id'], q, limit))
+
+
+@api_bp.route('/search/semantic')
+@login_required
+def api_search_semantic():
+    """
+    语义搜索：query 向量化后在 embeddings 表中检索相似内容
+
+    查询参数:
+        - q: 查询文本
+        - limit: 最多返回条数（默认: 20，最大: 50）
+    """
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify({'posts': [], 'cards': [], 'docs': []})
+    limit = _search_limit(20, 50)
+
+    try:
+        return jsonify(semantic_search(session['user_id'], q, limit))
+    except EmbeddingNotConfigured:
+        return jsonify({'error': 'embedding_not_configured'}), 400
+    except EmbeddingApiError as e:
+        return jsonify({'error': 'embedding_api_error', 'detail': str(e)[:200]}), 502
+
+
+@api_bp.route('/related', methods=['POST'])
+@login_required
+def api_related():
+    """
+    相关内容推荐：为给定文本推荐相关的文章/卡片/知识库文档
+
+    JSON body:
+        - text: 基准文本（不足 20 字符返回 400）
+        - exclude_type / exclude_id: 可选，排除指定实体
+        - limit: 返回条数（默认: 8）
+    """
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    if len(text) < 20:
+        return jsonify({'error': 'text_too_short'}), 400
+
+    exclude_type = data.get('exclude_type') or None
+    exclude_id = data.get('exclude_id')
+    limit = data.get('limit', 8)
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 8
+    if limit <= 0 or limit > 50:
+        limit = 8
+
+    try:
+        items = find_related(session['user_id'], text,
+                             exclude_type=exclude_type, exclude_id=exclude_id,
+                             limit=limit)
+    except EmbeddingNotConfigured:
+        return jsonify({'error': 'embedding_not_configured'}), 400
+    except EmbeddingApiError as e:
+        return jsonify({'error': 'embedding_api_error', 'detail': str(e)[:200]}), 502
+
+    return jsonify({'items': items})

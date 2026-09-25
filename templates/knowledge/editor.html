@@ -42,6 +42,7 @@
   "aiSummaryUrl": {{ url_for('ai.generate_summary')|tojson }},
   "aiContinueUrl": {{ url_for('ai.continue_writing')|tojson }},
   "aiRecommendUrl": {{ url_for('ai.recommend_posts')|tojson }},
+  "relatedUrl": "/api/related",
   "cardsUrl": {{ url_for('knowledge_base.card_list')|tojson }}
 }
 </script>

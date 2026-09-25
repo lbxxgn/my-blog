@@ -172,6 +172,17 @@ def add_cache_headers_to_static_files(response):
 
     return response
 
+# Service Worker 需要以根路径 /sw.js 访问（SW 作用域限制），
+# 而静态资源挂在 /static/ 下，这里加一个显式路由。
+@app.route('/sw.js')
+def service_worker():
+    response = app.send_static_file('sw.js')
+    # SW 更新依赖网络获取，禁用缓存避免旧版本滞留
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
+    return response
+
+
 # =============================================================================
 # 安全响应头配置
 # =============================================================================
@@ -451,8 +462,9 @@ def allowed_file(filename):
 # =============================================================================
 # 注册蓝图
 # =============================================================================
-from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
+from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp, quick_capture_bp
 from routes.drafts import drafts_bp
+from routes.review import review_bp
 
 # 注册认证蓝图
 app.register_blueprint(auth_bp)
@@ -472,11 +484,17 @@ app.register_blueprint(ai_bp)
 # 注册知识库蓝图（卡片收集/时间线，保留旧 API）
 app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
 
+# 快捷捕捉页（PWA 分享目标），根路径 /quick-capture
+app.register_blueprint(quick_capture_bp)
+
 # 注册知识库独立空间蓝图（目录树 + 文档）
 app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
 
 # 注册草稿同步蓝图
 app.register_blueprint(drafts_bp)
+
+# 注册回顾页蓝图（那年今日 / 随机漫步 / 写作热力 / 每周回顾）
+app.register_blueprint(review_bp)
 
 # 注册移动端蓝图
 from routes.admin import mobile_bp
@@ -542,6 +560,9 @@ _apply_route_limit('knowledge_base.merge_cards', '10 per minute')
 _apply_route_limit('knowledge_base.generate_card_tags', '20 per hour')
 _apply_route_limit('knowledge_base.ai_merge_cards', '10 per hour')
 _apply_route_limit('knowledge_base.convert_card_to_post', '10 per hour')
+
+# 回顾页 API
+_apply_route_limit('review.api_review_weekly_generate', '10 per hour')
 
 # =============================================================================
 # 开发环境：启动时检查manifest
@@ -957,6 +978,48 @@ def init():
     init_db()
     create_admin_user()
     print("Database initialized successfully")
+
+
+@app.cli.command('weekly-review')
+def weekly_review_command():
+    """为「所有开启了 AI 的用户」生成每周回顾（无则退为第一个 admin 用户）
+
+    适合 crontab 定时调用，例如每周一早上：
+        0 9 * * 1 cd /path/to/my-blog && .venv/bin/flask --app backend/app.py weekly-review
+    """
+    from services.weekly_review import generate_weekly_review
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT id, username FROM users
+        WHERE ai_tag_generation_enabled = 1
+          AND ai_api_key IS NOT NULL AND ai_api_key != ''
+        ORDER BY id
+    ''')
+    users = [dict(r) for r in cursor.fetchall()]
+    if not users:
+        # 没有启用 AI 的用户时，退而为第一个 admin 生成（会自动降级为纯统计版）
+        cursor.execute("SELECT id, username FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")
+        users = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+
+    if not users:
+        print('没有可生成回顾的用户')
+        return
+
+    for user in users:
+        try:
+            result = generate_weekly_review(user['id'])
+            if result.get('exists'):
+                print(f"[{user['username']}] 本周回顾已存在: {result['title']} ({result['url']})")
+            elif result.get('success'):
+                mode = 'AI' if result.get('ai_used') else '统计'
+                print(f"[{user['username']}] 已生成（{mode}版）: {result['title']} ({result['url']})")
+            else:
+                print(f"[{user['username']}] 生成失败: {result.get('error')}")
+        except Exception as e:
+            print(f"[{user['username']}] 生成异常: {e}")
 
 # =============================================================================
 # 主程序入口
