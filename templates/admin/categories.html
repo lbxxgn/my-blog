@@ -38,7 +38,7 @@
                 <tr>
                     <td><strong>{{ category.name }}</strong></td>
                     <td>-</td>
-                    <td>{{ category.created_at }}</td>
+                    <td>{{ category.created_at|localtime }}</td>
                     <td class="actions">
                         <form method="POST" action="{{ url_for('delete_category_route', category_id=category.id) }}"
                               class="delete-form"

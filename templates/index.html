@@ -127,7 +127,7 @@
                                         {% if post.author_display_name or post.author_username %}
                                         <span>👤 {{ post.author_display_name or post.author_username }}</span>
                                         {% endif %}
-                                        <time datetime="{{ post.created_at }}">{{ post.created_at|string|truncate(10, True, '') }}</time>
+                                        <time datetime="{{ post.created_at }}">{{ (post.created_at|localtime)[:10] }}</time>
                                     </div>
                                     <div class="post-excerpt">
                                         {% if post.type == 'note' %}

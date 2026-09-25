@@ -316,9 +316,24 @@
         return div.innerHTML;
     }
 
+    function parseServerDate(dateStr) {
+        if (!dateStr) return null;
+        if (typeof dateStr !== 'string') {
+            const d = new Date(dateStr);
+            return Number.isNaN(d.getTime()) ? null : d;
+        }
+        let s = dateStr.trim();
+        // 后端存储的是 UTC 时间字符串（无时区后缀），显式按 UTC 解析
+        if (!/[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)) {
+            s = s.replace(' ', 'T') + 'Z';
+        }
+        const date = new Date(s);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+
     function formatDate(dateStr) {
-        if (!dateStr) return '';
-        const date = new Date(dateStr);
+        const date = parseServerDate(dateStr);
+        if (!date) return '';
         const now = new Date();
         const diff = now - date;
 
@@ -340,11 +355,11 @@
             return `${days}天前`;
         }
 
-        // 显示日期
-        if (typeof dateStr === 'string') {
-            return dateStr.substring(0, 10);
-        }
-        return date.toISOString().substring(0, 10);
+        // 显示本地日期
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     }
 
     function showLoadingIndicator() {

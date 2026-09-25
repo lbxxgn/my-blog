@@ -30,7 +30,7 @@
                         {{ comment.post_title }}
                     </a>
                 </td>
-                <td>{{ comment.created_at[:16].replace('T', ' ') }}</td>
+                <td>{{ (comment.created_at|localtime)[:16] }}</td>
                 <td>
                     {% if comment.is_visible %}
                     <span class="status published">可见</span>

@@ -31,7 +31,7 @@
                         {{ card.content[:100] }}{% if card.content|length > 100 %}...{% endif %}
                     </div>
                     <div class="card-meta">
-                        <span class="card-date">{{ card.created_at }}</span>
+                        <span class="card-date">{{ card.created_at|localtime }}</span>
                         <span class="badge badge-{{ card.status }}">
                             {% if card.status == 'idea' %}想法
                             {% elif card.status == 'incubating' %}孵化中

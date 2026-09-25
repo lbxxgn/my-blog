@@ -26,8 +26,9 @@ function truncateContent(content,maxLength){const text=String(content||'').repla
 return`${text.slice(0,maxLength)}...`;}
 function escapeHtml(text){const div=document.createElement('div');div.textContent=text||'';return div.innerHTML;}
 function formatDate(dateStr){if(!dateStr){return'';}
-const date=new Date(dateStr);if(Number.isNaN(date.getTime())){return String(dateStr).slice(0,10);}
-return date.toISOString().slice(0,10);}
+let s=String(dateStr).trim();if(!/[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)){s=s.replace(' ','T')+'Z';}
+const date=new Date(s);if(Number.isNaN(date.getTime())){return String(dateStr).slice(0,10);}
+const y=date.getFullYear();const m=String(date.getMonth()+1).padStart(2,'0');const d=String(date.getDate()).padStart(2,'0');return`${y}-${m}-${d}`;}
 function formatAccess(accessLevel){const accessMap={public:'公开',login:'登录可见',password:'密码保护',private:'私密'};return accessMap[accessLevel]||'公开';}
 function enableMobileLayout(){document.body.classList.add('mobile-layout-active');}
 function disableMobileLayout(){document.body.classList.remove('mobile-layout-active');}

@@ -36,7 +36,7 @@
                                 <h2>{{ post.title }}</h2>
 
                                 <div class="post-meta">
-                                    <span class="post-date">{{ post.created_at[:10] if post.created_at else '' }}</span>
+                                    <span class="post-date">{{ (post.created_at|localtime)[:10] if post.created_at else '' }}</span>
                                     {% if post.category_name %}
                                     <span class="post-category">{{ post.category_name }}</span>
                                     {% endif %}

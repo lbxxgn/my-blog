@@ -45,7 +45,7 @@
                 <h3>{{ doc.title }}</h3>
                 <div class="kb-doc-meta">
                     {% if doc.category_name %}<span class="kb-doc-cat">📁 {{ doc.category_name }}</span>{% endif %}
-                    <time>{{ doc.created_at|string|truncate(10, True, '') }}</time>
+                    <time>{{ (doc.created_at|localtime)[:10] }}</time>
                     {% if not doc.is_published %}<span class="kb-draft-badge">草稿</span>{% endif %}
                 </div>
                 <p class="kb-doc-excerpt">{{ doc.content|striptags|truncate(120) }}</p>

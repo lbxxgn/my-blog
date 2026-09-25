@@ -84,7 +84,7 @@
                     </span>
                     {% endif %}
 
-                    <span class="item-date">{{ item.created_at }}</span>
+                    <span class="item-date">{{ item.created_at|localtime }}</span>
                 </div>
 
                 {% if item.title %}

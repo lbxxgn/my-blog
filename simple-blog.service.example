@@ -32,6 +32,9 @@ Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 Environment="FLASK_APP=app.py"
 Environment="FLASK_ENV=production"
 
+# 时区（数据库时间统一存 UTC，展示层按 UTC+8 转换；固定时区避免随服务器漂移）
+Environment="TZ=Asia/Shanghai"
+
 # 端口配置（会被 .env 文件中的 PORT 覆盖）
 Environment="PORT=5001"
 

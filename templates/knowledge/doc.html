@@ -38,9 +38,9 @@
             </div>
             <div class="kb-article-meta">
                 {% if doc.category_name %}<span>📁 {{ doc.category_name }}</span>{% endif %}
-                <time>创建于 {{ doc.created_at|string|truncate(10, True, '') }}</time>
-                {% if doc.updated_at and doc.updated_at|string|truncate(10, True, '') != doc.created_at|string|truncate(10, True, '') %}
-                <time>更新于 {{ doc.updated_at|string|truncate(10, True, '') }}</time>
+                <time>创建于 {{ (doc.created_at|localtime)[:10] }}</time>
+                {% if doc.updated_at and (doc.updated_at|localtime)[:10] != (doc.created_at|localtime)[:10] %}
+                <time>更新于 {{ (doc.updated_at|localtime)[:10] }}</time>
                 {% endif %}
                 {% if not doc.is_published %}<span class="kb-draft-badge">草稿</span>{% endif %}
             </div>

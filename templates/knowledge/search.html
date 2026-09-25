@@ -33,7 +33,7 @@
                 <h3>{{ post.title }}</h3>
                 <div class="kb-doc-meta">
                     {% if post.category_name %}<span class="kb-doc-cat">📁 {{ post.category_name }}</span>{% endif %}
-                    <time>{{ post.created_at|string|truncate(10, True, '') }}</time>
+                    <time>{{ (post.created_at|localtime)[:10] }}</time>
                 </div>
                 <p class="kb-doc-excerpt">{{ post.content|striptags|truncate(120) }}</p>
             </a>

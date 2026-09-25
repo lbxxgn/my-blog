@@ -5,7 +5,7 @@
 import xml.etree.ElementTree as ET
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add backend directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -16,12 +16,12 @@ from models import (
 )
 
 def timestamp_to_datetime(ts_str):
-    """将毫秒时间戳转换为 datetime 对象"""
+    """将毫秒时间戳转换为 UTC 的 naive datetime 对象（与 created_at 存储约定一致）"""
     try:
         timestamp = int(ts_str) / 1000  # 转换为秒
-        return datetime.fromtimestamp(timestamp)
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc).replace(tzinfo=None)
     except (ValueError, TypeError):
-        return datetime.now()
+        return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def clean_html_content(html_content):
     """
@@ -111,7 +111,7 @@ def import_blogs_from_xml(xml_file_path, author_id=2):
 
             # 发布时间
             publish_time_elem = blog.find('publishTime')
-            created_at = timestamp_to_datetime(publish_time_elem.text) if publish_time_elem is not None else datetime.now()
+            created_at = timestamp_to_datetime(publish_time_elem.text) if publish_time_elem is not None else datetime.now(timezone.utc).replace(tzinfo=None)
 
             # 分类
             class_name_elem = blog.find('className')
