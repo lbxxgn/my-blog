@@ -21,7 +21,13 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 项目根目录
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 项目根目录（脚本在 scripts/ 子目录时取上一级，兼容被复制到根目录的情况）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ "$(basename "$SCRIPT_DIR")" = "scripts" ]; then
+    PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+else
+    PROJECT_ROOT="$SCRIPT_DIR"
+fi
 cd "$PROJECT_ROOT"
 
 # 检查参数
