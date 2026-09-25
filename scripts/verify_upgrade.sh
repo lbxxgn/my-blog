@@ -275,43 +275,40 @@ check_versioned_urls() {
     fi
 }
 
-# 6. 检查面包屑导航
-check_breadcrumb() {
-    print_header "6. 检查面包屑导航"
+# 6. 检查个人效率功能（2026-09 版本）
+check_personal_features() {
+    print_header "6. 检查个人效率功能"
 
-    # 获取第一个文章ID
-    post_id=$(source .venv/bin/activate && python3 -c "
-import sys
-sys.path.insert(0, 'backend')
-from models import get_db_connection
-conn = get_db_connection()
-cursor = conn.cursor()
-cursor.execute('SELECT id FROM posts LIMIT 1')
-result = cursor.fetchone()
-conn.close()
-print(result[0] if result else '')
-" 2>/dev/null)
-
-    if [ -n "$post_id" ]; then
-        post_html=$(curl -s "http://127.0.0.1:5001/post/$post_id" 2>/dev/null)
-
-        if [ -n "$post_html" ]; then
-            if echo "$post_html" | grep -q 'class="breadcrumb"'; then
-                print_success "面包屑导航已显示 (文章ID: $post_id)"
-
-                # 提取面包屑内容
-                breadcrumb=$(echo "$post_html" | grep -A 5 'class="breadcrumb"' | grep -E '(首页|<span class="current">)' | sed 's/^[[:space:]]*//' | head -3)
-                if [ -n "$breadcrumb" ]; then
-                    print_info "面包屑示例: $(echo "$breadcrumb" | tr '\n' ' ' | sed 's/<[^>]*>//g')"
-                fi
-            else
-                print_error "文章页面未显示面包屑导航"
-            fi
-        else
-            print_warning "无法访问文章页面 (ID: $post_id)"
-        fi
+    # service worker（PWA 安装前提）
+    sw_js=$(curl -s "http://127.0.0.1:5001/sw.js" 2>/dev/null)
+    if echo "$sw_js" | grep -q "addEventListener"; then
+        print_success "service worker 可访问 (/sw.js)"
     else
-        print_warning "数据库中没有文章，跳过面包屑检查"
+        print_error "service worker 不可访问或内容异常"
+    fi
+
+    # PWA share_target
+    manifest=$(curl -s "http://127.0.0.1:5001/static/site.webmanifest" 2>/dev/null)
+    if echo "$manifest" | grep -q "share_target"; then
+        print_success "PWA share_target 已配置"
+    else
+        print_error "site.webmanifest 缺少 share_target"
+    fi
+
+    # 命令面板资源注入
+    homepage_html=$(curl -s http://127.0.0.1:5001 2>/dev/null)
+    if echo "$homepage_html" | grep -q "command-palette"; then
+        print_success "命令面板资源已注入首页"
+    else
+        print_error "首页未引入命令面板 (command-palette.js)"
+    fi
+
+    # 回顾页路由（未登录 302 / 已登录 200 均为正常）
+    review_code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5001/review 2>/dev/null || echo "000")
+    if [ "$review_code" = "302" ] || [ "$review_code" = "200" ]; then
+        print_success "回顾页 /review 路由存在 (HTTP $review_code)"
+    else
+        print_error "回顾页 /review 异常 (HTTP $review_code)"
     fi
 }
 
@@ -329,6 +326,15 @@ check_api_endpoints() {
     else
         print_warning "草稿API端点响应异常 (HTTP $draft_response)"
     fi
+
+    # 检查回顾API（未登录应 401）
+    review_response=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5001/api/review/today 2>/dev/null || echo "000")
+
+    if [ "$review_response" = "401" ]; then
+        print_success "回顾API端点响应正常 (HTTP 401 - 需要认证)"
+    else
+        print_warning "回顾API端点响应异常 (HTTP $review_response)"
+    fi
 }
 
 # 8. 功能测试建议
@@ -344,10 +350,9 @@ show_test_suggestions() {
    - 按 Ctrl+N 应该跳转到新建文章
    - 在编辑器按 ESC 应该提示确认关闭
 
-2. 🍞 面包屑导航
-   - 访问任意文章页面
-   - 检查是否显示: 首页 > 分类 > 文章标题
-   - 点击面包屑测试导航
+2. ⌘K 命令面板（桌面端，需登录）
+   - 按 Ctrl+K 应弹出命令面板
+   - 输入关键词可跨文章/卡片/文档/批注搜索
 
 3. 💾 草稿自动保存
    - 登录系统: http://127.0.0.1:5001/login
@@ -359,9 +364,19 @@ show_test_suggestions() {
    - 检查 static/uploads/optimized/ 目录
    - 应该生成 thumbnail/medium/large 三个尺寸
 
-5. 🔍 资源版本控制
+5. 📅 回顾页与每周回顾
+   - 访问 /review，应显示热力图、那年今日、随机漫步
+   - 手动生成一次每周回顾，约1分钟内出现在列表
+   - crontab 可挂: flask weekly-review
+
+6. ⚡ 快捷捕捉与语音（移动端）
+   - 访问 /quick-capture，可存为卡片或快速记事
+   - 手机安装 PWA 后系统分享可直达本页
+   - Chrome/Edge/Safari 下麦克风按钮可说中文转文字
+
+7. 🔍 资源版本控制
    - 修改任意CSS文件
-   - 重新运行: python3 generate_manifest.py
+   - 重新运行: python3 scripts/generate_manifest.py
    - 刷新页面查看URL中的hash值是否改变
 
 EOF
@@ -420,7 +435,7 @@ EOF
     check_static_assets
     check_app_status
     check_versioned_urls
-    check_breadcrumb
+    check_personal_features
     check_api_endpoints
     show_test_suggestions
     print_summary
