@@ -66,18 +66,30 @@ check_files() {
     print_header "1. 检查新增文件"
 
     local files=(
+        # 2026-09 个人效率功能版本
+        "backend/routes/review.py"
+        "backend/routes/search_helpers.py"
+        "backend/services/weekly_review.py"
+        "backend/models/embeddings.py"
+        "backend/tasks/embedding_task.py"
+        "templates/review.html"
+        "templates/quick_capture.html"
+        "static/js/command-palette.js"
+        "static/js/review.js"
+        "static/js/quick-capture.js"
+        "static/sw.js"
+        # 历史版本
         "static/js/shortcuts.js"
         "static/js/draft-sync.js"
-        "templates/components/breadcrumb.html"
         "backend/models/draft.py"
         "backend/routes/drafts.py"
         "backend/tasks/image_optimization_task.py"
         "backend/utils/asset_version.py"
         "backend/utils/template_helpers.py"
         "static/manifest.json"
-        "generate_manifest.py"
-        "upgrade.sh"
-        "rollback.sh"
+        "scripts/generate_manifest.py"
+        "scripts/upgrade.sh"
+        "scripts/rollback.sh"
     )
 
     for file in "${files[@]}"; do
@@ -190,8 +202,18 @@ check_static_assets() {
 check_app_status() {
     print_header "4. 检查应用运行状态"
 
+    # 检查端口（优先 lsof，缺失时退回 ss，再退回 curl 探测）
+    local port_open=0
+    if command -v lsof > /dev/null 2>&1; then
+        lsof -ti:5001 > /dev/null 2>&1 && port_open=1
+    elif command -v ss > /dev/null 2>&1; then
+        ss -tln 2>/dev/null | grep -q ':5001' && port_open=1
+    else
+        curl -s -o /dev/null --max-time 3 http://127.0.0.1:5001 > /dev/null 2>&1 && port_open=1
+    fi
+
     # 检查端口
-    if lsof -ti:5001 > /dev/null 2>&1; then
+    if [ "$port_open" = "1" ]; then
         print_success "应用在端口5001运行"
 
         # 检查首页
