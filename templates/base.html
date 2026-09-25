@@ -336,12 +336,12 @@
         <!-- 移动端个人中心页面 -->
         <div class="mobile-page" data-page="profile" style="display: none;">
             <div class="container" style="padding: 16px;">
-                <h2 style="margin-bottom: 20px; font-size: 20px;">个人中心</h2>
-
-                <button type="button" id="mobileThemeToggle" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; border: 1px solid var(--border-color); color: var(--text-color); font-size: 16px; cursor: pointer; margin-bottom: 20px; width: 100%;">
-                    <span style="font-size: 24px;" id="mobileThemeIcon">🌙</span>
-                    <span style="flex: 1; text-align: left;" id="mobileThemeText">暗色模式</span>
-                </button>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                    <h2 style="margin: 0; font-size: 20px;">个人中心</h2>
+                    <button type="button" id="mobileThemeToggle" aria-label="切换主题" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; background: var(--bg-color); border-radius: 50%; border: 1px solid var(--border-color); color: var(--text-color); font-size: 20px; line-height: 1; cursor: pointer; flex-shrink: 0;">
+                        <span id="mobileThemeIcon">🌙</span>
+                    </button>
+                </div>
 
                 {% if session.get('user_id') %}
                 <div style="background: var(--gradient-card); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border-color);">
@@ -365,6 +365,11 @@
                     <a href="{{ url_for('knowledge.index') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
                         <span style="font-size: 24px;">📚</span>
                         <span style="flex: 1;">知识库</span>
+                        <span>→</span>
+                    </a>
+                    <a href="{{ url_for('review.review_page') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                        <span style="font-size: 24px;">📖</span>
+                        <span style="flex: 1;">回顾</span>
                         <span>→</span>
                     </a>
                     <a href="{{ url_for('quick_capture.quick_capture') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
@@ -421,12 +426,6 @@
         <span class="nav-item-icon">📄</span>
         <span class="nav-item-label">文章</span>
     </a>
-    {% if session.get('user_id') %}
-    <a href="{{ url_for('review.review_page') }}" class="nav-item">
-        <span class="nav-item-icon">📖</span>
-        <span class="nav-item-label">回顾</span>
-    </a>
-    {% endif %}
     <a href="javascript:" class="nav-item" data-page="profile">
         <span class="nav-item-icon">👤</span>
         <span class="nav-item-label">我的</span>
