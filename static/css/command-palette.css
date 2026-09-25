@@ -135,28 +135,3 @@
     color: var(--text-secondary, #6b7280);
     font-size: 0.9rem;
 }
-
-/* 导航栏 ⌘K 按钮 */
-.cmdk-nav-btn {
-    display: none;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    border: 1px solid var(--border-color, #e0e0e0);
-    border-radius: 8px;
-    background: transparent;
-    color: var(--text-secondary, #6b7280);
-    font-size: 0.82rem;
-    cursor: pointer;
-}
-
-.cmdk-nav-btn:hover {
-    border-color: var(--primary-color, #1abc9c);
-    color: var(--primary-color, #1abc9c);
-}
-
-@media (min-width: 1024px) {
-    .cmdk-nav-btn {
-        display: inline-flex;
-    }
-}

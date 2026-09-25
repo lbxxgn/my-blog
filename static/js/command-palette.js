@@ -275,18 +275,4 @@
     }
 
     window.CommandPalette = { open: open, close: close, isOpen: function () { return !!(overlay && overlay.style.display !== 'none'); } };
-
-    document.addEventListener('DOMContentLoaded', function () {
-        // 桌面导航栏 ⌘K 按钮（仅登录、宽屏显示由 CSS 控制）
-        if (!isLoggedIn()) return;
-        var searchForm = document.querySelector('.search-form-nav');
-        if (!searchForm) return;
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'cmdk-nav-btn';
-        btn.innerHTML = '<span>⌘K</span>';
-        btn.title = '打开命令面板';
-        btn.addEventListener('click', function (e) { e.preventDefault(); open(); });
-        searchForm.parentNode.insertBefore(btn, searchForm.nextSibling);
-    });
 })();
