@@ -34,6 +34,13 @@ else
 fi
 cd "$PROJECT_ROOT"
 
+# 加载 .env 环境变量（若存在），ADMIN_PASSWORD / DATABASE_URL 等以 .env 为准
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    set -a
+    . "$PROJECT_ROOT/.env"
+    set +a
+fi
+
 # 备份目录
 BACKUP_DIR="$PROJECT_ROOT/backups/upgrade_$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="$BACKUP_DIR/upgrade.log"
@@ -157,7 +164,7 @@ run_migrations() {
     log "运行数据库迁移..."
 
     source .venv/bin/activate
-    export DATABASE_URL="sqlite:///db/simple_blog.db"
+    export DATABASE_URL="${DATABASE_URL:-sqlite:///db/simple_blog.db}"
 
     # 版本化迁移运行器：自动应用所有未执行的迁移并记录版本
     if python3 -m backend.migrations >> "$LOG_FILE" 2>&1; then
@@ -229,7 +236,7 @@ start_application() {
         return 1
     fi
     export ADMIN_PASSWORD
-    export DATABASE_URL="sqlite:///db/simple_blog.db"
+    export DATABASE_URL="${DATABASE_URL:-sqlite:///db/simple_blog.db}"
 
     nohup python3 backend/app.py > /tmp/flask.log 2>&1 &
     APP_PID=$!
@@ -263,7 +270,7 @@ verify_upgrade() {
 
     # 2. 检查数据库表
     source .venv/bin/activate
-    export DATABASE_URL="sqlite:///db/simple_blog.db"
+    export DATABASE_URL="${DATABASE_URL:-sqlite:///db/simple_blog.db}"
 
     tables_exist=$(python3 -c "
 import sys
