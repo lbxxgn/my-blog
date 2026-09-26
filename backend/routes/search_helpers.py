@@ -3,7 +3,7 @@
 
 统一关键词搜索（跨 posts/cards/docs/annotations）、语义搜索与相关内容
 推荐的公共逻辑，供 API 蓝图（backend/routes/api.py）与搜索页路由
-（backend/routes/blog.py）共用。
+（backend/routes/blog/）共用。
 """
 
 import html

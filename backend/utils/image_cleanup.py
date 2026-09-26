@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - 依赖可选
     requests = None
 
 
-# 从 routes/blog.py 复用的图片提取正则
+# 从 routes/blog/__init__.py 复用的图片提取正则
 IMAGE_SRC_PATTERN = re.compile(
     r'<img[^>]+src=(?:"([^"]+)"|\'([^\']+)\'|([^>\s]+))[^>]*>',
     re.IGNORECASE

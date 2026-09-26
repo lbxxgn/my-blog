@@ -9,6 +9,7 @@ import logging
 import re
 
 from models import get_db_connection
+from backend.config import BASE_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -45,11 +46,8 @@ def get_optimized_image_url(original_url, size='medium'):
             size = 'medium'
         resolved_size = 'medium' if size == 'feed' else size
 
-        from pathlib import Path
-        import re
-        # __file__ 是 /path/to/backend/routes/blog.py
-        # 需要3次parent才能到达项目根目录
-        project_root = Path(__file__).parent.parent.parent
+        # 项目根目录：用 config.BASE_DIR，避免依赖 __file__ 的层级（拆包后易错）
+        project_root = BASE_DIR
 
         # 处理optimized路径的图片（例如 xxx_medium.webp -> xxx_feed.webp）
         if '/uploads/optimized/' in original_url:
