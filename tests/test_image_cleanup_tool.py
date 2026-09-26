@@ -1,9 +1,7 @@
 """Tests for image cleanup tool"""
-import pytest
 import sqlite3
-import re
 from pathlib import Path
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))

@@ -1,6 +1,4 @@
 """Tests for blog import functionality"""
-import pytest
-import sqlite3
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from datetime import datetime

@@ -1,7 +1,6 @@
 """快捷捕捉页 / PWA 分享目标 / 语音速记 相关测试"""
 
 import json
-import re
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

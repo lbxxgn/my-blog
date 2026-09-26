@@ -2,10 +2,8 @@
 数据模型测试
 """
 
-import pytest
 from models import (
-    get_user_by_username, get_user_by_id, create_user, update_user, delete_user, get_all_users,
-    create_post, get_post_by_id, update_post, delete_post, get_all_posts,
+    get_user_by_username, get_user_by_id, create_user, update_user, delete_user, create_post, get_post_by_id, update_post, delete_post, get_all_posts,
     create_category, get_all_categories, get_category_by_id, update_category, delete_category,
     create_tag, get_all_tags, get_tag_by_id, get_popular_tags,
     create_comment, get_comments_by_post, get_all_comments,
@@ -14,7 +12,7 @@ from models import (
     generate_api_key, validate_api_key, create_card, get_cards_by_user,
     create_annotation, get_annotations_by_url
 )
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash
 
 
 class TestUserModels:
@@ -250,7 +248,6 @@ class TestCardModels:
 
     def test_create_card(self, temp_db):
         """测试创建卡片"""
-        import json
         from models import create_card, get_card_by_id
 
         card_id = create_card(

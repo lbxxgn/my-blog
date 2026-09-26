@@ -2,9 +2,7 @@
 路由测试
 """
 
-import pytest
 from io import BytesIO
-from flask import session
 from types import SimpleNamespace
 
 
@@ -443,7 +441,7 @@ class TestCategoryTagRoutes:
     
     def test_view_category(self, client, temp_db):
         """测试查看分类"""
-        from models import create_category, create_post, create_user, get_user_by_username
+        from models import create_category, create_post, create_user
         from werkzeug.security import generate_password_hash
 
         # 创建测试数据
@@ -457,7 +455,7 @@ class TestCategoryTagRoutes:
     
     def test_view_tag(self, client, temp_db):
         """测试查看标签"""
-        from models import create_tag, create_post, create_user, set_post_tags, get_user_by_username
+        from models import create_tag, create_post, create_user, set_post_tags
         from werkzeug.security import generate_password_hash
 
         # 创建测试数据

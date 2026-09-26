@@ -3,8 +3,7 @@ import pytest
 import json
 import sqlite3
 from pathlib import Path
-from datetime import datetime
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))

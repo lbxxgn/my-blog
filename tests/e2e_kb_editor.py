@@ -40,7 +40,6 @@ if env_path.exists():
         os.environ.setdefault(key, value)
 
 from backend.app import app  # noqa: E402
-from backend.config import SECRET_KEY  # noqa: E402
 
 PORT = 9222
 USER_DATA_DIR = Path("/tmp/kb-e2e-chrome-profile")

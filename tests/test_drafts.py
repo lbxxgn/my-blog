@@ -5,7 +5,6 @@
 
 import pytest
 import json
-from datetime import datetime
 
 
 @pytest.mark.usefixtures("client", "test_admin_user")
@@ -184,7 +183,6 @@ class TestDraftWorkflow:
     def test_draft_to_public_post_workflow(self, client, test_admin_user, temp_db):
         """测试草稿到公开发布的工作流"""
         from backend.models.draft import create_draft
-        from backend.models import create_post
 
         client.post('/login', data={
             'username': test_admin_user['username'],

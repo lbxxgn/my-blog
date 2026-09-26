@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 """简化版manifest生成脚本"""
-import sys
-import os
 import json
 import hashlib
 from pathlib import Path

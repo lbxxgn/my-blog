@@ -3,7 +3,6 @@
 包含CSRF保护、XSS防护、请求频率限制等安全功能的测试
 """
 
-import pytest
 from flask import json
 
 

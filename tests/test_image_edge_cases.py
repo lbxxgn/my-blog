@@ -1,6 +1,6 @@
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 import io
 
 class TestImageUploadEdgeCases:

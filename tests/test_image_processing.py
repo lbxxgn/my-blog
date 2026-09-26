@@ -6,10 +6,8 @@
 import pytest
 import os
 import tempfile
-from pathlib import Path
 from io import BytesIO
 from PIL import Image
-from flask import Flask
 
 
 class TestImageUpload:
@@ -164,7 +162,6 @@ class TestImageOptimization:
 
     def test_feed_size_generation(self, client, test_admin_user, temp_db):
         """测试feed尺寸图片生成"""
-        from backend.tasks.image_optimization_task import queue_image_optimization
 
         client.post('/login', data={
             'username': test_admin_user['username'],

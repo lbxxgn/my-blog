@@ -3,7 +3,6 @@
 测试用户、文章、分类、标签、评论等模型在边界条件下的行为
 """
 
-import pytest
 from werkzeug.security import generate_password_hash, check_password_hash
 
 

@@ -1,10 +1,7 @@
 """Tests for database check and repair tool"""
-import pytest
 import sqlite3
-import shutil
-import os
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # Import the module under test
 import sys

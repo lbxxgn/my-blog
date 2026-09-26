@@ -12,8 +12,7 @@ class TestBatchOperations:
 
     def test_batch_update_category(self, client, test_admin_user, temp_db):
         """测试批量更新分类"""
-        from backend.models import create_user, create_post, create_category
-        from werkzeug.security import generate_password_hash
+        from backend.models import create_post, create_category
 
         client.post('/login', data={
             'username': test_admin_user['username'],
@@ -47,7 +46,7 @@ class TestBatchOperations:
 
     def test_batch_delete_posts(self, client, test_admin_user, temp_db):
         """测试批量删除文章"""
-        from backend.models import create_user, create_post
+        from backend.models import create_post
 
         client.post('/login', data={
             'username': test_admin_user['username'],
@@ -77,7 +76,7 @@ class TestBatchOperations:
 
     def test_batch_publish_posts(self, client, test_admin_user, temp_db):
         """测试批量发布文章"""
-        from backend.models import create_user, create_post
+        from backend.models import create_post
 
         client.post('/login', data={
             'username': test_admin_user['username'],
@@ -110,7 +109,7 @@ class TestBatchOperations:
 
     def test_batch_add_tags(self, client, test_admin_user, temp_db):
         """测试批量添加标签"""
-        from backend.models import create_user, create_post, create_tag
+        from backend.models import create_post, create_tag
 
         client.post('/login', data={
             'username': test_admin_user['username'],
@@ -147,7 +146,7 @@ class TestBatchOperations:
 
     def test_batch_update_access(self, client, test_admin_user, temp_db):
         """测试批量更新访问权限"""
-        from backend.models import create_user, create_post
+        from backend.models import create_post
 
         client.post('/login', data={
             'username': test_admin_user['username'],
@@ -187,7 +186,6 @@ class TestImageOptimization:
     def test_check_optimization_status(self, client, test_admin_user, temp_db):
         """测试检查图片优化状态"""
         from backend.models import create_optimized_image_record
-        import json
 
         client.post('/login', data={
             'username': test_admin_user['username'],
