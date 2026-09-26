@@ -87,13 +87,21 @@ else
     warn "未安装 certbot，尝试通过包管理器安装..."
     if command -v apt-get >/dev/null 2>&1; then
         apt-get update -y && apt-get install -y certbot
-    elif command -v dnf >/dev/null 2>&1; then
-        dnf install -y certbot
-    elif command -v yum >/dev/null 2>&1; then
-        yum install -y certbot || {
-            fail "yum 安装失败，请启用 EPEL 或参考 https://certbot.eff.org 手动安装"
-            exit 1
-        }
+    elif command -v dnf >/dev/null 2>&1 || command -v yum >/dev/null 2>&1; then
+        # RHEL/CentOS/Alibaba Cloud Linux 系：base 源可能没有 certbot，需要 EPEL
+        PKG="$(command -v dnf || command -v yum)"
+        if ! $PKG install -y certbot; then
+            warn "base 源未提供 certbot，尝试安装 EPEL 后重试..."
+            if ! rpm -q epel-release >/dev/null 2>&1; then
+                $PKG install -y epel-release \
+                    || $PKG install -y "https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm" \
+                    || true
+            fi
+            if ! $PKG install -y certbot; then
+                fail "certbot 安装失败，请参考 https://certbot.eff.org 手动安装后重跑"
+                exit 1
+            fi
+        fi
     else
         fail "未知的包管理器，请手动安装 certbot 后重跑"
         exit 1
@@ -107,6 +115,15 @@ fi
 info "[3/5] 准备 ACME 校验目录..."
 mkdir -p "$WEBROOT"
 ok "已就绪: $WEBROOT"
+
+# SELinux（Alibaba Cloud Linux / CentOS / RHEL 默认开启）：让 nginx 能读取校验文件
+if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce 2>/dev/null || echo Disabled)" != "Disabled" ]; then
+    if chcon -R -t httpd_sys_content_t "$WEBROOT" 2>/dev/null; then
+        ok "已设置 SELinux 上下文 httpd_sys_content_t"
+    else
+        warn "SELinux 上下文设置失败；若校验返回 403/404，请手动执行：chcon -R -t httpd_sys_content_t $WEBROOT"
+    fi
+fi
 
 # ---------------------------------------------------------------
 # 4. 申请证书
@@ -161,3 +178,19 @@ echo "    https://$SSLIP_HOST"
 echo ""
 echo "修改后执行：nginx -t && systemctl reload nginx"
 echo "证书会自动续期（certbot 定时任务），无需手动维护。"
+
+# firewalld（Alibaba Cloud Linux / CentOS / RHEL 默认使用）
+if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+    echo ""
+    echo -e "${YELLOW}检测到 firewalld，请确保已放通 80/443：${NC}"
+    echo "    sudo firewall-cmd --permanent --add-service=http --add-service=https && sudo firewall-cmd --reload"
+fi
+
+# SELinux 代理放行提示（Alibaba Cloud Linux 默认 enforcing）
+if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce 2>/dev/null || echo Disabled)" = "Enforcing" ]; then
+    echo ""
+    echo -e "${YELLOW}SELinux 处于 Enforcing：若 nginx 反向代理报 502/权限错误，执行${NC}"
+    echo "    sudo setsebool -P httpd_can_network_connect 1"
+    echo "  若静态文件 403，执行："
+    echo "    sudo chcon -R -t httpd_sys_content_t /path/to/my-blog/static"
+fi

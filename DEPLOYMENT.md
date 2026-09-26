@@ -549,6 +549,25 @@ PASSKEY_ALLOWED_ORIGINS=https://1-2-3-4.sslip.io
 
 访问地址变为 `https://你的IP.sslip.io`，浏览器显示有效证书，Passkey 可用，且**不涉及域名备案**。证书由 certbot 定时任务自动续期。
 
+> **Alibaba Cloud Linux 3 / CentOS / RHEL 系注意事项**
+> - 包管理器用 `dnf`；`certbot` 通常需先启用 EPEL（脚本已自动处理）。
+> - 默认启用 **firewalld**：
+>   ```bash
+>   sudo firewall-cmd --permanent --add-service=http --add-service=https && sudo firewall-cmd --reload
+>   ```
+> - 默认开启 **SELinux（Enforcing）**，常见两个坑：
+>   - Nginx 反向代理报 **502 / Permission denied** → 需放行网络连接：
+>     ```bash
+>     sudo setsebool -P httpd_can_network_connect 1
+>     ```
+>   - 静态文件 `/static/` 报 **403** → 重打标签：
+>     ```bash
+>     sudo chcon -R -t httpd_sys_content_t /path/to/my-blog/static
+>     ```
+>   - ACME 校验文件同理（`scripts/setup-https-sslip.sh` 会尝试自动设置 `/var/www/letsencrypt` 的上下文）。
+>
+> 以上命令在 `scripts/setup-https-sslip.sh` 结束时也会按需提示。
+
 ### 4. 启用安全选项
 
 在服务文件中确保启用：
