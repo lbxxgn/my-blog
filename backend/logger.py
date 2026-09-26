@@ -4,6 +4,7 @@
 """
 import logging
 import logging.handlers
+import sys
 from pathlib import Path
 from datetime import datetime
 import traceback
@@ -61,8 +62,8 @@ def setup_logging(app):
     app.logger.addHandler(error_handler)
     app.logger.addHandler(sql_handler)
 
-    # 同时输出到控制台
-    console_handler = logging.StreamHandler()
+    # 同时输出到控制台（stdout，避免 INFO 日志被 systemd 归入 StandardError/error.log）
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
     app.logger.addHandler(console_handler)

@@ -51,6 +51,11 @@ EnvironmentFile=-/path/to/my-blog/.env
 # 生产环境使用 gunicorn（勿用 Flask 开发服务器对外服务）
 # 默认绑定 0.0.0.0 直接对外；若架了 Nginx 反向代理，建议改绑 127.0.0.1 仅接受本机转发
 # workers 可按 CPU 核数调整
+#
+# 日志分离：应用 INFO 走 stdout（-> logs/app.log），ERROR 走 logs/error.log（见 backend/logger.py）。
+# gunicorn 自身的日志默认走 stderr，会被 StandardError 收进 error.log；如需单独保存，追加：
+#   --access-logfile /path/to/my-blog/logs/access.log \
+#   --error-logfile  /path/to/my-blog/logs/gunicorn-error.log
 ExecStart=/path/to/my-blog/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5001 backend.app:app
 
 # ============================================
