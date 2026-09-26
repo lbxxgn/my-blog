@@ -190,7 +190,7 @@ PrivateTmp=true
 WantedBy=multi-user.target
 ```
 
-> **注意**：项目仓库中**不存在** `simple-blog.service` 文件，请勿直接 `cp simple-blog.service /etc/systemd/system/`。
+> **提示**：仓库提供了示例 [`simple-blog.service.example`](simple-blog.service.example)，可复制后按注释替换路径/用户后使用；也可用 `sudo ./scripts/install-service.sh` 交互式生成。默认示例以专用用户 `simpleblog` 运行，`install-service.sh` 默认以 `root` 运行，请统一成非 root 用户更安全。
 
 安装并启动服务：
 

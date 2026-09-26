@@ -245,7 +245,7 @@ PrivateTmp=true
 WantedBy=multi-user.target
 ```
 
-> 项目仓库中**不存在** `simple-blog.service` 文件，服务文件需手动创建或使用 `scripts/install-service.sh` 生成。
+> 仓库提供了示例 [`simple-blog.service.example`](../simple-blog.service.example)，或使用 `scripts/install-service.sh` 交互式生成。
 
 3. **启动和管理服务**
 ```bash

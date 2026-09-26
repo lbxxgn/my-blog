@@ -21,8 +21,8 @@ Group=simpleblog
 # ============================================
 # 路径配置（修改为实际部署路径）
 # ============================================
-WorkingDirectory=/path/to/simple-blog
-Environment="PYTHONPATH=/path/to/simple-blog"
+WorkingDirectory=/path/to/my-blog
+Environment="PYTHONPATH=/path/to/my-blog"
 
 # ============================================
 # 环境变量配置
@@ -43,7 +43,7 @@ Environment="PORT=5001"
 # ============================================
 # 从 .env 文件加载所有环境变量
 # "-" 前缀表示文件不存在时不会报错
-EnvironmentFile=-/path/to/simple-blog/.env
+EnvironmentFile=-/path/to/my-blog/.env
 
 # ============================================
 # 启动命令
@@ -51,7 +51,7 @@ EnvironmentFile=-/path/to/simple-blog/.env
 # 生产环境使用 gunicorn（勿用 Flask 开发服务器对外服务）
 # 默认绑定 0.0.0.0 直接对外；若架了 Nginx 反向代理，建议改绑 127.0.0.1 仅接受本机转发
 # workers 可按 CPU 核数调整
-ExecStart=/path/to/simple-blog/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5001 backend.app:app
+ExecStart=/path/to/my-blog/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5001 backend.app:app
 
 # ============================================
 # 重启策略
@@ -64,8 +64,8 @@ StartLimitBurst=3
 # ============================================
 # 日志配置
 # ============================================
-StandardOutput=append:/path/to/simple-blog/logs/app.log
-StandardError=append:/path/to/simple-blog/logs/error.log
+StandardOutput=append:/path/to/my-blog/logs/app.log
+StandardError=append:/path/to/my-blog/logs/error.log
 
 # 也可以使用 systemd 日志（journald）
 # StandardOutput=journal

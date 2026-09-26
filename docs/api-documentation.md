@@ -867,7 +867,8 @@ GET /admin/users
 
 ## 📚 知识库API（旧版插件/卡片 API）
 
-> 注意：以下端点已注册在 `/knowledge_base` 前缀下，其中浏览器扩展端点已豁免 CSRF 保护（使用 API Key 认证）。不存在 `/api/plugin/*` 的根路径别名，客户端必须以 `/knowledge_base` 为 base URL。
+> 注意：以下端点的规范路径在 `/knowledge_base` 前缀下，其中浏览器扩展端点已豁免 CSRF 保护（使用 API Key 认证）。
+> 兼容旧客户端，`app.py` 另外注册了**根路径别名**（`/api/plugin/*`、`/api/cards/*` 等），当前浏览器扩展/Safari 扩展即调用根路径。两种路径均可使用。
 
 ### 浏览器扩展 API
 
