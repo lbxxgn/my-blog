@@ -9,9 +9,15 @@
 # 默认绑定 127.0.0.1:5001，由 NGINX 在 80/443 对外提供。
 #
 # 部署前需替换的占位符：
-#   1. YOUR_DOMAIN          -> 你的域名
+#   1. YOUR_HOST            -> 你的域名，或"无域名"方案下的 你的IP.sslip.io
+#                              例如公网 IP 1.2.3.4 -> 1-2-3-4.sslip.io（横线或点均可）
 #   2. /path/to/my-blog     -> 项目实际部署路径
-#   3. 证书路径             -> /etc/ssl/certs/blog.pem 等
+#   3. 证书路径             -> Let's Encrypt: /etc/letsencrypt/live/YOUR_HOST/...
+#                              自签/其它: /etc/ssl/certs/blog.pem 等
+#
+# 无域名、免备案的 HTTPS（推荐）：
+#   把 YOUR_HOST 设为 你的IP.sslip.io，然后用 scripts/setup-https-sslip.sh 一键
+#   申请 Let's Encrypt 证书（DNS 会由 sslip.io 自动解析到你的 IP，无需购买域名/备案）。
 #
 # 平台差异：
 #   - Linux（systemd）：如本文件所示即可
@@ -82,7 +88,7 @@ http {
     server {
         listen 80;
         listen [::]:80;
-        server_name YOUR_DOMAIN;
+        server_name YOUR_HOST;
 
         # Let's Encrypt 证书签发占位（webroot 方式）
         location /.well-known/acme-challenge/ {
@@ -101,10 +107,14 @@ http {
         listen 443 ssl;
         listen [::]:443 ssl;
         http2 on;
-        server_name YOUR_DOMAIN;
+        server_name YOUR_HOST;
 
-        ssl_certificate     /etc/ssl/certs/blog.pem;
-        ssl_certificate_key /etc/ssl/private/blog.key;
+        # Let's Encrypt（certbot 默认路径，把 YOUR_HOST 换成实际主机名/sslip.io 名）
+        ssl_certificate     /etc/letsencrypt/live/YOUR_HOST/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/YOUR_HOST/privkey.pem;
+        # 自签证书可改用：
+        # ssl_certificate     /etc/ssl/certs/blog.pem;
+        # ssl_certificate_key /etc/ssl/private/blog.key;
         ssl_protocols       TLSv1.2 TLSv1.3;
         ssl_ciphers         HIGH:!aNULL:!MD5;
         ssl_session_cache   shared:SSL:10m;

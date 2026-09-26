@@ -51,6 +51,13 @@ sudo ./scripts/install-service.sh
 python3 scripts/generate_manifest.py
 ```
 
+#### setup-https-sslip.sh
+无域名 HTTPS：用 `你的IP.sslip.io` 申请 Let's Encrypt 免费证书（免域名、免备案）
+```bash
+sudo ./scripts/setup-https-sslip.sh
+# 可选：PUBLIC_IP=1.2.3.4 EMAIL=me@example.com STAGING=1
+```
+
 ### 🧪 诊断脚本
 
 诊断和性能分析脚本统一放在 `scripts/diagnostics/`：

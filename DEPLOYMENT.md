@@ -84,7 +84,8 @@ ADMIN_PASSWORD=your-secure-password-here
 # 数据库（可选，默认使用 SQLite）
 # DATABASE_URL=sqlite:///db/simple_blog.db
 
-# Passkey / WebAuthn 配置
+# Passkey / WebAuthn 配置（需 HTTPS）
+# 无域名时用 sslip.io 主机名：公网 IP 1.2.3.4 -> 1-2-3-4.sslip.io
 PASSKEY_RP_NAME=Simple Blog
 PASSKEY_RP_ID=your-domain.com
 PASSKEY_ALLOWED_ORIGINS=https://your-domain.com
@@ -520,9 +521,33 @@ server {
 }
 ```
 
-> 上方为最小示例。仓库根目录的 [`nginx.conf.example`](nginx.conf.example) 是一份完整生产配置，已包含 `client_max_body_size 100m`（对齐 `MAX_CONTENT_LENGTH` 图片上传限制）、AI 接口读写超时、gzip、安全头、upstream keepalive 等，并通过 `nginx -t` 语法校验。部署时以其为基础替换 `YOUR_DOMAIN`、`/path/to/my-blog`、证书路径即可。
+> 上方为最小示例。仓库根目录的 [`nginx.conf.example`](nginx.conf.example) 是一份完整生产配置，已包含 `client_max_body_size 100m`（对齐 `MAX_CONTENT_LENGTH` 图片上传限制）、AI 接口读写超时、gzip、安全头、upstream keepalive 等，并通过 `nginx -t` 语法校验。部署时以其为基础替换 `YOUR_HOST`、`/path/to/my-blog`、证书路径即可。
 
 > 无域名 / 无证书、仅用公网 IP 通过 80 端口访问？用 [`nginx-http.conf.example`](nginx-http.conf.example)（最简 HTTP 版，已去 HTTPS/证书/gzip/安全头，只保留 mime 类型、100MB 上传、AI 超时）。注意 HTTP 下 Passkey 不可用。
+
+#### 无域名 HTTPS（sslip.io + Let's Encrypt，免域名免备案）
+
+不想买域名、也不想备案，但又需要 HTTPS（例如用 Passkey 登录）时，可以借助 [sslip.io](https://sslip.io)：它会把 `你的IP.sslip.io`（横线或点形式均可）自动解析到该 IP，于是能直接申请 Let's Encrypt 免费证书。
+
+```bash
+# 1. 确保公网 80 端口可达（阿里云安全组入方向 + 系统防火墙都放通）
+
+# 2. 一键申请证书（自动探测公网 IP，签发到 /etc/letsencrypt/live/<ip>.sslip.io/）
+sudo ./scripts/setup-https-sslip.sh
+#    指定 IP / 邮箱 / 先用测试环境验证：
+#    sudo PUBLIC_IP=1.2.3.4 EMAIL=me@example.com ./scripts/setup-https-sslip.sh
+#    sudo STAGING=1 ./scripts/setup-https-sslip.sh
+```
+
+然后把 `nginx.conf.example` 的 `YOUR_HOST` 换成 `你的IP.sslip.io`，证书路径用脚本输出的 `/etc/letsencrypt/live/你的IP.sslip.io/...`，并在 `.env` 中：
+
+```ini
+FORCE_HTTPS=True
+PASSKEY_RP_ID=1-2-3-4.sslip.io
+PASSKEY_ALLOWED_ORIGINS=https://1-2-3-4.sslip.io
+```
+
+访问地址变为 `https://你的IP.sslip.io`，浏览器显示有效证书，Passkey 可用，且**不涉及域名备案**。证书由 certbot 定时任务自动续期。
 
 ### 4. 启用安全选项
 
