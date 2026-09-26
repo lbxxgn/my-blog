@@ -54,6 +54,10 @@ log() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
 }
 
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }

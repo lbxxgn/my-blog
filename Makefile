@@ -1,9 +1,9 @@
 PYTHON ?= python3
 PYTEST ?= COVERAGE_FILE=/tmp/simple-blog.coverage $(PYTHON) -m pytest
 IMAGE_TESTS = tests/test_image_cleanup_tool.py tests/test_image_edge_cases.py tests/test_image_processing.py
-CHECK_FILES = backend/app.py backend/config.py backend/routes/blog.py backend/routes/api.py backend/utils/asset_optimizer.py
+CHECK_FILES = backend/app.py backend/config.py backend/routes/blog.py backend/routes/api.py
 
-.PHONY: run test test-images check lint clean-artifacts diag-api diag-assets diag-asset-optimizer
+.PHONY: run test test-images check lint clean-artifacts diag-api
 
 run:
 	$(PYTHON) backend/app.py
@@ -29,9 +29,3 @@ clean-artifacts:
 
 diag-api:
 	$(PYTHON) scripts/diagnostics/api_perf_check.py
-
-diag-assets:
-	$(PYTHON) scripts/diagnostics/assets_perf_check.py
-
-diag-asset-optimizer:
-	$(PYTHON) scripts/diagnostics/asset_optimizer_check.py

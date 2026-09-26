@@ -18,8 +18,13 @@ echo -e "${BLUE}  Simple Blog 服务安装脚本${NC}"
 echo -e "${BLUE}======================================${NC}"
 echo ""
 
-# 获取项目根目录
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 获取项目根目录（脚本可能在 scripts/ 子目录下运行）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ "$(basename "$SCRIPT_DIR")" = "scripts" ]; then
+    PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+else
+    PROJECT_DIR="$SCRIPT_DIR"
+fi
 echo -e "${GREEN}项目目录: ${PROJECT_DIR}${NC}"
 
 # 检测 Python 路径
@@ -43,12 +48,20 @@ SERVICE_USER=${SERVICE_USER:-root}
 read -p "监听端口 [5001]: " SERVICE_PORT
 SERVICE_PORT=${SERVICE_PORT:-5001}
 
+# 优先使用项目自带虚拟环境里的 gunicorn
+if [ -x "$DEPLOY_PATH/.venv/bin/gunicorn" ]; then
+    GUNICORN_CMD="$DEPLOY_PATH/.venv/bin/gunicorn"
+else
+    GUNICORN_CMD="$PYTHON_PATH -m gunicorn"
+fi
+
 echo ""
 echo -e "${BLUE}配置摘要:${NC}"
 echo -e "  部署路径: ${GREEN}${DEPLOY_PATH}${NC}"
 echo -e "  运行用户: ${GREEN}${SERVICE_USER}${NC}"
 echo -e "  监听端口: ${GREEN}${SERVICE_PORT}${NC}"
 echo -e "  Python:   ${GREEN}${PYTHON_PATH}${NC}"
+echo -e "  Gunicorn: ${GREEN}${GUNICORN_CMD}${NC}"
 echo ""
 
 read -p "确认安装? (y/n) [y]: " CONFIRM
@@ -92,7 +105,7 @@ EnvironmentFile=-$DEPLOY_PATH/.env
 
 # 启动命令（生产环境使用 gunicorn，默认绑定 0.0.0.0 直接对外；
 # 若架了 Nginx 反代，建议改绑 127.0.0.1 仅接受本机转发）
-ExecStart=$PYTHON_PATH -m gunicorn --workers 2 --bind 0.0.0.0:$SERVICE_PORT backend.app:app
+ExecStart=$GUNICORN_CMD --workers 2 --bind 0.0.0.0:$SERVICE_PORT backend.app:app
 
 # 重启策略
 Restart=always

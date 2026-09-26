@@ -77,9 +77,11 @@ sudo ./scripts/cleanup-https-sslip.sh
 诊断和性能分析脚本统一放在 `scripts/diagnostics/`：
 
 - `api_perf_check.py` - 后端接口性能检查
-- `assets_perf_check.py` - 静态资源体积与 bundle 检查
-- `lazyload_check.js` - 懒加载行为测试
-- `asset_optimizer_check.py` - 资源路径映射检查
+
+### 🔗 其它
+
+- `sync-extensions.sh` - 同步浏览器扩展 / Safari 扩展的共享代码
+- `generate_manifest.py` - 生成静态资源版本 manifest
 
 ## 📚 使用文档
 

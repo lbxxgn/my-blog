@@ -5,6 +5,3 @@
 常用脚本：
 
 - `python scripts/diagnostics/api_perf_check.py`
-- `python scripts/diagnostics/assets_perf_check.py`
-- `node scripts/diagnostics/lazyload_check.js`
-- `python scripts/diagnostics/asset_optimizer_check.py`
