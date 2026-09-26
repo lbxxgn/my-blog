@@ -539,7 +539,9 @@ sudo ./scripts/setup-https-sslip.sh
 #    sudo STAGING=1 ./scripts/setup-https-sslip.sh
 ```
 
-然后把 `nginx.conf.example` 的 `YOUR_HOST` 换成 `你的IP.sslip.io`，证书路径用脚本输出的 `/etc/letsencrypt/live/你的IP.sslip.io/...`，并在 `.env` 中：
+然后把 `nginx.conf.example` 的 `YOUR_HOST` 换成 `你的IP.sslip.io`，证书路径用脚本输出的 `/etc/letsencrypt/live/你的IP.sslip.io/...`，`.env` 对应改为：
+
+> ⚠️ `server_name` 必须与脚本签发时用的主机名**完全一致**。脚本默认用横线形式（`1-2-3-4.sslip.io`），如果你写成点形式（`1.2.3.4.sslip.io`），请求会落到默认 server，ACME 校验会报 403/404。建议两种形式都写：`server_name 1-2-3-4.sslip.io 1.2.3.4.sslip.io;`
 
 ```ini
 FORCE_HTTPS=True
@@ -564,7 +566,15 @@ PASSKEY_ALLOWED_ORIGINS=https://1-2-3-4.sslip.io
 >     ```bash
 >     sudo chcon -R -t httpd_sys_content_t /path/to/my-blog/static
 >     ```
->   - ACME 校验文件同理（`scripts/setup-https-sslip.sh` 会尝试自动设置 `/var/www/letsencrypt` 的上下文）。
+>   - ACME 校验文件同理（certbot 报 `403`）：
+>     ```bash
+>     sudo dnf install -y policycoreutils-python-utils
+>     sudo semanage fcontext -a -t httpd_sys_content_t "/var/www/letsencrypt(/.*)?"
+>     sudo restorecon -Rv /var/www/letsencrypt
+>     # 自测：curl -i http://127.0.0.1/.well-known/acme-challenge/test 期望 200
+>     ```
+>     也可改用已放行的目录做 webroot：`sudo WEBROOT=/usr/share/nginx/html ./scripts/setup-https-sslip.sh`（同时把 Nginx 的 ACME `root` 改成一致）。
+>     `scripts/setup-https-sslip.sh` 会尝试自动设置上下文。
 >
 > 以上命令在 `scripts/setup-https-sslip.sh` 结束时也会按需提示。
 

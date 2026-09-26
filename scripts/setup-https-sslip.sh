@@ -32,7 +32,9 @@ ok()    { echo -e "  ${GREEN}✓${NC} $*"; }
 warn()  { echo -e "  ${YELLOW}!${NC} $*"; }
 fail()  { echo -e "  ${RED}✗${NC} $*"; }
 
-WEBROOT="/var/www/letsencrypt"
+# webroot 可通过环境变量覆盖；Alinux/CentOS 若 SELinux 折腾，可用
+#   sudo WEBROOT=/usr/share/nginx/html ./scripts/setup-https-sslip.sh
+WEBROOT="${WEBROOT:-/var/www/letsencrypt}"
 EMAIL="${EMAIL:-}"
 STAGING="${STAGING:-}"
 
@@ -116,12 +118,26 @@ info "[3/5] 准备 ACME 校验目录..."
 mkdir -p "$WEBROOT"
 ok "已就绪: $WEBROOT"
 
-# SELinux（Alibaba Cloud Linux / CentOS / RHEL 默认开启）：让 nginx 能读取校验文件
+# SELinux（Alibaba Cloud Linux / CentOS / RHEL 默认开启）：让 nginx 能读取校验文件。
+# 用 semanage 写持久规则，保证 certbot 之后新建的挑战文件也带正确上下文。
 if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce 2>/dev/null || echo Disabled)" != "Disabled" ]; then
-    if chcon -R -t httpd_sys_content_t "$WEBROOT" 2>/dev/null; then
-        ok "已设置 SELinux 上下文 httpd_sys_content_t"
+    if ! command -v semanage >/dev/null 2>&1; then
+        if command -v dnf >/dev/null 2>&1; then
+            dnf install -y policycoreutils-python-utils >/dev/null 2>&1 || true
+        elif command -v yum >/dev/null 2>&1; then
+            yum install -y policycoreutils-python-utils >/dev/null 2>&1 || true
+        fi
+    fi
+    if command -v semanage >/dev/null 2>&1; then
+        semanage fcontext -a -t httpd_sys_content_t "$WEBROOT(/.*)?" 2>/dev/null \
+            || semanage fcontext -m -t httpd_sys_content_t "$WEBROOT(/.*)?" 2>/dev/null \
+            || true
+        restorecon -R "$WEBROOT" >/dev/null 2>&1 || true
+        ok "已设置 SELinux 上下文 httpd_sys_content_t（$WEBROOT）"
     else
-        warn "SELinux 上下文设置失败；若校验返回 403/404，请手动执行：chcon -R -t httpd_sys_content_t $WEBROOT"
+        chcon -R -t httpd_sys_content_t "$WEBROOT" 2>/dev/null \
+            && ok "已设置 SELinux 上下文（临时，重启 relabel 后可能失效）" \
+            || warn "SELinux 上下文设置失败；若校验返回 403，请手动执行：semanage fcontext -a -t httpd_sys_content_t \"$WEBROOT(/.*)?\" && restorecon -Rv $WEBROOT"
     fi
 fi
 
@@ -149,8 +165,14 @@ if ! certbot "${certbot_args[@]}"; then
     echo ""
     fail "证书申请失败，常见原因："
     echo "    - 安全组/防火墙未放通 80 端口"
-    echo "    - nginx 未运行或 80 端口未包含 ACME 校验 location"
+    echo "    - nginx 未运行，或 80 端口未包含 ACME 校验 location（root 必须是 $WEBROOT）"
+    echo "    - server_name 与本次主机名不一致（横线/点形式不同），请求落到默认 server："
+    echo "      确认 sudo nginx -T | grep server_name 里包含 $SSLIP_HOST"
+    echo "    - SELinux 返回 403（Alinux/CentOS 默认 Enforcing）：先看 sudo getenforce，"
+    echo "      再执行 sudo semanage fcontext -a -t httpd_sys_content_t \"$WEBROOT(/.*)?\" && sudo restorecon -Rv $WEBROOT"
     echo "    - 域名解析异常：试运行 nslookup $SSLIP_HOST"
+    echo "    - 本地自测：mkdir -p $WEBROOT/.well-known/acme-challenge && echo ok > $WEBROOT/.well-known/acme-challenge/test"
+    echo "      curl -i http://127.0.0.1/.well-known/acme-challenge/test   # 期望 200"
     exit 1
 fi
 ok "证书申请成功"
@@ -166,6 +188,9 @@ echo -e "${BLUE}--- nginx.conf（443 server 块）---${NC}"
 echo "    server_name $SSLIP_HOST;"
 echo "    ssl_certificate     $CERT_DIR/fullchain.pem;"
 echo "    ssl_certificate_key $CERT_DIR/privkey.pem;"
+echo ""
+echo -e "${BLUE}--- nginx.conf（80 块 ACME 段，root 必须与本次 webroot 一致）---${NC}"
+echo "    location /.well-known/acme-challenge/ { root $WEBROOT; }"
 echo ""
 echo -e "${BLUE}--- .env ---${NC}"
 echo "    FORCE_HTTPS=True"

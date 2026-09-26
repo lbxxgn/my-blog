@@ -11,6 +11,9 @@
 # 部署前需替换的占位符：
 #   1. YOUR_HOST            -> 你的域名，或"无域名"方案下的 你的IP.sslip.io
 #                              例如公网 IP 1.2.3.4 -> 1-2-3-4.sslip.io（横线或点均可）
+#                              ⚠️ 必须与签发证书时用的主机名完全一致，否则请求会落到
+#                                 默认 server 导致 ACME 校验 403/404。建议两种形式都写：
+#                                 server_name 1-2-3-4.sslip.io 1.2.3.4.sslip.io;
 #   2. /path/to/my-blog     -> 项目实际部署路径
 #   3. 证书路径             -> Let's Encrypt: /etc/letsencrypt/live/YOUR_HOST/...
 #                              自签/其它: /etc/ssl/certs/blog.pem 等
