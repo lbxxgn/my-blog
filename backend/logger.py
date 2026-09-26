@@ -4,12 +4,11 @@
 """
 import logging
 import logging.handlers
-import os
 import time
 from pathlib import Path
 from datetime import datetime
 from functools import wraps
-from flask import request, session, g
+from flask import session
 import traceback
 
 # 日志目录

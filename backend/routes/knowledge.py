@@ -27,13 +27,12 @@ from pathlib import Path
 import os
 
 from auth_decorators import login_required
-from logger import log_operation, api_internal_error
+from logger import api_internal_error
 from models import (
     get_category_tree, get_category_path, get_subcategories,
-    get_doc_count_by_category, get_descendant_category_ids,
-    get_knowledge_doc, get_knowledge_docs_by_category, get_recent_knowledge_docs,
+    get_doc_count_by_category, get_knowledge_doc, get_knowledge_docs_by_category, get_recent_knowledge_docs,
     get_post_tags, search_posts, get_category_by_id,
-    create_kb_category, update_kb_category, move_kb_category, delete_kb_category,
+    create_kb_category, move_kb_category, delete_kb_category,
     create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
     archive_card_to_knowledge, get_card_by_id,
 )

@@ -5,7 +5,6 @@
 - 为现有文章分配作者（默认分配给admin用户）
 """
 import sqlite3
-import os
 import shutil
 import sys
 from pathlib import Path

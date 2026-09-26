@@ -4,7 +4,7 @@ import logging
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from image_processor import generate_image_sizes, get_image_hash
+from image_processor import generate_image_sizes
 from models import get_db_connection
 
 logger = logging.getLogger(__name__)

@@ -489,9 +489,7 @@ def precipitate_to_knowledge(post_id):
     """将博客文章沉淀为知识库文档"""
     if not session.get('user_id'):
         return jsonify({'success': False, 'error': '请先登录'}), 401
-    from werkzeug.utils import escape
     from models import get_category_by_id
-    import json as _json
     data = request.get_json(silent=True) or request.form
     category_id_raw = data.get('category_id')
     try:

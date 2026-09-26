@@ -26,11 +26,8 @@ Flask博客系统 - 主应用文件
 # =============================================================================
 # 标准库导入
 # =============================================================================
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, abort
+from flask import Flask, render_template, request, jsonify, send_file, abort
 from werkzeug.security import generate_password_hash
-from werkzeug.utils import secure_filename
-from functools import wraps
-from urllib.parse import urlparse, urljoin
 import json
 import os
 import re
@@ -49,7 +46,7 @@ for _p in (str(PROJECT_ROOT), str(CURRENT_DIR)):
 # =============================================================================
 # 项目配置导入
 # =============================================================================
-from backend.config import (SECRET_KEY, DATABASE_URL, UPLOAD_FOLDER, ALLOWED_EXTENSIONS,
+from backend.config import (SECRET_KEY, ALLOWED_EXTENSIONS,
                             MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION,
                             SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT,
                             PERMANENT_SESSION_LIFETIME, REMEMBER_DEVICE_DAYS)
@@ -73,7 +70,6 @@ import logging
 # 延迟导入项目模块（避免循环导入问题）
 def get_logger():
     """获取logger实例"""
-    from logger import setup_logging
     return logging.getLogger(__name__)
 
 def get_setup_logging():
@@ -112,15 +108,13 @@ except ImportError:
 # 数据模型导入
 # =============================================================================
 from models import (
-    get_db_connection, init_db, get_db_context,
-    get_user_by_username, get_user_by_id, create_user,
+    get_db_connection, init_db, get_user_by_username, create_user,
     get_site_icon_version
 )
 
 # =============================================================================
 # 权限装饰器导入
 # =============================================================================
-from auth_decorators import login_required
 
 # =============================================================================
 # 静态资源版本管理导入
@@ -360,7 +354,6 @@ limiter = Limiter(
 # 缓存配置
 # =============================================================================
 from flask_caching import Cache
-import time
 
 # 配置缓存
 app.config['CACHE_TYPE'] = 'SimpleCache'  # 开发环境使用SimpleCache
@@ -489,7 +482,7 @@ get_setup_logging()(app)
 # =============================================================================
 # 时区处理
 # =============================================================================
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import pytz
 
 CHINA_TZ = pytz.timezone('Asia/Shanghai')

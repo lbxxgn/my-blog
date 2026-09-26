@@ -9,7 +9,6 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from pathlib import Path
 import logging
 import os
 import sqlite3
@@ -17,21 +16,13 @@ import shutil
 
 from models import (
     get_all_posts, get_post_by_id, create_post, update_post, delete_post,
-    get_all_categories, create_category, update_category, delete_category,
-    get_category_by_id, get_posts_by_category,
-    create_tag, get_all_tags, get_popular_tags, get_tag_by_id, update_tag, delete_tag,
-    get_tag_by_name, set_post_tags, get_post_tags, get_posts_by_tag,
-    create_comment, get_comments_by_post, get_all_comments,
+    get_all_categories, create_category, delete_category,
+    create_tag, get_all_tags, delete_tag,
+    set_post_tags, get_all_comments,
     update_comment_visibility, delete_comment,
-    search_posts, get_posts_by_author,
     get_user_by_username, get_user_by_id, create_user, update_user, delete_user, get_all_users,
     get_db_connection, create_optimized_image_record,
     get_user_ai_config, save_ai_tag_history,
-    get_category_tree, get_category_path, get_subcategories, get_doc_count_by_category,
-    create_kb_category, update_kb_category, move_kb_category, delete_kb_category,
-    create_knowledge_doc, get_knowledge_doc, get_knowledge_docs_by_category,
-    update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
-    archive_card_to_knowledge, get_card_by_id,
     get_site_icon_version, set_site_setting,
 )
 from backend.routes.ai import _run_structured_prompt

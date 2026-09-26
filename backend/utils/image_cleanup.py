@@ -10,10 +10,8 @@ import sqlite3
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import lru_cache
 from datetime import datetime, timedelta
 import json
-import os
 
 try:
     import requests

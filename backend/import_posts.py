@@ -1,8 +1,6 @@
 """Article import functionality for backup restore"""
-import os
 import json
 import re
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple
 

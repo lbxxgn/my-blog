@@ -5,7 +5,6 @@
 """
 
 import os
-import io
 from pathlib import Path
 from PIL import Image, ImageOps
 import hashlib

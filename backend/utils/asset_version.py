@@ -1,5 +1,4 @@
 """静态资源版本管理 - 基于文件内容hash自动生成版本号"""
-import os
 import json
 import hashlib
 import base64

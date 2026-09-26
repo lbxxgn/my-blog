@@ -17,7 +17,6 @@ from models import (
     create_annotation, get_annotations_by_url, create_post,
     get_category_by_name, create_category
 )
-import json
 from datetime import datetime
 from logger import log_operation, api_internal_error
 
