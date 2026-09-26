@@ -6,13 +6,6 @@ from functools import wraps
 from flask import session, flash, redirect, url_for, request
 from models import get_user_by_username, get_post_by_id
 
-# 角色层级（数字越大权限越高）
-ROLE_HIERARCHY = {
-    'author': 1,
-    'editor': 2,
-    'admin': 3
-}
-
 
 def login_required(f):
     """要求用户登录的装饰器"""
@@ -93,11 +86,6 @@ def role_required(*allowed_roles):
 def admin_required(f):
     """要求管理员权限"""
     return role_required('admin')(f)
-
-
-def editor_required(f):
-    """要求编辑或管理员权限"""
-    return role_required('editor', 'admin')(f)
 
 
 def can_edit_post(f):
@@ -189,17 +177,3 @@ def get_current_user():
         return None
 
     return get_user_by_username(session.get('username'))
-
-
-def has_permission(role, required_role):
-    """
-    检查角色是否满足权限要求
-
-    Args:
-        role: 用户当前角色
-        required_role: 所需的最低角色
-
-    Returns:
-        bool: 是否有权限
-    """
-    return ROLE_HIERARCHY.get(role, 0) >= ROLE_HIERARCHY.get(required_role, 0)

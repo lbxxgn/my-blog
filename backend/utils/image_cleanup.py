@@ -40,24 +40,6 @@ def get_db_connection():
         return conn
 
 
-def fetch_posts_batch(cursor, batch_size: int = 100):
-    """
-    分批获取文章（避免一次性加载所有文章到内存）
-
-    Args:
-        cursor: 数据库游标
-        batch_size: 每批文章数量
-
-    Yields:
-        文章批次列表
-    """
-    while True:
-        posts = cursor.fetchmany(batch_size)
-        if not posts:
-            break
-        yield posts
-
-
 def extract_images_from_content(content: str) -> List[Tuple[str, str]]:
     """
     从文章内容中提取所有图片标签

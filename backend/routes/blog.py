@@ -476,14 +476,6 @@ def verify_post_password_route(post_id):
         return jsonify({'success': False, 'message': '密码错误，请重试'}), 401
 
 
-@blog_bp.route('/clear-session', methods=['POST'])
-def clear_session():
-    """临时调试：清除session中的密码记录"""
-    session.pop('unlocked_posts', None)
-    session.modified = True
-    return jsonify({'success': True, 'message': 'Session已清除'})
-
-
 @blog_bp.route('/archive')
 def archive():
     """

@@ -68,10 +68,6 @@ from flask_limiter.util import get_remote_address
 import logging
 
 # 延迟导入项目模块（避免循环导入问题）
-def get_logger():
-    """获取logger实例"""
-    return logging.getLogger(__name__)
-
 def get_setup_logging():
     """获取setup_logging函数"""
     from logger import setup_logging
@@ -81,16 +77,6 @@ def get_log_error():
     """获取log_error函数"""
     from logger import log_error
     return log_error
-
-def get_log_login():
-    """获取log_login函数"""
-    from logger import log_login
-    return log_login
-
-def get_log_operation():
-    """获取log_operation函数"""
-    from logger import log_operation
-    return log_operation
 
 logger = logging.getLogger(__name__)
 

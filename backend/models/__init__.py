@@ -11,7 +11,6 @@ __all__ = [
     # Database functions
     'get_db_connection',
     'get_db_context',
-    'paginate_query_cursor',
     'init_db',
     'rebuild_fts_index',
 
@@ -22,11 +21,9 @@ __all__ = [
     'get_all_posts',
     'get_all_posts_cursor',
     'get_post_by_id',
-    'update_post_with_tags',
     'get_posts_by_author',
     'get_post_excerpt',
     'check_post_access',
-    'update_post_access',
     'verify_post_password',
     'search_posts',
     'get_adjacent_posts',
@@ -115,7 +112,6 @@ __all__ = [
     'update_card_status',
     'update_card',
     'delete_card',
-    'get_timeline_items',
     'merge_cards_to_post',
     'ai_merge_cards_to_post',
 

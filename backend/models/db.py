@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 __all__ = [
     'get_db_connection',
     'get_db_context',
-    'paginate_query_cursor',
     'init_db',
     'rebuild_fts_index',
 ]
@@ -107,52 +106,6 @@ def get_db_context(db_path=None):
         raise e
     finally:
         conn.close()
-
-def paginate_query_cursor(conn, query, where_clause, params, cursor_time=None, per_page=20):
-    """
-    Generic cursor-based pagination function
-
-    Args:
-        conn: Database connection
-        query: Base SQL query (SELECT part only)
-        where_clause: WHERE clause without 'WHERE'
-        params: Query parameters list
-        cursor_time: Time cursor for pagination
-        per_page: Items per page
-
-    Returns:
-        dict with items, next_cursor, has_more
-    """
-    cursor = conn.cursor()
-
-    where_conditions = [where_clause] if where_clause else []
-    query_params = params.copy()
-
-    if cursor_time:
-        where_conditions.append('created_at < ?')
-        query_params.append(cursor_time)
-
-    final_where = ' AND '.join(where_conditions) if where_conditions else '1=1'
-
-    # Fetch one extra item to check if there's more
-    final_query = f"{query} WHERE {final_where} ORDER BY created_at DESC LIMIT ?"
-    query_params.append(per_page + 1)
-
-    cursor.execute(final_query, query_params)
-    rows = cursor.fetchall()
-    items = [dict(row) for row in rows[:per_page]]
-    has_more = len(rows) > per_page
-
-    next_cursor = None
-    if items:
-        next_cursor = items[-1].get('created_at')
-
-    return {
-        'items': items,
-        'next_cursor': next_cursor,
-        'has_more': has_more,
-        'per_page': per_page
-    }
 
 def init_db(db_path=None):
     """Initialize the database with tables"""

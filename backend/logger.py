@@ -4,11 +4,8 @@
 """
 import logging
 import logging.handlers
-import time
 from pathlib import Path
 from datetime import datetime
-from functools import wraps
-from flask import session
 import traceback
 
 # 日志目录
@@ -158,74 +155,3 @@ def log_sql(operation, sql, params=None, result=None, execution_time=None):
     except Exception as e:
         print(f"Failed to write SQL log: {e}")
 
-# SQL 查询装饰器，用于测量执行时间
-def measure_query_time(operation="SQL查询"):
-    def decorator(f):
-        @wraps(f)
-        def decorated(*args, **kwargs):
-            start_time = time.time()
-            try:
-                result = f(*args, **kwargs)
-                execution_time = (time.time() - start_time) * 1000
-                # 记录查询时间（仅记录超过10ms的查询）
-                if execution_time > 10:
-                    log_sql(operation, str(f.__name__), execution_time=execution_time)
-                return result
-            except Exception as e:
-                execution_time = (time.time() - start_time) * 1000
-                log_sql(f"ERROR - {operation}", str(e), execution_time=execution_time)
-                raise
-        return decorated
-    return decorator
-
-
-# 日志装饰器
-def log_route(action):
-    """装饰器：记录路由操作"""
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            user_id = session.get('user_id')
-            username = session.get('username', 'Anonymous')
-
-            try:
-                result = f(*args, **kwargs)
-
-                # 记录成功操作
-                log_operation(user_id, username, action)
-
-                return result
-            except Exception as e:
-                # 记录错误
-                log_error(e, context=action, user_id=user_id)
-                raise
-
-        return decorated_function
-    return decorator
-
-
-def handle_errors(f):
-    """装饰器：统一错误处理"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except Exception as e:
-            # 记录错误
-            log_error(e, context=f.__name__, user_id=session.get('user_id'))
-
-            # 根据错误类型返回不同的响应
-            from flask import jsonify
-
-            if hasattr(e, 'status_code'):
-                status = e.status_code
-            else:
-                status = 500
-
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'message': f'操作失败: {str(e)}'
-            }), status
-
-    return decorated_function

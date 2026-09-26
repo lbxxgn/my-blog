@@ -4,8 +4,6 @@ Post Model Functions
 文章 CRUD、搜索、分页与访问控制。
 """
 
-import sqlite3
-
 from .db import get_db_connection, _safe_replace_post_fts, _safe_delete_post_fts
 from .utils import truncate_text
 
@@ -16,11 +14,9 @@ __all__ = [
     'get_all_posts',
     'get_all_posts_cursor',
     'get_post_by_id',
-    'update_post_with_tags',
     'get_posts_by_author',
     'get_post_excerpt',
     'check_post_access',
-    'update_post_access',
     'verify_post_password',
     'search_posts',
     'get_adjacent_posts',
@@ -419,69 +415,6 @@ def search_posts(query, include_drafts=False, page=1, per_page=20, post_type_fil
         'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
     }
 
-def update_post_with_tags(post_id, title, content, is_published, category_id=None, tag_names=None):
-    """Update post and its tags in a single transaction"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Update post
-        cursor.execute(
-            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (title, content, is_published, category_id, post_id)
-        )
-
-        # Manually update FTS (triggers are disabled)
-        cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
-        cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
-                      (post_id, title, content))
-
-        # Delete existing tag associations
-        cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (post_id,))
-
-        # Add new tag associations if provided
-        if tag_names:
-            for tag_name in tag_names:
-                if not tag_name.strip():
-                    continue
-
-                name = tag_name.strip()
-
-                # Check if tag exists
-                cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
-                result = cursor.fetchone()
-
-                if result:
-                    tag_id = result[0]
-                else:
-                    # Create tag inline
-                    try:
-                        cursor.execute('INSERT INTO tags (name) VALUES (?)', (name,))
-                        tag_id = cursor.lastrowid
-                    except sqlite3.IntegrityError:
-                        # Tag was created, get it again
-                        cursor.execute('SELECT id FROM tags WHERE name = ?', (name,))
-                        result = cursor.fetchone()
-                        if result:
-                            tag_id = result[0]
-                        else:
-                            tag_id = None
-
-                if tag_id:
-                    cursor.execute(
-                        'INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)',
-                        (post_id, tag_id)
-                    )
-
-        conn.commit()
-        _enqueue_post_embedding(post_id)
-        return True
-    except Exception as e:
-        conn.rollback()
-        raise e
-    finally:
-        conn.close()
-
 def get_posts_by_author(author_id, include_drafts=False, page=1, per_page=20):
     """获取指定作者的文章"""
     conn = get_db_connection()
@@ -615,37 +548,6 @@ def check_post_access(post_id, user_id=None, session_passwords=None):
         return {'allowed': False, 'reason': 'password_required', 'has_password': bool(access_password)}
 
     return {'allowed': True, 'reason': 'unknown'}
-
-def update_post_access(post_id, access_level, access_password=None):
-    """
-    更新文章访问权限
-
-    Args:
-        post_id: 文章ID
-        access_level: 访问级别
-        access_password: 密码（可选）
-
-    Returns:
-        bool: 是否成功
-    """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute('''
-            UPDATE posts
-            SET access_level = ?, access_password = ?
-            WHERE id = ?
-        ''', (access_level, access_password, post_id))
-
-        conn.commit()
-        return True
-    except Exception as e:
-        conn.rollback()
-        print(f"Error updating post access: {e}")
-        return False
-    finally:
-        conn.close()
 
 def verify_post_password(post_id, password):
     """

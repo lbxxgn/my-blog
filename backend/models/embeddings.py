@@ -17,7 +17,6 @@ from .db import get_db_connection
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    'init_embeddings_table',
     'upsert_embedding',
     'get_embedding',
     'delete_embedding',
@@ -25,27 +24,6 @@ __all__ = [
 ]
 
 SOURCE_TYPES = ('post', 'card', 'doc')
-
-
-def init_embeddings_table():
-    """创建 embeddings 表（幂等；正常由迁移 009 负责，此处兜底）"""
-    conn = get_db_connection()
-    try:
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS embeddings (
-                id INTEGER PRIMARY KEY,
-                source_type TEXT NOT NULL,
-                source_id INTEGER NOT NULL,
-                model TEXT,
-                vector BLOB,
-                content_hash TEXT,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(source_type, source_id)
-            )
-        ''')
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def _validate_source_type(source_type):

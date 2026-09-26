@@ -17,7 +17,6 @@ __all__ = [
     'update_card_status',
     'update_card',
     'delete_card',
-    'get_timeline_items',
     'merge_cards_to_post',
     'ai_merge_cards_to_post',
     'init_cards_table',
@@ -237,80 +236,6 @@ def delete_card(card_id):
     conn.commit()
     conn.close()
     _remove_card_embedding(card_id)
-
-
-def get_timeline_items(user_id, limit=20, cursor_time=None):
-    """
-    获取时间线项目（卡片和文章的混合流）
-
-    Args:
-        user_id (int): 用户ID
-        limit (int): 每页数量
-        cursor_time (str, optional): 时间游标
-
-    Returns:
-        dict: 包含 items, next_cursor, has_more
-    """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Query cards
-    cards_query = '''
-        SELECT id, title, content, 'card' as type, status, created_at
-        FROM cards
-        WHERE user_id = ?
-    '''
-    cards_params = [user_id]
-
-    if cursor_time:
-        cards_query += ' AND created_at < ?'
-        cards_params.append(cursor_time)
-
-    cards_query += ' ORDER BY created_at DESC LIMIT ?'
-    cards_params.append(limit + 1)
-
-    cursor.execute(cards_query, cards_params)
-    cards = [dict(row) for row in cursor.fetchall()]
-
-    # Query published posts
-    posts_query = '''
-        SELECT id, title, content, 'post' as type,
-               CASE WHEN is_published = 1 THEN 'published' ELSE 'draft' END as status,
-               created_at
-        FROM posts
-        WHERE author_id = ?
-    '''
-    posts_params = [user_id]
-
-    if cursor_time:
-        posts_query += ' AND created_at < ?'
-        posts_params.append(cursor_time)
-
-    posts_query += ' ORDER BY created_at DESC LIMIT ?'
-    posts_params.append(limit + 1)
-
-    cursor.execute(posts_query, posts_params)
-    posts = [dict(row) for row in cursor.fetchall()]
-
-    # Merge and sort by created_at
-    all_items = cards + posts
-    all_items.sort(key=lambda x: x['created_at'], reverse=True)
-
-    # Paginate
-    items = all_items[:limit]
-    has_more = len(all_items) > limit
-
-    next_cursor = None
-    if items:
-        next_cursor = items[-1]['created_at']
-
-    conn.close()
-
-    return {
-        'items': items,
-        'next_cursor': next_cursor,
-        'has_more': has_more
-    }
 
 
 def merge_cards_to_post(card_ids, user_id, post_id=None):
