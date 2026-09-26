@@ -1,0 +1,99 @@
+# Simple Blog - IP + 自签证书 HTTPS 完整配置示例
+# ============================================================
+# 适用：大陆云服务器（阿里云等）不想/不能备案域名时，直接用公网 IP + 自签证书提供 HTTPS。
+# 生成证书：sudo ./scripts/setup-https-selfsigned.sh
+#
+# 部署前需替换：
+#   - /path/to/my-blog                    -> 项目实际部署路径
+#   - /etc/ssl/my-blog/server-fullchain.pem / server.key -> 证书路径（脚本默认输出）
+#
+# 说明：
+#   - server_name 用 _（匹配任意 Host）；用 IP 访问时 Host 是 IP，不会触发大陆云的 ICP 备案拦截。
+#   - 客户端首次访问会提示证书不受信任，需信任 scripts 输出的 ca.crt 后即无警告。
+#   - Passkey 不能用 IP 作为 RP ID，此方案下不可用。
+#   - macOS Homebrew 注意 mime.types 路径。
+# ============================================================
+
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;      # macOS: /opt/homebrew/etc/nginx/mime.types
+    default_type  application/octet-stream;
+    sendfile      on;
+    keepalive_timeout 65;
+    server_tokens off;
+
+    # 对齐 backend/config.py 的 MAX_CONTENT_LENGTH (100MB)
+    client_max_body_size 100m;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_comp_level 5;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+    upstream simple_blog {
+        server 127.0.0.1:5001;
+        keepalive 32;
+    }
+
+    # 80 端口：跳转 HTTPS（IP 访问不受备案拦截）
+    server {
+        listen 80;
+        listen [::]:80;
+        server_name _;
+        return 301 https://$host$request_uri;
+    }
+
+    # 443 端口：主服务（自签证书）
+    server {
+        listen 443 ssl;
+        listen [::]:443 ssl;
+        http2 on;
+        server_name _;
+
+        ssl_certificate     /etc/ssl/my-blog/server-fullchain.pem;
+        ssl_certificate_key /etc/ssl/my-blog/server.key;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+        ssl_ciphers         HIGH:!aNULL:!MD5;
+        ssl_session_cache   shared:SSL:10m;
+        ssl_session_timeout 1d;
+
+        # 静态资源由 nginx 直发
+        location /static/frontend/ {
+            alias /path/to/my-blog/static/frontend/;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            access_log off;
+        }
+        location /static/ {
+            alias /path/to/my-blog/static/;
+            expires 30d;
+            add_header Cache-Control "public";
+            access_log off;
+        }
+
+        # 其余转发到 Flask
+        location / {
+            proxy_pass http://simple_blog;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host              $host;
+            proxy_set_header X-Real-IP         $remote_addr;
+            proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host  $host;
+            proxy_connect_timeout 10s;
+            proxy_send_timeout    120s;
+            proxy_read_timeout    120s;
+        }
+
+        add_header X-Frame-Options        "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy         "strict-origin-when-cross-origin" always;
+    }
+}

@@ -58,6 +58,13 @@ sudo ./scripts/setup-https-sslip.sh
 # 可选：PUBLIC_IP=1.2.3.4 EMAIL=me@example.com STAGING=1
 ```
 
+#### setup-https-selfsigned.sh
+IP + 自签证书 HTTPS（大陆云服务器用域名会被 ICP 备案拦截时使用）
+```bash
+sudo ./scripts/setup-https-selfsigned.sh
+# 可选：PUBLIC_IP=1.2.3.4 CERT_DIR=/etc/ssl/my-blog DAYS=3650
+```
+
 ### 🧪 诊断脚本
 
 诊断和性能分析脚本统一放在 `scripts/diagnostics/`：

@@ -525,9 +525,17 @@ server {
 
 > 无域名 / 无证书、仅用公网 IP 通过 80 端口访问？用 [`nginx-http.conf.example`](nginx-http.conf.example)（最简 HTTP 版，已去 HTTPS/证书/gzip/安全头，只保留 mime 类型、100MB 上传、AI 超时）。注意 HTTP 下 Passkey 不可用。
 
+> 大陆云服务器想用「IP + 自签证书」提供 HTTPS？用 [`nginx-ssl-selfsigned.conf.example`](nginx-ssl-selfsigned.conf.example)（`server_name _;` + 自签证书，见下方「方案 B」）。
+
 #### 无域名 HTTPS（sslip.io + Let's Encrypt，免域名免备案）
 
 不想买域名、也不想备案，但又需要 HTTPS（例如用 Passkey 登录）时，可以借助 [sslip.io](https://sslip.io)：它会把 `你的IP.sslip.io`（横线或点形式均可）自动解析到该 IP，于是能直接申请 Let's Encrypt 免费证书。
+
+> ⚠️ **大陆云服务器（阿里云等）此方案不可用**：只要请求的 Host 头是域名（含 sslip.io），80/443 会被阿里云 ICP 备案拦截，返回 `403` + `Server: Beaver` + `Non-compliance ICP Filing` 页面；纯 IP 访问不受影响。部署前先自测：
+> ```bash
+> curl -i http://你的IP.sslip.io/.well-known/acme-challenge/test   # 403 被拦 / 200 可用
+> ```
+> 被拦的话请改用下方「方案 B：IP + 自签证书」，或海外服务器。
 
 ```bash
 # 1. 确保公网 80 端口可达（阿里云安全组入方向 + 系统防火墙都放通）
@@ -577,6 +585,31 @@ PASSKEY_ALLOWED_ORIGINS=https://1-2-3-4.sslip.io
 >     `scripts/setup-https-sslip.sh` 会尝试自动设置上下文。
 >
 > 以上命令在 `scripts/setup-https-sslip.sh` 结束时也会按需提示。
+
+#### 方案 B：IP + 自签证书（大陆云服务器推荐）
+
+如果服务器在大陆（阿里云等），用域名会被 ICP 备案拦截，此时用「公网 IP + 自签证书」提供 HTTPS，纯 IP 访问不受备案影响。代价：需在自己的设备上信任一次证书，且 Passkey 不可用（RP ID 不能是 IP）。
+
+```bash
+# 一键生成自签 CA + 服务器证书（SAN 含公网 IP 与 localhost）
+sudo ./scripts/setup-https-selfsigned.sh
+# 指定 IP / 证书目录 / 有效期：
+# sudo PUBLIC_IP=1.2.3.4 CERT_DIR=/etc/ssl/my-blog DAYS=3650 ./scripts/setup-https-selfsigned.sh
+```
+
+Nginx 用 [`nginx-ssl-selfsigned.conf.example`](nginx-ssl-selfsigned.conf.example)（`server_name _;`，证书指向 `/etc/ssl/my-blog/server-fullchain.pem` 与 `server.key`），`.env` 只需：
+
+```ini
+FORCE_HTTPS=True
+# Passkey 不能用 IP，无需配置 PASSKEY_*
+```
+
+访问地址为 `https://你的公网IP`。首次访问会提示证书不受信任，把脚本生成的 `/etc/ssl/my-blog/ca.crt` 下载到你自己的电脑/手机并信任后即无警告：
+
+- **macOS**：双击导入钥匙串 → 找到 `my-blog Local CA` → 设为“始终信任”
+- **iPhone**：AirDrop/邮件发送 `ca.crt` → 设置-通用-VPN与设备管理 安装 → 设置-通用-关于本机-证书信任设置 打开“完全信任”
+- **Windows**：双击 `ca.crt` → 安装到“受信任的根证书颁发机构”
+- **Android**：设置-安全-加密与凭据-安装证书-CA 证书
 
 ### 4. 启用安全选项
 
