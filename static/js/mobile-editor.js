@@ -176,6 +176,6 @@ function buildTitleFromContent(content,imageCount=0){const normalized=String(con
 const titleCandidate=normalized.replace(/[。！？!?.，,、；;：:]+$/,'').slice(0,24).trim();if(titleCandidate.length>=6){return titleCandidate;}
 return`${titleCandidate||'移动随记'}· ${fallbackDate}`;}
 function formatMobilePostDate(){const now=new Date();const year=now.getFullYear();const month=String(now.getMonth()+1).padStart(2,'0');const day=String(now.getDate()).padStart(2,'0');return`${year}-${month}-${day}`;}
-function escapeHtml(value){return String(value||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function escapeHtml(value){return SB.escapeHtml(value);}
 function escapeHtmlAttr(value){return escapeHtml(value);}
 window.MobileEditor={open:openMobileEditor,close:closeMobileEditor,publishPost};})();

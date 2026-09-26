@@ -65,11 +65,11 @@ function updateAutosaveIndicator(status,message){const indicator=document.getEle
 text.textContent=message;}
 function formatContentType(type){const labels={daily:'日常记录',knowledge:'知识整理',idea:'灵感想法'};return labels[type]||'未分类';}
 function formatCardStatus(status){const labels={idea:'想法',draft:'草稿',incubating:'孵化中',published:'已发布'};return labels[status]||'笔记';}
-function parseServerTime(value){if(!value)return null;let s=String(value).trim();if(!/[zZ]$|[+-]\d{2}:?\d{2}$/.test(s)){s=s.replace(' ','T')+'Z';}const d=new Date(s);return isNaN(d.getTime())?null:d;}
+function parseServerTime(value){return SB.parseServerDate(value);}
 function formatDate(value){const date=parseServerTime(value);if(!date)return'刚刚';return date.toLocaleDateString('zh-CN',{month:'short',day:'numeric'});}
 function formatRelative(value){const date=parseServerTime(value);if(!date)return'刚刚';const diff=Math.max(0,Date.now()-date.getTime());const minutes=Math.floor(diff/60000);if(minutes<1)return'刚刚';if(minutes<60)return`${minutes}分钟前`;const hours=Math.floor(minutes/60);if(hours<24)return`${hours}小时前`;return`${Math.floor(hours/24)}天前`;}
 function truncate(text,limit){const normalized=String(text||'').replace(/\s+/g,' ').trim();if(normalized.length<=limit)return normalized;return normalized.slice(0,limit).trimEnd()+'...';}
-function escapeHtml(text){const div=document.createElement('div');div.textContent=text||'';return div.innerHTML;}
+function escapeHtml(text){return SB.escapeHtml(text);}
 function escapeAttribute(text){return String(text||'').replace(/"/g,'&quot;');}
-function debounce(fn,wait){let timer=null;return(...args)=>{window.clearTimeout(timer);timer=window.setTimeout(()=>fn(...args),wait);};}
+function debounce(fn,wait){return SB.debounce(fn,wait);}
 window.EditorWorkbench={openPanel:setActivePanel,updateAiSuggestionState};})();
