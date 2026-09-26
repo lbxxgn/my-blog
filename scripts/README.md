@@ -65,6 +65,13 @@ sudo ./scripts/setup-https-selfsigned.sh
 # 可选：PUBLIC_IP=1.2.3.4 CERT_DIR=/etc/ssl/my-blog DAYS=3650
 ```
 
+#### make-apple-cert-profile.sh
+由自签 CA 生成 iPhone 用的 `.mobileconfig` 配置描述文件（Safari 点开即安装）
+```bash
+sudo ./scripts/make-apple-cert-profile.sh
+# 可选：CERT_DIR=/etc/ssl/my-blog OUT=/tmp/my-blog-ca.mobileconfig
+```
+
 #### cleanup-https-sslip.sh
 清理 sslip.io + Let's Encrypt 方案残留（webroot / certbot 数据 / 定时器）
 ```bash
