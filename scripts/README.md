@@ -65,6 +65,13 @@ sudo ./scripts/setup-https-selfsigned.sh
 # 可选：PUBLIC_IP=1.2.3.4 CERT_DIR=/etc/ssl/my-blog DAYS=3650
 ```
 
+#### cleanup-https-sslip.sh
+清理 sslip.io + Let's Encrypt 方案残留（webroot / certbot 数据 / 定时器）
+```bash
+sudo ./scripts/cleanup-https-sslip.sh
+# 可选：REMOVE_CERTBOT=1 卸载 certbot；REMOVE_EPEL=1 移除 EPEL 源；DRY_RUN=1 仅预览
+```
+
 ### 🧪 诊断脚本
 
 诊断和性能分析脚本统一放在 `scripts/diagnostics/`：
