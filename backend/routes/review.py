@@ -13,7 +13,7 @@
 import json
 import logging
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from flask import Blueprint, current_app, jsonify, render_template, request, session
 
@@ -21,17 +21,11 @@ from auth_decorators import login_required
 from logger import log_error
 from models import get_db_connection, truncate_text
 from services import weekly_review as weekly_review_service
+from utils.timezone import LOCAL_OFFSET, local_now
 
 logger = logging.getLogger(__name__)
 
 review_bp = Blueprint('review', __name__)
-
-# created_at 为 UTC 字符串，展示/统计按 Asia/Shanghai（UTC+8，无夏令时）
-LOCAL_OFFSET = timedelta(hours=8)
-
-
-def _local_now():
-    return datetime.now(timezone.utc).replace(tzinfo=None) + LOCAL_OFFSET
 
 
 def _excerpt(content, max_length=120):
@@ -58,7 +52,7 @@ def review_page():
 def api_review_today():
     """那年今日：本地月日=今天且年份<今年的 posts + cards，按年份倒序"""
     user_id = session['user_id']
-    now_local = _local_now()
+    now_local = local_now()
     month_day = now_local.strftime('%m-%d')
     current_year = now_local.strftime('%Y')
 
@@ -157,7 +151,7 @@ def api_review_activity():
     days = request.args.get('days', 371, type=int) or 371
     days = max(30, min(days, 732))
 
-    now_local = _local_now()
+    now_local = local_now()
     start_date = now_local.date() - timedelta(days=days - 1)
     start_utc_str = (datetime.combine(start_date, datetime.min.time())
                      - LOCAL_OFFSET).strftime('%Y-%m-%d %H:%M:%S')

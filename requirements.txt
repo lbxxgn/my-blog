@@ -22,7 +22,6 @@ pillow-heif>=0.13.0
 
 # Utilities
 qrcode>=7.4,<8.0
-pytz>=2023.3
 requests>=2.31.0
 tqdm>=4.66.0
 webauthn>=2.7,<3.0

@@ -13,18 +13,15 @@
 
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from models import (
     get_db_connection, get_user_ai_config,
     create_kb_category, create_knowledge_doc, update_knowledge_doc,
 )
+from utils.timezone import LOCAL_OFFSET, local_now, utc_now
 
 logger = logging.getLogger(__name__)
-
-# created_at / updated_at 均存储为 UTC 字符串（SQLite CURRENT_TIMESTAMP），
-# 统计口径与「那年今日」一致，按 Asia/Shanghai（UTC+8，无夏令时）换算。
-LOCAL_OFFSET = timedelta(hours=8)
 
 REVIEW_CATEGORY_NAME = '每周回顾'
 REVIEW_TAG = '每周回顾'
@@ -35,15 +32,6 @@ _STATUS_LABELS = {
     'incubating': '孵化中',
     'published': '已发布',
 }
-
-
-def _utc_naive_now():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-def _local_now():
-    """当前本地（UTC+8）naive 时间"""
-    return _utc_naive_now() + LOCAL_OFFSET
 
 
 def _local_date(utc_datetime_str):
@@ -61,7 +49,7 @@ def _status_label(status):
 
 def current_week_label(now_local=None):
     """当前（本地）ISO 周标签，如 '2026-W39'"""
-    now_local = now_local or _local_now()
+    now_local = now_local or local_now()
     iso_year, iso_week, _ = now_local.isocalendar()
     return f'{iso_year}-W{iso_week:02d}'
 
@@ -82,13 +70,13 @@ def collect_weekly_stats(user_id, now_local=None):
         dict: week_label/week_start/week_end、新增 posts/cards/annotations、
               想法积压数、孵化中超期（14 天未更新）卡片列表
     """
-    now_local = now_local or _local_now()
+    now_local = now_local or local_now()
     today = now_local.date()
     week_start_date = today - timedelta(days=6)
     # 本地周起点换算为 UTC 字符串，与 created_at 直接比较
     week_start_utc = datetime.combine(week_start_date, datetime.min.time()) - LOCAL_OFFSET
     week_start_str = week_start_utc.strftime('%Y-%m-%d %H:%M:%S')
-    stale_before = (_utc_naive_now() - timedelta(days=14)).strftime('%Y-%m-%d %H:%M:%S')
+    stale_before = (utc_now() - timedelta(days=14)).strftime('%Y-%m-%d %H:%M:%S')
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -364,7 +352,7 @@ def generate_weekly_review(user_id, llm_provider=None, force=False, now_local=No
     Returns:
         dict: success/doc_id/title/url，及 exists/created/updated/ai_used/summary
     """
-    now_local = now_local or _local_now()
+    now_local = now_local or local_now()
     title = weekly_review_title(now_local)
     stats = collect_weekly_stats(user_id, now_local=now_local)
 

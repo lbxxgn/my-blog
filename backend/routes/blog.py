@@ -5,55 +5,13 @@
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify, current_app, has_app_context
-import markdown2
-import bleach
 import logging
 import json
 import re
 
 logger = logging.getLogger(__name__)
 
-# Allow inline indentation styles used by the editor quick-indent feature.
-# Production images may not have tinycss2 installed, so provide a tiny fallback.
-_POST_CONTENT_ALLOWED_CSS = {'text-indent', 'padding-left', 'margin-left'}
-
-
-class _SimpleCSSSanitizer:
-    """Minimal CSS sanitizer that only keeps allowed declarations.
-
-    Used when bleach's tinycss2 backend is unavailable. bleach's sanitizer
-    calls ``sanitize_css`` on the object passed via the ``css_sanitizer``
-    argument, so the method name must match exactly."""
-
-    def __init__(self, allowed_properties):
-        self.allowed_properties = {p.lower() for p in allowed_properties}
-
-    def sanitize_css(self, css):
-        if not css:
-            return ''
-        cleaned = []
-        for decl in css.split(';'):
-            decl = decl.strip()
-            if not decl:
-                continue
-            if ':' not in decl:
-                continue
-            prop = decl.split(':', 1)[0].strip().lower()
-            if prop in self.allowed_properties:
-                cleaned.append(decl)
-        return '; '.join(cleaned) + ';' if cleaned else ''
-
-    # Older bleach releases used ``sanitize``; keep both for compatibility.
-    sanitize = sanitize_css
-
-
-try:
-    from bleach.css_sanitizer import CSSSanitizer
-    _POST_CONTENT_CSS_SANITIZER = CSSSanitizer(
-        allowed_css_properties=list(_POST_CONTENT_ALLOWED_CSS)
-    )
-except Exception:  # pragma: no cover
-    _POST_CONTENT_CSS_SANITIZER = _SimpleCSSSanitizer(_POST_CONTENT_ALLOWED_CSS)
+from utils.markdown_renderer import render_markdown
 
 from models import (
     get_all_posts, get_all_posts_cursor, get_post_by_id,
@@ -441,28 +399,8 @@ def view_post(post_id):
             flash('无权访问此文章', 'error')
             return redirect(url_for('blog.index'))
 
-    # 渲染 Markdown 内容
-    post['content_html'] = markdown2.markdown(
-        post['content'],
-        extras=['fenced-code-blocks', 'tables']
-    )
-
-    # 清理 HTML 防止 XSS 攻击
-    # 保留 text-indent / padding-left / margin-left 等缩进样式，
-    # 这样移动端/桌面端的首行缩进在阅读页能正常显示。
-    post['content_html'] = bleach.clean(
-        post['content_html'],
-        tags=['p', 'a', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote',
-              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'br', 'hr', 'table', 'thead', 'tbody',
-              'tr', 'th', 'td', 'img', 'div', 'span'],
-        attributes={
-            'a': ['href', 'title', 'rel'],
-            'img': ['src', 'alt', 'title', 'width', 'height'],
-            '*': ['class', 'style']
-        },
-        css_sanitizer=_POST_CONTENT_CSS_SANITIZER,
-        strip_comments=False
-    )
+    # 渲染 Markdown 并清洗 HTML 防止 XSS（保留首行缩进等行内样式）
+    post['content_html'] = render_markdown(post['content'])
     post['content_html'] = rewrite_post_image_sources(post['content_html'], size='medium')
 
     # 获取文章标签

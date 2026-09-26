@@ -482,28 +482,8 @@ get_setup_logging()(app)
 # =============================================================================
 # 时区处理
 # =============================================================================
-from datetime import datetime, timezone
-import pytz
-
-CHINA_TZ = pytz.timezone('Asia/Shanghai')
-
-def utc_to_local(utc_datetime_str):
-    """将UTC时间字符串转换为中国时区（UTC+8）的本地时间"""
-    if not utc_datetime_str:
-        return ''
-
-    try:
-        if isinstance(utc_datetime_str, str):
-            utc_datetime = datetime.fromisoformat(utc_datetime_str.replace(' ', 'T'))
-            if utc_datetime.tzinfo is None:
-                utc_datetime = utc_datetime.replace(tzinfo=timezone.utc)
-        else:
-            utc_datetime = utc_datetime_str
-
-        local_datetime = utc_datetime.astimezone(CHINA_TZ)
-        return local_datetime.strftime('%Y-%m-%d %H:%M:%S')
-    except Exception as e:
-        return utc_datetime_str
+from datetime import datetime
+from utils.timezone import utc_to_local
 
 app.jinja_env.globals.update(utc_to_local=utc_to_local)
 

@@ -19,8 +19,6 @@
 """
 
 from flask import Blueprint, request, redirect, url_for, render_template, abort, session, flash, jsonify
-import markdown2
-import bleach
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from pathlib import Path
@@ -38,62 +36,9 @@ from models import (
 )
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 from models.draft import save_draft, get_drafts
+from utils.markdown_renderer import render_markdown
 
 knowledge_bp = Blueprint('knowledge', __name__)
-
-# 允许阅读页保留编辑器产生的缩进样式。
-_KB_ALLOWED_CSS = {'text-indent', 'padding-left', 'margin-left'}
-
-
-class _SimpleCSSSanitizer:
-    """Minimal CSS sanitizer fallback when tinycss2 is unavailable.
-
-    bleach's sanitizer calls ``sanitize_css`` on the object passed via the
-    ``css_sanitizer`` argument, so the method name must match exactly."""
-
-    def __init__(self, allowed_properties):
-        self.allowed_properties = {p.lower() for p in allowed_properties}
-
-    def sanitize_css(self, css):
-        if not css:
-            return ''
-        cleaned = []
-        for decl in css.split(';'):
-            decl = decl.strip()
-            if not decl or ':' not in decl:
-                continue
-            prop = decl.split(':', 1)[0].strip().lower()
-            if prop in self.allowed_properties:
-                cleaned.append(decl)
-        return '; '.join(cleaned) + ';' if cleaned else ''
-
-    # Older bleach releases used ``sanitize``; keep both for compatibility.
-    sanitize = sanitize_css
-
-
-try:
-    from bleach.css_sanitizer import CSSSanitizer
-    _KB_CONTENT_CSS_SANITIZER = CSSSanitizer(allowed_css_properties=list(_KB_ALLOWED_CSS))
-except Exception:  # pragma: no cover
-    _KB_CONTENT_CSS_SANITIZER = _SimpleCSSSanitizer(_KB_ALLOWED_CSS)
-
-
-def _render_markdown(content):
-    """渲染 Markdown 为安全的 HTML（与博客渲染保持一致）"""
-    html = markdown2.markdown(content, extras=['fenced-code-blocks', 'tables', 'header-ids'])
-    return bleach.clean(
-        html,
-        tags=['p', 'a', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote',
-              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'br', 'hr', 'table', 'thead', 'tbody',
-              'tr', 'th', 'td', 'img', 'div', 'span'],
-        attributes={
-            'a': ['href', 'title', 'rel'],
-            'img': ['src', 'alt', 'title', 'width', 'height'],
-            '*': ['class', 'id', 'style'],
-        },
-        css_sanitizer=_KB_CONTENT_CSS_SANITIZER,
-        strip_comments=False,
-    )
 
 
 def _flatten_tree(tree, depth=0):
@@ -163,7 +108,7 @@ def view_doc(doc_id):
     if not doc:
         abort(404)
 
-    doc['content_html'] = _render_markdown(doc['content'])
+    doc['content_html'] = render_markdown(doc['content'], with_header_ids=True)
     tags = get_post_tags(doc_id)
 
     breadcrumb = []
