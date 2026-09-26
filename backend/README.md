@@ -18,7 +18,6 @@
 | `migrations/` | 数据库迁移脚本 |
 | `image_cleanup_tool.py` | 统一的图片清理工具 |
 | `db_check.py` | 数据库完整性检查 |
-| `migrate_db.py` | 统一数据库迁移入口 |
 | `export.py` | 数据导出（JSON/Markdown） |
 | `import_blog.py` | 博客导入 |
 | `import_posts.py` | 文章导入 |
@@ -69,17 +68,11 @@ python backend/db_check.py
 
 ### 运行迁移脚本
 
-```bash
-python backend/migrations/migrate_drafts.py
-python backend/migrations/migrate_image_optimization.py
-python backend/migrations/migrate_knowledge_base.py
-# ... 其他迁移脚本见 backend/migrations/
-```
-
-或使用统一入口：
+使用版本化迁移运行器（自动按序执行 `migrations/` 下未应用的迁移）：
 
 ```bash
-python backend/migrate_db.py
+python -m backend.migrations          # 应用所有未执行迁移
+python -m backend.migrations status   # 查看迁移状态
 ```
 
 ## 配置说明

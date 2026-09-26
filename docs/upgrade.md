@@ -51,15 +51,10 @@ source .venv/bin/activate
 # 4. 安装依赖
 pip install -r requirements.txt
 
-# 5. 运行数据库迁移
+# 5. 运行数据库迁移（自动按序执行未应用的迁移）
 export DATABASE_URL="sqlite:///db/simple_blog.db"
-python3 backend/migrations/migrate_add_access_control.py
-python3 backend/migrations/migrate_add_post_type.py
-python3 backend/migrations/migrate_ai_features.py
-python3 backend/migrations/migrate_drafts.py
-python3 backend/migrations/migrate_image_optimization.py
-python3 backend/migrations/migrate_knowledge_base.py
-python3 backend/migrations/migrate_multiauthor.py
+python3 -m backend.migrations
+python3 -m backend.migrations status   # 查看状态
 
 # 6. 构建知识库编辑器前端（需要 Node.js 18+）
 cd frontend && npm install && npm run build && cd ..
@@ -99,13 +94,9 @@ backend/
 │   ├── asset_version.py            # 资源版本管理器
 │   └── template_helpers.py         # 模板助手函数
 └── migrations/
-    ├── migrate_add_access_control.py
-    ├── migrate_add_post_type.py
-    ├── migrate_ai_features.py
-    ├── migrate_drafts.py
-    ├── migrate_image_optimization.py
-    ├── migrate_knowledge_base.py
-    └── migrate_multiauthor.py
+    ├── __main__.py                   # 迁移运行器入口（python -m backend.migrations）
+    ├── __init__.py                   # 迁移注册表
+    └── migrate_*.py                  # 各版本迁移（由运行器按序执行）
 ```
 
 ### 前端文件
@@ -134,19 +125,14 @@ scripts/
 
 ## 🗄️ 数据库变更
 
-当前版本涉及的数据库迁移脚本位于 `backend/migrations/`：
+当前版本使用版本化迁移运行器，迁移文件位于 `backend/migrations/`，通过 `schema_migrations` 表记录已应用版本：
 
-| 迁移脚本 | 作用 |
-| --- | --- |
-| `migrate_add_access_control.py` | 添加角色与权限字段 |
-| `migrate_add_post_type.py` | 添加文章类型字段 |
-| `migrate_ai_features.py` | 添加 AI 使用记录等表 |
-| `migrate_drafts.py` | 创建 `drafts` 表 |
-| `migrate_image_optimization.py` | 创建 `optimized_images` 表 |
-| `migrate_knowledge_base.py` | 创建知识库相关表 |
-| `migrate_multiauthor.py` | 多作者关联字段 |
+```bash
+python3 -m backend.migrations          # 应用所有未执行迁移
+python3 -m backend.migrations status   # 查看各迁移状态
+```
 
-升级脚本会根据需要自动运行相关迁移。手动升级时，请按上表顺序运行。
+无需再逐个手动运行 `migrate_*.py`（脚本 `scripts/upgrade.sh` 会自动调用运行器）。
 
 ### 主要新增表
 
@@ -215,9 +201,9 @@ REMEMBER_DEVICE_DAYS=90
 USE_MINIFIED_ASSETS=True
 # ASSET_BUILD_VERSION=
 
-# AI 默认配置
-AI_DEFAULT_PROVIDER=openai
-AI_DEFAULT_MODEL=gpt-3.5-turbo
+# AI 默认配置（API Key 在后台「AI 设置」页配置）
+AI_DEFAULT_PROVIDER=dashscope
+AI_DEFAULT_MODEL=qwen-turbo
 AI_RATE_LIMIT_PER_HOUR=10
 AI_CONTENT_MAX_LENGTH=500
 ```
@@ -376,8 +362,7 @@ ls -la db/simple_blog.db
 # 手动运行迁移
 source .venv/bin/activate
 export DATABASE_URL="sqlite:///db/simple_blog.db"
-python3 backend/migrations/migrate_drafts.py
-python3 backend/migrations/migrate_knowledge_base.py
+python3 -m backend.migrations
 
 # 检查表是否创建
 sqlite3 db/simple_blog.db ".tables"

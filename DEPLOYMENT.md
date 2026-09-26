@@ -98,9 +98,9 @@ USE_MINIFIED_ASSETS=True
 ASSET_BUILD_VERSION=
 
 # AI 功能（可选）
-# AI_DEFAULT_PROVIDER=openai
-# AI_DEFAULT_MODEL=gpt-3.5-turbo
-# OPENAI_API_KEY=your-api-key
+# 仅下面两个是环境变量；API Key 在后台「AI 设置」页配置
+# AI_DEFAULT_PROVIDER=dashscope
+# AI_DEFAULT_MODEL=qwen-turbo
 # AI_RATE_LIMIT_PER_HOUR=10
 # AI_CONTENT_MAX_LENGTH=500
 ```
@@ -305,14 +305,10 @@ git pull origin main
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 4. 运行数据库迁移（根据版本需要选择）
-python3 backend/migrations/migrate_add_access_control.py
-python3 backend/migrations/migrate_add_post_type.py
-python3 backend/migrations/migrate_ai_features.py
-python3 backend/migrations/migrate_drafts.py
-python3 backend/migrations/migrate_image_optimization.py
-python3 backend/migrations/migrate_knowledge_base.py
-python3 backend/migrations/migrate_multiauthor.py
+# 4. 运行数据库迁移（自动按序执行未应用的迁移）
+python3 -m backend.migrations
+# 查看迁移状态
+python3 -m backend.migrations status
 
 # 5. 构建前端（如前端有更新）
 cd frontend && npm install && npm run build && cd ..
@@ -410,8 +406,7 @@ ls -la db/simple_blog.db
 sqlite3 db/simple_blog.db ".tables"
 
 # 重新运行迁移（谨慎操作）
-python3 backend/migrations/migrate_drafts.py
-python3 backend/migrations/migrate_knowledge_base.py
+python3 -m backend.migrations
 ```
 
 ### Git pull 失败

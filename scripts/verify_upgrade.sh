@@ -407,7 +407,7 @@ print_summary() {
         echo ""
         echo "常见问题解决方案:"
         echo "  1. 应用未运行: ./upgrade.sh 重新启动"
-        echo "  2. 数据库表缺失: source .venv/bin/activate && python3 backend/migrations/migrate_*.py"
+        echo "  2. 数据库表缺失: source .venv/bin/activate && python3 -m backend.migrations"
         echo "  3. manifest缺失: python3 generate_manifest.py"
         echo "  4. 文件缺失: 检查文件是否被正确创建"
         return 1

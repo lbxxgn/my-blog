@@ -43,7 +43,7 @@ python backend/app.py
 - **摘要生成**：一键生成文章摘要
 - **相关推荐**：基于内容推荐相关文章
 - **内容续写/整理**：智能续写与内容组织
-- **多提供商支持**：OpenAI / 火山引擎 / 阿里百炼
+- **多提供商支持**：阿里百炼 / DeepSeek / 自定义 OpenAI 兼容
 
 ### 安全与体验
 - **Passkey / WebAuthn**：Face ID / Touch ID 快捷登录
@@ -54,15 +54,15 @@ python backend/app.py
 ### 扩展与工具
 - **浏览器扩展 / Safari 扩展**：网页内容采集
 - **移动端蓝图**（`/mobile`）：移动端 API 支持
-- **静态资源优化**：自动版本管理与压缩（`backend/utils/asset_optimizer.py`）
+- **静态资源优化**：自动版本管理与压缩（`backend/utils/asset_version.py`）
 
 ## 技术栈
 
 - **后端**：Flask 3.1.3、Python 3.11+、SQLite 3 + FTS5、Jinja2
 - **传统前端**：Vanilla JS + Quill 编辑器
 - **新版知识库编辑器**：React 19.2 + Vite 8.1 + BlockNote 0.51 + Mantine 9
-- **AI**：OpenAI API / 火山引擎 / 阿里百炼
-- **测试**：pytest + pytest-cov（275 个测试）
+- **AI**：阿里百炼 / DeepSeek / 自定义 OpenAI 兼容（API Key 在后台「AI 设置」配置）
+- **测试**：pytest + pytest-cov（373 个测试）
 
 ## 项目结构
 
@@ -81,7 +81,7 @@ my-blog/
 │   │   └── drafts.py           # drafts_bp
 │   ├── ai_services/            # AI 服务
 │   ├── utils/                  # 工具模块
-│   │   └── asset_optimizer.py  # 静态资源优化
+│   │   └── asset_version.py    # 静态资源版本管理
 │   ├── auth_decorators.py      # 认证装饰器
 │   └── app.py                  # 应用入口
 ├── frontend/                   # React 知识库编辑器源码
@@ -98,6 +98,9 @@ my-blog/
 │   ├── rollback.sh
 │   ├── verify_upgrade.sh
 │   ├── install-service.sh
+│   ├── setup-https-sslip.sh        # 无域名 HTTPS（Let's Encrypt，海外）
+│   ├── setup-https-selfsigned.sh   # IP + 自签证书（大陆云）
+│   ├── cleanup-https-sslip.sh      # 清理 Let's Encrypt 残留
 │   └── generate_manifest.py
 ├── tests/                      # 测试代码
 │   ├── test_kb_editor_api.py
@@ -175,12 +178,12 @@ PASSKEY_ALLOWED_ORIGINS=http://localhost:5001,https://example.com
 REMEMBER_DEVICE_DAYS=90
 
 # AI 配置（可选）
-AI_PROVIDER=openai
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-VOLCENGINE_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-DASHSCOPE_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-AI_MODEL=gpt-3.5-turbo
-AI_TAG_GENERATION_ENABLED=0
+# 仅下面两个是环境变量；API Key 在后台「AI 设置」页按用户配置
+AI_DEFAULT_PROVIDER=dashscope
+AI_DEFAULT_MODEL=qwen-turbo
+AI_RATE_LIMIT_PER_HOUR=10
+AI_CONTENT_MAX_LENGTH=500
+AI_HISTORY_ENABLED=True
 
 # 静态资源
 USE_MINIFIED_ASSETS=True

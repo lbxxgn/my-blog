@@ -9,26 +9,32 @@ tests/
 ├── __init__.py                # 测试模块初始化
 ├── conftest.py                # pytest 配置和共享 fixtures
 ├── test_admin_features.py     # 管理后台功能
+├── test_ai_mentor_restructure.py # AI 导师重构
 ├── test_ai_merger.py          # AI 卡片合并
 ├── test_db_check.py           # 数据库完整性检查
 ├── test_drafts.py             # 草稿同步
+├── test_embeddings.py         # Embedding / 语义搜索
 ├── test_image_cleanup_tool.py # 图片清理工具
 ├── test_image_edge_cases.py   # 图片边界情况
 ├── test_image_processing.py   # 图片处理与优化
 ├── test_import_blog.py        # 博客导入
 ├── test_import_posts.py       # 文章导入
 ├── test_kb_editor_api.py      # 知识库编辑器后端 API
-├── test_knowledge_base.py     # 旧版知识库
-├── test_migrate_db.py         # 数据库迁移
+├── test_knowledge_base.py     # 知识库
+├── test_migrations_runner.py  # 版本化迁移运行器
 ├── test_models.py             # 核心数据模型
 ├── test_models_edge_cases.py  # 模型边界情况
+├── test_quick_capture.py      # 快捷捕捉
+├── test_review.py             # 回顾页 / 每周回顾
 ├── test_routes.py             # 路由行为
 ├── test_routes_edge_cases.py  # 路由边界情况
+├── test_search_api.py         # 搜索 API
 ├── test_security.py           # 安全（CSRF、XSS、速率限制、CSP）
-└── e2e_kb_editor.py           # 端到端知识库编辑器测试（CDP + Chrome）
+├── test_site_icon.py          # 站点图标
+└── e2e_kb_editor.py           # 端到端知识库编辑器测试（CDP + Chrome，手动运行）
 ```
 
-当前共有 **271** 个 pytest 测试用例，外加一个独立的 E2E 脚本。
+当前共有 **373** 个 pytest 测试用例（`pytest --collect-only -q | tail -1` 可查），外加一个独立的 E2E 脚本。
 
 ## 运行测试
 
@@ -105,8 +111,6 @@ def test_something(client, test_admin_user):
 - `test_user`: 测试普通用户
 - `temp_db` / `init_database`: 临时数据库
 - `test_post`: 测试文章
-- `test_category`: 测试分类
-- `test_tag`: 测试标签
 
 ## 测试覆盖
 

@@ -68,8 +68,8 @@ export USE_MINIFIED_ASSETS="True"
 # export ASSET_BUILD_VERSION=""
 
 # AI 默认配置
-export AI_DEFAULT_PROVIDER="openai"
-export AI_DEFAULT_MODEL="gpt-3.5-turbo"
+export AI_DEFAULT_PROVIDER="dashscope"
+export AI_DEFAULT_MODEL="qwen-turbo"
 export AI_RATE_LIMIT_PER_HOUR="10"
 export AI_CONTENT_MAX_LENGTH="500"
 ```
@@ -153,7 +153,7 @@ python -c "from backend.app import app; from backend.models import init_db; init
 
 - **上传目录**: `static/uploads/`
 - **允许格式**: PNG, JPG, JPEG, GIF, WEBP, HEIC
-- **单文件大小**: 最大 5MB
+- **单次请求上限**: 100MB（`MAX_CONTENT_LENGTH`）
 - **图片尺寸**: 最大 4096x4096 像素
 
 ### 日志系统
@@ -605,7 +605,7 @@ cp db/simple_blog.db db/simple_blog.db.backup
 sqlite3 db/simple_blog.db "SELECT id, title, created_at FROM posts LIMIT 10;"
 
 # 运行数据库迁移
-python3 backend/migrations/migrate_knowledge_base.py
+python3 -m backend.migrations
 
 # 生成静态资源 manifest
 python3 scripts/generate_manifest.py
@@ -652,17 +652,9 @@ cd frontend && npm install && npm run build && cd ..
 编辑 `.env` 文件：
 
 ```bash
-# AI 默认提供商和模型
+# AI 默认提供商和模型（仅这两个是环境变量）
 AI_DEFAULT_PROVIDER=dashscope
 AI_DEFAULT_MODEL=qwen-turbo
-
-# 对应的 API 密钥
-DASHSCOPE_API_KEY=sk-xxxxx
-# 或
-DEEPSEEK_API_KEY=sk-xxxxx
-
-# 自定义提供商的 Base URL（仅 AI_PROVIDER=custom 时需要）
-AI_BASE_URL=https://api.example.com/v1
 
 # 限流与长度限制
 AI_RATE_LIMIT_PER_HOUR=10

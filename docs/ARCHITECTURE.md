@@ -84,7 +84,6 @@ my-blog/
 │   ├── auth_decorators.py       # 登录与权限装饰器
 │   ├── image_cleanup_tool.py    # 图片清理工具
 │   ├── db_check.py              # 数据库完整性检查
-│   ├── migrate_db.py            # 旧版多用户迁移脚本（新迁移请用 migrations/ 运行器）
 │   ├── export.py                # 数据导出
 │   ├── import_blog.py           # 博客导入
 │   ├── import_posts.py          # 文章导入
@@ -125,8 +124,7 @@ my-blog/
 │   │   └── custom_provider.py
 │   │
 │   ├── utils/                  # 工具函数
-│   │   ├── asset_version.py    # 旧版静态资源版本管理
-│   │   ├── asset_optimizer.py  # 资源优化与路径映射
+│   │   ├── asset_version.py    # 静态资源版本管理
 │   │   ├── image_cleanup.py    # 图片清理逻辑
 │   │   ├── image_processor.py  # 图片处理
 │   │   └── template_helpers.py # 模板辅助函数
@@ -220,9 +218,9 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ai_tag_generation_enabled BOOLEAN DEFAULT 1,
-    ai_provider TEXT DEFAULT 'openai',
+    ai_provider TEXT DEFAULT 'dashscope',
     ai_api_key TEXT,
-    ai_model TEXT DEFAULT 'gpt-3.5-turbo'
+    ai_model TEXT DEFAULT 'qwen-turbo'
 );
 ```
 
