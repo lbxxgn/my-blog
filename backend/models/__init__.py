@@ -123,6 +123,13 @@ __all__ = [
     'create_annotation',
     'get_annotations_by_url',
 
+    # Site settings functions
+    'ensure_site_settings_table',
+    'get_site_setting',
+    'set_site_setting',
+    'delete_site_setting',
+    'get_site_icon_version',
+
     # Utility functions
     'strip_html_tags',
     'truncate_text',

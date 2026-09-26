@@ -486,6 +486,15 @@ def init_db(db_path=None):
         )
     ''')
 
+    # 站点级键值配置（自定义图标版本等）
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS site_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     conn.commit()
     conn.close()
 

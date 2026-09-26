@@ -26,7 +26,7 @@ Flask博客系统 - 主应用文件
 # =============================================================================
 # 标准库导入
 # =============================================================================
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
@@ -113,7 +113,8 @@ except ImportError:
 # =============================================================================
 from models import (
     get_db_connection, init_db, get_db_context,
-    get_user_by_username, get_user_by_id, create_user
+    get_user_by_username, get_user_by_id, create_user,
+    get_site_icon_version
 )
 
 # =============================================================================
@@ -183,13 +184,87 @@ def service_worker():
     return response
 
 
-# iOS 在解析不到 <link rel="apple-touch-icon"> 时会自动探测根路径图标，
-# 静态文件位于 /static/ 下，这里补两个根路径兜底路由（含旧版 precomposed）。
+# =============================================================================
+# 站点图标：优先返回后台上传的自定义图标，否则回退到仓库默认图标
+# iOS 在解析不到 <link> 时也会自动探测根路径的 /apple-touch-icon.png、/favicon.ico
+# =============================================================================
+from backend.utils.site_icon import site_icon_dir
+
+_ICON_CACHE_MAX_AGE = 604800  # 7 天；URL 带 ?v=<版本号> 实现自定义图标后的即时更新
+
+
+def _serve_site_icon(custom_name, fallback_static, mimetype):
+    custom = site_icon_dir() / custom_name
+    if custom.exists():
+        return send_file(str(custom), mimetype=mimetype, max_age=_ICON_CACHE_MAX_AGE)
+
+    response = app.send_static_file(fallback_static)
+    response.headers['Cache-Control'] = f'public, max-age={_ICON_CACHE_MAX_AGE}'
+    return response
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return _serve_site_icon('favicon.ico', 'icons/favicon.ico', 'image/x-icon')
+
+
+@app.route('/favicon-16.png')
+def favicon_16():
+    return _serve_site_icon('icon-16.png', 'icons/icon-16.png', 'image/png')
+
+
+@app.route('/favicon-32.png')
+def favicon_32():
+    return _serve_site_icon('icon-32.png', 'icons/icon-32.png', 'image/png')
+
+
+@app.route('/site-icon-48.png')
+def site_icon_48():
+    return _serve_site_icon('icon-48.png', 'icons/icon-48.png', 'image/png')
+
+
+# iOS 主屏图标（含旧版 precomposed 兜底）
 @app.route('/apple-touch-icon-precomposed.png')
 @app.route('/apple-touch-icon.png')
 def apple_touch_icon():
-    response = app.send_static_file('apple-touch-icon.png')
-    response.headers['Cache-Control'] = 'public, max-age=604800'
+    return _serve_site_icon('icon-180.png', 'apple-touch-icon.png', 'image/png')
+
+
+@app.route('/site-icon-192.png')
+def site_icon_192():
+    return _serve_site_icon('icon-192.png', 'icons/icon-192.png', 'image/png')
+
+
+@app.route('/site-icon-512.png')
+def site_icon_512():
+    return _serve_site_icon('icon-512.png', 'icons/icon-512.png', 'image/png')
+
+
+@app.route('/site.webmanifest')
+def site_webmanifest():
+    """动态 manifest：图标 URL 带版本号，自定义图标后 PWA 能及时拿到新图标。"""
+    version = get_site_icon_version()
+    manifest = {
+        'name': SITE_NAME,
+        'short_name': SITE_NAME,
+        'start_url': '/',
+        'display': 'standalone',
+        'share_target': {
+            'action': '/quick-capture',
+            'method': 'GET',
+            'enctype': 'application/x-www-form-urlencoded',
+            'params': {'title': 'title', 'text': 'text', 'url': 'url'},
+        },
+        'background_color': '#ffffff',
+        'theme_color': '#ffffff',
+        'icons': [
+            {'src': f'/site-icon-192.png?v={version}', 'sizes': '192x192', 'type': 'image/png'},
+            {'src': f'/site-icon-512.png?v={version}', 'sizes': '512x512', 'type': 'image/png'},
+        ],
+    }
+    response = jsonify(manifest)
+    response.headers['Content-Type'] = 'application/manifest+json'
+    response.headers['Cache-Control'] = 'no-cache'
     return response
 
 
@@ -343,6 +418,7 @@ def inject_site_settings():
         site_description=SITE_DESCRIPTION,
         site_author=SITE_AUTHOR,
         remember_device_days=REMEMBER_DEVICE_DAYS,
+        site_icon_version=get_site_icon_version(),
         vite_asset=vite_asset,
         current_year=datetime.now().year,
     )

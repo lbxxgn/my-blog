@@ -296,11 +296,19 @@ def temp_db():
             )
         ''')
 
+        # 创建站点配置表
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS site_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         # 创建全文搜索表
         conn.execute('''
             CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(title, content, content='posts', content_rowid='id')
         ''')
-
         # 创建全文搜索触发器
         conn.execute('''
             CREATE TRIGGER IF NOT EXISTS posts_ai AFTER INSERT ON posts BEGIN

@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf_token" content="{{ csrf_token() }}">
     <title>{% block title %}{{ site_name }}{% endblock %}</title>
-    <link rel="icon" href="{{ url_for('static', filename='icons/favicon.ico') }}" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='icons/icon-32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='icons/icon-16.png') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/icon-180.png') }}">
-    <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('apple_touch_icon') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+    <link rel="icon" href="{{ url_for('favicon') }}?v={{ site_icon_version }}" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('favicon_32') }}?v={{ site_icon_version }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('favicon_16') }}?v={{ site_icon_version }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('apple_touch_icon') }}?v={{ site_icon_version }}">
+    <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('site_icon_192') }}?v={{ site_icon_version }}">
+    <link rel="manifest" href="{{ url_for('site_webmanifest') }}">
     <!-- JetBrains Mono for code blocks -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -55,7 +54,7 @@
     {% endif %}
     <header>
         <nav>
-            <h1><a href="{{ url_for('index') }}"><img src="{{ url_for('static', filename='icons/icon-48.png') }}" alt="" class="site-logo" style="height: 1.05em; width: 1.05em; border-radius: 6px; vertical-align: -0.15em; margin-right: 8px;">{{ site_name }}</a></h1>
+            <h1><a href="{{ url_for('index') }}"><img src="{{ url_for('site_icon_48') }}?v={{ site_icon_version }}" alt="" class="site-logo" style="height: 1.05em; width: 1.05em; border-radius: 6px; vertical-align: -0.15em; margin-right: 8px;">{{ site_name }}</a></h1>
 
             <!-- 汉堡菜单按钮（仅移动端显示） -->
             <button class="hamburger" id="hamburger" aria-label="菜单">
@@ -84,6 +83,7 @@
                         <ul class="dropdown-menu">
                             <li><a href="{{ url_for('user_list') }}">用户管理</a></li>
                             <li><a href="{{ url_for('ai.ai_settings') }}">AI设置</a></li>
+                            <li><a href="{{ url_for('admin.site_settings') }}">站点设置</a></li>
                         </ul>
                     </li>
                     {% endif %}

@@ -32,13 +32,16 @@ from models import (
     create_knowledge_doc, get_knowledge_doc, get_knowledge_docs_by_category,
     update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
     archive_card_to_knowledge, get_card_by_id,
+    get_site_icon_version, set_site_setting,
 )
 from backend.routes.ai import _run_structured_prompt
-from auth_decorators import login_required, can_manage_users, can_edit_post, can_delete_post, api_key_required, get_current_user
+from auth_decorators import login_required, admin_required, can_manage_users, can_edit_post, can_delete_post, api_key_required, get_current_user
 from logger import log_operation, log_error, log_sql, api_internal_error
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
+from backend.utils.site_icon import generate_site_icons, reset_site_icons, has_custom_icons
 import re
 import threading
+import time
 from flask import current_app
 
 def _auto_title(content: str) -> str:
@@ -1612,3 +1615,60 @@ def mobile_upload_image():
 def knowledge_admin():
     """重定向到知识库独立空间"""
     return redirect(url_for('knowledge.index'))
+
+
+# =============================================================================
+# 站点设置：自定义站点图标（favicon / iOS 主屏 / PWA）
+# =============================================================================
+
+@admin_bp.route('/site')
+@login_required
+@admin_required
+def site_settings():
+    """站点设置页（仅管理员）"""
+    return render_template(
+        'admin/site_settings.html',
+        has_custom_icon=has_custom_icons(),
+        icon_version=get_site_icon_version(),
+    )
+
+
+@admin_bp.route('/site/icon', methods=['POST'])
+@login_required
+@admin_required
+def upload_site_icon():
+    """上传并生成站点图标"""
+    file = request.files.get('icon')
+    if not file or file.filename == '':
+        flash('请选择图片文件', 'error')
+        return redirect(url_for('admin.site_settings'))
+
+    if not allowed_file(file.filename):
+        flash('不支持的图片格式，请上传 PNG/JPG/WEBP 等图片', 'error')
+        return redirect(url_for('admin.site_settings'))
+
+    file_content = file.read()
+    try:
+        generate_site_icons(file_content)
+    except ValueError as e:
+        flash(str(e), 'error')
+        return redirect(url_for('admin.site_settings'))
+    except Exception as e:
+        logger.error(f'Site icon upload failed: {e}')
+        flash('图标处理失败，请稍后重试', 'error')
+        return redirect(url_for('admin.site_settings'))
+
+    set_site_setting('icon_version', str(int(time.time())))
+    flash('站点图标已更新', 'success')
+    return redirect(url_for('admin.site_settings'))
+
+
+@admin_bp.route('/site/icon/reset', methods=['POST'])
+@login_required
+@admin_required
+def reset_site_icon():
+    """恢复默认站点图标"""
+    reset_site_icons()
+    set_site_setting('icon_version', str(int(time.time())))
+    flash('已恢复默认图标', 'success')
+    return redirect(url_for('admin.site_settings'))
