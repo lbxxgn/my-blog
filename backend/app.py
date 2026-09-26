@@ -26,7 +26,7 @@ Flask博客系统 - 主应用文件
 # =============================================================================
 # 标准库导入
 # =============================================================================
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, abort
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 from functools import wraps
@@ -190,16 +190,32 @@ def service_worker():
 # =============================================================================
 from backend.utils.site_icon import site_icon_dir
 
-_ICON_CACHE_MAX_AGE = 604800  # 7 天；URL 带 ?v=<版本号> 实现自定义图标后的即时更新
+_ICON_CACHE_MAX_AGE = 604800  # 7 天；版本化文件名用于自定义图标后的即时更新
+
+# 可版本化访问的尺寸 -> 仓库默认图标（无自定义时回退）
+_VERSIONED_ICON_FALLBACKS = {
+    16: 'icons/icon-16.png',
+    32: 'icons/icon-32.png',
+    48: 'icons/icon-48.png',
+    180: 'apple-touch-icon.png',
+    192: 'icons/icon-192.png',
+    512: 'icons/icon-512.png',
+}
 
 
-def _serve_site_icon(custom_name, fallback_static, mimetype):
+def _serve_site_icon(custom_name, fallback_static, mimetype, cache_seconds=_ICON_CACHE_MAX_AGE):
     custom = site_icon_dir() / custom_name
     if custom.exists():
-        return send_file(str(custom), mimetype=mimetype, max_age=_ICON_CACHE_MAX_AGE)
+        response = send_file(str(custom), mimetype=mimetype)
+    else:
+        response = app.send_static_file(fallback_static)
+        response.headers['Content-Type'] = mimetype
 
-    response = app.send_static_file(fallback_static)
-    response.headers['Cache-Control'] = f'public, max-age={_ICON_CACHE_MAX_AGE}'
+    if cache_seconds:
+        response.headers['Cache-Control'] = f'public, max-age={cache_seconds}'
+    else:
+        # iOS 主屏图标缓存极顽固，探测路径保持可重新校验
+        response.headers['Cache-Control'] = 'no-cache'
     return response
 
 
@@ -223,11 +239,11 @@ def site_icon_48():
     return _serve_site_icon('icon-48.png', 'icons/icon-48.png', 'image/png')
 
 
-# iOS 主屏图标（含旧版 precomposed 兜底）
+# iOS 主屏图标（含旧版 precomposed 兜底）；探测路径用 no-cache
 @app.route('/apple-touch-icon-precomposed.png')
 @app.route('/apple-touch-icon.png')
 def apple_touch_icon():
-    return _serve_site_icon('icon-180.png', 'apple-touch-icon.png', 'image/png')
+    return _serve_site_icon('icon-180.png', 'apple-touch-icon.png', 'image/png', cache_seconds=0)
 
 
 @app.route('/site-icon-192.png')
@@ -238,6 +254,15 @@ def site_icon_192():
 @app.route('/site-icon-512.png')
 def site_icon_512():
     return _serve_site_icon('icon-512.png', 'icons/icon-512.png', 'image/png')
+
+
+@app.route('/site-icon-<int:size>-<int:version>.png')
+def site_icon_versioned(size, version):
+    """版本化图标路径：文件名随版本变化，绕开 iOS 的图标缓存。"""
+    fallback = _VERSIONED_ICON_FALLBACKS.get(size)
+    if not fallback:
+        abort(404)
+    return _serve_site_icon(f'icon-{size}.png', fallback, 'image/png')
 
 
 @app.route('/site.webmanifest')
@@ -258,14 +283,15 @@ def site_webmanifest():
         'background_color': '#ffffff',
         'theme_color': '#ffffff',
         'icons': [
-            {'src': f'/site-icon-192.png?v={version}', 'sizes': '192x192', 'type': 'image/png'},
-            {'src': f'/site-icon-512.png?v={version}', 'sizes': '512x512', 'type': 'image/png'},
+            {'src': f'/site-icon-192-{version}.png', 'sizes': '192x192', 'type': 'image/png'},
+            {'src': f'/site-icon-512-{version}.png', 'sizes': '512x512', 'type': 'image/png'},
         ],
     }
     response = jsonify(manifest)
     response.headers['Content-Type'] = 'application/manifest+json'
     response.headers['Cache-Control'] = 'no-cache'
     return response
+
 
 
 # =============================================================================

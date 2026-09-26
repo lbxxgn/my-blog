@@ -61,6 +61,19 @@ class TestSiteIconRoutes:
             assert response.status_code == 200, path
             assert response.data, path
 
+    def test_versioned_icon_routes(self, client):
+        # 版本化路径可用于绕开 iOS 图标缓存
+        response = client.get('/site-icon-180-0.png')
+        assert response.status_code == 200
+        assert response.headers['Content-Type'] == 'image/png'
+
+        # 未知尺寸 404
+        assert client.get('/site-icon-999-0.png').status_code == 404
+
+    def test_apple_touch_icon_is_no_cache(self, client):
+        response = client.get('/apple-touch-icon.png')
+        assert response.headers['Cache-Control'] == 'no-cache'
+
     def test_manifest_has_share_target_and_icons(self, client):
         response = client.get('/site.webmanifest')
         assert response.status_code == 200
@@ -69,12 +82,14 @@ class TestSiteIconRoutes:
         assert data['share_target']['action'] == '/quick-capture'
         assert any('192x192' in icon['sizes'] for icon in data['icons'])
         assert any('512x512' in icon['sizes'] for icon in data['icons'])
+        assert any('/site-icon-192-' in icon['src'] for icon in data['icons'])
 
     def test_base_html_uses_dynamic_routes(self):
         base = (PROJECT_ROOT / 'templates' / 'base.html').read_text()
         assert "url_for('favicon')" in base
-        assert "url_for('apple_touch_icon')" in base
+        assert "url_for('site_icon_versioned'" in base
         assert "url_for('site_webmanifest')" in base
+        assert 'apple-mobile-web-app-title' in base
 
 
 class TestSiteIconAdmin:
