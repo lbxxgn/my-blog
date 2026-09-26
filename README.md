@@ -74,10 +74,10 @@ my-blog/
 │   ├── models/                 # 数据模型
 │   ├── routes/                 # 路由蓝图模块
 │   │   ├── auth.py             # auth_bp
-│   │   ├── blog.py             # blog_bp
-│   │   ├── admin.py            # admin_bp (/admin)
+│   │   ├── blog/               # blog_bp（feed / post_detail / search / mobile）
+│   │   ├── admin/              # admin_bp + mobile_bp（posts/batch/media/taxonomy/comments/import_export/users/site）
 │   │   ├── api.py              # api_bp (/api)
-│   │   ├── ai.py               # ai_bp (/admin/ai)
+│   │   ├── ai/                 # ai_bp（config / generation / organize / mentor）
 │   │   ├── knowledge_base.py   # knowledge_base_bp (/knowledge_base)
 │   │   ├── knowledge.py        # knowledge_bp (/knowledge)
 │   │   └── drafts.py           # drafts_bp

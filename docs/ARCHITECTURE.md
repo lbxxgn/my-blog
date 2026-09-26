@@ -105,10 +105,10 @@ my-blog/
 │   ├── routes/                  # 路由模块（蓝图）
 │   │   ├── __init__.py         # 蓝图注册
 │   │   ├── auth.py             # 认证路由（登录/Passkey）
-│   │   ├── blog.py             # 博客公开路由
-│   │   ├── admin.py            # 管理后台路由（含移动端上传蓝图）
+│   │   ├── blog/               # 博客公开路由（feed / post_detail / search / mobile）
+│   │   ├── admin/              # 管理后台路由 + 移动端上传蓝图（posts/batch/media/taxonomy/comments/import_export/users/site）
 │   │   ├── api.py              # RESTful API
-│   │   ├── ai.py               # AI 功能路由
+│   │   ├── ai/                 # AI 功能路由（config / generation / organize / mentor）
 │   │   ├── knowledge_base.py   # 旧版插件 API（页面已重定向到 knowledge）
 │   │   ├── knowledge.py        # 新版知识空间
 │   │   └── drafts.py           # 草稿同步路由
