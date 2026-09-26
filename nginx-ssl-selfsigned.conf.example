@@ -4,8 +4,8 @@
 # 生成证书：sudo ./scripts/setup-https-selfsigned.sh
 #
 # 部署前需替换：
-#   - /path/to/my-blog                    -> 项目实际部署路径
-#   - /etc/ssl/my-blog/server-fullchain.pem / server.key -> 证书路径（脚本默认输出）
+#   - 项目路径已按本机 /root/my-blog 填好（如不同请自行替换）
+#   - 证书路径为脚本默认输出（/etc/ssl/my-blog/...）
 #
 # 说明：
 #   - server_name 用 _（匹配任意 Host）；用 IP 访问时 Host 是 IP，不会触发大陆云的 ICP 备案拦截。
@@ -65,13 +65,13 @@ http {
 
         # 静态资源由 nginx 直发
         location /static/frontend/ {
-            alias /path/to/my-blog/static/frontend/;
+            alias /root/my-blog/static/frontend/;
             expires 1y;
             add_header Cache-Control "public, immutable";
             access_log off;
         }
         location /static/ {
-            alias /path/to/my-blog/static/;
+            alias /root/my-blog/static/;
             expires 30d;
             add_header Cache-Control "public";
             access_log off;
