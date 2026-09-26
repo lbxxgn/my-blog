@@ -605,11 +605,12 @@ FORCE_HTTPS=True
 ```
 
 访问地址为 `https://你的公网IP`。首次访问会提示证书不受信任，把脚本生成的 `/etc/ssl/my-blog/ca.crt` 下载到你自己的电脑/手机并信任后即无警告：
-
 - **macOS**：双击导入钥匙串 → 找到 `my-blog Local CA` → 设为“始终信任”
 - **iPhone**：AirDrop/邮件发送 `ca.crt` → 设置-通用-VPN与设备管理 安装 → 设置-通用-关于本机-证书信任设置 打开“完全信任”
 - **Windows**：双击 `ca.crt` → 安装到“受信任的根证书颁发机构”
 - **Android**：设置-安全-加密与凭据-安装证书-CA 证书
+
+> ⚠️ **静态资源 403**：该配置让 Nginx 直发 `/static/`。若项目部署在 `/root` 下（默认 `700`），Nginx 用户无法穿越 `/root`，会全部 403。解决：`sudo chmod o+x /root`（并确保各级目录 `o+x`、文件 `o+r`），或更稳妥地把项目移到 `/opt/my-blog`、`/var/www/my-blog`。也可删掉 Nginx 的 `location /static/` 由 Flask 直接返回。
 
 ### 4. 启用安全选项
 

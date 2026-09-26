@@ -65,6 +65,9 @@ http {
         ssl_session_timeout 1d;
 
         # 静态资源由 nginx 直发
+        # ⚠️ 项目若在 /root 下（默认 700），nginx 用户无法穿越 → /static/ 会 403。
+        #    解决：sudo chmod o+x /root（并确保各级目录 o+x、文件 o+r），
+        #    或更稳妥地把项目移到 /opt/my-blog、/var/www/my-blog。
         location /static/frontend/ {
             alias /root/my-blog/static/frontend/;
             expires 1y;
