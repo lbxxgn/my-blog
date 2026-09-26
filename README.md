@@ -56,6 +56,8 @@ python backend/app.py
 - **移动端蓝图**（`/mobile`）：移动端 API 支持
 - **静态资源优化**：自动版本管理与压缩（`backend/utils/asset_version.py`）
 
+> 📖 完整功能清单（含访问入口、快捷键、配置前置）见 [docs/features.md](docs/features.md)。
+
 ## 技术栈
 
 - **后端**：Flask 3.1.3、Python 3.11+、SQLite 3 + FTS5、Jinja2
