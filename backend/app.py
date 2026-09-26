@@ -183,6 +183,16 @@ def service_worker():
     return response
 
 
+# iOS 在解析不到 <link rel="apple-touch-icon"> 时会自动探测根路径图标，
+# 静态文件位于 /static/ 下，这里补两个根路径兜底路由（含旧版 precomposed）。
+@app.route('/apple-touch-icon-precomposed.png')
+@app.route('/apple-touch-icon.png')
+def apple_touch_icon():
+    response = app.send_static_file('apple-touch-icon.png')
+    response.headers['Cache-Control'] = 'public, max-age=604800'
+    return response
+
+
 # =============================================================================
 # 安全响应头配置
 # =============================================================================

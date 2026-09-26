@@ -133,3 +133,20 @@ class TestServiceWorker:
         assert 'serviceWorker' in base
         assert '/sw.js' in base
         assert 'register' in base
+
+
+class TestAppleTouchIcon:
+    """iOS 主屏图标根路径兜底"""
+
+    def test_apple_touch_icon_served_at_root(self, client):
+        response = client.get('/apple-touch-icon.png')
+        assert response.status_code == 200
+        assert response.headers['Content-Type'] == 'image/png'
+
+    def test_apple_touch_icon_precomposed_alias(self, client):
+        response = client.get('/apple-touch-icon-precomposed.png')
+        assert response.status_code == 200
+
+    def test_base_html_declares_apple_touch_icon(self):
+        base = (PROJECT_ROOT / 'templates' / 'base.html').read_text()
+        assert 'apple-touch-icon' in base
