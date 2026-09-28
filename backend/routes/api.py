@@ -157,13 +157,11 @@ def get_original_image_url():
                 WHERE thumbnail_path LIKE ?
                    OR medium_path LIKE ?
                    OR large_path LIKE ?
-                   OR feed_path LIKE ?
                 LIMIT 1
             ''', (
                 f'%/{hash}_thumbnail.webp',
                 f'%/{hash}_medium.webp',
                 f'%/{hash}_large.webp',
-                f'%/{hash}_feed.webp',
             ))
             result = cursor.fetchone()
 
