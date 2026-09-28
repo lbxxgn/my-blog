@@ -60,35 +60,6 @@
     color: var(--primary-color);
     text-decoration: none;
 }
-
-#review-sidebar-widget .review-sidebar-subtitle {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin: 14px 0 6px;
-}
-
-#review-sidebar-widget .review-card {
-    background: var(--code-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 10px;
-}
-
-#review-sidebar-widget .review-card-switch {
-    margin-top: 8px;
-    background: none;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    color: var(--text-secondary);
-    font-size: 12px;
-    padding: 3px 10px;
-    cursor: pointer;
-}
-
-#review-sidebar-widget .review-card-switch:hover {
-    color: var(--primary-color);
-    border-color: var(--primary-color);
-}
 </style>
 {% endblock %}
 
@@ -177,7 +148,7 @@
             {% else %}
                 <div class="empty-state">
                     <p>还没有发布任何内容。</p>
-                    <a href="{{ url_for('knowledge_base.quick_note') }}" class="btn btn-primary">写一条笔记</a>
+                    <a href="{{ url_for('knowledge.index') }}" class="btn btn-primary">去知识库写一篇</a>
                 </div>
             {% endif %}
         </div>
@@ -188,11 +159,6 @@
                 <h3 class="widget-title">🕰️ 那年今日</h3>
                 <div id="sidebar-today">
                     <p class="review-empty">加载中…</p>
-                </div>
-                <div id="sidebar-random-wrap" style="display: none;">
-                    <h4 class="review-sidebar-subtitle">🎲 随机卡片</h4>
-                    <div id="sidebar-random"></div>
-                    <button type="button" id="sidebar-card-switch" class="review-card-switch">换一张</button>
                 </div>
             </div>
             {% endif %}
