@@ -5,7 +5,7 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/share.css') }}">
 <!-- Custom Lightbox CSS -->
-<link rel="stylesheet" href="{{ url_for('static', filename='css/lightbox.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/lightbox.css') }}?v=2.1">
 <style>
 /* 文章页面移除固定定位 */
 header {
@@ -461,7 +461,7 @@ header {
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/share.js') }}"></script>
 <!-- Custom Lightbox JS -->
-<script src="{{ url_for('static', filename='js/lightbox.js') }}?v=2.0"></script>
+<script src="{{ url_for('static', filename='js/lightbox.js') }}?v=2.1"></script>
 <!-- Code Copy -->
 <script src="{{ url_for('static', filename='js/code-copy.js') }}?v=1.1"></script>
 
