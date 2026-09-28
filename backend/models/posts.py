@@ -20,6 +20,8 @@ __all__ = [
     'verify_post_password',
     'search_posts',
     'get_adjacent_posts',
+    'post_listing_visibility',
+    'sanitize_posts_for_viewer',
 ]
 
 
@@ -484,6 +486,55 @@ def get_post_excerpt(post_content, max_length=200):
         str: 文章摘要
     """
     return truncate_text(post_content, max_length)
+
+def post_listing_visibility(post, user_id=None, role=None):
+    """判断查看者在列表/摘要场景下对某文章的可见程度。
+
+    与 check_post_access 不同，列表场景无法逐个输入密码，因此密码保护文章
+    只展示标题、不展示正文；私密文章对非作者/非管理员完全隐藏。
+
+    Returns:
+        str: 'full'（正文可见）/ 'title'（仅标题元数据）/ 'hidden'（完全不可见）
+    """
+    level = (post.get('access_level') or 'public')
+    author_id = post.get('author_id')
+    is_owner = user_id is not None and author_id is not None and user_id == author_id
+    is_admin = role == 'admin'
+
+    if level == 'public':
+        return 'full'
+    if is_owner or is_admin:
+        return 'full'
+    if level == 'private':
+        return 'hidden'
+    if level == 'login':
+        return 'full' if user_id is not None else 'title'
+    # password 或未知等级：保留标题，隐藏正文
+    return 'title'
+
+
+def sanitize_posts_for_viewer(posts, user_id=None, role=None):
+    """按访问等级过滤/脱敏文章列表，去除敏感字段。
+
+    - 始终移除 access_password（以及任何未来需要脱敏的字段）
+    - 私密文章对非作者/非管理员不返回
+    - 无权限查看正文的文章清空 content（并标记 content_restricted）
+    """
+    sanitized = []
+    for post in posts or []:
+        if hasattr(post, 'keys'):
+            item = dict(post)
+        else:
+            item = dict(post)
+        item.pop('access_password', None)
+        visibility = post_listing_visibility(item, user_id=user_id, role=role)
+        if visibility == 'hidden':
+            continue
+        if visibility != 'full':
+            item['content'] = ''
+            item['content_restricted'] = True
+        sanitized.append(item)
+    return sanitized
 
 def check_post_access(post_id, user_id=None, session_passwords=None):
     """

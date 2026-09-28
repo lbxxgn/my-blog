@@ -84,6 +84,21 @@ def precipitate_to_knowledge(post_id):
     if not session.get('user_id'):
         return jsonify({'success': False, 'error': '请先登录'}), 401
     from models import get_category_by_id
+
+    # 对象级权限校验：不得沉淀他人未发布/私密/密码文章
+    post = get_post_by_id(post_id)
+    if not post:
+        return jsonify({'success': False, 'error': '文章不存在'}), 404
+
+    user_id = session.get('user_id')
+    role = session.get('role')
+    if not post.get('is_published') and user_id != post.get('author_id') and role != 'admin':
+        return jsonify({'success': False, 'error': '无权访问该文章'}), 403
+
+    access_check = check_post_access(post_id, user_id, session.get('unlocked_posts', {}))
+    if not access_check.get('allowed'):
+        return jsonify({'success': False, 'error': '无权访问该文章'}), 403
+
     data = request.get_json(silent=True) or request.form
     category_id_raw = data.get('category_id')
     try:

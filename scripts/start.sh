@@ -26,7 +26,13 @@ cd "$PROJECT_DIR"
 # 加载 .env 文件（如果存在）
 if [ -f .env ]; then
     echo -e "${BLUE}加载环境变量配置...${NC}"
-    export $(cat .env | grep -v '^#' | grep -v '^$' | xargs)
+    # 收紧敏感文件权限
+    chmod 600 .env 2>/dev/null || true
+    # 以赋值方式安全加载，避免 xargs 对含空格/特殊字符的值进行词分割
+    set -a
+    # shellcheck disable=SC1091
+    . ./.env
+    set +a
     echo -e "  ${GREEN}✓${NC} 已加载 .env 文件"
 fi
 

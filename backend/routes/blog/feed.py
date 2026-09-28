@@ -1,14 +1,18 @@
 """首页/归档/分类/标签/作者（blog 蓝图子模块）。"""
 
-from flask import render_template, request, redirect, url_for, flash, jsonify
-import json
+from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from models import (
     get_all_posts, get_all_posts_cursor, get_all_categories, get_category_by_id, get_all_tags,
     get_tag_by_id, get_posts_by_tag, get_posts_by_author, get_user_by_id,
-    get_popular_tags, get_db_connection,
+    get_popular_tags, get_db_connection, sanitize_posts_for_viewer,
 )
 
 from . import blog_bp, logger, get_optimized_image_url, get_optimized_image_url_cached, extract_post_image_urls, extract_post_excerpt, rewrite_post_image_sources, determine_mobile_image_layout, build_post_card_payload, build_post_card_payloads, serialize_post_for_json  # noqa: F401
+
+
+def _sanitize_for_viewer(posts):
+    """按当前会话的查看者过滤/脱敏文章列表（隐藏私密、清空受限正文）。"""
+    return sanitize_posts_for_viewer(posts, session.get('user_id'), session.get('role'))
 
 
 @blog_bp.route('/')
@@ -46,6 +50,7 @@ def index():
             per_page=per_page,
             category_id=category_id
         )
+    posts_data['posts'] = _sanitize_for_viewer(posts_data['posts'])
     categories = get_all_categories()
     popular_tags = get_popular_tags(limit=10)
 
@@ -98,10 +103,13 @@ def index():
         show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
         pagination = posts_data
 
-    # 获取所有标签和分类供移动端使用
+    # 获取所有标签和分类供移动端使用（以原生列表传入模板，由 |tojson 安全序列化，
+    # 避免 json.dumps 不转义 </script> 造成存储型 XSS）
     all_tags = get_all_tags()
-    all_tags_json = json.dumps([{'id': t.get('id', t.id if hasattr(t, 'id') else None), 'name': t.get('name', t.name if hasattr(t, 'name') else '')} for t in all_tags])
-    all_categories_json = json.dumps([{'id': c.get('id', c.id if hasattr(c, 'id') else None), 'name': c.get('name', c.name if hasattr(c, 'name') else '')} for c in categories])
+    all_tags_list = [{'id': t.get('id', t.id if hasattr(t, 'id') else None),
+                      'name': t.get('name', t.name if hasattr(t, 'name') else '')} for t in all_tags]
+    all_categories_list = [{'id': c.get('id', c.id if hasattr(c, 'id') else None),
+                            'name': c.get('name', c.name if hasattr(c, 'name') else '')} for c in categories]
 
     return render_template('index.html',
                          posts=card_posts,
@@ -112,8 +120,8 @@ def index():
                          end_item=end_item,
                          page_range=page_range,
                          show_ellipsis=show_ellipsis,
-                         all_tags=all_tags_json,
-                         all_categories=all_categories_json)
+                         all_tags=all_tags_list,
+                         all_categories=all_categories_list)
 
 @blog_bp.route('/archive')
 def archive():
@@ -160,6 +168,7 @@ def archive():
     cursor.execute(query, params)
     posts = cursor.fetchall()
     conn.close()
+    posts = _sanitize_for_viewer(posts)
 
     # 生成标题
     title = "文章归档"
@@ -206,6 +215,8 @@ def view_category(category_id):
             per_page=per_page,
             category_id=category_id
         )
+
+    posts_data['posts'] = _sanitize_for_viewer(posts_data['posts'])
 
     if request.args.get('format') == 'json':
         # 处理两种分页格式
@@ -284,6 +295,7 @@ def view_tag(tag_id):
         per_page = 20
 
     posts_data = get_posts_by_tag(tag_id, include_drafts=False, page=page, per_page=per_page)
+    posts_data['posts'] = _sanitize_for_viewer(posts_data['posts'])
 
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
@@ -360,6 +372,7 @@ def view_author(author_id):
 
     posts_data = get_posts_by_author(author_id, include_drafts=False,
                                      page=page, per_page=per_page)
+    posts_data['posts'] = _sanitize_for_viewer(posts_data['posts'])
 
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1

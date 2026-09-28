@@ -4,6 +4,7 @@
 from flask import render_template, request, session, jsonify
 
 from ai_services import TagGenerator
+from ai_services.url_guard import UnsafeBaseUrlError, validate_ai_base_url
 from ai_services.embeddings import (
     DEFAULT_BASE_URL as EMBEDDING_DEFAULT_BASE_URL,
     DEFAULT_MODEL as EMBEDDING_DEFAULT_MODEL,
@@ -86,6 +87,11 @@ def ai_settings():
 
             if 'ai_base_url' in data:
                 base_url = (data['ai_base_url'] or '').strip()
+                if base_url:
+                    try:
+                        validate_ai_base_url(base_url)
+                    except UnsafeBaseUrlError as e:
+                        return jsonify({'success': False, 'error': str(e)}), 400
                 ai_config['ai_base_url'] = base_url or None
 
             # 自定义提供商必须填写 Base URL
@@ -101,6 +107,13 @@ def ai_settings():
                 embedding_data['ai_embedding_enabled'] = bool(data['ai_embedding_enabled'])
             for key in ('ai_embedding_base_url', 'ai_embedding_api_key', 'ai_embedding_model'):
                 if key in data:
+                    if key == 'ai_embedding_base_url':
+                        embed_url = (data[key] or '').strip()
+                        if embed_url:
+                            try:
+                                validate_ai_base_url(embed_url)
+                            except UnsafeBaseUrlError as e:
+                                return jsonify({'success': False, 'error': str(e)}), 400
                     embedding_data[key] = data[key]
 
             # 更新配置
@@ -153,13 +166,20 @@ def test_ai_config():
         form_config = request.get_json()
 
         if form_config and form_config.get('ai_api_key'):
+            # SSRF 防护：测试接口允许携带任意 base_url，必须先校验
+            form_base_url = (form_config.get('ai_base_url') or '').strip()
+            if form_base_url:
+                try:
+                    validate_ai_base_url(form_base_url)
+                except UnsafeBaseUrlError as e:
+                    return jsonify({'success': False, 'message': str(e)}), 400
             # 使用表单中的配置进行测试
             ai_config = {
                 'ai_tag_generation_enabled': True,
                 'ai_provider': form_config.get('ai_provider', 'dashscope'),
                 'ai_api_key': form_config.get('ai_api_key'),
                 'ai_model': form_config.get('ai_model'),
-                'ai_base_url': form_config.get('ai_base_url')
+                'ai_base_url': form_base_url or None
             }
         else:
             # 使用数据库中保存的配置
@@ -195,10 +215,15 @@ def test_embedding():
         form = request.get_json(silent=True) or {}
 
         if form.get('ai_embedding_api_key'):
+            embed_base_url = (form.get('ai_embedding_base_url') or '').strip() or EMBEDDING_DEFAULT_BASE_URL
+            try:
+                validate_ai_base_url(embed_base_url)
+            except UnsafeBaseUrlError as e:
+                return jsonify({'success': False, 'message': str(e)}), 400
             config = {
                 'enabled': True,
                 'api_key': form['ai_embedding_api_key'].strip(),
-                'base_url': (form.get('ai_embedding_base_url') or '').strip() or EMBEDDING_DEFAULT_BASE_URL,
+                'base_url': embed_base_url,
                 'model': (form.get('ai_embedding_model') or '').strip() or EMBEDDING_DEFAULT_MODEL,
             }
         else:

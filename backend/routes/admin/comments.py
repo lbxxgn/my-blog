@@ -7,21 +7,21 @@ from models import (
     update_comment_visibility, delete_comment,
     get_db_connection,
 )
-from auth_decorators import login_required
+from auth_decorators import role_required
 
 
 from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401
 
 
 @admin_bp.route('/comments')
-@login_required
+@role_required('admin', 'editor')
 def comment_list():
     """列出所有评论"""
     comments = get_all_comments(include_hidden=True)
     return render_template('admin/comments.html', comments=comments)
 
 @admin_bp.route('/comments/<int:comment_id>/toggle', methods=['POST'])
-@login_required
+@role_required('admin', 'editor')
 def toggle_comment(comment_id):
     """切换评论可见性"""
     conn = get_db_connection()
@@ -40,7 +40,7 @@ def toggle_comment(comment_id):
     return redirect(url_for('admin.comment_list'))
 
 @admin_bp.route('/comments/<int:comment_id>/delete', methods=['POST'])
-@login_required
+@role_required('admin', 'editor')
 def delete_comment_route(comment_id):
     """删除评论"""
     delete_comment(comment_id)

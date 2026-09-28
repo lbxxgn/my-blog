@@ -3,6 +3,7 @@
 from flask import render_template, request, session
 from models import (
     search_posts,
+    sanitize_posts_for_viewer,
 )
 
 from . import blog_bp, logger, get_optimized_image_url, get_optimized_image_url_cached, extract_post_image_urls, extract_post_excerpt, rewrite_post_image_sources, determine_mobile_image_layout, build_post_card_payload, build_post_card_payloads, serialize_post_for_json  # noqa: F401
@@ -30,6 +31,8 @@ def search():
     post_type_filter = 'blog' if source == 'blog' else ('knowledge' if source == 'knowledge' else 'all')
     posts_data = search_posts(query, include_drafts=False, page=page, per_page=per_page,
                               post_type_filter=post_type_filter)
+    posts_data['posts'] = sanitize_posts_for_viewer(
+        posts_data['posts'], session.get('user_id'), session.get('role'))
 
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1

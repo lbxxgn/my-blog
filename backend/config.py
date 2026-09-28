@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -114,6 +115,29 @@ DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
 
 # 环境检测
 IS_PRODUCTION = os.environ.get('FLASK_ENV') == 'production' or not DEBUG
+
+# =============================================================================
+# 密钥安全校验（生产环境必须配置强 SECRET_KEY，否则拒绝启动）
+# =============================================================================
+_DEFAULT_SECRET_KEY = 'dev-secret-key-change-in-production'
+_INSECURE_SECRET_KEYS = {
+    _DEFAULT_SECRET_KEY,
+    '',  # 空字符串
+    'change-this-to-a-random-secret-key-in-production',  # .env.example 占位符
+}
+# 测试环境（pytest）豁免，避免影响测试套件
+_IS_TESTING = os.environ.get('TESTING') == '1' or 'pytest' in sys.modules
+
+if IS_PRODUCTION and not _IS_TESTING and SECRET_KEY in _INSECURE_SECRET_KEYS:
+    raise RuntimeError(
+        '\n' + '=' * 70 +
+        '\n SECURITY ERROR: 检测到生产环境使用默认/弱 SECRET_KEY，已拒绝启动。' +
+        '\n' +
+        '\n 请在 .env 中设置随机密钥：' +
+        '\n   python3 -c "import secrets; print(secrets.token_hex(32))"' +
+        '\n   将输出写入 SECRET_KEY=... 后重启服务。' +
+        '\n' + '=' * 70
+    )
 
 # =============================================================================
 # 会话安全配置

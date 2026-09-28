@@ -6,21 +6,21 @@ from models import (
     get_all_categories, create_category, delete_category,
     create_tag, get_all_tags, delete_tag,
 )
-from auth_decorators import login_required
+from auth_decorators import role_required
 
 
 from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401
 
 
 @admin_bp.route('/categories')
-@login_required
+@role_required('admin', 'editor')
 def category_list():
     """列出所有分类"""
     categories = get_all_categories()
     return render_template('admin/categories.html', categories=categories)
 
 @admin_bp.route('/categories/new', methods=['POST'])
-@login_required
+@role_required('admin', 'editor')
 def new_category():
     """创建新分类"""
     name = request.form.get('name')
@@ -36,7 +36,7 @@ def new_category():
     return redirect(url_for('admin.category_list'))
 
 @admin_bp.route('/categories/<int:category_id>/delete', methods=['POST'])
-@login_required
+@role_required('admin', 'editor')
 def delete_category_route(category_id):
     """删除分类"""
     delete_category(category_id)
@@ -44,14 +44,14 @@ def delete_category_route(category_id):
     return redirect(url_for('admin.category_list'))
 
 @admin_bp.route('/tags')
-@login_required
+@role_required('admin', 'editor')
 def tag_list():
     """列出所有标签"""
     tags = get_all_tags()
     return render_template('admin/tags.html', tags=tags)
 
 @admin_bp.route('/tags/new', methods=['POST'])
-@login_required
+@role_required('admin', 'editor')
 def new_tag():
     """创建新标签"""
     name = request.form.get('name')
@@ -67,7 +67,7 @@ def new_tag():
     return redirect(url_for('admin.tag_list'))
 
 @admin_bp.route('/tags/<int:tag_id>/delete', methods=['POST'])
-@login_required
+@role_required('admin', 'editor')
 def delete_tag_route(tag_id):
     """删除标签"""
     delete_tag(tag_id)

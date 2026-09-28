@@ -171,8 +171,20 @@ start_application() {
     fi
 
     source .venv/bin/activate
+
+    # 从 .env 加载敏感配置（若存在），避免硬编码管理员口令
+    if [ -f "$PROJECT_ROOT/.env" ]; then
+        set -a
+        # shellcheck disable=SC1091
+        . "$PROJECT_ROOT/.env"
+        set +a
+    fi
+
     export ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
-    export ADMIN_PASSWORD="${ADMIN_PASSWORD:-AdminPass123456}"
+    if [ -z "${ADMIN_PASSWORD:-}" ]; then
+        log_error "缺少 ADMIN_PASSWORD（请在 .env 或环境变量中配置强密码后重试）"
+        return 1
+    fi
     export DATABASE_URL="sqlite:///db/simple_blog.db"
 
     nohup python3 backend/app.py > /tmp/flask.log 2>&1 &

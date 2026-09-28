@@ -22,7 +22,7 @@
             <h3>卡片内容</h3>
             <div class="kb-card-box">
                 <h4>{{ card.title|default('未命名') }}</h4>
-                <div class="kb-card-content">{{ card.content|safe }}</div>
+                <div class="kb-card-content" style="white-space:pre-wrap;">{{ card.content|striptags }}</div>
                 {% if card.tags %}
                 <div class="kb-article-tags">
                     {% for tag in card.tags %}<span class="kb-tag">#{{ tag }}</span>{% endfor %}

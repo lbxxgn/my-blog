@@ -234,6 +234,9 @@ def serialize_post_for_json(post):
     if created_at and hasattr(created_at, 'isoformat'):
         post_dict['created_at'] = created_at.isoformat()
 
+    # 绝不向客户端暴露文章访问密码
+    post_dict.pop('access_password', None)
+
     return post_dict
 
 # 各功能子模块（在 __init__ 定义共享助手/蓝图之后导入，注册路由）

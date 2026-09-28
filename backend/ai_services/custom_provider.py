@@ -7,6 +7,7 @@
 """
 
 from .openai_compatible import OpenAICompatibleProvider
+from .url_guard import validate_ai_base_url
 
 
 class CustomOpenAIProvider(OpenAICompatibleProvider):
@@ -28,5 +29,6 @@ class CustomOpenAIProvider(OpenAICompatibleProvider):
             raise ValueError("自定义提供商需要填写 Base URL")
         if not model:
             raise ValueError("自定义提供商需要填写模型 ID")
+        validate_ai_base_url(base_url)
         self.BASE_URL = base_url.rstrip('/')
         super().__init__(api_key, model)

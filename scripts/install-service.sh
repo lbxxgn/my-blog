@@ -42,11 +42,16 @@ echo -e "${YELLOW}请输入部署配置（按 Enter 使用默认值）:${NC}"
 read -p "部署路径 [$PROJECT_DIR]: " DEPLOY_PATH
 DEPLOY_PATH=${DEPLOY_PATH:-$PROJECT_DIR}
 
-read -p "运行用户 [root]: " SERVICE_USER
-SERVICE_USER=${SERVICE_USER:-root}
+DEFAULT_SERVICE_USER="${SUDO_USER:-$(id -un)}"
+read -p "运行用户 [$DEFAULT_SERVICE_USER]: " SERVICE_USER
+SERVICE_USER=${SERVICE_USER:-$DEFAULT_SERVICE_USER}
 
 read -p "监听端口 [5001]: " SERVICE_PORT
 SERVICE_PORT=${SERVICE_PORT:-5001}
+
+# 默认仅绑定回环地址，由 Nginx 反代对外；如无反向代理需直接对外再改为 0.0.0.0
+read -p "监听地址 [127.0.0.1]: " SERVICE_BIND
+SERVICE_BIND=${SERVICE_BIND:-127.0.0.1}
 
 # 优先使用项目自带虚拟环境里的 gunicorn
 if [ -x "$DEPLOY_PATH/.venv/bin/gunicorn" ]; then
@@ -59,7 +64,7 @@ echo ""
 echo -e "${BLUE}配置摘要:${NC}"
 echo -e "  部署路径: ${GREEN}${DEPLOY_PATH}${NC}"
 echo -e "  运行用户: ${GREEN}${SERVICE_USER}${NC}"
-echo -e "  监听端口: ${GREEN}${SERVICE_PORT}${NC}"
+echo -e "  监听地址: ${GREEN}${SERVICE_BIND}:${SERVICE_PORT}${NC}"
 echo -e "  Python:   ${GREEN}${PYTHON_PATH}${NC}"
 echo -e "  Gunicorn: ${GREEN}${GUNICORN_CMD}${NC}"
 echo ""
@@ -77,6 +82,10 @@ mkdir -p "$DEPLOY_PATH/logs"
 mkdir -p "$DEPLOY_PATH/db"
 mkdir -p "$DEPLOY_PATH/static/uploads"
 mkdir -p "$DEPLOY_PATH/backups"
+# 收紧敏感配置文件权限
+if [ -f "$DEPLOY_PATH/.env" ]; then
+    chmod 600 "$DEPLOY_PATH/.env"
+fi
 echo -e "${GREEN}✓ 目录创建完成${NC}"
 
 # 生成 systemd 服务文件
@@ -103,15 +112,20 @@ Environment="PORT=$SERVICE_PORT"
 # 从 .env 文件加载环境变量（不存在不报错）
 EnvironmentFile=-$DEPLOY_PATH/.env
 
-# 启动命令（生产环境使用 gunicorn，默认绑定 0.0.0.0 直接对外；
-# 若架了 Nginx 反代，建议改绑 127.0.0.1 仅接受本机转发）
-ExecStart=$GUNICORN_CMD --workers 2 --bind 0.0.0.0:$SERVICE_PORT backend.app:app
+# 启动命令（生产环境使用 gunicorn，默认仅绑定回环，交由 Nginx 反代对外）
+ExecStart=$GUNICORN_CMD --workers 2 --bind $SERVICE_BIND:$SERVICE_PORT backend.app:app
 
 # 重启策略
 Restart=always
 RestartSec=10
 StartLimitInterval=60
 StartLimitBurst=3
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
 
 # 日志配置
 StandardOutput=append:$DEPLOY_PATH/logs/app.log

@@ -121,14 +121,18 @@ def create_embedding_client(config):
         openai.OpenAI 客户端实例
     """
     from openai import OpenAI
+    from .url_guard import validate_ai_base_url
 
     api_key = (config or {}).get('api_key')
     if not api_key:
         raise ValueError('Embedding API 密钥未配置')
 
+    base_url = (config or {}).get('base_url') or DEFAULT_BASE_URL
+    validate_ai_base_url(base_url)
+
     return OpenAI(
         api_key=api_key,
-        base_url=(config or {}).get('base_url') or DEFAULT_BASE_URL,
+        base_url=base_url,
         timeout=30.0,
         max_retries=2,
     )

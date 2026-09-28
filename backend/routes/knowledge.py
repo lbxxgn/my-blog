@@ -290,6 +290,12 @@ def archive_card(card_id):
     if not card:
         flash('卡片不存在', 'error')
         return redirect(url_for('knowledge.index'))
+
+    # 对象级权限校验：只能归档自己的卡片（管理员除外）
+    if card.get('user_id') != session.get('user_id') and session.get('role') != 'admin':
+        flash('无权操作此卡片', 'error')
+        return redirect(url_for('knowledge.index'))
+
     if request.method == 'POST':
         category_id = request.form.get('category_id', type=int)
         if not category_id:

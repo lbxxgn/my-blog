@@ -573,8 +573,8 @@
 
 <script>
 // 将可用标签和分类数据传递给 JavaScript
-window.availableTags = {{ all_tags|safe if all_tags else '[]' }};
-window.availableCategories = {{ all_categories|safe if all_categories else '[]' }};
+window.availableTags = {{ (all_tags or [])|tojson }};
+window.availableCategories = {{ (all_categories or [])|tojson }};
 </script>
 
 

@@ -283,3 +283,126 @@ class TestContentSecurityPolicy:
         assert 'img-src \'self\' data: https:' in csp
         assert 'font-src \'self\'' in csp
         assert 'connect-src \'self\'' in csp
+
+
+class TestProtectedContentDisclosure:
+    """受保护文章内容/密码不得通过公开接口泄露"""
+
+    def _make_password_post(self, owner_id):
+        from models import create_post
+        return create_post(
+            title='Secret password post',
+            content='TOP-SECRET-BODY',
+            is_published=True,
+            author_id=owner_id,
+            access_level='password',
+            access_password='PlaintextPass123',
+        )
+
+    def test_api_posts_hides_password_and_body(self, client, temp_db, test_user):
+        """匿名 /api/posts 不得返回 access_password，且受限文章正文应为空"""
+        from app import cache
+        cache.clear()
+        self._make_password_post(test_user['id'])
+
+        response = client.get('/api/posts')
+        assert response.status_code == 200
+        data = response.get_json()
+
+        for post in data['posts']:
+            assert 'access_password' not in post
+            assert 'PlaintextPass123' not in response.get_data(as_text=True)
+
+        secret = next(p for p in data['posts'] if p['title'] == 'Secret password post')
+        assert secret['content'] == ''
+
+    def test_index_json_hides_password_and_body(self, client, temp_db, test_user):
+        """首页 JSON 不得泄露密码或受限文章正文"""
+        self._make_password_post(test_user['id'])
+
+        response = client.get('/?format=json')
+        assert response.status_code == 200
+        data = response.get_json()
+
+        for post in data['posts']:
+            assert 'access_password' not in post
+
+        secret = next(p for p in data['posts'] if p['title'] == 'Secret password post')
+        assert secret['content'] == ''
+        assert 'PlaintextPass123' not in response.get_data(as_text=True)
+
+    def test_private_post_hidden_from_anonymous_listing(self, client, temp_db, test_user):
+        """私密文章不应出现在匿名列表中"""
+        from app import cache
+        from models import create_post
+        cache.clear()
+        create_post(
+            title='Private listing post',
+            content='PRIVATE-BODY',
+            is_published=True,
+            author_id=test_user['id'],
+            access_level='private',
+        )
+
+        data = client.get('/api/posts').get_json()
+        assert all(p['title'] != 'Private listing post' for p in data['posts'])
+
+
+class TestStoredXssTagNames:
+    """标签/分类名中的脚本片段不得逃逸出内联 <script>"""
+
+    def test_tag_name_script_is_escaped(self, client, temp_db):
+        from models import create_tag
+        create_tag('</script><script>alert(1)</script>')
+
+        html = client.get('/').get_data(as_text=True)
+        # tojson 会把 < / > 转义，原始闭合标签不应出现
+        assert '</script><script>alert(1)</script>' not in html
+
+
+class TestObjectLevelAccess:
+    """对象级访问控制：禁止操作他人内容"""
+
+    def _make_other_author(self):
+        from models import create_user
+        from werkzeug.security import generate_password_hash
+        return create_user(
+            'other_author',
+            generate_password_hash('OtherPass123!', method='pbkdf2:sha256'),
+            role='author',
+        )
+
+    def test_precipitate_other_users_private_post_forbidden(self, client, temp_db, test_user):
+        from models import create_post
+
+        post_id = create_post(
+            title='Owner private post',
+            content='PRIVATE-CONTENT',
+            is_published=True,
+            author_id=test_user['id'],
+            access_level='private',
+        )
+        self._make_other_author()
+        client.post('/login', data={'username': 'other_author', 'password': 'OtherPass123!'})
+
+        response = client.post(f'/post/{post_id}/precipitate', json={'category_id': 1})
+        assert response.status_code == 403
+
+    def test_archive_other_users_card_forbidden(self, client, temp_db, test_user):
+        from models import create_card, get_card_by_id
+
+        card_id = create_card(
+            user_id=test_user['id'],
+            title='Owner card',
+            content='CARD-CONTENT',
+            tags=[],
+            status='idea',
+            source='share',
+        )
+        self._make_other_author()
+        client.post('/login', data={'username': 'other_author', 'password': 'OtherPass123!'})
+
+        response = client.get(f'/knowledge/card/{card_id}/archive')
+        assert response.status_code == 302
+        # 卡片不应被删除
+        assert get_card_by_id(card_id) is not None

@@ -7,7 +7,7 @@ API路由
 from flask import Blueprint, request, jsonify, url_for, current_app, session
 
 from auth_decorators import login_required
-from models import get_all_posts_cursor
+from models import get_all_posts_cursor, sanitize_posts_for_viewer
 from logger import api_internal_error
 from routes.search_helpers import (
     EmbeddingApiError,
@@ -66,7 +66,7 @@ def api_posts_cursor():
 
     result = {
         'success': True,
-        'posts': posts_data['posts'],
+        'posts': sanitize_posts_for_viewer(posts_data['posts'], None, None),
         'next_cursor': posts_data['next_cursor'],
         'has_more': posts_data['has_more'],
         'per_page': posts_data['per_page']

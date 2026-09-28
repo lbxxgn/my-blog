@@ -4,7 +4,7 @@ from flask import render_template, request, redirect, url_for, session, flash, s
 import os
 import shutil
 
-from auth_decorators import login_required
+from auth_decorators import admin_required, role_required
 from logger import log_operation, log_error
 
 
@@ -12,13 +12,13 @@ from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_req
 
 
 @admin_bp.route('/export')
-@login_required
+@admin_required
 def export_page():
     """导出页面"""
     return render_template('admin/export.html')
 
 @admin_bp.route('/export/markdown')
-@login_required
+@admin_required
 def export_markdown():
     """导出所有文章为Markdown文件"""
     try:
@@ -38,7 +38,7 @@ def export_markdown():
         return redirect(url_for('admin.export_page'))
 
 @admin_bp.route('/export/json')
-@login_required
+@admin_required
 def export_json():
     """导出所有文章为JSON"""
     try:
@@ -57,13 +57,13 @@ def export_json():
         return redirect(url_for('admin.export_page'))
 
 @admin_bp.route('/import')
-@login_required
+@role_required('admin', 'editor')
 def import_page():
     """导入页面"""
     return render_template('admin/import.html')
 
 @admin_bp.route('/import/json', methods=['POST'])
-@login_required
+@role_required('admin', 'editor')
 def import_json():
     """从JSON文件导入文章"""
     try:
@@ -110,7 +110,7 @@ def import_json():
     return redirect(url_for('admin.import_page'))
 
 @admin_bp.route('/import/markdown', methods=['POST'])
-@login_required
+@role_required('admin', 'editor')
 def import_markdown():
     """从Markdown目录导入文章"""
     try:

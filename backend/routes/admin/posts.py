@@ -4,7 +4,7 @@ from flask import render_template, request, redirect, url_for, session, flash, j
 
 from models import (
     get_all_posts, get_post_by_id, create_post, update_post, delete_post,
-    get_all_categories, set_post_tags, get_db_connection,
+    get_all_categories, set_post_tags, get_db_connection, get_posts_by_author,
 )
 from auth_decorators import login_required, can_edit_post, can_delete_post
 from logger import log_operation, api_internal_error
@@ -108,7 +108,11 @@ def admin_dashboard():
     if per_page not in [10, 20, 40, 80]:
         per_page = 20
 
-    posts_data = get_all_posts(include_drafts=True, page=page, per_page=per_page, category_id=category_id, type=type_filter)
+    # admin/editor 可查看全部文章；author 只能看到自己的文章（含草稿）
+    if session.get('role') in ('admin', 'editor'):
+        posts_data = get_all_posts(include_drafts=True, page=page, per_page=per_page, category_id=category_id, type=type_filter)
+    else:
+        posts_data = get_posts_by_author(session.get('user_id'), include_drafts=True, page=page, per_page=per_page)
     categories = get_all_categories()
 
     # 计算分页信息
