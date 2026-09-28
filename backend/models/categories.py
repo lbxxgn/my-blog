@@ -32,16 +32,48 @@ def create_category(name, slug=None):
     except sqlite3.IntegrityError:
         return None
 
-def get_all_categories():
-    """Get all categories with proper connection management and post counts"""
+def get_all_categories(post_type=None, only_with_posts=False, space=None):
+    """Get all categories with published post counts.
+
+    Args:
+        post_type (str, optional): 仅统计该 post_type 的文章（'blog'/'knowledge'）；
+            None=全部类型（历史行为）
+        only_with_posts (bool): 仅返回至少有一篇符合条件文章的分类（过滤空分类）
+        space (str, optional): 仅返回该空间的分类（'blog'/'knowledge'）；None=全部
+    """
+    count_where = 'p.is_published = 1'
+    params = []
+    if post_type:
+        count_where += ' AND p.post_type = ?'
+        params.append(post_type)
+
+    count_sql = (f'(SELECT COUNT(*) FROM posts p '
+                 f'WHERE p.category_id = c.id AND {count_where}) as post_count')
+
+    outer_conditions = []
+    if space:
+        outer_conditions.append('c.space = ?')
+    if only_with_posts:
+        outer_conditions.append(
+            f'c.id IN (SELECT p.category_id FROM posts p '
+            f'WHERE p.category_id = c.id AND {count_where})')
+    # 参数顺序：SELECT 中的 count 子查询在前，外层 WHERE 条件在后
+    query_params = params + params if only_with_posts else params
+    if space:
+        query_params = query_params + [space]
+
+    outer_where = ''
+    if outer_conditions:
+        outer_where = 'WHERE ' + ' AND '.join(outer_conditions)
+
     with get_db_context() as conn:
         cursor = conn.cursor()
-        cursor.execute('''
-            SELECT c.*,
-                   (SELECT COUNT(*) FROM posts WHERE category_id = c.id AND is_published = 1) as post_count
+        cursor.execute(f'''
+            SELECT c.*, {count_sql}
             FROM categories c
+            {outer_where}
             ORDER BY c.name
-        ''')
+        ''', query_params)
         categories = [dict(row) for row in cursor.fetchall()]
         return categories
 

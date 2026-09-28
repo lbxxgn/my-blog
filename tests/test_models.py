@@ -146,6 +146,42 @@ class TestCategoryModels:
         categories = get_all_categories()
         assert len(categories) == 2
 
+    def test_get_all_categories_blog_filter(self, temp_db, test_user):
+        """Blog 侧过滤：space='blog' + 有已发布博客文章；计数只算博客"""
+        from models import create_post
+
+        cat_blog = create_category('博客分类')
+        cat_empty = create_category('空分类')
+        cat_kb = create_category('知识库分类')
+
+        # 知识库空间的分类
+        with __import__('models', fromlist=['get_db_context']).get_db_context() as conn:
+            conn.execute("UPDATE categories SET space = 'knowledge' WHERE id = ?", (cat_kb,))
+
+        # 已发布博客文章挂在 cat_blog
+        post_id = create_post(title='博客文章', content='x',
+                              author_id=test_user['id'], is_published=True,
+                              category_id=cat_blog)
+        # 知识库文档挂在 cat_kb（已发布）
+        create_post(title='知识文档', content='x', author_id=test_user['id'],
+                    is_published=True, post_type='knowledge', category_id=cat_kb)
+        # 未发布博客文章挂在 cat_empty（不应计入，也不应让分类出现）
+        create_post(title='草稿', content='x', author_id=test_user['id'],
+                    is_published=False, category_id=cat_empty)
+
+        # Blog 侧：只返回 blog 空间且有已发布博客文章的分类
+        blog_cats = get_all_categories(post_type='blog', only_with_posts=True, space='blog')
+        names = [c['name'] for c in blog_cats]
+        assert '博客分类' in names
+        assert '空分类' not in names
+        assert '知识库分类' not in names
+
+        blog_cat = next(c for c in blog_cats if c['name'] == '博客分类')
+        assert blog_cat['post_count'] == 1
+
+        # 无参数 = 历史行为：全部分类都返回
+        assert len(get_all_categories()) == 3
+
     def test_get_category_by_id(self, temp_db):
         """测试通过ID获取分类"""
         category_id = create_category('Technology')

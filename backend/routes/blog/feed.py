@@ -51,7 +51,7 @@ def index():
             category_id=category_id
         )
     posts_data['posts'] = _sanitize_for_viewer(posts_data['posts'])
-    categories = get_all_categories()
+    categories = get_all_categories(post_type='blog', only_with_posts=True, space='blog')
     popular_tags = get_popular_tags(limit=10)
 
     # JSON 格式支持（用于无限滚动）
@@ -266,8 +266,8 @@ def view_category(category_id):
         show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
         pagination = posts_data
 
-    # 获取所有分类用于筛选栏
-    categories = get_all_categories()
+    # 获取所有分类用于筛选栏（仅博客空间、且有已发布文章）
+    categories = get_all_categories(post_type='blog', only_with_posts=True, space='blog')
 
     return render_template('index.html',
                          posts=card_posts,
