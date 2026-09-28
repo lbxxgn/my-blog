@@ -477,7 +477,11 @@ async function restructureAIContent() {
 function replaceEditorContent(html) {
     if (!window.quill) return;
     const textarea = document.getElementById('content');
-    window.quill.root.innerHTML = html;
+    if (window.setQuillHtml) {
+        window.setQuillHtml(html);
+    } else {
+        window.quill.root.innerHTML = html;
+    }
     if (textarea) {
         textarea.value = window.quill.root.innerHTML;
     }

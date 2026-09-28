@@ -293,13 +293,15 @@ def add_security_headers(response):
     # 注意：这个CSP策略比较宽松，生产环境可能需要根据实际情况调整
     response.headers.setdefault('Content-Security-Policy',
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.quilljs.com https://cdn.jsdelivr.net https://esm.sh; "
-        "style-src 'self' 'unsafe-inline' https://cdn.quilljs.com https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+        # Quill 已自托管，不再需要外部 CDN
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "img-src 'self' data: https:; "
         "font-src 'self' https://fonts.gstatic.com; "
-        "connect-src 'self' https://esm.sh; "
+        "connect-src 'self'; "
         "object-src 'none'; "
-        "frame-src 'none'; "
+        # 允许富文本正文中的视频/外链嵌入；仅限 https，仍禁止 object/embed
+        "frame-src 'self' https:; "
         "base-uri 'self';"
     )
 

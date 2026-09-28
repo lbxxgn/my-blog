@@ -157,6 +157,11 @@ body[data-page="kb-editor"] main {
   min-width: 200px;
 }
 
+.kb-conflict-banner {
+  background: #fff1f0;
+  border-color: #f5c2c0;
+}
+
 .kb-editor-actions {
   display: flex;
   align-items: center;

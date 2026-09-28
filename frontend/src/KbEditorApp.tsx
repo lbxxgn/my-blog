@@ -42,7 +42,7 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
   const dirtyRef = useRef(false);
   const navigatingRef = useRef(false);
 
-  const { draftInfo, draft, dismissDraft, clearLocalDraft, markDirty } = useAutoSave({
+  const { draftInfo, draft, conflict, dismissDraft, dismissConflict, clearLocalDraft, markDirty } = useAutoSave({
     docId,
     autoSaveUrl,
     draftUrl: init.draftUrl,
@@ -164,6 +164,25 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
     dismissDraft();
   }, [draft, handleDirty, dismissDraft]);
 
+  // 冲突处理：把被覆盖的其他设备内容恢复到编辑器（可在下次保存前检查/合并）
+  const handleRestoreConflict = useCallback(async () => {
+    if (!conflict) return;
+    if (conflict.title) {
+      setTitle(conflict.title);
+    }
+    const editor = editorRef.current;
+    if (editor && typeof conflict.content === 'string') {
+      try {
+        const blocks = await editor.tryParseMarkdownToBlocks(conflict.content);
+        editor.replaceBlocks(editor.document, blocks);
+      } catch (e) {
+        console.error('恢复冲突内容失败:', e);
+      }
+    }
+    dismissConflict();
+    handleDirty();
+  }, [conflict, dismissConflict, handleDirty]);
+
   // Expose save handler for automated end-to-end tests.
   useEffect(() => {
     editorRef.current = editorInstance;
@@ -196,6 +215,21 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
   return (
     <div className="kb-editor-layout">
       <main className="kb-editor-main">
+        {conflict && (
+          <div className="kb-draft-banner kb-conflict-banner">
+            <span>
+              检测到其他设备
+              {conflict.device_info ? `（${conflict.device_info}）` : ''}
+              的草稿，本次自动保存可能已覆盖它。
+            </span>
+            <button type="button" className="btn btn-primary" onClick={handleRestoreConflict}>
+              恢复对方内容
+            </button>
+            <button type="button" className="btn" onClick={dismissConflict}>
+              保留我的
+            </button>
+          </div>
+        )}
         {draft && (
           <div className="kb-draft-banner">
             <span>

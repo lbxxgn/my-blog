@@ -399,13 +399,16 @@ def autosave_doc(doc_id):
         content=content,
         category_id=doc.get('category_id'),
         tags=[],
-        device_info='kb-editor'
+        device_info=data.get('device_info') or 'kb-editor',
+        content_format='markdown'
     )
 
     if result.get('success'):
         return jsonify({
             'success': True,
-            'saved_at': result.get('updated_at')
+            'saved_at': result.get('updated_at'),
+            'status': result.get('status'),
+            'other_drafts': result.get('other_drafts', []),
         })
     return jsonify({'success': False, 'error': result.get('error', '保存失败')}), 500
 
@@ -422,6 +425,7 @@ def draft_doc(doc_id):
             'draft': {
                 'title': latest.get('title'),
                 'content': latest.get('content'),
+                'content_format': latest.get('content_format', 'markdown'),
                 'saved_at': latest.get('updated_at')
             }
         })

@@ -35,12 +35,51 @@ async function postJson(url: string, body: object, csrfToken: string) {
   return data;
 }
 
+/** 生成一个可读的设备标签（浏览器 + 系统），用于草稿冲突检测与展示。 */
+export function getDeviceLabel(): string {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  let browser = 'Browser';
+  if (ua.includes('Edg')) browser = 'Edge';
+  else if (ua.includes('Chrome')) browser = 'Chrome';
+  else if (ua.includes('Firefox')) browser = 'Firefox';
+  else if (ua.includes('Safari')) browser = 'Safari';
+  let os = 'Unknown OS';
+  if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  else if (ua.includes('Mac OS')) os = 'macOS';
+  else if (ua.includes('Linux')) os = 'Linux';
+  return `${browser} on ${os}`;
+}
+
+export interface AutoSaveResult {
+  success: boolean;
+  saved_at?: string;
+  status?: 'saved' | 'conflict_detected';
+  other_drafts?: ConflictDraft[];
+  error?: string;
+}
+
+export interface ConflictDraft {
+  id: number;
+  title?: string;
+  content?: string;
+  device_info?: string;
+  updated_at?: string;
+}
+
 export async function autoSaveDoc(
   url: string,
   csrfToken: string,
-  payload: { title?: string; content: string }
-) {
+  payload: { title?: string; content: string; device_info?: string; content_format?: string }
+): Promise<AutoSaveResult> {
   return postJson(url, payload, csrfToken);
+}
+
+export async function loadDraftById(draftId: number): Promise<ConflictDraft | null> {
+  const res = await fetch(`/api/drafts/${draftId}`, { headers: { Accept: 'application/json' } });
+  const data = await res.json().catch(() => ({}));
+  return (data && data.draft) || null;
 }
 
 export async function loadDraft(url: string): Promise<{

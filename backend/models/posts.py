@@ -23,13 +23,13 @@ __all__ = [
 ]
 
 
-def create_post(title, content, is_published=False, category_id=None, author_id=None, access_level='public', access_password=None, type='post', post_type='blog'):
+def create_post(title, content, is_published=False, category_id=None, author_id=None, access_level='public', access_password=None, type='post', post_type='blog', content_format='html'):
     """
     创建新文章
 
     Args:
         title (str): 文章标题
-        content (str): 文章内容（Markdown格式）
+        content (str): 文章内容（HTML 或 Markdown）
         is_published (bool): 是否立即发布。默认为False（草稿）
         category_id (int, optional): 分类ID。默认为None
         author_id (int, optional): 作者ID。默认为None
@@ -37,6 +37,7 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
         access_password (str, optional): 访问密码。默认为None
         type (str): 文章类型。默认为'post'
         post_type (str): 内容空间。'blog'（博客）或 'knowledge'（知识库）
+        content_format (str): 内容格式。'html'（富文本）或 'markdown'
 
     Returns:
         int: 新创建文章的ID
@@ -64,8 +65,8 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
             return existing['id']
 
     cursor.execute(
-        'INSERT INTO posts (title, content, is_published, category_id, author_id, access_level, access_password, type, post_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        (title, content, is_published, category_id, author_id, access_level, access_password, type, post_type)
+        'INSERT INTO posts (title, content, is_published, category_id, author_id, access_level, access_password, type, post_type, content_format) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        (title, content, is_published, category_id, author_id, access_level, access_password, type, post_type, content_format or 'html')
     )
     post_id = cursor.lastrowid
 
@@ -77,7 +78,7 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
     _enqueue_post_embedding(post_id, post_type)
     return post_id
 
-def update_post(post_id, title, content, is_published, category_id=None, access_level=None, access_password=None, type=None):
+def update_post(post_id, title, content, is_published, category_id=None, access_level=None, access_password=None, type=None, content_format=None):
     """
     Update an existing post
 
@@ -90,6 +91,7 @@ def update_post(post_id, title, content, is_published, category_id=None, access_
         access_level (str, optional): 访问级别
         access_password (str, optional): 访问密码
         type (str, optional): 文章类型
+        content_format (str, optional): 内容格式。'html' 或 'markdown'，None 表示不修改
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -114,6 +116,13 @@ def update_post(post_id, title, content, is_published, category_id=None, access_
         cursor.execute(
             'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
             (title, content, is_published, category_id, post_id)
+        )
+
+    # 内容格式（html/markdown）单独更新，避免打乱上面的可选字段分支
+    if content_format is not None:
+        cursor.execute(
+            'UPDATE posts SET content_format = ? WHERE id = ?',
+            (content_format, post_id)
         )
 
     # Manually update FTS (triggers are disabled)

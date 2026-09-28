@@ -36,7 +36,8 @@ def api_save_draft():
             content=data.get('content', ''),
             category_id=data.get('category_id'),
             tags=data.get('tags', []),
-            device_info=data.get('device_info', '')
+            device_info=data.get('device_info', ''),
+            content_format=data.get('content_format', 'html')
         )
 
         if result['success']:
@@ -105,7 +106,8 @@ def api_update_draft(draft_id):
             title=data.get('title', current.get('title', '')),
             content=data.get('content', current.get('content', '')),
             category_id=data.get('category_id', current.get('category_id')),
-            tags=data.get('tags', current.get('tags', []))
+            tags=data.get('tags', current.get('tags', [])),
+            content_format=data.get('content_format', current.get('content_format'))
         )
 
         if not updated:

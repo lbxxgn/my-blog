@@ -9,11 +9,47 @@ from models import (
 from auth_decorators import login_required, can_edit_post, can_delete_post
 from logger import log_operation, api_internal_error
 from backend.config import UPLOAD_FOLDER
+from utils.markdown_renderer import render_markdown
 import threading
 from flask import current_app
 
 
 from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401
+
+
+def _normalize_content_format(value):
+    """把表单/接口传入的内容格式归一为 'html' 或 'markdown'。"""
+    return 'markdown' if str(value or '').strip().lower() == 'markdown' else 'html'
+
+
+@admin_bp.route('/preview', methods=['POST'])
+@login_required
+def preview_content():
+    """把编辑器内容渲染为与文章详情页一致的安全 HTML，用于实时预览。"""
+    try:
+        data = request.get_json(silent=True) or {}
+        html = render_markdown(data.get('content', ''))
+        return jsonify({'success': True, 'html': html})
+    except Exception as e:
+        return api_internal_error(e)
+
+
+@admin_bp.route('/convert-format', methods=['POST'])
+@login_required
+def convert_content_format():
+    """在 HTML 与 Markdown 之间转换正文，切换格式时避免内容丢失。"""
+    try:
+        data = request.get_json(silent=True) or {}
+        content = data.get('content', '')
+        target = _normalize_content_format(data.get('to'))
+        if target == 'markdown':
+            from models.knowledge import html_to_markdown
+            converted = html_to_markdown(content)
+        else:
+            converted = render_markdown(content)
+        return jsonify({'success': True, 'content': converted, 'content_format': target})
+    except Exception as e:
+        return api_internal_error(e)
 
 
 @admin_bp.route('/image-status/<int:optimization_id>')
@@ -103,6 +139,7 @@ def new_post():
     if request.method == 'POST':
         title = request.form.get('title')
         content = request.form.get('content')
+        content_format = _normalize_content_format(request.form.get('content_format'))
         is_published = request.form.get('is_published') is not None
         category_id = request.form.get('category_id')
         if category_id == '':
@@ -123,6 +160,7 @@ def new_post():
                 post={
                     'title': title or '',
                     'content': content or '',
+                    'content_format': content_format,
                     'is_published': is_published,
                     'category_id': category_id,
                     'access_level': access_level,
@@ -137,7 +175,7 @@ def new_post():
         author_id = session.get('user_id')
 
         # 创建文章
-        post_id = create_post(title, content, is_published, category_id, author_id, access_level, access_password)
+        post_id = create_post(title, content, is_published, category_id, author_id, access_level, access_password, content_format=content_format)
 
         # 如果原标题为空，后台异步调用AI生成更好的标题
         if not request.form.get('title') and post_id:
@@ -204,6 +242,7 @@ def edit_post(post_id):
     if request.method == 'POST':
         title = request.form.get('title')
         content = request.form.get('content')
+        content_format = _normalize_content_format(request.form.get('content_format'))
         # 如果文章已经发布，保持发布状态；否则根据表单决定
         if post['is_published']:
             is_published = True
@@ -225,6 +264,7 @@ def edit_post(post_id):
             # 保留用户已输入的数据，避免清空
             post['title'] = title or ''
             post['content'] = content or ''
+            post['content_format'] = content_format
             post['category_id'] = category_id
             post['access_level'] = access_level
             post['access_password'] = access_password
@@ -237,7 +277,7 @@ def edit_post(post_id):
         tag_names = request.form.get('tags', '').split(',')
 
         # 更新文章
-        update_post(post_id, title, content, is_published, category_id, access_level, access_password)
+        update_post(post_id, title, content, is_published, category_id, access_level, access_password, content_format=content_format)
 
         # 如果原标题为空，后台异步调用AI生成更好的标题
         if not request.form.get('title'):

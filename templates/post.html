@@ -184,6 +184,90 @@ header {
     top: auto !important;
     transform: none !important;
 }
+
+/* Quill 富文本格式：对齐 / 缩进 / 字号 / 视频。
+   后台编辑器产出的 HTML 带有 ql-* 类，阅读端需要对应样式才能与所见即所得一致。 */
+.post-content .ql-align-center { text-align: center; }
+.post-content .ql-align-right { text-align: right; }
+.post-content .ql-align-justify { text-align: justify; }
+.post-content .ql-indent-1 { padding-left: 3em; }
+.post-content .ql-indent-2 { padding-left: 6em; }
+.post-content .ql-indent-3 { padding-left: 9em; }
+.post-content .ql-indent-4 { padding-left: 12em; }
+.post-content .ql-indent-5 { padding-left: 15em; }
+.post-content .ql-indent-6 { padding-left: 18em; }
+.post-content .ql-indent-7 { padding-left: 21em; }
+.post-content .ql-indent-8 { padding-left: 24em; }
+.post-content .ql-size-small { font-size: 0.75em; }
+.post-content .ql-size-large { font-size: 1.5em; }
+.post-content .ql-size-huge { font-size: 2.5em; }
+.post-content .ql-direction-rtl { direction: rtl; text-align: inherit; }
+.post-content .ql-video {
+    display: block;
+    width: 100%;
+    max-width: 720px;
+    aspect-ratio: 16 / 9;
+    margin: 1rem auto;
+    border: 0;
+}
+
+/* Quill 2.x 列表：<ol><li data-list=...><span class="ql-ui"></span>内容</li></ol>
+   标记由 .ql-ui:before 提供，需在阅读端复刻，否则会退化为纯数字/无符号 */
+.post-content ol {
+    counter-reset: list-0 list-1 list-2 list-3 list-4 list-5 list-6 list-7 list-8 list-9;
+    padding-left: 1.5em;
+}
+.post-content li {
+    list-style-type: none;
+    padding-left: 1.5em;
+    position: relative;
+}
+.post-content li > .ql-ui { position: absolute; }
+.post-content li > .ql-ui:before {
+    display: inline-block;
+    margin-left: -1.5em;
+    margin-right: .3em;
+    text-align: right;
+    white-space: nowrap;
+    width: 1.2em;
+}
+.post-content li[data-list="checked"] > .ql-ui,
+.post-content li[data-list="unchecked"] > .ql-ui { color: #777; }
+.post-content li[data-list="bullet"] > .ql-ui:before { content: '\2022'; }
+.post-content li[data-list="checked"] > .ql-ui:before { content: '\2611'; }
+.post-content li[data-list="unchecked"] > .ql-ui:before { content: '\2610'; }
+.post-content li[data-list="ordered"] { counter-increment: list-0; }
+.post-content li[data-list="ordered"] > .ql-ui:before { content: counter(list-0, decimal) '. '; }
+.post-content li[data-list="ordered"].ql-indent-1 { counter-increment: list-1; }
+.post-content li[data-list="ordered"].ql-indent-1 > .ql-ui:before { content: counter(list-1, lower-alpha) '. '; }
+.post-content li[data-list="ordered"].ql-indent-2 { counter-increment: list-2; }
+.post-content li[data-list="ordered"].ql-indent-2 > .ql-ui:before { content: counter(list-2, lower-roman) '. '; }
+.post-content li[data-list="ordered"].ql-indent-3 { counter-increment: list-3; }
+.post-content li[data-list="ordered"].ql-indent-3 > .ql-ui:before { content: counter(list-3, decimal) '. '; }
+.post-content li[data-list="ordered"].ql-indent-4 { counter-increment: list-4; }
+.post-content li[data-list="ordered"].ql-indent-4 > .ql-ui:before { content: counter(list-4, lower-alpha) '. '; }
+.post-content li[data-list="ordered"].ql-indent-5 { counter-increment: list-5; }
+.post-content li[data-list="ordered"].ql-indent-5 > .ql-ui:before { content: counter(list-5, lower-roman) '. '; }
+.post-content li[data-list="ordered"].ql-indent-6 { counter-increment: list-6; }
+.post-content li[data-list="ordered"].ql-indent-6 > .ql-ui:before { content: counter(list-6, decimal) '. '; }
+.post-content li[data-list="ordered"].ql-indent-7 { counter-increment: list-7; }
+.post-content li[data-list="ordered"].ql-indent-7 > .ql-ui:before { content: counter(list-7, lower-alpha) '. '; }
+.post-content li[data-list="ordered"].ql-indent-8 { counter-increment: list-8; }
+.post-content li[data-list="ordered"].ql-indent-8 > .ql-ui:before { content: counter(list-8, lower-roman) '. '; }
+
+/* Quill 2.x 代码块（div.ql-code-block-container） */
+.post-content .ql-code-block-container {
+    background: var(--code-bg, #f6f8fa);
+    border: 1px solid var(--code-border, #e1e4e8);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 1rem 0;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+.post-content .ql-code-block { white-space: pre-wrap; }
 </style>
 {% endblock %}
 

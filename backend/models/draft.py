@@ -33,6 +33,7 @@ def ensure_drafts_table() -> None:
                 post_id INTEGER,
                 title TEXT NOT NULL,
                 content TEXT NOT NULL,
+                content_format TEXT DEFAULT 'html',
                 category_id INTEGER,
                 tags TEXT,
                 is_published BOOLEAN DEFAULT 0,
@@ -46,6 +47,12 @@ def ensure_drafts_table() -> None:
                 FOREIGN KEY (category_id) REFERENCES categories(id)
             )
         ''')
+
+        # 兼容旧库：drafts 表可能缺少 content_format 列
+        cursor.execute('PRAGMA table_info(drafts)')
+        existing_columns = {row[1] for row in cursor.fetchall()}
+        if 'content_format' not in existing_columns:
+            cursor.execute("ALTER TABLE drafts ADD COLUMN content_format TEXT DEFAULT 'html'")
 
         cursor.execute('''
             CREATE INDEX IF NOT EXISTS idx_drafts_user_post
@@ -91,9 +98,14 @@ def _row_to_draft(row) -> Dict:
 
 def save_draft(user_id: int, post_id: Optional[int], title: str,
                content: str, category_id: Optional[int] = None,
-               tags: Optional[List[str]] = None, device_info: str = '') -> Dict:
+               tags: Optional[List[str]] = None, device_info: str = '',
+               content_format: str = 'html') -> Dict:
     """
-    保存草稿（带事务管理）
+    保存草稿（带事务管理）。
+
+    博客与知识库共用这一写入路径与返回契约：
+    - 博客：/api/drafts（HTML/Markdown）
+    - 知识库：/knowledge/doc/<id>/autosave（Markdown）
 
     Returns: {
         'success': bool,
@@ -103,6 +115,7 @@ def save_draft(user_id: int, post_id: Optional[int], title: str,
         'other_drafts': List[Dict]
     }
     """
+    content_format = content_format if content_format in ('html', 'markdown') else 'html'
     ensure_drafts_table()
 
     conn = get_db_connection()
@@ -116,22 +129,24 @@ def save_draft(user_id: int, post_id: Optional[int], title: str,
         if post_id is None:
             conflicts = []
         else:
+            # 取回被覆盖草稿的完整内容，便于客户端提示/恢复（否则本次写入会在下一步覆盖它）
             cursor.execute('''
-                SELECT id, title, updated_at, device_info
+                SELECT id, title, content, content_format, category_id, tags,
+                       updated_at, device_info
                 FROM drafts
                 WHERE user_id = ? AND post_id = ?
                   AND device_info != ?
                   AND updated_at > datetime('now', '-5 minutes')
                 ORDER BY updated_at DESC
             ''', (user_id, post_id, device_info))
-            conflicts = [dict(row) for row in cursor.fetchall()]
+            conflicts = [_row_to_draft(row) for row in cursor.fetchall()]
 
         draft_id = None
         if post_id is None:
             cursor.execute('''
-                INSERT INTO drafts (user_id, post_id, title, content, category_id, tags, device_info)
-                VALUES (?, NULL, ?, ?, ?, ?, ?)
-            ''', (user_id, title, content, category_id, tags_json, device_info))
+                INSERT INTO drafts (user_id, post_id, title, content, content_format, category_id, tags, device_info)
+                VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, title, content, content_format, category_id, tags_json, device_info))
             draft_id = cursor.lastrowid
         else:
             # 先检查是否存在，避免 ON CONFLICT 与部分索引冲突
@@ -143,15 +158,15 @@ def save_draft(user_id: int, post_id: Optional[int], title: str,
                 draft_id = existing['id']
                 cursor.execute('''
                     UPDATE drafts SET
-                        title = ?, content = ?, category_id = ?, tags = ?,
+                        title = ?, content = ?, content_format = ?, category_id = ?, tags = ?,
                         device_info = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE user_id = ? AND post_id = ?
-                ''', (title, content, category_id, tags_json, device_info, user_id, post_id))
+                ''', (title, content, content_format, category_id, tags_json, device_info, user_id, post_id))
             else:
                 cursor.execute('''
-                    INSERT INTO drafts (user_id, post_id, title, content, category_id, tags, device_info)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (user_id, post_id, title, content, category_id, tags_json, device_info))
+                    INSERT INTO drafts (user_id, post_id, title, content, content_format, category_id, tags, device_info)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (user_id, post_id, title, content, content_format, category_id, tags_json, device_info))
                 draft_id = cursor.lastrowid
         cursor.execute('''
             SELECT updated_at FROM drafts WHERE id = ?
@@ -188,7 +203,8 @@ def create_draft(title: str, content: str, user_id: int,
                  post_id: Optional[int] = None,
                  category_id: Optional[int] = None,
                  tags: Optional[List[str]] = None,
-                 device_info: str = '') -> int:
+                 device_info: str = '',
+                 content_format: str = 'html') -> int:
     """兼容旧调用方式，创建一条草稿并返回ID。"""
     result = save_draft(
         user_id=user_id,
@@ -197,7 +213,8 @@ def create_draft(title: str, content: str, user_id: int,
         content=content,
         category_id=category_id,
         tags=tags,
-        device_info=device_info
+        device_info=device_info,
+        content_format=content_format
     )
     if not result.get('success'):
         raise RuntimeError(result.get('error', '创建草稿失败'))
@@ -206,19 +223,27 @@ def create_draft(title: str, content: str, user_id: int,
 
 def update_draft(draft_id: int, user_id: int, title: str,
                  content: str, category_id: Optional[int] = None,
-                 tags: Optional[List[str]] = None) -> Optional[Dict]:
-    """按草稿ID更新内容。"""
+                 tags: Optional[List[str]] = None,
+                 content_format: Optional[str] = None) -> Optional[Dict]:
+    """按草稿ID更新内容。content_format 为 None 时保持原格式。"""
     ensure_drafts_table()
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        cursor.execute('''
-            UPDATE
-            drafts SET title = ?, content = ?, category_id = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND user_id = ?
-        ''', (title, content, category_id, json.dumps(tags) if tags else None, draft_id, user_id))
+        if content_format is None:
+            cursor.execute('''
+                UPDATE
+                drafts SET title = ?, content = ?, category_id = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND user_id = ?
+            ''', (title, content, category_id, json.dumps(tags) if tags else None, draft_id, user_id))
+        else:
+            cursor.execute('''
+                UPDATE
+                drafts SET title = ?, content = ?, content_format = ?, category_id = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND user_id = ?
+            ''', (title, content, content_format, category_id, json.dumps(tags) if tags else None, draft_id, user_id))
         cursor.execute('''
             SELECT * FROM drafts WHERE id = ? AND user_id = ?
         ''', (draft_id, user_id))
@@ -243,7 +268,7 @@ def get_drafts(user_id: int, post_id: Optional[int] = None) -> List[Dict]:
     try:
         if post_id:
             cursor.execute('''
-                SELECT id, post_id, title, content, category_id, tags,
+                SELECT id, post_id, title, content, content_format, category_id, tags,
                        updated_at, device_info
                 FROM drafts
                 WHERE user_id = ? AND post_id = ?
@@ -251,7 +276,7 @@ def get_drafts(user_id: int, post_id: Optional[int] = None) -> List[Dict]:
             ''', (user_id, post_id))
         else:
             cursor.execute('''
-                SELECT id, post_id, title, content, category_id, tags,
+                SELECT id, post_id, title, content, content_format, category_id, tags,
                        updated_at, device_info
                 FROM drafts
                 WHERE user_id = ?

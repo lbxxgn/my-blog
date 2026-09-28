@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (textarea) {
         console.log('[Quill] Initializing Quill editor...');
         textarea.style.display = 'none';
+        let sourceMode = false;
         console.log('[Quill] Original textarea hidden');
         const editorContainer = document.createElement('div');
         editorContainer.id = 'quill-editor';
@@ -53,8 +54,24 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('[Quill] Error creating Quill:', e);
             return;
         }
+        // Quill 2.x 建议经 clipboard 转换后 setContents，直接改 root.innerHTML 不会同步内部文档模型。
+        function setQuillHtml(html) {
+            var content = html || '';
+            if (!content) {
+                quill.setContents([], 'silent');
+                return;
+            }
+            try {
+                var delta = quill.clipboard.convert({ html: content, text: '' });
+                quill.setContents(delta, 'silent');
+            } catch (e) {
+                console.warn('[Quill] setQuillHtml fallback to innerHTML:', e);
+                quill.root.innerHTML = content;
+            }
+        }
+        window.setQuillHtml = setQuillHtml;
         if (textarea.value) {
-            quill.root.innerHTML = textarea.value;
+            setQuillHtml(textarea.value);
         }
         quill.root.addEventListener('paste', function (e) {
             var html = e.clipboardData.getData('text/html');
@@ -80,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const form = document.getElementById('editorForm');
         if (form) {
             form.addEventListener('submit', function () {
-                textarea.value = quill.root.innerHTML;
+                syncTextareaFromQuill();
                 if (window.draftSync) {
                     window.draftSync.clearDraftCache();
                     window.draftSync.cleanupServerDraft();
@@ -161,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const isPublishedCheckbox = document.getElementById('is_published');
         window.togglePublish = function () {
             if (publishToggle && isPublishedCheckbox) {
-                textarea.value = quill.root.innerHTML;
+                syncTextareaFromQuill();
                 isPublishedCheckbox.checked = true;
                 setTimeout(function () {
                     if (form.requestSubmit) {
@@ -188,6 +205,156 @@ document.addEventListener('DOMContentLoaded', function () {
             }));
             window.dispatchEvent(new CustomEvent('editor:images-updated'));
         };
+
+        // ---- 内容格式：富文本(HTML) / Markdown / HTML 源码 ----
+        // 富文本与 HTML 源码共用 content_format='html'；Markdown 存 markdown。
+        const toggleSourceBtn = document.getElementById('toggleSourceBtn');
+        const contentFormatSelect = document.getElementById('contentFormat');
+        const markdownPreview = document.getElementById('markdownPreview');
+        let contentFormat = contentFormatSelect ? contentFormatSelect.value : 'html';
+        let previewTimer = null;
+
+        // 仅在“富文本可视化”状态下把 Quill 内容写回 textarea（提交/草稿用）
+        function syncTextareaFromQuill() {
+            if (contentFormat === 'html' && !sourceMode) {
+                textarea.value = quill.root.innerHTML;
+            }
+        }
+
+        function dispatchContentChange() {
+            window.dispatchEvent(new CustomEvent('editor:content-change', {
+                detail: { html: textarea.value, text: (quill && contentFormat === 'html' && !sourceMode)
+                    ? quill.getText().trim()
+                    : textarea.value.replace(/<[^>]+>/g, ' ') }
+            }));
+        }
+
+        function updateMarkdownPreview() {
+            if (!markdownPreview || contentFormat !== 'markdown') return;
+            clearTimeout(previewTimer);
+            previewTimer = setTimeout(function () {
+                fetch('/admin/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ content: textarea.value, content_format: 'markdown' })
+                }).then(function (r) { return r.json(); }).then(function (data) {
+                    if (data && data.success) markdownPreview.innerHTML = data.html;
+                }).catch(function () { /* 预览失败不影响编辑 */ });
+            }, 400);
+        }
+
+        function renderFormatUI() {
+            if (contentFormat === 'markdown') {
+                editorContainer.style.display = 'none';
+                textarea.style.display = 'block';
+                textarea.classList.add('markdown-mode');
+                textarea.classList.remove('source-mode');
+                if (markdownPreview) markdownPreview.hidden = false;
+                if (toggleSourceBtn) toggleSourceBtn.style.display = 'none';
+                updateMarkdownPreview();
+                return;
+            }
+            if (markdownPreview) markdownPreview.hidden = true;
+            textarea.classList.remove('markdown-mode');
+            if (toggleSourceBtn) toggleSourceBtn.style.display = '';
+            if (sourceMode) {
+                editorContainer.style.display = 'none';
+                textarea.style.display = 'block';
+                textarea.classList.add('source-mode');
+            } else {
+                editorContainer.style.display = '';
+                textarea.style.display = 'none';
+                textarea.classList.remove('source-mode');
+            }
+        }
+
+        function setSourceMode(on) {
+            sourceMode = on;
+            if (on) {
+                textarea.value = quill.root.innerHTML;
+            } else {
+                setQuillHtml(textarea.value);
+                dispatchContentChange();
+                window.dispatchEvent(new CustomEvent('editor:images-updated'));
+            }
+            renderFormatUI();
+            if (toggleSourceBtn) {
+                toggleSourceBtn.textContent = on ? '可视化' : '源码';
+                toggleSourceBtn.classList.toggle('is-active', on);
+                toggleSourceBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            }
+        }
+
+        async function switchContentFormat(nextFormat) {
+            if (nextFormat === contentFormat) return;
+            // 收集当前内容
+            syncTextareaFromQuill();
+            const current = textarea.value || '';
+            const hasContent = current.trim().length > 0 || quill.getText().trim().length > 0;
+            if (hasContent) {
+                const label = nextFormat === 'markdown' ? 'Markdown' : '富文本（HTML）';
+                if (!window.confirm('切换到 ' + label + ' 会转换当前正文，是否继续？')) {
+                    if (contentFormatSelect) contentFormatSelect.value = contentFormat;
+                    return;
+                }
+                try {
+                    const resp = await fetch('/admin/convert-format', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                        body: JSON.stringify({ content: current, to: nextFormat })
+                    });
+                    const data = await resp.json();
+                    if (data && data.success) textarea.value = data.content;
+                } catch (e) {
+                    console.warn('[Format] 转换失败，保留原内容:', e);
+                }
+            }
+            contentFormat = nextFormat;
+            if (nextFormat === 'html') {
+                setQuillHtml(textarea.value);
+            }
+            setSourceMode(false);
+            if (contentFormatSelect) contentFormatSelect.value = contentFormat;
+            dispatchContentChange();
+        }
+
+        if (toggleSourceBtn) {
+            toggleSourceBtn.addEventListener('click', function () {
+                setSourceMode(!sourceMode);
+            });
+        }
+        if (contentFormatSelect) {
+            contentFormatSelect.addEventListener('change', function (e) {
+                switchContentFormat(e.target.value);
+            });
+        }
+        // 源码 / Markdown 模式下实时同步，让草稿/自动保存拿到最新内容。
+        textarea.addEventListener('input', function () {
+            if (contentFormat === 'markdown') {
+                updateMarkdownPreview();
+                dispatchContentChange();
+                return;
+            }
+            if (sourceMode) {
+                dispatchContentChange();
+            }
+        });
+
+        // 供草稿恢复使用：按草稿的 content_format 正确落到编辑器
+        window.applyEditorDraft = function (content, format) {
+            if (format !== 'markdown') format = 'html';
+            contentFormat = format;
+            sourceMode = false;
+            if (contentFormatSelect) contentFormatSelect.value = format;
+            textarea.value = content || '';
+            if (format === 'html') {
+                setQuillHtml(content);
+            }
+            renderFormatUI();
+        };
+
+        // 初始按服务端保存的格式渲染
+        renderFormatUI();
 
         // ---- Quick first-line indent helper ----
         // On mobile it's hard to type multiple leading spaces; provide a toolbar button
@@ -236,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         IndentStyleBlot.blotName = 'indent-style';
         IndentStyleBlot.tagName = 'span';
-        Quill.register(IndentStyleBlot);
+        Quill.register('formats/indent-style', IndentStyleBlot);
 
         // Add a toolbar button after Quill renders
         const toolbar = quill.getModule('toolbar');

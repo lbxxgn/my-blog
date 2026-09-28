@@ -1,8 +1,4 @@
 {
-  "_rolldown-runtime-BgaNhQyE.js": {
-    "file": "assets/rolldown-runtime-BgaNhQyE.js",
-    "name": "rolldown-runtime"
-  },
   "node_modules/@blocknote/core/src/fonts/inter-v12-latin/inter-v12-latin-100.woff": {
     "file": "assets/inter-v12-latin-100-46Mq0mOp.woff",
     "src": "node_modules/@blocknote/core/src/fonts/inter-v12-latin/inter-v12-latin-100.woff"
@@ -76,38 +72,34 @@
     "src": "node_modules/@blocknote/core/src/fonts/inter-v12-latin/inter-v12-latin-regular.woff2"
   },
   "node_modules/@emoji-mart/data/sets/15/native.json": {
-    "file": "assets/native-DzBaUsS1.js",
+    "file": "assets/native-CTX_EC0I.js",
     "name": "native",
     "src": "node_modules/@emoji-mart/data/sets/15/native.json",
     "isDynamicEntry": true,
     "imports": [
-      "_rolldown-runtime-BgaNhQyE.js"
+      "src/main.tsx"
     ]
   },
   "node_modules/emoji-mart/dist/module.js": {
-    "file": "assets/module-Clse_-kb.js",
+    "file": "assets/module-DbUSmr0p.js",
     "name": "module",
     "src": "node_modules/emoji-mart/dist/module.js",
     "isDynamicEntry": true,
     "imports": [
-      "_rolldown-runtime-BgaNhQyE.js"
+      "src/main.tsx"
     ]
   },
   "src/main.tsx": {
-    "file": "assets/main-D4Upinnp.js",
+    "file": "assets/main-BhJxMJ88.js",
     "name": "main",
     "src": "src/main.tsx",
     "isEntry": true,
-    "imports": [
-      "_rolldown-runtime-BgaNhQyE.js"
-    ],
     "dynamicImports": [
       "node_modules/emoji-mart/dist/module.js",
-      "node_modules/@emoji-mart/data/sets/15/native.json",
-      "src/main.tsx"
+      "node_modules/@emoji-mart/data/sets/15/native.json"
     ],
     "css": [
-      "assets/main-DYsSaH_R.css"
+      "assets/main-JYKTwyeE.css"
     ],
     "assets": [
       "assets/inter-v12-latin-100-BQDzDElq.woff2",
