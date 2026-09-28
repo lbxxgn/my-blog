@@ -17,6 +17,7 @@
 
 - [部署指南](../DEPLOYMENT.md) - 完整的部署和升级指南
 - [启动指南](startup.md) - 系统启动和配置说明
+- [自签 HTTPS（IP 访问）运维手册](https-self-signed-ops.md) - 无域名用 IP 跑 HTTPS：生成/nginx/iPhone/Mac 安装与排错
 
 ## ✨ 个人效率功能
 
