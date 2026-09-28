@@ -74,12 +74,11 @@ class TestSiteIconRoutes:
         response = client.get('/apple-touch-icon.png')
         assert response.headers['Cache-Control'] == 'no-cache'
 
-    def test_manifest_has_share_target_and_icons(self, client):
+    def test_manifest_has_icons(self, client):
         response = client.get('/site.webmanifest')
         assert response.status_code == 200
         assert response.headers['Content-Type'].startswith('application/manifest+json')
         data = response.get_json()
-        assert data['share_target']['action'] == '/quick-capture'
         assert any('192x192' in icon['sizes'] for icon in data['icons'])
         assert any('512x512' in icon['sizes'] for icon in data['icons'])
         assert any('/site-icon-192-' in icon['src'] for icon in data['icons'])

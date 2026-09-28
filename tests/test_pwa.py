@@ -1,4 +1,4 @@
-"""快捷捕捉页 / PWA 分享目标 / 语音速记 相关测试"""
+"""PWA / Service Worker / iOS 图标 / 卡片 API 相关测试"""
 
 import json
 from pathlib import Path
@@ -11,47 +11,6 @@ def _login(client, user):
         'username': user['username'],
         'password': user['password']
     })
-
-
-class TestQuickCapturePage:
-    """GET /quick-capture 页面"""
-
-    def test_requires_login(self, client):
-        """未登录重定向到登录页"""
-        response = client.get('/quick-capture')
-        assert response.status_code == 302
-        assert '/login' in response.headers['Location']
-
-    def test_renders_empty(self, client, test_user):
-        """无参数时正常渲染"""
-        _login(client, test_user)
-        response = client.get('/quick-capture')
-        assert response.status_code == 200
-        assert 'qcContent' in response.get_data(as_text=True)
-
-    def test_share_params_prefilled(self, client, test_user):
-        """分享参数 title/text/url 合并预填"""
-        _login(client, test_user)
-        response = client.get(
-            '/quick-capture?title=Hello+World&text=Some+shared+text&url=https%3A%2F%2Fexample.com%2Fpost'
-        )
-        assert response.status_code == 200
-        html = response.get_data(as_text=True)
-        # 标题进标题框
-        assert 'value="Hello World"' in html
-        # text 为主、url 追加在末尾
-        assert 'Some shared text' in html
-        assert 'https://example.com/post' in html
-        assert html.index('Some shared text') < html.index('https://example.com/post')
-
-    def test_url_not_duplicated_when_in_text(self, client, test_user):
-        """url 已在 text 中时不重复追加"""
-        _login(client, test_user)
-        response = client.get(
-            '/quick-capture?text=check+https%3A%2F%2Fexample.com&url=https%3A%2F%2Fexample.com'
-        )
-        html = response.get_data(as_text=True)
-        assert html.count('https://example.com') == 1
 
 
 class TestApiCreateCard:
@@ -93,24 +52,6 @@ class TestApiCreateCard:
                                data=json.dumps({'title': 't'}),
                                content_type='application/json')
         assert response.status_code == 400
-
-
-class TestPwaShareTarget:
-    """PWA 分享目标契约"""
-
-    def test_manifest_has_share_target(self):
-        manifest = (PROJECT_ROOT / 'static' / 'site.webmanifest').read_text()
-        assert 'share_target' in manifest
-        assert '"action": "/quick-capture"' in manifest.replace("'", '"')
-        assert '"title": "title"' in manifest
-        assert '"text": "text"' in manifest
-        assert '"url": "url"' in manifest
-
-    def test_share_target_action_route_exists(self, client, test_user):
-        """share_target action 指向存在的路由"""
-        _login(client, test_user)
-        response = client.get('/quick-capture?title=t&text=x&url=u')
-        assert response.status_code == 200
 
 
 class TestServiceWorker:

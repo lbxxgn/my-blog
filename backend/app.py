@@ -254,12 +254,6 @@ def site_webmanifest():
         'short_name': SITE_NAME,
         'start_url': '/',
         'display': 'standalone',
-        'share_target': {
-            'action': '/quick-capture',
-            'method': 'GET',
-            'enctype': 'application/x-www-form-urlencoded',
-            'params': {'title': 'title', 'text': 'text', 'url': 'url'},
-        },
         'background_color': '#ffffff',
         'theme_color': '#ffffff',
         'icons': [
@@ -535,7 +529,7 @@ def allowed_file(filename):
 # =============================================================================
 # 注册蓝图
 # =============================================================================
-from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp, quick_capture_bp
+from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
 from routes.drafts import drafts_bp
 from routes.review import review_bp
 
@@ -556,9 +550,6 @@ app.register_blueprint(ai_bp)
 
 # 注册知识库蓝图（卡片收集/时间线，保留旧 API）
 app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
-
-# 快捷捕捉页（PWA 分享目标），根路径 /quick-capture
-app.register_blueprint(quick_capture_bp)
 
 # 注册知识库独立空间蓝图（目录树 + 文档）
 app.register_blueprint(knowledge_bp, url_prefix='/knowledge')

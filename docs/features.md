@@ -70,10 +70,8 @@
 - **卡片 → 文章**、**文章 → 知识库文档**
 - **卡片合并**：手动或 AI 合并（`/api/cards/merge`、`/api/cards/ai-merge`）
 
-### 快捷捕捉 `/quick-capture`
-- 大号输入框，一键「存为卡片」/「存为快速记事」，保存后清空、适合连续录入
-- ⭐ **语音速记**：麦克风按钮，浏览器 Web Speech API 实时转文字（Chrome/Edge/Safari）
-- ⭐ **PWA 分享直达**：手机「分享」→ 你的博客 → 直达本页，标题/正文/链接自动预填（🔧 需 HTTPS）
+### 语音速记
+- 移动端首页「＋发布」面板提供麦克风按钮，用浏览器 Web Speech API 实时转文字（Chrome/Edge/Safari）
 
 ## 五、回顾与统计 `/review` ⭐
 
@@ -108,7 +106,7 @@
 ## 八、采集与集成
 
 - **浏览器扩展**（Chrome/Edge）/ **Safari 扩展**：一键采集网页 → 卡片，可加标签/笔记，保存高亮批注
-- **PWA**：可「添加到主屏幕」，支持系统分享目标（🔧 需 HTTPS）
+- **PWA**：可「添加到主屏幕」（🔧 需 HTTPS）
 - **分享**：分享按钮 + 二维码（`/api/share/qrcode`）
 
 ## 九、个性化与体验
@@ -167,7 +165,7 @@
 |---|---|---|
 | AI 标签/摘要/续写/推荐/点评/合并 | 配置 chat 提供商 + API Key | 后台 AI 设置 `/admin/ai/configure` |
 | 语义搜索 / 编辑器「相关」 | 配置 Embedding + 重建向量索引 | AI 设置「Embedding 服务」区块 |
-| Passkey / PWA / 分享目标 | 站点运行在 **HTTPS** | 见 `DEPLOYMENT.md` HTTPS 章节 |
+| Passkey / PWA | 站点运行在 **HTTPS** | 见 `DEPLOYMENT.md` HTTPS 章节 |
 | 浏览器 / Safari 扩展 | 生成 API Key 并在扩展中填写 | `python browser-extension/generate-api-key.py` |
 | 每周 AI 回顾自动执行 | crontab 定时 | `flask weekly-review` |
 
@@ -183,7 +181,6 @@
 | `/search` | 搜索（关键词 / 语义） |
 | `/review` | 回顾页 |
 | `/knowledge` | 知识库空间 |
-| `/quick-capture` | 快捷捕捉 |
 | `/admin` | 后台仪表盘 |
 | `/admin/export` `/admin/import` | 导出 / 导入 |
 | `/admin/ai/configure` `/admin/ai/history` | AI 设置 / 历史 |

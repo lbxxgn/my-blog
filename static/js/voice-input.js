@@ -1,8 +1,8 @@
 /**
- * 快捷捕捉页 + 可复用语音输入（Web Speech API）
+ * 可复用语音输入（Web Speech API）
  *
  * window.VoiceInput.attach(button, textarea) 可挂载到任何
- * 「按钮 + textarea」组合上（移动端快速发布面板复用）。
+ * 「按钮 + textarea」组合上（移动端发布面板等）。
  */
 (function () {
     'use strict';
@@ -150,87 +150,4 @@
     }
 
     window.VoiceInput = { attach: attach };
-
-    // ---- 快捷捕捉页逻辑 ----
-    document.addEventListener('DOMContentLoaded', function () {
-        const titleEl = document.getElementById('qcTitle');
-        const contentEl = document.getElementById('qcContent');
-        if (!contentEl) return;
-
-        const voiceBtn = document.getElementById('qcVoiceBtn');
-        const voiceApi = attach(voiceBtn, contentEl);
-
-        function getCsrf() {
-            return window.getCsrfToken ? window.getCsrfToken() : '';
-        }
-
-        function postJSON(url, body) {
-            return fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCsrf(),
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify(body)
-            });
-        }
-
-        function resetForm() {
-            if (titleEl) titleEl.value = '';
-            contentEl.value = '';
-        }
-
-        document.getElementById('qcSaveCard').addEventListener('click', function () {
-            const content = contentEl.value.trim();
-            if (!content) {
-                toast('内容不能为空', 'error');
-                contentEl.focus();
-                return;
-            }
-            if (voiceApi && voiceApi.isListening()) voiceApi.stop();
-            const btn = this;
-            btn.disabled = true;
-            postJSON('/knowledge_base/api/cards', {
-                title: titleEl ? titleEl.value.trim() : '',
-                content: content
-            }).then(function (resp) {
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                return resp.json();
-            }).then(function () {
-                toast('已存为卡片，可到知识库查看');
-                resetForm();
-            }).catch(function () {
-                toast('保存失败，请重试', 'error');
-            }).finally(function () {
-                btn.disabled = false;
-            });
-        });
-
-        document.getElementById('qcSaveNote').addEventListener('click', function () {
-            const content = contentEl.value.trim();
-            if (!content) {
-                toast('内容不能为空', 'error');
-                contentEl.focus();
-                return;
-            }
-            if (voiceApi && voiceApi.isListening()) voiceApi.stop();
-            const btn = this;
-            btn.disabled = true;
-            postJSON('/knowledge_base/quick-note', {
-                title: titleEl ? titleEl.value.trim() : '',
-                content: content
-            }).then(function (resp) {
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                return resp.json();
-            }).then(function () {
-                toast('已存为快速记事');
-                resetForm();
-            }).catch(function () {
-                toast('保存失败，请重试', 'error');
-            }).finally(function () {
-                btn.disabled = false;
-            });
-        });
-    });
 })();

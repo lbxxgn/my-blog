@@ -24,7 +24,7 @@ tests/
 ├── test_migrations_runner.py  # 版本化迁移运行器
 ├── test_models.py             # 核心数据模型
 ├── test_models_edge_cases.py  # 模型边界情况
-├── test_quick_capture.py      # 快捷捕捉
+├── test_pwa.py                # PWA / Service Worker / 卡片 API
 ├── test_review.py             # 回顾页 / 每周回顾
 ├── test_routes.py             # 路由行为
 ├── test_routes_edge_cases.py  # 路由边界情况

@@ -15,7 +15,7 @@
 - [评论API](#评论api)
 - [搜索API](#搜索api)
 - [回顾API](#回顾api)
-- [快捷捕捉API](#快捷捕捉api)
+- [卡片 API](#卡片-api)
 - [用户管理API](#用户管理api)
 - [知识库API](#知识库api)
 - [AI功能API](#ai功能api)
@@ -788,17 +788,7 @@ flask weekly-review
 
 ---
 
-## ⚡ 快捷捕捉API
-
-### 快捷捕捉页
-
-```http
-GET /quick-capture?title={title}&text={text}&url={url}
-```
-
-**需要认证**: 是（登录）
-
-PWA 分享目标（`share_target`）落地页。`title`/`text`/`url` 合并预填到捕捉表单，可存为卡片或快速记事。
+## ⚡ 卡片 API
 
 ### 创建卡片（Session 版）
 
@@ -1804,6 +1794,6 @@ GET /api/image/original-url?hash={abc123}
 ---
 
 **更新日志：**
-- v2.4 (2026-09-25): 新增统一搜索/语义搜索/相关推荐端点，新增回顾API（那年今日/随机漫步/热力图/每周回顾），新增快捷捕捉API；配套功能见 [个人效率功能说明](personal-features.md)
+- v2.4 (2026-09-25): 新增统一搜索/语义搜索/相关推荐端点，新增回顾API（那年今日/随机漫步/热力图/每周回顾）；配套功能见 [个人效率功能说明](personal-features.md)
 - v2.2 (2026-03-19): 更新所有 API 端点，补充 Passkey、知识库、AI 功能、移动端等遗漏端点
 - v2.2 (2026-03-16): 初始版本

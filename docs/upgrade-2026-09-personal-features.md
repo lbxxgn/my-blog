@@ -4,7 +4,7 @@
 **最后更新**: 2026-09-25
 **前置要求**: 已按 [部署指南](../DEPLOYMENT.md) 完成基础部署的旧版本
 
-本指南说明如何升级到包含「命令面板 / 语义搜索 / 回顾页 / 快捷捕捉 / 语音速记」等 9 项个人效率功能的版本。功能使用说明见 [个人效率功能说明](personal-features.md)，API 明细见 [API 文档](api-documentation.md)（v2.4）。
+本指南说明如何升级到包含「命令面板 / 语义搜索 / 回顾页 / 语音速记」等个人效率功能的版本。功能使用说明见 [个人效率功能说明](personal-features.md)，API 明细见 [API 文档](api-documentation.md)（v2.4）。
 
 ---
 
@@ -15,7 +15,7 @@
 | 搜索 | Cmd+K 命令面板、跨库统一搜索 API、语义搜索（embedding） |
 | 写作辅助 | 两个编辑器的「相关卡片」语义推荐面板 |
 | 回顾 | `/review` 页（写作热力图/那年今日/随机漫步）、每周 AI 回顾（CLI + crontab） |
-| 输入 | `/quick-capture` 快捷捕捉、PWA 分享目标（share_target）、语音速记（Web Speech API） |
+| 输入 | 语音速记（移动端发布面板，Web Speech API） |
 | 数据 | 迁移 009：`embeddings` 表 + users 表 4 个 embedding 配置列 |
 | 依赖 | 新增 `numpy`（纯 wheel，无编译风险） |
 
@@ -60,7 +60,7 @@ python -m backend.migrations status                 # 验证：009_embeddings �
 # 5. 前端构建（git 已包含构建产物 static/frontend/，仅当自行修改前端源码时需要）
 cd frontend && npm install && npm run build && cd ..
 
-# 6. 静态资源清单（新增 command-palette/review/quick-capture 等 JS/CSS）
+# 6. 静态资源清单（新增 command-palette/review/voice-input 等 JS/CSS）
 python scripts/generate_manifest.py
 
 # 7. 重启服务
@@ -114,17 +114,15 @@ curl -s -o /dev/null -w "%{http_code}\n" $BASE/                 # 200
 curl -s -o /dev/null -w "%{http_code}\n" $BASE/review           # 302（未登录跳登录页）
 curl -s -o /dev/null -w "%{http_code}\n" $BASE/api/search/all?q=x   # 401
 curl -s -o /dev/null -w "%{http_code}\n" $BASE/sw.js            # 200
-curl -s $BASE/static/site.webmanifest | grep -o share_target    # 应有输出
 ```
 
 登录后检查：
 
 - [ ] 桌面端按 `Ctrl+K` 弹出命令面板，输入关键词能搜到文章/卡片
-- [ ] 导航栏出现「回顾」「快捷捕捉」
+- [ ] 导航栏出现「回顾」
 - [ ] `/review` 显示热力图、那年今日、随机漫步
 - [ ] 知识库编辑器右侧有「🔗 相关」tab（配置 embedding 后写 200+ 字有推荐）
 - [ ] AI 设置页有「Embedding 服务」区块
-- [ ] 手机安装 PWA 后系统分享菜单能直达快捷捕捉页
 
 ### 测试与构建（源码部署机）
 
@@ -173,15 +171,11 @@ sqlite3 db/simple_blog.db "DROP TABLE IF EXISTS embeddings;"
 
 `flask` 命令需要应用上下文与 `DATABASE_URL`：必须在项目根目录、虚拟环境激活状态下执行（crontab 示例已带 cd）。无任何用户配置 AI 时，仅第一个管理员会生成降级统计版；想生成 AI 版请先配置 AI 设置。
 
-### 5. 手机「添加到主屏幕」后分享菜单里没有博客
-
-两个前提：站点必须是 HTTPS；PWA 需完成安装（图标出现在主屏幕）。部分国产浏览器不支持 share_target，用 Chrome/Safari 验证。
-
-### 6. 语音按钮置灰
+### 5. 语音按钮置灰
 
 浏览器不支持 Web Speech API（如部分安卓 WebView），换 Chrome/Edge/Safari 并授权麦克风。
 
-### 7. 升级后静态 JS/CSS 404 或旧缓存
+### 6. 升级后静态 JS/CSS 404 或旧缓存
 
 确认执行过 `python scripts/generate_manifest.py` 并重启；强制刷新（Ctrl+Shift+R）。`sw.js` 为纯透传，不会因缓存导致内容不更新。
 

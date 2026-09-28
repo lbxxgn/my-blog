@@ -76,7 +76,6 @@
                 </li>
                 {% if session.get('user_id') %}
                     <li><a href="{{ url_for('admin_dashboard') }}">内容</a></li>
-                    <li><a href="{{ url_for('quick_capture.quick_capture') }}">快捷捕捉</a></li>
                     <li><a href="{{ url_for('knowledge.index') }}">知识库</a></li>
                     <li><a href="{{ url_for('review.review_page') }}">回顾</a></li>
                     {% if session.get('role') == 'admin' %}
@@ -378,11 +377,6 @@
                         <span style="flex: 1;">回顾</span>
                         <span>→</span>
                     </a>
-                    <a href="{{ url_for('quick_capture.quick_capture') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
-                        <span style="font-size: 24px;">⚡</span>
-                        <span style="flex: 1;">快捷捕捉</span>
-                        <span>→</span>
-                    </a>
                     <a href="{{ url_for('change_password') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
                         <span style="font-size: 24px;">🔐</span>
                         <span style="flex: 1;">修改密码</span>
@@ -578,7 +572,7 @@ window.availableCategories = {{ (all_categories or [])|tojson }};
 </script>
 
 
-<script src="{{ static_file('js/quick-capture.js') }}"></script>
+<script src="{{ static_file('js/voice-input.js') }}"></script>
 <script src="{{ static_file('js/mobile-editor.js') }}"></script>
 {% endif %}
 

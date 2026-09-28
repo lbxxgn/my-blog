@@ -73,10 +73,9 @@ check_files() {
         "backend/models/embeddings.py"
         "backend/tasks/embedding_task.py"
         "templates/review.html"
-        "templates/quick_capture.html"
         "static/js/command-palette.js"
         "static/js/review.js"
-        "static/js/quick-capture.js"
+        "static/js/voice-input.js"
         "static/sw.js"
         # 历史版本
         "static/js/shortcuts.js"
@@ -287,14 +286,6 @@ check_personal_features() {
         print_error "service worker 不可访问或内容异常"
     fi
 
-    # PWA share_target
-    manifest=$(curl -s "http://127.0.0.1:5001/static/site.webmanifest" 2>/dev/null)
-    if echo "$manifest" | grep -q "share_target"; then
-        print_success "PWA share_target 已配置"
-    else
-        print_error "site.webmanifest 缺少 share_target"
-    fi
-
     # 命令面板资源注入
     homepage_html=$(curl -s http://127.0.0.1:5001 2>/dev/null)
     if echo "$homepage_html" | grep -q "command-palette"; then
@@ -369,10 +360,9 @@ show_test_suggestions() {
    - 手动生成一次每周回顾，约1分钟内出现在列表
    - crontab 可挂: flask weekly-review
 
-6. ⚡ 快捷捕捉与语音（移动端）
-   - 访问 /quick-capture，可存为卡片或快速记事
-   - 手机安装 PWA 后系统分享可直达本页
-   - Chrome/Edge/Safari 下麦克风按钮可说中文转文字
+6. ⚡ 语音速记（移动端）
+   - 移动端首页「＋发布」面板有麦克风按钮
+   - Chrome/Edge/Safari 下可说中文实时转文字
 
 7. 🔍 资源版本控制
    - 修改任意CSS文件
