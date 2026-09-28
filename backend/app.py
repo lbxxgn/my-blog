@@ -1000,7 +1000,13 @@ def create_admin_user():
 @app.errorhandler(404)
 def not_found_error(error):
     """Handle 404 errors"""
-    get_log_error()(error, context='404 Not Found')
+    context = (
+        f'404 Not Found | {request.method} {request.full_path} '
+        f'| IP: {request.remote_addr} '
+        f'| Referer: {request.referrer or "-"} '
+        f'| UA: {request.user_agent or "-"}'
+    )
+    get_log_error()(error, context=context)
     return render_template('error.html', status_code=404), 404
 
 @app.errorhandler(500)
