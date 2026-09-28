@@ -210,6 +210,37 @@ class TestTagModels:
         tags = get_popular_tags(limit=10)
         assert len(tags) == 3
 
+    def test_get_popular_tags_only_counts_published_blog_posts(self, temp_db, test_user):
+        """热门标签只统计已发布博客文章；仅知识库使用的标签不出现"""
+        from models import create_post, set_post_tags
+
+        create_tag('博客专属')
+        create_tag('知识库专属')
+
+        # 已发布的博客文章 → 计入
+        post_id = create_post(title='博客文章', content='x',
+                              author_id=test_user['id'], is_published=True)
+        set_post_tags(post_id, ['博客专属'])
+
+        # 知识库文档 → 不计入
+        doc_id = create_post(title='知识库文档', content='x',
+                             author_id=test_user['id'], is_published=True,
+                             post_type='knowledge')
+        set_post_tags(doc_id, ['知识库专属'])
+
+        # 未发布的博客文章 → 不计入
+        draft_id = create_post(title='草稿文章', content='x',
+                               author_id=test_user['id'], is_published=False)
+        set_post_tags(draft_id, ['博客专属'])
+
+        popular = get_popular_tags(limit=10)
+        names = [t['name'] for t in popular]
+        assert '博客专属' in names
+        assert '知识库专属' not in names
+
+        blog_tag = next(t for t in popular if t['name'] == '博客专属')
+        assert blog_tag['post_count'] == 1
+
 
 class TestCommentModels:
     """评论模型测试"""

@@ -4,7 +4,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, s
 from models import (
     get_all_posts, get_all_posts_cursor, get_all_categories, get_category_by_id, get_all_tags,
     get_tag_by_id, get_posts_by_tag, get_posts_by_author, get_user_by_id,
-    get_popular_tags, get_db_connection, sanitize_posts_for_viewer,
+    get_popular_tags, sanitize_posts_for_viewer,
 )
 
 from . import blog_bp, logger, get_optimized_image_url, get_optimized_image_url_cached, extract_post_image_urls, extract_post_excerpt, rewrite_post_image_sources, determine_mobile_image_layout, build_post_card_payload, build_post_card_payloads, serialize_post_for_json  # noqa: F401
@@ -105,7 +105,7 @@ def index():
 
     # 获取所有标签和分类供移动端使用（以原生列表传入模板，由 |tojson 安全序列化，
     # 避免 json.dumps 不转义 </script> 造成存储型 XSS）
-    all_tags = get_all_tags()
+    all_tags = get_all_tags(post_type='blog', published_only=True, only_with_posts=True)
     all_tags_list = [{'id': t.get('id', t.id if hasattr(t, 'id') else None),
                       'name': t.get('name', t.name if hasattr(t, 'name') else '')} for t in all_tags]
     all_categories_list = [{'id': c.get('id', c.id if hasattr(c, 'id') else None),
@@ -307,8 +307,8 @@ def view_tag(tag_id):
     page_range = list(range(page_start, page_end))
     show_ellipsis = posts_data['total_pages'] > posts_data['page'] + 2
 
-    # 获取所有标签用于筛选栏
-    tags = get_all_tags()
+    # 获取所有标签用于筛选栏（仅博客、且有文章）
+    tags = get_all_tags(post_type='blog', published_only=True, only_with_posts=True)
 
     return render_template('tag_posts.html',
                          tag=tag,
@@ -322,34 +322,8 @@ def view_tag(tag_id):
 
 @blog_bp.route('/tags')
 def list_all_tags():
-    """显示所有标签页面"""
-    # 获取所有标签
-    tags = get_all_tags()
-
-    if not tags:
-        return render_template('tags.html', tags=[])
-
-    # 批量获取所有标签的文章数量（修复N+1查询问题）
-    tag_ids = [tag['id'] for tag in tags]
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # 使用一个查询获取所有标签的文章数量
-    placeholders = ','.join(['?'] * len(tag_ids))
-    cursor.execute(f'''
-        SELECT tag_id, COUNT(*) as post_count
-        FROM post_tags
-        WHERE tag_id IN ({placeholders})
-        GROUP BY tag_id
-    ''', tag_ids)
-
-    # 将结果转换为字典
-    tag_counts = {row['tag_id']: row['post_count'] for row in cursor.fetchall()}
-    conn.close()
-
-    # 为每个标签添加文章数量
-    for tag in tags:
-        tag['post_count'] = tag_counts.get(tag['id'], 0)
+    """显示所有标签页面（仅展示已发布博客文章用到的标签）"""
+    tags = get_all_tags(post_type='blog', published_only=True, only_with_posts=True)
 
     # 按文章数量降序排序，标签名升序
     tags.sort(key=lambda x: (-x['post_count'], x['name']))

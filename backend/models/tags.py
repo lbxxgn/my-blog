@@ -35,16 +35,36 @@ def create_tag(name):
     except sqlite3.IntegrityError:
         return None
 
-def get_all_tags():
-    """Get all tags with post count"""
+def get_all_tags(post_type=None, published_only=False, only_with_posts=False):
+    """Get all tags with post count.
+
+    Args:
+        post_type (str, optional): 仅统计该 post_type 的文章（'blog'/'knowledge'）；None=全部
+        published_only (bool): 仅统计已发布文章
+        only_with_posts (bool): 仅返回至少有一篇符合条件文章的标签（过滤空标签）
+    """
+    conditions = []
+    params = []
+    if post_type:
+        conditions.append('p.post_type = ?')
+        params.append(post_type)
+    if published_only:
+        conditions.append('p.is_published = 1')
+    where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+    having = 'HAVING COUNT(pt.post_id) > 0' if only_with_posts else ''
+
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT t.*,
-               (SELECT COUNT(*) FROM post_tags WHERE tag_id = t.id) as post_count
+    cursor.execute(f'''
+        SELECT t.*, COUNT(pt.post_id) as post_count
         FROM tags t
+        LEFT JOIN post_tags pt ON pt.tag_id = t.id
+        LEFT JOIN posts p ON p.id = pt.post_id
+        {where}
+        GROUP BY t.id
+        {having}
         ORDER BY name
-    ''')
+    ''', params)
     tags = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return tags
@@ -58,18 +78,33 @@ def get_tag_by_id(tag_id):
     conn.close()
     return dict(tag) if tag else None
 
-def get_popular_tags(limit=10):
-    """Get top tags by post count (hot tags)"""
+def get_popular_tags(limit=10, post_type='blog', published_only=True):
+    """Get top tags by post count (hot tags).
+
+    默认只统计已发布的博客文章，因此不会出现「只在知识库使用」的空标签。
+    """
+    conditions = []
+    params = []
+    if post_type:
+        conditions.append('p.post_type = ?')
+        params.append(post_type)
+    if published_only:
+        conditions.append('p.is_published = 1')
+    where = ('WHERE ' + ' AND '.join(conditions)) if conditions else ''
+
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT t.*,
-               (SELECT COUNT(*) FROM post_tags WHERE tag_id = t.id) as post_count
+    cursor.execute(f'''
+        SELECT t.*, COUNT(pt.post_id) as post_count
         FROM tags t
-        WHERE t.id IN (SELECT DISTINCT tag_id FROM post_tags)
+        JOIN post_tags pt ON pt.tag_id = t.id
+        JOIN posts p ON p.id = pt.post_id
+        {where}
+        GROUP BY t.id
+        HAVING COUNT(pt.post_id) > 0
         ORDER BY post_count DESC
         LIMIT ?
-    ''', (limit,))
+    ''', params + [limit])
     tags = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return tags
