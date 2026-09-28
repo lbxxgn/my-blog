@@ -326,6 +326,58 @@ function performBatchPublish(publish) {
     });
 }
 
+// Single post quick publish
+async function publishSinglePost(postId, button) {
+    if (!postId) return;
+
+    const confirmed = window.showAppConfirm
+        ? await window.showAppConfirm('确定要发布这篇文章吗？')
+        : true;
+    if (!confirmed) return;
+
+    const originalText = button ? button.textContent : '';
+    if (button) {
+        button.disabled = true;
+        button.textContent = '发布中...';
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
+    fetch('/admin/batch-publish', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            post_ids: [postId],
+            publish: true
+        })
+    })
+    .then(parseActionResponse)
+    .then(result => {
+        const data = result.data;
+        if (data.success) {
+            notifyDashboard(data.message);
+            const row = document.querySelector(`tr[data-post-id="${postId}"]`);
+            if (row) updateRowStatus(row, true);
+            if (button) button.remove();
+        } else {
+            notifyDashboard(actionFailureMessage(result), 'error');
+            if (button) {
+                button.disabled = false;
+                button.textContent = originalText;
+            }
+        }
+    })
+    .catch(error => {
+        notifyDashboard(actionErrorMessage(error), 'error');
+        if (button) {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
+    });
+}
+
 // Batch tags functions
 function showBatchTagsModal() {
     if (selectedPosts.size === 0) {
