@@ -138,13 +138,34 @@ def get_original_image_url():
         cursor = conn.cursor()
 
         # 查询优化图片记录
+        # 1) 优先按内容哈希精确匹配（优化文件名使用内容哈希的情况）
         cursor.execute('''
             SELECT original_path
             FROM optimized_images
             WHERE original_hash = ?
+            LIMIT 1
         ''', (hash,))
 
         result = cursor.fetchone()
+
+        # 2) 回退：优化文件名通常取原图文件名末尾的短哈希（时间戳_随机串.ext），
+        #    与内容哈希 original_hash 不一致，改为按优化文件路径反查原图
+        if not result:
+            cursor.execute('''
+                SELECT original_path
+                FROM optimized_images
+                WHERE thumbnail_path LIKE ?
+                   OR medium_path LIKE ?
+                   OR large_path LIKE ?
+                   OR feed_path LIKE ?
+                LIMIT 1
+            ''', (
+                f'%/{hash}_thumbnail.webp',
+                f'%/{hash}_medium.webp',
+                f'%/{hash}_large.webp',
+                f'%/{hash}_feed.webp',
+            ))
+            result = cursor.fetchone()
 
         if result:
             # 转换为URL格式
