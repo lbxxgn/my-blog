@@ -64,11 +64,13 @@
 - 文档搜索：`/knowledge/search`
 - 卡片归档为文档：`/knowledge/card/<id>/archive`
 
-### 卡片 / 想法 `/knowledge_base`
+### 卡片 / 想法
+- **新建卡片**：知识库首页「＋ 记想法」，或 `POST /knowledge_base/api/cards`
 - 卡片状态：想法 / 孵化中 / 草稿 / 已发布
 - ⭐ **网页批注（annotations）**：采集网页时连同高亮一起保存
 - **卡片 → 文章**、**文章 → 知识库文档**
 - **卡片合并**：手动或 AI 合并（`/api/cards/merge`、`/api/cards/ai-merge`）
+- ⭐ 在回顾页「随机漫步」中随机重遇卡片
 
 ### 语音速记
 - 移动端首页「＋发布」面板提供麦克风按钮，用浏览器 Web Speech API 实时转文字（Chrome/Edge/Safari）
@@ -105,7 +107,7 @@
 
 ## 八、采集与集成
 
-- **浏览器扩展**（Chrome/Edge）/ **Safari 扩展**：一键采集网页 → 卡片，可加标签/笔记，保存高亮批注
+- **浏览器扩展**（Chrome/Edge）/ **Safari 扩展**：一键采集网页（默认存为已发布文章，分类「转载」），可加标签/笔记，保存高亮批注
 - **PWA**：可「添加到主屏幕」（🔧 需 HTTPS）
 - **分享**：分享按钮 + 二维码（`/api/share/qrcode`）
 

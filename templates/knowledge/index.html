@@ -32,6 +32,7 @@
                     <input type="text" name="q" placeholder="搜索知识库..." value="{{ request.args.get('q', '') }}">
                     <button type="submit">🔍</button>
                 </form>
+                <button type="button" id="kbNewIdeaBtn" class="btn btn-sm" title="随手记一张卡片（想法）">＋ 记想法</button>
                 {% if can_manage %}
                 <a href="{{ url_for('knowledge.new_doc') }}" class="btn btn-sm btn-primary">+ 新建文档</a>
                 {% endif %}
@@ -132,4 +133,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ static_file('js/card-create.js') }}"></script>
 {% endblock %}
