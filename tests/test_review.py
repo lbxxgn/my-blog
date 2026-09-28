@@ -189,7 +189,7 @@ class TestTodayAPI:
         assert '去年明天凌晨' not in titles
 
     def test_today_item_types(self, client, test_admin_user, temp_db):
-        """知识库文档 / 笔记 / 卡片的类型标注"""
+        """知识库文档 / 笔记 的类型标注；卡片不再出现"""
         uid = test_admin_user['id']
         ts = _utc_str(_same_day_last_year(_local_now()))
 
@@ -204,8 +204,7 @@ class TestTodayAPI:
         assert items['去年的知识库文档']['url'] == f'/knowledge/doc/{doc_id}'
         assert items['去年的笔记']['type'] == 'note'
         assert items['去年的笔记']['url'] == f'/post/{note_id}'
-        assert items['去年的卡片']['type'] == 'card'
-        assert items['去年的卡片']['url'] is None
+        assert '去年的卡片' not in items
 
     def test_today_sorted_by_year_desc(self, client, test_admin_user, temp_db):
         """按年份倒序返回"""
@@ -229,45 +228,6 @@ class TestTodayAPI:
 
 
 # =============================================================================
-# 随机漫步
-# =============================================================================
-
-@pytest.mark.usefixtures('client', 'test_admin_user')
-class TestRandomAPI:
-    """随机漫步 API"""
-
-    def test_random_returns_own_cards_up_to_5(self, client, test_admin_user, temp_db):
-        """返回 ≤5 张且全部属于当前用户"""
-        uid = test_admin_user['id']
-        now = _utc_str(_local_now())
-        my_ids = {_insert_card(temp_db, uid, f'卡片{i}', now, tags=['t1']) for i in range(7)}
-        other_id = _create_other_user()
-        for i in range(3):
-            _insert_card(temp_db, other_id, f'别人卡片{i}', now)
-
-        _login(client, test_admin_user)
-        data = client.get('/api/review/random').get_json()
-        assert data['success'] is True
-
-        cards = data['cards']
-        assert 0 < len(cards) <= 5
-        assert all(c['id'] in my_ids for c in cards)
-
-        first = cards[0]
-        assert first['title'].startswith('卡片')
-        assert first['tags'] == ['t1']
-        assert first['status'] == 'idea'
-        assert 'excerpt' in first
-
-    def test_random_empty(self, client, test_admin_user):
-        """没有卡片时返回空列表"""
-        _login(client, test_admin_user)
-        data = client.get('/api/review/random').get_json()
-        assert data['success'] is True
-        assert data['cards'] == []
-
-
-# =============================================================================
 # 写作热力
 # =============================================================================
 
@@ -276,7 +236,7 @@ class TestActivityAPI:
     """写作热力 API"""
 
     def test_activity_aggregates_by_local_date(self, client, test_admin_user, temp_db):
-        """posts + cards 按本地日期聚合计数"""
+        """posts 按本地日期聚合计数"""
         uid = test_admin_user['id']
         now = _local_now()
         noon_today = now.replace(hour=12, minute=0, second=0, microsecond=0)
@@ -294,7 +254,8 @@ class TestActivityAPI:
         assert data['success'] is True
         activity = data['activity']
 
-        assert activity[noon_today.strftime('%Y-%m-%d')] == 3
+        # 卡片不计入（改为仅文章）
+        assert activity[noon_today.strftime('%Y-%m-%d')] == 2
         assert activity[ten_days_ago.strftime('%Y-%m-%d')] == 1
         assert four_hundred_days_ago.strftime('%Y-%m-%d') not in activity
 
@@ -518,7 +479,6 @@ class TestReviewPage:
         html = resp.get_data(as_text=True)
         assert '写作热力' in html
         assert '那年今日' in html
-        assert '随机漫步' in html
         assert '每周回顾' in html
 
     def test_review_page_requires_login(self, client):
@@ -528,7 +488,6 @@ class TestReviewPage:
 
     @pytest.mark.parametrize('path', [
         '/api/review/today',
-        '/api/review/random',
         '/api/review/activity',
         '/api/review/weekly',
         '/api/review/weekly/status',

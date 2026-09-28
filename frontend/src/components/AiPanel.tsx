@@ -4,7 +4,6 @@ import { Category } from '../types';
 import {
   continueWriting,
   generateSummary,
-  loadHistoryCards,
   organizeContent,
 } from '../lib/api';
 
@@ -16,7 +15,6 @@ interface AiPanelProps {
   aiSummaryUrl: string;
   aiContinueUrl: string;
   aiRecommendUrl: string;
-  cardsUrl: string;
   tree: Category[];
   onTitleChange: (title: string) => void;
   onTagsChange: (tags: string) => void;
@@ -40,7 +38,6 @@ export function AiPanel({
   aiOrganizeUrl,
   aiSummaryUrl,
   aiContinueUrl,
-  cardsUrl,
   tree,
   onTitleChange,
   onTagsChange,
@@ -49,8 +46,6 @@ export function AiPanel({
   const [loading, setLoading] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<any>(null);
   const [summary, setSummary] = useState('');
-  const [cards, setCards] = useState<any[]>([]);
-  const [cardQuery, setCardQuery] = useState('');
   const [status, setStatus] = useState('');
 
   const getMarkdown = useCallback(async () => {
@@ -135,30 +130,6 @@ export function AiPanel({
     }
   };
 
-  const loadCards = async () => {
-    setLoading('cards');
-    try {
-      const items = await loadHistoryCards(cardsUrl, cardQuery);
-      setCards(items);
-    } catch (e) {
-      setStatus('加载历史卡片失败');
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const insertCard = async (card: any, asReference: boolean) => {
-    if (!editor) return;
-    const text = card.content || '';
-    const truncated = text.length > 220 ? text.slice(0, 220) + '...' : text;
-    const md = asReference
-      ? `> **延伸阅读：[${card.title || '未命名'}]**\n> ${truncated}\n\n`
-      : `> **历史笔记：[${card.title || '未命名'}]**\n> ${truncated}\n\n`;
-    const blocks = await editor.tryParseMarkdownToBlocks(md);
-    editor.insertBlocks(blocks, editor.document[editor.document.length - 1].id);
-    setStatus(`已插入「${card.title || '未命名'}」`);
-  };
-
   if (!editor) {
     return <div className="kb-panel-empty">编辑器加载中...</div>;
   }
@@ -216,36 +187,6 @@ export function AiPanel({
         >
           {loading === 'continue' ? '续写中...' : 'AI 续写'}
         </button>
-      </div>
-
-      <div className="kb-ai-section">
-        <h5>历史卡片</h5>
-        <div className="kb-ai-search">
-          <input
-            type="text"
-            placeholder="搜索历史卡片..."
-            value={cardQuery}
-            onChange={(e) => setCardQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && loadCards()}
-          />
-          <button onClick={loadCards} disabled={loading === 'cards'}>
-            {loading === 'cards' ? '加载中...' : '搜索'}
-          </button>
-        </div>
-        <div className="kb-ai-cards">
-          {cards.map((card) => (
-            <div key={card.id} className="kb-ai-card-item">
-              <div className="kb-ai-card-title">{card.title || '未命名'}</div>
-              <div className="kb-ai-card-preview">
-                {(card.content || '').slice(0, 80)}...
-              </div>
-              <div className="kb-ai-card-actions">
-                <button onClick={() => insertCard(card, false)}>插入摘录</button>
-                <button onClick={() => insertCard(card, true)}>插入引用</button>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {status && <div className="kb-ai-status">{status}</div>}

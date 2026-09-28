@@ -238,7 +238,7 @@ def api_search_semantic():
     """
     q = request.args.get('q', '').strip()
     if not q:
-        return jsonify({'posts': [], 'cards': [], 'docs': []})
+        return jsonify({'posts': [], 'docs': []})
     limit = _search_limit(20, 50)
 
     try:

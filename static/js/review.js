@@ -5,8 +5,7 @@
 (function () {
     'use strict';
 
-    var TYPE_LABELS = { post: '文章', note: '笔记', knowledge: '知识库', card: '卡片' };
-    var STATUS_LABELS = { idea: '想法', draft: '草稿', incubating: '孵化中', published: '已发布' };
+    var TYPE_LABELS = { post: '文章', note: '笔记', knowledge: '知识库' };
 
     function escapeHTML(str) {
         return String(str == null ? '' : str)
@@ -129,45 +128,6 @@
         });
     }
 
-    // ==================== 随机漫步 ====================
-
-    function cardItemHTML(card) {
-        var tags = (card.tags || []).map(function (t) {
-            return '<span class="review-tag">#' + escapeHTML(t) + '</span>';
-        }).join('');
-        return '<div class="review-card">' +
-            '<div class="review-card-head">' +
-            '<span class="review-item-title">' + escapeHTML(card.title) + '</span>' +
-            '<span class="review-badge">' + (STATUS_LABELS[card.status] || escapeHTML(card.status)) + '</span>' +
-            '</div>' +
-            (card.excerpt ? '<p class="review-item-excerpt">' + escapeHTML(card.excerpt) + '</p>' : '') +
-            (tags ? '<div class="review-tags">' + tags + '</div>' : '') +
-            '</div>';
-    }
-
-    function initRandom() {
-        var list = document.getElementById('random-list');
-        if (!list) return;
-        var btn = document.getElementById('random-refresh');
-
-        function load() {
-            if (btn) btn.disabled = true;
-            fetchJSON('/api/review/random').then(function (data) {
-                var cards = (data && data.cards) || [];
-                list.innerHTML = cards.length
-                    ? cards.map(cardItemHTML).join('')
-                    : '<p class="review-empty">还没有卡片，先用浏览器插件或快速记事收集一些灵感吧。</p>';
-            }).catch(function () {
-                list.innerHTML = '<p class="review-empty">加载失败，请刷新重试。</p>';
-            }).finally(function () {
-                if (btn) btn.disabled = false;
-            });
-        }
-
-        if (btn) btn.addEventListener('click', load);
-        load();
-    }
-
     // ==================== 每周回顾 ====================
 
     function initWeekly() {
@@ -260,9 +220,6 @@
         var widget = document.getElementById('review-sidebar-widget');
         if (!widget) return;
         var todayEl = document.getElementById('sidebar-today');
-        var randomWrap = document.getElementById('sidebar-random-wrap');
-        var randomEl = document.getElementById('sidebar-random');
-        var switchBtn = document.getElementById('sidebar-card-switch');
 
         // 那年今日（前 3 条）
         fetchJSON('/api/review/today').then(function (data) {
@@ -281,38 +238,6 @@
         }).catch(function () {
             todayEl.innerHTML = '<p class="review-empty">加载失败</p>';
         });
-
-        // 随机卡片（换一张）
-        var sidebarCards = [];
-        var currentCardId = null;
-
-        function renderSidebarCard() {
-            if (!sidebarCards.length) {
-                if (randomWrap) randomWrap.style.display = 'none';
-                return;
-            }
-            var candidates = sidebarCards.filter(function (c) { return c.id !== currentCardId; });
-            if (!candidates.length) candidates = sidebarCards;
-            var card = candidates[Math.floor(Math.random() * candidates.length)];
-            currentCardId = card.id;
-            randomEl.innerHTML =
-                '<div class="review-card review-card-sm">' +
-                '<div class="review-item-title">' + escapeHTML(card.title) + '</div>' +
-                (card.excerpt ? '<p class="review-item-excerpt">' + escapeHTML(card.excerpt) + '</p>' : '') +
-                '</div>';
-        }
-
-        fetchJSON('/api/review/random').then(function (data) {
-            sidebarCards = (data && data.cards) || [];
-            if (sidebarCards.length && randomWrap) {
-                randomWrap.style.display = '';
-                renderSidebarCard();
-            }
-        }).catch(function () { /* 侧边栏失败静默 */ });
-
-        if (switchBtn) {
-            switchBtn.addEventListener('click', renderSidebarCard);
-        }
     }
 
     // ==================== 启动 ====================
@@ -320,7 +245,6 @@
     document.addEventListener('DOMContentLoaded', function () {
         initHeatmap();
         initToday();
-        initRandom();
         initWeekly();
         initSidebarWidget();
     });

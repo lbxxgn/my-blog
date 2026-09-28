@@ -1,13 +1,11 @@
 """
 搜索辅助模块
 
-统一关键词搜索（跨 posts/cards/docs/annotations）、语义搜索与相关内容
-推荐的公共逻辑，供 API 蓝图（backend/routes/api.py）与搜索页路由
-（backend/routes/blog/）共用。
+统一关键词搜索（posts/docs）、语义搜索与相关内容推荐的公共逻辑，
+供 API 蓝图（backend/routes/api.py）与搜索页路由（backend/routes/blog/）共用。
 """
 
 import html
-import json
 import logging
 import re
 
@@ -39,17 +37,6 @@ def _make_excerpt(content, length=EXCERPT_LENGTH):
     return text[:length]
 
 
-def _parse_tags(tags_raw):
-    """cards.tags 是 JSON 字符串，解析为数组；失败返回空数组"""
-    if not tags_raw:
-        return []
-    try:
-        tags = json.loads(tags_raw)
-        return tags if isinstance(tags, list) else []
-    except (ValueError, TypeError):
-        return []
-
-
 def post_url(post_id):
     return url_for('view_post', post_id=post_id)
 
@@ -60,12 +47,12 @@ def doc_url(doc_id):
 
 def unified_search(user_id, query, limit=6):
     """
-    跨库关键词（LIKE，大小写不敏感）搜索。
+    关键词（LIKE，大小写不敏感）搜索：博客文章 + 知识库文档。
 
     Returns:
-        dict: {'posts': [...], 'cards': [...], 'docs': [...], 'annotations': [...]}
+        dict: {'posts': [...], 'docs': [...]}
     """
-    result = {'posts': [], 'cards': [], 'docs': [], 'annotations': []}
+    result = {'posts': [], 'docs': []}
     if not query:
         return result
 
@@ -92,23 +79,6 @@ def unified_search(user_id, query, limit=6):
                 'date': row['created_at'],
             })
 
-        # 当前用户的卡片
-        cursor.execute('''
-            SELECT id, title, content, tags
-            FROM cards
-            WHERE user_id = ?
-              AND (title LIKE ? OR content LIKE ?)
-            ORDER BY created_at DESC LIMIT ?
-        ''', (user_id, pattern, pattern, limit))
-        for row in cursor.fetchall():
-            result['cards'].append({
-                'id': row['id'],
-                'title': row['title'],
-                'excerpt': _make_excerpt(row['content']),
-                'tags': _parse_tags(row['tags']),
-                'url': None,
-            })
-
         # 当前用户的知识库文档（含未发布）
         cursor.execute('''
             SELECT id, title, content
@@ -123,23 +93,6 @@ def unified_search(user_id, query, limit=6):
                 'title': row['title'],
                 'url': doc_url(row['id']),
                 'excerpt': _make_excerpt(row['content']),
-            })
-
-        # 当前用户的卡片批注
-        cursor.execute('''
-            SELECT id, card_id, annotation_text, note, source_url
-            FROM card_annotations
-            WHERE user_id = ?
-              AND (annotation_text LIKE ? OR note LIKE ?)
-            ORDER BY created_at DESC LIMIT ?
-        ''', (user_id, pattern, pattern, limit))
-        for row in cursor.fetchall():
-            result['annotations'].append({
-                'id': row['id'],
-                'card_id': row['card_id'],
-                'text': row['annotation_text'],
-                'note': row['note'],
-                'source_url': row['source_url'],
             })
     finally:
         conn.close()
@@ -156,10 +109,9 @@ def is_embedding_configured(user_id):
 def _load_semantic_entities(matches):
     """
     将 search_similar 的结果 [(source_type, source_id, score)] 加载为
-    分组实体 dict。post 只收已发布 blog，doc 收 knowledge（含未发布），
-    card 全部保留。
+    分组实体 dict。post 只收已发布 blog，doc 收 knowledge（含未发布）。
     """
-    groups = {'posts': [], 'cards': [], 'docs': []}
+    groups = {'posts': [], 'docs': []}
     if not matches:
         return groups
 
@@ -200,20 +152,6 @@ def _load_semantic_entities(matches):
                     'excerpt': _make_excerpt(row['content']),
                     'score': score,
                 })
-            elif source_type == 'card':
-                cursor.execute(
-                    'SELECT id, title, content, tags FROM cards WHERE id = ?', (source_id,))
-                row = cursor.fetchone()
-                if not row:
-                    continue
-                groups['cards'].append({
-                    'id': row['id'],
-                    'title': row['title'],
-                    'excerpt': _make_excerpt(row['content']),
-                    'tags': _parse_tags(row['tags']),
-                    'url': None,
-                    'score': score,
-                })
     finally:
         conn.close()
 
@@ -238,7 +176,7 @@ def semantic_search(user_id, query, limit=20):
         logger.error(f"embed_text failed in semantic_search: {e}")
         raise EmbeddingApiError(str(e))
 
-    matches = search_similar(vector, top_k=limit, source_types=['post', 'card', 'doc'])
+    matches = search_similar(vector, top_k=limit, source_types=['post', 'doc'])
     return _load_semantic_entities(matches)
 
 
@@ -260,7 +198,7 @@ def find_related(user_id, text, exclude_type=None, exclude_id=None, limit=8):
         logger.error(f"embed_text failed in find_related: {e}")
         raise EmbeddingApiError(str(e))
 
-    matches = search_similar(vector, top_k=limit + 5, source_types=['post', 'card', 'doc'])
+    matches = search_similar(vector, top_k=limit + 5, source_types=['post', 'doc'])
 
     items = []
     conn = get_db_connection()
@@ -284,11 +222,6 @@ def find_related(user_id, text, exclude_type=None, exclude_id=None, limit=8):
                 ''', (source_id,))
                 row = cursor.fetchone()
                 url = doc_url(source_id) if row else None
-            elif source_type == 'card':
-                cursor.execute(
-                    'SELECT id, title, content FROM cards WHERE id = ?', (source_id,))
-                row = cursor.fetchone()
-                url = None
             else:
                 continue
 

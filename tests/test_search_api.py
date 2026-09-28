@@ -127,7 +127,7 @@ class TestUnifiedSearchApi:
         resp = client.get('/api/search/all')
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data == {'posts': [], 'cards': [], 'docs': [], 'annotations': []}
+        assert data == {'posts': [], 'docs': []}
 
     def test_search_hits_all_groups(self, client, search_data):
         _login(client, search_data['user'])
@@ -144,27 +144,14 @@ class TestUnifiedSearchApi:
         assert len(post['excerpt']) <= 120
         assert post['date']
 
-        # 卡片命中，tags 解析为数组，url 为 null
-        assert len(data['cards']) == 1
-        card = data['cards'][0]
-        assert card['id'] == search_data['card_id']
-        assert card['tags'] == ['flask', 'web']
-        assert card['url'] is None
-        assert len(card['excerpt']) <= 120
-
         # 知识库文档命中（含未发布）
         assert len(data['docs']) == 1
         doc = data['docs'][0]
         assert doc['id'] == search_data['doc_id']
         assert doc['url'].startswith('/knowledge/doc/')
 
-        # 批注命中
-        assert len(data['annotations']) == 1
-        ann = data['annotations'][0]
-        assert ann['id'] == search_data['annotation_id']
-        assert ann['card_id'] == search_data['card_id']
-        assert ann['text'] == 'Flask 的关键段落'
-        assert ann['source_url'] == 'https://example.com/a'
+        # 卡片/批注已不参与搜索
+        assert 'cards' not in data and 'annotations' not in data
 
     def test_case_insensitive_and_no_match(self, client, search_data):
         _login(client, search_data['user'])
@@ -173,8 +160,7 @@ class TestUnifiedSearchApi:
 
         resp = client.get('/api/search/all?q=不存在的词xyz')
         data = resp.get_json()
-        assert data['posts'] == [] and data['cards'] == [] \
-            and data['docs'] == [] and data['annotations'] == []
+        assert data['posts'] == [] and data['docs'] == []
 
     def test_limit_applies_per_group(self, client, test_user):
         from models import get_db_connection
@@ -212,12 +198,11 @@ class TestSemanticSearchApi:
                                          embeddings_table, configured_embedding):
         _login(client, search_data['user'])
 
-        # post 向量与查询 [1,0] 同向；doc 垂直（score 0）；短内容卡片应被加载
+        # post 向量与查询 [1,0] 同向；doc 垂直（score 0）
         _insert_embedding(embeddings_table, 'post', search_data['blog_post_id'], [1.0, 0.0])
         _insert_embedding(embeddings_table, 'post',
                           search_data['blog_post_id'] + 1, [1.0, 0.0])  # 草稿，应被过滤
         _insert_embedding(embeddings_table, 'doc', search_data['doc_id'], [0.0, 1.0])
-        _insert_embedding(embeddings_table, 'card', search_data['card_id'], [0.9, 0.1])
 
         resp = client.get('/api/search/semantic?q=flask 框架')
         assert resp.status_code == 200
@@ -232,11 +217,6 @@ class TestSemanticSearchApi:
         assert len(data['docs']) == 1
         assert data['docs'][0]['id'] == search_data['doc_id']
         assert data['docs'][0]['score'] == 0.0
-
-        assert len(data['cards']) == 1
-        assert data['cards'][0]['id'] == search_data['card_id']
-        assert 0.9 < data['cards'][0]['score'] < 1.0
-        assert data['cards'][0]['url'] is None
 
     def test_semantic_api_error_returns_502(self, client, search_data,
                                             embeddings_table, configured_embedding,
@@ -257,7 +237,7 @@ class TestSemanticSearchApi:
         _login(client, test_user)
         resp = client.get('/api/search/semantic')
         assert resp.status_code == 200
-        assert resp.get_json() == {'posts': [], 'cards': [], 'docs': []}
+        assert resp.get_json() == {'posts': [], 'docs': []}
 
 
 # ---------- 相关内容 /api/related ----------
@@ -293,7 +273,6 @@ class TestRelatedApi:
         _login(client, search_data['user'])
         _insert_embedding(embeddings_table, 'post', search_data['blog_post_id'], [1.0, 0.0])
         _insert_embedding(embeddings_table, 'doc', search_data['doc_id'], [0.99, 0.01])
-        _insert_embedding(embeddings_table, 'card', search_data['card_id'], [0.98, 0.02])
 
         resp = client.post('/api/related',
                            data=json.dumps(self._payload(
@@ -303,9 +282,9 @@ class TestRelatedApi:
         assert resp.status_code == 200
         items = resp.get_json()['items']
 
-        # post 被排除，只剩 doc 和 card
+        # post 被排除，只剩 doc
         assert all(i['source_type'] != 'post' for i in items)
-        assert {i['source_type'] for i in items} == {'doc', 'card'}
+        assert {i['source_type'] for i in items} == {'doc'}
         for item in items:
             assert set(item.keys()) == {'source_type', 'source_id', 'title',
                                         'excerpt', 'url', 'score'}

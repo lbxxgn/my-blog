@@ -9,15 +9,6 @@ export interface AiSuggestion {
   source?: string;
 }
 
-export interface Card {
-  id: number;
-  title?: string;
-  content?: string;
-  status?: string;
-  created_at?: string;
-  tags?: string[];
-}
-
 async function postJson(url: string, body: object, csrfToken: string) {
   const res = await fetch(url, {
     method: 'POST',
@@ -134,19 +125,4 @@ export async function continueWriting(
 ): Promise<string> {
   const data = await postJson(url, payload, csrfToken);
   return data.content || '';
-}
-
-export async function loadHistoryCards(
-  url: string,
-  query: string = '',
-  limit: number = 20
-): Promise<Card[]> {
-  const params = new URLSearchParams();
-  if (query) params.set('q', query);
-  params.set('limit', String(limit));
-  const res = await fetch(`${url}?${params.toString()}`, {
-    headers: { Accept: 'application/json' },
-  });
-  const data = await res.json().catch(() => ({}));
-  return data.cards || [];
 }

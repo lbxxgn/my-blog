@@ -14,7 +14,7 @@
 |------|------|
 | 搜索 | Cmd+K 命令面板、跨库统一搜索 API、语义搜索（embedding） |
 | 写作辅助 | 两个编辑器的「相关卡片」语义推荐面板 |
-| 回顾 | `/review` 页（写作热力图/那年今日/随机漫步）、每周 AI 回顾（CLI + crontab） |
+| 回顾 | `/review` 页（写作热力图/那年今日）、每周 AI 回顾（CLI + crontab） |
 | 输入 | 语音速记（移动端发布面板，Web Speech API） |
 | 数据 | 迁移 009：`embeddings` 表 + users 表 4 个 embedding 配置列 |
 | 依赖 | 新增 `numpy`（纯 wheel，无编译风险） |
@@ -120,7 +120,7 @@ curl -s -o /dev/null -w "%{http_code}\n" $BASE/sw.js            # 200
 
 - [ ] 桌面端按 `Ctrl+K` 弹出命令面板，输入关键词能搜到文章/卡片
 - [ ] 导航栏出现「回顾」
-- [ ] `/review` 显示热力图、那年今日、随机漫步
+- [ ] `/review` 显示热力图、那年今日
 - [ ] 知识库编辑器右侧有「🔗 相关」tab（配置 embedding 后写 200+ 字有推荐）
 - [ ] AI 设置页有「Embedding 服务」区块
 

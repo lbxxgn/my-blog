@@ -62,7 +62,7 @@
             '<div class="cmdk-panel" role="dialog" aria-label="命令面板">' +
             '  <div class="cmdk-input-row">' +
             '    <span class="cmdk-icon">🔍</span>' +
-            '    <input type="text" class="cmdk-input" placeholder="搜索文章、卡片、文档、批注，或执行动作…" autocomplete="off">' +
+            '    <input type="text" class="cmdk-input" placeholder="搜索文章、文档，或执行动作…" autocomplete="off">' +
             '    <span class="cmdk-esc-hint">Esc 关闭</span>' +
             '  </div>' +
             '  <div class="cmdk-results"></div>' +
@@ -205,22 +205,10 @@
                 items: [{ title: p.title, desc: p.excerpt || p.date || '', url: p.url || '/post/' + p.id }]
             });
         });
-        (data.cards || []).forEach(function (c) {
-            groups.push({
-                title: '卡片', icon: '🗂️',
-                items: [{ title: c.title || '（无标题卡片）', desc: (c.excerpt || '') + (c.tags && c.tags.length ? ' #' + c.tags.join(' #') : '') }]
-            });
-        });
         (data.docs || []).forEach(function (d) {
             groups.push({
                 title: '文档', icon: '📚',
                 items: [{ title: d.title, desc: d.excerpt || '', url: d.url || '/knowledge/doc/' + d.id }]
-            });
-        });
-        (data.annotations || []).forEach(function (a) {
-            groups.push({
-                title: '批注', icon: '💬',
-                items: [{ title: a.text || a.note || '批注', desc: a.note || a.source_url || '' }]
             });
         });
 

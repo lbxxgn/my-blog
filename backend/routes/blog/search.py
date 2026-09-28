@@ -76,8 +76,8 @@ def _search_semantic(query, source):
             groups = None
         if groups is not None:
             semantic_items = []
-            label_map = {'post': '博客', 'doc': '知识库', 'card': '卡片'}
-            for group_key, source_type in (('posts', 'post'), ('docs', 'doc'), ('cards', 'card')):
+            label_map = {'post': '博客', 'doc': '知识库'}
+            for group_key, source_type in (('posts', 'post'), ('docs', 'doc')):
                 for item in groups[group_key]:
                     semantic_items.append({
                         'title': item['title'],

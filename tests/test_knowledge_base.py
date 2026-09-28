@@ -297,18 +297,3 @@ class TestAICardFeatures:
 
         response = client.post(f'/api/card/{card_id}/convert-to-post')
         assert response.status_code in [200, 302]
-
-
-class TestKnowledgeIndexIdeaEntry:
-    """知识库首页「＋ 记想法」入口（创建卡片）"""
-
-    def test_index_has_new_idea_button_and_script(self, client, test_admin_user):
-        client.post('/login', data={
-            'username': test_admin_user['username'],
-            'password': test_admin_user['password']
-        })
-        response = client.get('/knowledge/')
-        assert response.status_code == 200
-        html = response.get_data(as_text=True)
-        assert 'kbNewIdeaBtn' in html
-        assert 'card-create.js' in html

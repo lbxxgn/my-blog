@@ -44,7 +44,6 @@ export interface EditorInitData {
   aiContinueUrl: string;
   aiRecommendUrl: string;
   relatedUrl: string;
-  cardsUrl: string;
   isNew: boolean;
 }
 

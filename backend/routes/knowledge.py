@@ -2,23 +2,22 @@
 知识库路由（独立空间）
 
 提供结构化知识库的浏览与管理功能（登录后内嵌管理）：
-- GET  /knowledge                      首页（目录树 + 最近文档）
-- GET  /knowledge/category/<id>        目录页（子目录 + 文档列表 + 面包屑）
-- GET  /knowledge/doc/<id>             文档详情（面包屑 + Markdown 渲染 + TOC）
-- GET  /knowledge/search               知识库内搜索
-- GET  /knowledge/doc/new             新建文档（编辑器）
-- POST /knowledge/doc/new
-- GET  /knowledge/doc/<id>/edit        编辑文档（编辑器）
-- POST /knowledge/doc/<id>/edit
+- GET  /knowledge                       首页（目录树 + 最近文档）
+- GET  /knowledge/category/<id>         目录页
+- GET  /knowledge/doc/<id>              文档详情
+- GET  /knowledge/search                知识库内搜索
+- GET/POST /knowledge/doc/new           新建文档
+- GET/POST /knowledge/doc/<id>/edit     编辑文档
 - POST /knowledge/doc/<id>/delete       删除文档
-- POST /knowledge/category/new         创建子目录
-- POST /knowledge/category/<id>/delete 删除目录
-- POST /knowledge/reorder              拖拽排序/移动 API
-- GET  /knowledge/card/<id>/archive    卡片归档
-- POST /knowledge/card/<id>/archive
+- POST /knowledge/category/new          新建目录
+- POST /knowledge/category/<id>/delete  删除目录
+- POST /knowledge/reorder               拖拽排序/移动
+- POST /knowledge/doc/upload-image      上传图片
+- POST /knowledge/doc/<id>/autosave     自动保存
+- GET  /knowledge/doc/<id>/draft        草稿
 """
 
-from flask import Blueprint, request, redirect, url_for, render_template, abort, session, flash, jsonify
+from flask import Blueprint, request, redirect, url_for, render_template, abort, session, jsonify
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from pathlib import Path
@@ -32,7 +31,6 @@ from models import (
     get_post_tags, search_posts, get_category_by_id,
     create_kb_category, move_kb_category, delete_kb_category,
     create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
-    archive_card_to_knowledge, get_card_by_id,
 )
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 from models.draft import save_draft, get_drafts
@@ -279,32 +277,6 @@ def delete_doc(doc_id):
     """删除文档"""
     delete_knowledge_doc(doc_id)
     return redirect(url_for('knowledge.index'))
-
-
-@knowledge_bp.route('/card/<int:card_id>/archive', methods=['GET', 'POST'])
-@login_required
-def archive_card(card_id):
-    """卡片归档到知识库目录"""
-    tree = get_category_tree('knowledge')
-    card = get_card_by_id(card_id)
-    if not card:
-        flash('卡片不存在', 'error')
-        return redirect(url_for('knowledge.index'))
-
-    # 对象级权限校验：只能归档自己的卡片（管理员除外）
-    if card.get('user_id') != session.get('user_id') and session.get('role') != 'admin':
-        flash('无权操作此卡片', 'error')
-        return redirect(url_for('knowledge.index'))
-
-    if request.method == 'POST':
-        category_id = request.form.get('category_id', type=int)
-        if not category_id:
-            return render_template('knowledge/archive.html', tree=tree,
-                                   tree_flattened=_flatten_tree(tree), card=card, error='请选择目标目录')
-        doc_id = archive_card_to_knowledge(card_id, category_id)
-        return redirect(url_for('knowledge.view_doc', doc_id=doc_id))
-    return render_template('knowledge/archive.html', tree=tree,
-                           tree_flattened=_flatten_tree(tree), card=card)
 
 
 # =============================================================================

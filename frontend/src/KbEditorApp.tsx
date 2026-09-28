@@ -416,7 +416,6 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
                 aiSummaryUrl={init.aiSummaryUrl}
                 aiContinueUrl={init.aiContinueUrl}
                 aiRecommendUrl={init.aiRecommendUrl}
-                cardsUrl={init.cardsUrl}
                 tree={init.tree}
                 onTitleChange={setTitle}
                 onTagsChange={setTags}

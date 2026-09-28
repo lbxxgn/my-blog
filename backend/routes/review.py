@@ -1,16 +1,14 @@
 """
 回顾页路由
 
-- GET  /review                        回顾页（写作热力 / 那年今日 / 随机漫步 / 每周回顾）
+- GET  /review                        回顾页（写作热力 / 那年今日 / 每周回顾）
 - GET  /api/review/today              那年今日（本地时区按月日匹配历年内容）
-- GET  /api/review/random             随机漫步（随机 5 张卡片）
-- GET  /api/review/activity           写作热力图数据（按本地日期聚合 posts+cards）
+- GET  /api/review/activity           写作热力图数据（按本地日期聚合 posts）
 - GET  /api/review/weekly             历史每周回顾文档列表
 - GET  /api/review/weekly/status      当前用户每周回顾生成任务状态
 - POST /api/review/weekly/generate    异步触发每周回顾生成（202 + 后台线程）
 """
 
-import json
 import logging
 import threading
 from datetime import datetime, timedelta
@@ -50,7 +48,7 @@ def review_page():
 @review_bp.route('/api/review/today')
 @login_required
 def api_review_today():
-    """那年今日：本地月日=今天且年份<今年的 posts + cards，按年份倒序"""
+    """那年今日：本地月日=今天且年份<今年的内容，按年份倒序"""
     user_id = session['user_id']
     now_local = local_now()
     month_day = now_local.strftime('%m-%d')
@@ -81,62 +79,10 @@ def api_review_today():
             'excerpt': _excerpt(row.get('content')),
         })
 
-    cursor.execute(f'''
-        SELECT id, title, content, {local_year} AS year
-        FROM cards
-        WHERE user_id = ? AND {local_mmdd} = ? AND {local_year} < ?
-    ''', (user_id, month_day, current_year))
-    for row in cursor.fetchall():
-        row = dict(row)
-        items.append({
-            'id': row['id'],
-            'year': int(row['year']),
-            'title': row['title'] or '未命名卡片',
-            'type': 'card',
-            'url': None,
-            'excerpt': _excerpt(row.get('content')),
-        })
-
     conn.close()
 
     items.sort(key=lambda x: (-x['year'], x['id']))
     return jsonify({'success': True, 'items': items})
-
-
-# =============================================================================
-# 随机漫步
-# =============================================================================
-
-@review_bp.route('/api/review/random')
-@login_required
-def api_review_random():
-    """随机漫步：当前用户随机 5 张卡片"""
-    user_id = session['user_id']
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, title, content, tags, status
-        FROM cards
-        WHERE user_id = ?
-        ORDER BY RANDOM() LIMIT 5
-    ''', (user_id,))
-
-    cards = []
-    for row in cursor.fetchall():
-        row = dict(row)
-        try:
-            tags = json.loads(row['tags']) if row.get('tags') else []
-        except (json.JSONDecodeError, TypeError):
-            tags = []
-        cards.append({
-            'id': row['id'],
-            'title': row['title'] or '未命名卡片',
-            'excerpt': _excerpt(row.get('content')),
-            'tags': tags if isinstance(tags, list) else [],
-            'status': row['status'],
-        })
-    conn.close()
-    return jsonify({'success': True, 'cards': cards})
 
 
 # =============================================================================
@@ -146,7 +92,7 @@ def api_review_random():
 @review_bp.route('/api/review/activity')
 @login_required
 def api_review_activity():
-    """写作热力：posts + cards 按本地日期聚合，返回 {date: count}"""
+    """写作热力：posts 按本地日期聚合，返回 {date: count}"""
     user_id = session['user_id']
     days = request.args.get('days', 371, type=int) or 371
     days = max(30, min(days, 732))
@@ -160,16 +106,15 @@ def api_review_activity():
     activity = {}
     conn = get_db_connection()
     cursor = conn.cursor()
-    for table, owner_col in (('posts', 'author_id'), ('cards', 'user_id')):
-        cursor.execute(f'''
-            SELECT {local_day} AS day, COUNT(*) AS cnt
-            FROM {table}
-            WHERE {owner_col} = ? AND created_at >= ?
-            GROUP BY day
-        ''', (user_id, start_utc_str))
-        for row in cursor.fetchall():
-            if row['day']:
-                activity[row['day']] = activity.get(row['day'], 0) + row['cnt']
+    cursor.execute(f'''
+        SELECT {local_day} AS day, COUNT(*) AS cnt
+        FROM posts
+        WHERE author_id = ? AND created_at >= ?
+        GROUP BY day
+    ''', (user_id, start_utc_str))
+    for row in cursor.fetchall():
+        if row['day']:
+            activity[row['day']] = activity.get(row['day'], 0) + row['cnt']
     conn.close()
 
     return jsonify({'success': True, 'activity': activity, 'days': days})

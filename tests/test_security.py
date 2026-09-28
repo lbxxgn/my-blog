@@ -388,21 +388,3 @@ class TestObjectLevelAccess:
         response = client.post(f'/post/{post_id}/precipitate', json={'category_id': 1})
         assert response.status_code == 403
 
-    def test_archive_other_users_card_forbidden(self, client, temp_db, test_user):
-        from models import create_card, get_card_by_id
-
-        card_id = create_card(
-            user_id=test_user['id'],
-            title='Owner card',
-            content='CARD-CONTENT',
-            tags=[],
-            status='idea',
-            source='share',
-        )
-        self._make_other_author()
-        client.post('/login', data={'username': 'other_author', 'password': 'OtherPass123!'})
-
-        response = client.get(f'/knowledge/card/{card_id}/archive')
-        assert response.status_code == 302
-        # 卡片不应被删除
-        assert get_card_by_id(card_id) is not None

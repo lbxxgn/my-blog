@@ -557,7 +557,7 @@ app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
 # 注册草稿同步蓝图
 app.register_blueprint(drafts_bp)
 
-# 注册回顾页蓝图（那年今日 / 随机漫步 / 写作热力 / 每周回顾）
+# 注册回顾页蓝图（那年今日 / 写作热力 / 每周回顾）
 app.register_blueprint(review_bp)
 
 # 注册移动端蓝图

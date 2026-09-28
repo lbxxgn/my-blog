@@ -72,7 +72,7 @@
     "src": "node_modules/@blocknote/core/src/fonts/inter-v12-latin/inter-v12-latin-regular.woff2"
   },
   "node_modules/@emoji-mart/data/sets/15/native.json": {
-    "file": "assets/native-CTX_EC0I.js",
+    "file": "assets/native-DPoJvMEp.js",
     "name": "native",
     "src": "node_modules/@emoji-mart/data/sets/15/native.json",
     "isDynamicEntry": true,
@@ -81,7 +81,7 @@
     ]
   },
   "node_modules/emoji-mart/dist/module.js": {
-    "file": "assets/module-DbUSmr0p.js",
+    "file": "assets/module-C6WuNz04.js",
     "name": "module",
     "src": "node_modules/emoji-mart/dist/module.js",
     "isDynamicEntry": true,
@@ -90,7 +90,7 @@
     ]
   },
   "src/main.tsx": {
-    "file": "assets/main-BhJxMJ88.js",
+    "file": "assets/main-D0sJM8w-.js",
     "name": "main",
     "src": "src/main.tsx",
     "isEntry": true,
