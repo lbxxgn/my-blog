@@ -289,9 +289,9 @@ def add_security_headers(response):
         "default-src 'self'; "
         # Quill 已自托管，不再需要外部 CDN
         "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: https:; "
-        "font-src 'self' https://fonts.gstatic.com; "
+        "font-src 'self'; "
         "connect-src 'self'; "
         "object-src 'none'; "
         # 允许富文本正文中的视频/外链嵌入；仅限 https，仍禁止 object/embed

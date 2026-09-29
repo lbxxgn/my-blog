@@ -3,14 +3,11 @@
    Editorial / Refined aesthetic direction
    ============================================ */
 
-/* --- Google Fonts --- */
-@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
-
-/* --- CSS Custom Property Overrides --- */
+/* --- 字体：使用系统字体栈，避免因 Google Fonts 不可达阻塞渲染 --- */
 :root {
-    --font-body: 'Source Sans 3', 'Hiragino Sans GB', 'Microsoft Yahei', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    --font-heading: 'Lora', 'Hiragino Sans GB', 'Microsoft Yahei', -apple-system, BlinkMacSystemFont, Georgia, serif;
-    --font-mono: 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Courier New', monospace;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+    --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'Fira Code', 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
 
     --primary-color: #2a9d8f;
     --primary-hover: #21867a;
