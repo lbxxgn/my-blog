@@ -6,6 +6,7 @@
 
 from flask import Blueprint, current_app, has_app_context
 import logging
+import os
 import re
 
 from models import get_db_connection
@@ -25,6 +26,52 @@ MEDIA_PARAGRAPH_PATTERN = re.compile(
 )
 HTML_TAG_PATTERN = re.compile(r'<[^>]+>')
 WHITESPACE_PATTERN = re.compile(r'\s+')
+
+# 优化图文件名兼容 8 位短哈希与 32 位内容哈希两套历史命名
+OPTIMIZED_URL_RE = re.compile(
+    r'/uploads/optimized/([a-f0-9]{6,})_(?:thumbnail|medium|large|feed)\.webp',
+    re.IGNORECASE
+)
+# 请求尺寸缺失时的回退顺序
+OPTIMIZED_SIZE_FALLBACK = ('large', 'feed', 'medium', 'thumbnail')
+
+
+def _optimized_abs_to_url(abs_path, project_root):
+    """把优化图绝对路径转成可访问的 /static URL；越界或文件不存在则返回 None。"""
+    try:
+        path = os.path.normpath(str(abs_path or ''))
+        root = os.path.normpath(str(project_root))
+        if not path.startswith(root + os.sep):
+            return None
+        rel = path[len(root):].lstrip('/')
+        if (project_root / rel).exists():
+            return '/' + rel
+    except Exception:
+        return None
+    return None
+
+
+def _pick_existing_optimized(row, project_root, preferred):
+    """按 preferred -> large -> feed -> medium -> thumbnail 返回第一个存在的优化图 URL。"""
+    if row is None:
+        return None
+    try:
+        keys = row.keys()
+    except AttributeError:
+        return None
+
+    order = []
+    for size in (preferred,) + OPTIMIZED_SIZE_FALLBACK:
+        if size and size not in order:
+            order.append(size)
+
+    for size in order:
+        col = f'{size}_path'
+        if col in keys:
+            url = _optimized_abs_to_url(row[col], project_root)
+            if url:
+                return url
+    return None
 
 
 def get_optimized_image_url(original_url, size='medium'):
@@ -49,25 +96,17 @@ def get_optimized_image_url(original_url, size='medium'):
         # 项目根目录：用 config.BASE_DIR，避免依赖 __file__ 的层级（拆包后易错）
         project_root = BASE_DIR
 
-        # 处理optimized路径的图片（例如 xxx_medium.webp -> xxx_feed.webp）
+        # 处理optimized路径的图片（例如 xxx_medium.webp -> 请求尺寸）
         if '/uploads/optimized/' in original_url:
-            # 提取图片哈希值
-            # 例如: /static/uploads/optimized/632da1f5f5f9291f6f5c729351b78c47_medium.webp
-            match = re.search(r'/([a-f0-9]{32})_(?:thumbnail|medium|large|feed)\.webp', original_url)
+            match = OPTIMIZED_URL_RE.search(original_url)
             if match:
                 image_hash = match.group(1)
-                # 构建新的URL
-                new_url = f"/static/uploads/optimized/{image_hash}_{resolved_size}.webp"
-
-                # 检查文件是否存在
-                file_path = project_root / new_url.lstrip('/')
-                logger.debug(f"Checking optimized image: project_root={project_root}, new_url={new_url}, file_path={file_path}, exists={file_path.exists()}")
-                if file_path.exists():
-                    logger.debug(f"Converted optimized image {original_url} -> {new_url}")
-                    return new_url
-                else:
-                    logger.debug(f"Optimized image not found: {new_url}, returning original")
-                    return original_url
+                # 依次尝试请求尺寸及其回退尺寸，返回第一个真实存在的文件
+                for cand in (resolved_size,) + OPTIMIZED_SIZE_FALLBACK:
+                    new_url = f"/static/uploads/optimized/{image_hash}_{cand}.webp"
+                    if (project_root / new_url.lstrip('/')).exists():
+                        logger.debug(f"Converted optimized image {original_url} -> {new_url}")
+                        return new_url
             return original_url
 
         # 处理原始图片路径
@@ -78,33 +117,26 @@ def get_optimized_image_url(original_url, size='medium'):
         # /static/uploads/images/xxx.jpg -> /path/to/project/static/uploads/images/xxx.jpg
         full_path = project_root / original_url.lstrip('/')
 
-        # 查询数据库获取优化后的图片路径
+        # 查询数据库获取优化后的图片路径（SELECT * 兼容没有 feed_path 列的旧库）
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # 根据请求的尺寸选择字段（使用白名单验证过的size）
-        size_field = f'{resolved_size}_path'
-
         cursor.execute('''
-            SELECT {}, status
+            SELECT *
             FROM optimized_images
             WHERE original_path = ?
             AND status = 'completed'
-        '''.format(size_field), (str(full_path),))
+        ''', (str(full_path),))
 
         result = cursor.fetchone()
         conn.close()
 
-        if result and result[0]:
-            # 将绝对路径转换为URL
-            optimized_path = result[0]
-            if optimized_path.startswith(project_root.as_posix()):
-                url_path = optimized_path[len(project_root.as_posix()):].lstrip('/')
-                optimized_url = f"/{url_path}"
-                logger.debug(f"Converted {original_url} -> {optimized_url}")
-                return optimized_url
+        optimized_url = _pick_existing_optimized(result, project_root, resolved_size)
+        if optimized_url:
+            logger.debug(f"Converted {original_url} -> {optimized_url}")
+            return optimized_url
 
-        # 如果没有找到优化版本，返回原图
+        # 没有任何可用优化图，回退原图
         logger.debug(f"No optimized version found for {original_url}")
         return original_url
 

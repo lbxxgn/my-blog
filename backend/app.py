@@ -646,16 +646,22 @@ def auto_regenerate_assets():
         cursor = conn.cursor()
         cursor.execute('''
             SELECT original_path FROM optimized_images
-            WHERE status = 'pending'
+            WHERE status IN ('pending', 'failed')
+               OR (status = 'completed' AND (medium_path IS NULL OR medium_path = ''))
             ORDER BY created_at ASC
         ''')
         pending = cursor.fetchall()
         conn.close()
 
-        if pending:
-            for row in pending:
-                queue_image_optimization(row['original_path'])
-            logger.info(f'恢复了 {len(pending)} 个待优化任务')
+        requeued = 0
+        for row in pending:
+            path = row['original_path']
+            # 原图已不存在时无法重新优化，跳过避免无效任务
+            if path and os.path.exists(path):
+                queue_image_optimization(path)
+                requeued += 1
+        if requeued:
+            logger.info(f'恢复了 {requeued} 个待优化任务')
     except Exception as e:
         logger.warning(f'恢复待优化任务失败: {e}')
 

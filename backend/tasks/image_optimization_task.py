@@ -57,21 +57,29 @@ class ImageOptimizationQueue:
 
             result = generate_image_sizes(image_path, str(output_dir))
 
-            # 计算文件大小
+            thumbnail = result.get('thumbnail')
+            medium = result.get('medium')
+            large = result.get('large')
+
+            # generate_image_sizes 失败时会返回全 None；此时绝不能标记 completed，
+            # 否则库记录为“完成”但文件缺失，文章页就会 404。
+            if not any((thumbnail, medium, large)):
+                self._update_status(image_path, 'failed', '未生成任何优化尺寸')
+                logger.error(f'图片优化未产出任何尺寸: {image_path}')
+                return
+
+            # 计算文件大小（仅统计真实存在的文件）
             original_size = Path(image_path).stat().st_size
             optimized_size = sum(
-                Path(p).stat().st_size for p in [
-                    result.get('thumbnail'),
-                    result.get('medium'),
-                    result.get('large')
-                ] if p
+                Path(p).stat().st_size for p in (thumbnail, medium, large)
+                if p and Path(p).exists()
             )
 
             self._update_completion(
                 image_path,
-                result.get('thumbnail'),
-                result.get('medium'),
-                result.get('large'),
+                thumbnail,
+                medium,
+                large,
                 original_size,
                 optimized_size
             )
