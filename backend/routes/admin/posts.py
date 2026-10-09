@@ -9,7 +9,7 @@ from models import (
 from auth_decorators import login_required, can_edit_post, can_delete_post
 from logger import log_operation, api_internal_error
 from backend.config import UPLOAD_FOLDER
-from utils.markdown_renderer import render_markdown
+from utils.markdown_renderer import render_content, render_markdown
 import threading
 from flask import current_app
 
@@ -28,7 +28,7 @@ def preview_content():
     """把编辑器内容渲染为与文章详情页一致的安全 HTML，用于实时预览。"""
     try:
         data = request.get_json(silent=True) or {}
-        html = render_markdown(data.get('content', ''))
+        html = render_content(data.get('content', ''), data.get('content_format'))
         return jsonify({'success': True, 'html': html})
     except Exception as e:
         return api_internal_error(e)

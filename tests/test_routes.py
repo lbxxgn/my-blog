@@ -368,6 +368,8 @@ class TestBlogRoutes:
         data = response.get_json()
         assert data['success'] is True
         assert data['url'].startswith('/static/uploads/images/')
+        # 文件名禁用下划线：Markdown 会把纯文本 URL 中的 _xxx_ 解析成斜体，导致地址 404
+        assert '_' not in data['filename']
 
 
 class TestAdminRoutes:

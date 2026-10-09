@@ -34,7 +34,7 @@ from models import (
 )
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 from models.draft import save_draft, get_drafts
-from utils.markdown_renderer import render_markdown
+from utils.markdown_renderer import render_content
 
 knowledge_bp = Blueprint('knowledge', __name__)
 
@@ -106,7 +106,7 @@ def view_doc(doc_id):
     if not doc:
         abort(404)
 
-    doc['content_html'] = render_markdown(doc['content'], with_header_ids=True)
+    doc['content_html'] = render_content(doc['content'], doc.get('content_format'), with_header_ids=True)
     tags = get_post_tags(doc_id)
 
     breadcrumb = []
@@ -336,10 +336,11 @@ def upload_image():
     except Exception:
         return jsonify({'success': False, 'error': '图片文件损坏或格式错误'}), 400
 
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # 连字符命名，避免下划线在 Markdown 中被解析成斜体而破坏 URL
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
     ext = file_type or 'png'
     random_suffix = os.urandom(4).hex()
-    base_filename = f"{timestamp}_{random_suffix}"
+    base_filename = f"{timestamp}-{random_suffix}"
     images_dir = Path(UPLOAD_FOLDER) / 'images'
     images_dir.mkdir(parents=True, exist_ok=True)
     original_path = images_dir / f"{base_filename}.{ext}"

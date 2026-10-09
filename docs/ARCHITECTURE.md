@@ -535,14 +535,19 @@ limiter.limit("5 per minute")(app.view_functions['auth.login'])
 ### 4. XSS 防护
 
 ```python
-# Markdown 渲染后清理 HTML
-post['content_html'] = bleach.clean(
-    markdown2.markdown(post['content']),
-    tags=['p', 'a', 'strong', 'em', 'ul', 'ol', 'li', ...],
-    attributes={'a': ['href', 'title'], 'img': ['src', 'alt']},
-    strip_comments=False
+# 渲染管道按 content_format 分流（backend/utils/markdown_renderer.py）
+# - markdown：markdown2 解析 + bleach 清洗
+# - html（默认）：不做 Markdown 解析，仅 bleach 清洗，
+#   避免纯文本里的 _xxx_ 被误解析成 <em> 破坏 URL
+post['content_html'] = render_content(
+    post['content'], post.get('content_format')
 )
 ```
+
+> 历史教训：所有内容曾统一走 markdown2，移动端上传图片的 URL 以纯文本写入正文时，
+> 文件名中的下划线被解析为斜体（`20261009_143339_x.png` → `<em>` 注入 URL），
+> 导致图片 404。治理措施：上传文件名改用连字符（`20261009-143339-x.png`，
+> backend/routes/admin/media.py）、渲染按格式分流、迁移 011 纠偏存量文章的格式标注。
 
 ### 5. SQL 注入防护
 

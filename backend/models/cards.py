@@ -289,8 +289,8 @@ def merge_cards_to_post(card_ids, user_id, post_id=None):
         title = cards[0]['title'] if cards[0]['title'] else '未命名文章'
 
         cursor.execute('''
-            INSERT INTO posts (title, content, is_published, author_id)
-            VALUES (?, ?, 0, ?)
+            INSERT INTO posts (title, content, is_published, author_id, content_format)
+            VALUES (?, ?, 0, ?, 'markdown')
         ''', (title, merged_content, user_id))
         post_id = cursor.lastrowid
 
@@ -330,13 +330,13 @@ def ai_merge_cards_to_post(card_ids, user_id, user_config, merge_style='comprehe
         merge_style=merge_style
     )
 
-    # Create post with AI-generated content
+    # Create post with AI-generated content（AI 输出为 Markdown，含少量 <img> 标签）
     conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute('''
         INSERT INTO posts (title, content, is_published, author_id, post_type, content_format)
-        VALUES (?, ?, 0, ?, 'knowledge', 'html')
+        VALUES (?, ?, 0, ?, 'knowledge', 'markdown')
     ''', (ai_result['title'], ai_result['content'], user_id))
 
     post_id = cursor.lastrowid

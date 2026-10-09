@@ -1203,8 +1203,8 @@ Content-Type: multipart/form-data
 ```json
 {
   "success": true,
-  "url": "/static/uploads/images/20260629_abc123.png",
-  "filename": "20260629_abc123.png"
+  "url": "/static/uploads/images/20260629-abc123.png",
+  "filename": "20260629-abc123.png"
 }
 ```
 
@@ -1492,9 +1492,9 @@ Content-Type: multipart/form-data
 ```json
 {
   "success": true,
-  "url": "/static/uploads/images/20260316_abc123.jpg",
-  "filename": "20260316_abc123.jpg",
-  "original_url": "/static/uploads/images/20260316_abc123.jpg",
+  "url": "/static/uploads/images/20260316-abc123.jpg",
+  "filename": "20260316-abc123.jpg",
+  "original_url": "/static/uploads/images/20260316-abc123.jpg",
   "optimization_id": 1
 }
 ```
@@ -1533,6 +1533,10 @@ Content-Type: multipart/form-data
 **需要认证**: 是（Session 或 `X-API-Key` 请求头）
 
 > 注意：此端点已豁免 CSRF 保护，使用 API Key 认证时不受 CSRF 影响
+
+> 用法约定：返回的 `url` 是相对路径（如 `/static/uploads/images/20260316-abc123.jpg`）。
+> 在 Markdown 正文中引用图片时，必须用图片语法包裹：`![说明](<完整地址>)`，
+> 不要把地址作为纯文本粘贴——纯文本中的下划线等字符会被 Markdown 解析破坏。
 
 ---
 

@@ -97,11 +97,11 @@ def upload_image():
     except Exception:
         return jsonify({'success': False, 'error': '图片文件损坏或格式错误'}), 400
 
-    # 生成安全的文件名
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # 生成安全的文件名（用连字符而非下划线：下划线在 Markdown 纯文本中会被解析成斜体，破坏 URL）
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
     ext = file_type or 'png'
     random_suffix = os.urandom(4).hex()
-    base_filename = f"{timestamp}_{random_suffix}"
+    base_filename = f"{timestamp}-{random_suffix}"
 
     # 创建uploads目录下的images子目录
     images_dir = UPLOAD_FOLDER / 'images'
@@ -225,10 +225,10 @@ def mobile_upload_image():
             file_content = jpeg_buffer.getvalue()
             file_type = 'jpg'
 
-        # 保存文件
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # 保存文件（连字符命名，避免下划线被 Markdown 解析破坏 URL）
+        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
         random_suffix = os.urandom(4).hex()
-        base_filename = f"{timestamp}_{random_suffix}"
+        base_filename = f"{timestamp}-{random_suffix}"
 
         images_dir = UPLOAD_FOLDER / 'images'
         images_dir.mkdir(exist_ok=True)

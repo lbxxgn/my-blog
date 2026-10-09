@@ -1,7 +1,7 @@
 """文章详情、密码校验、评论、沉淀（blog 蓝图子模块）。"""
 
 from flask import render_template, request, redirect, url_for, session, flash, jsonify
-from utils.markdown_renderer import render_markdown
+from utils.markdown_renderer import render_content
 from models import (
     get_post_by_id,
     get_post_tags, get_comments_by_post, create_comment,
@@ -56,8 +56,8 @@ def view_post(post_id):
             flash('无权访问此文章', 'error')
             return redirect(url_for('blog.index'))
 
-    # 渲染 Markdown 并清洗 HTML 防止 XSS（保留首行缩进等行内样式）
-    post['content_html'] = render_markdown(post['content'])
+    # 按声明格式渲染并清洗 HTML 防止 XSS（html 只清洗不解析，markdown 走 markdown2）
+    post['content_html'] = render_content(post['content'], post.get('content_format'))
     post['content_html'] = rewrite_post_image_sources(post['content_html'], size='medium')
 
     # 获取文章标签

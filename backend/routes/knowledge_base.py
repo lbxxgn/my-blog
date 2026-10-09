@@ -101,13 +101,14 @@ def plugin_submit():
             else:
                 category_id = category['id']
 
-            # 创建已发布的文章
+            # 创建已发布的文章（正文是插件提交的文本/Markdown，附少量 HTML 片段，按 Markdown 渲染）
             post_id = create_post(
                 title=title,
                 content=content,
                 is_published=True,
                 category_id=category_id,
-                author_id=g.user_id
+                author_id=g.user_id,
+                content_format='markdown'
             )
 
             log_operation(g.user_id, 'browser_extension',
@@ -290,14 +291,15 @@ def quick_note():
             else:
                 category_id = category['id']
 
-            # Create post with type='note'
+            # Create post with type='note'（正文是用户输入的纯文本/Markdown，按 Markdown 渲染）
             post_id = create_post(
                 title=title if title else datetime.now().strftime('%Y-%m-%d %H:%M'),
                 content=content,
                 type='note',
                 is_published=True,
                 category_id=category_id,
-                author_id=session['user_id']
+                author_id=session['user_id'],
+                content_format='markdown'
             )
 
             log_operation(session['user_id'], session.get('username', 'Unknown'),
@@ -605,13 +607,14 @@ def convert_card_to_post(card_id):
         else:
             category_id = category['id']
 
-        # 创建已发布的文章
+        # 创建已发布的文章（卡片正文是文本/Markdown，按 Markdown 渲染）
         post_id = create_post(
             title=card['title'] or '未命名',
             content=card['content'],
             is_published=True,
             category_id=category_id,
-            author_id=current_user_id
+            author_id=current_user_id,
+            content_format='markdown'
         )
 
         # 删除原卡片

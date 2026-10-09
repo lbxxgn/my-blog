@@ -1,5 +1,5 @@
 """utils.markdown_renderer 单元测试：Markdown 渲染 + XSS 清洗。"""
-from utils.markdown_renderer import render_markdown
+from utils.markdown_renderer import render_content, render_html, render_markdown
 
 
 class TestRenderMarkdown:
@@ -102,3 +102,47 @@ class TestRenderMarkdown:
     def test_none_and_empty(self):
         assert render_markdown(None) == render_markdown('')
         assert '<script' not in render_markdown(None).lower()
+
+
+class TestRenderHtml:
+    def test_plain_text_url_underscore_not_emphasized(self):
+        """纯文本中的下划线 URL 不应被解析（html 管道不做 Markdown 解析）"""
+        url = 'https://example.com/static/uploads/images/20261009_143339_444f5318.png'
+        html = render_html(f'图片地址 {url}')
+        assert url in html
+        assert '<em>' not in html
+
+    def test_quill_html_passthrough(self):
+        html = render_html('<p class="ql-align-center">文字</p>')
+        assert 'ql-align-center' in html
+        assert '<p' in html
+
+    def test_script_stripped(self):
+        html = render_html('hello <script>alert(1)</script>')
+        assert '<script' not in html.lower()
+
+    def test_editor_widget_stripped(self):
+        html = render_html(
+            '<div class="ql-code-block-container">'
+            '<select class="ql-ui"><option value="plain">plain</option></select>'
+            '<div class="ql-code-block">print(1)</div></div>'
+        )
+        assert '<select' not in html
+
+
+class TestRenderContent:
+    def test_markdown_format_uses_markdown_pipeline(self):
+        html = render_content('# 标题', 'markdown')
+        assert '<h1>' in html
+
+    def test_html_format_skips_markdown_parsing(self):
+        content = 'snake_case 不应变斜体，**也不加粗**'
+        html = render_content(content, 'html')
+        assert 'snake_case' in html
+        assert '<em>' not in html
+        assert '<strong>' not in html
+
+    def test_none_and_unknown_format_default_to_html(self):
+        assert render_content(None) == render_html('')
+        html = render_content('a_b', None)
+        assert '<em>' not in html

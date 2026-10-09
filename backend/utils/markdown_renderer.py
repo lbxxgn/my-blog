@@ -106,6 +106,25 @@ except Exception:  # pragma: no cover
     _CSS_SANITIZER = _SimpleCSSSanitizer(ALLOWED_CSS)
 
 
+def _clean_html(html):
+    return bleach.clean(
+        html,
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRIBUTES,
+        css_sanitizer=_CSS_SANITIZER,
+        strip_comments=False,
+    )
+
+
+def render_html(content):
+    """把 HTML 内容原样清洗后输出，不做任何 Markdown 解析。
+
+    纯文本里的下划线、星号等字符在 Markdown 管道中会被误解析（例如 URL 中的
+    ``_143339_`` 被渲染成 ``<em>`` 导致图片 404），声明为 html 的内容必须走此管道。
+    """
+    return _clean_html(_strip_editor_widgets(content or ''))
+
+
 def render_markdown(content, with_header_ids=False):
     """把 Markdown 渲染为经过 bleach 清洗的安全 HTML。
 
@@ -118,11 +137,15 @@ def render_markdown(content, with_header_ids=False):
         extras.append('header-ids')
 
     html = markdown2.markdown(content or '', extras=extras)
-    html = _strip_editor_widgets(html)
-    return bleach.clean(
-        html,
-        tags=ALLOWED_TAGS,
-        attributes=ALLOWED_ATTRIBUTES,
-        css_sanitizer=_CSS_SANITIZER,
-        strip_comments=False,
-    )
+    return _clean_html(html)
+
+
+def render_content(content, content_format='html', with_header_ids=False):
+    """按声明的内容格式选择渲染管道。
+
+    'markdown' 走 markdown2 解析；其余一律按 HTML 只清洗不解析，
+    避免非 Markdown 内容被 Markdown 语法规则破坏。
+    """
+    if str(content_format or '').strip().lower() == 'markdown':
+        return render_markdown(content, with_header_ids=with_header_ids)
+    return render_html(content)

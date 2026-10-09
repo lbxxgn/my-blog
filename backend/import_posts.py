@@ -98,10 +98,10 @@ def import_from_json(json_file_path: str, user_id: int = None) -> Tuple[int, int
                         if category:
                             category_id = category['id']
 
-            # Insert post
+            # Insert post（导入源是 Markdown 文件，按 Markdown 渲染）
             cursor.execute('''
-                INSERT INTO posts (title, content, is_published, category_id, author_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO posts (title, content, is_published, category_id, author_id, created_at, updated_at, content_format)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'markdown')
             ''', (title, content, is_published, category_id, user_id, created_at, updated_at))
 
             post_id = cursor.lastrowid
@@ -232,10 +232,10 @@ def import_from_markdown_directory(markdown_dir: str, user_id: int = None) -> Tu
                     conn.commit()
                     category_id = cursor.lastrowid
 
-            # Insert post
+            # Insert post（导入源是 Markdown 正文，按 Markdown 渲染）
             cursor.execute('''
-                INSERT INTO posts (title, content, is_published, category_id, author_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO posts (title, content, is_published, category_id, author_id, created_at, updated_at, content_format)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'markdown')
             ''', (title, body_content, 1 if is_published else 0, category_id, user_id, created_at, updated_at))
 
             post_id = cursor.lastrowid

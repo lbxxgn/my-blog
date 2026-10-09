@@ -33,6 +33,7 @@ MIGRATIONS = [
     ('008_ai_provider_cleanup', 'AI 提供商清理与 ai_base_url 字段', 'backend.migrations.migrate_ai_provider_cleanup', 'migrate'),
     ('009_embeddings', '向量嵌入表与用户 Embedding 配置', 'backend.migrations.migrate_embeddings', 'migrate'),
     ('010_site_settings', '站点配置表（自定义站点图标等）', 'backend.migrations.migrate_site_settings', 'migrate'),
+    ('011_content_format', '存量文章 content_format 标注纠偏（检测真实格式）', 'backend.migrations.migrate_content_format', 'migrate'),
 ]
 
 
