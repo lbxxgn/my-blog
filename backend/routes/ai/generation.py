@@ -187,6 +187,13 @@ def generate_summary():
         logger.error(f"AI summary generation error: {str(e)}")
         return api_internal_error(e)
 
+def _deepseek_no_thinking(user_config):
+    """标题很短，DeepSeek 默认思考模式会占用输出额度，这里显式关闭。"""
+    if (user_config or {}).get('ai_provider') == 'deepseek':
+        return {'thinking': {'type': 'disabled'}}
+    return None
+
+
 @ai_bp.route('/generate-title', methods=['POST'])
 @login_required
 def generate_title():
@@ -225,7 +232,8 @@ def generate_title():
 {content[:3000]}
 """,
                 max_tokens=300,
-                temperature=0.5
+                temperature=0.5,
+                extra_body=_deepseek_no_thinking(user_ai_config),
             )
 
             if ai_result:

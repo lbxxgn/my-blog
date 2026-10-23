@@ -234,3 +234,4 @@ def test_generate_title_uses_more_output_tokens_for_reasoning_models(
     assert data['source'] == 'ai'
     assert data['title'] == 'AI 标题'
     assert captured['max_tokens'] == 300
+    assert captured['extra_body'] == {'thinking': {'type': 'disabled'}}

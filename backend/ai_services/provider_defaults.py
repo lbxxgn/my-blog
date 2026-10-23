@@ -78,7 +78,7 @@ def build_default_catalog() -> List[Dict[str, Any]]:
         {
             'slug': 'deepseek',
             'name': 'DeepSeek',
-            'description': 'deepseek-v4-flash / deepseek-v4-pro',
+            'description': 'deepseek-flash / deepseek-v4-pro',
             'driver': 'deepseek',
             'base_url': DeepSeekProvider.BASE_URL,
             'currency': DeepSeekProvider.CURRENCY,

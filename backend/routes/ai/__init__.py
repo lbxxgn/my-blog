@@ -91,7 +91,9 @@ def _pick_category(categories, title: str, content: str, tags):
     return best_match
 
 
-def _run_structured_prompt(user_config, system_prompt: str, user_prompt: str, max_tokens: int = 500, temperature: float = 0.3):
+def _run_structured_prompt(user_config, system_prompt: str, user_prompt: str,
+                           max_tokens: int = 500, temperature: float = 0.3,
+                           extra_body=None):
     if not user_config or not user_config.get('ai_tag_generation_enabled'):
         return None
 
@@ -105,15 +107,19 @@ def _run_structured_prompt(user_config, system_prompt: str, user_prompt: str, ma
     if not getattr(provider, 'client', None) and hasattr(provider, '_init_client'):
         provider._init_client()
 
-    response = provider.client.chat.completions.create(
-        model=provider.model,
-        messages=[
+    request_kwargs = {
+        'model': provider.model,
+        'messages': [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ],
-        temperature=temperature,
-        max_tokens=max_tokens
-    )
+        'temperature': temperature,
+        'max_tokens': max_tokens,
+    }
+    if extra_body:
+        request_kwargs['extra_body'] = extra_body
+
+    response = provider.client.chat.completions.create(**request_kwargs)
 
     content = response.choices[0].message.content.strip()
     usage = response.usage

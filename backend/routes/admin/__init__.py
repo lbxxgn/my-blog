@@ -48,7 +48,12 @@ def _async_ai_title(app, post_id, content, user_id):
 {content[:3000]}
 """,
                 max_tokens=300,
-                temperature=0.5
+                temperature=0.5,
+                extra_body=(
+                    {'thinking': {'type': 'disabled'}}
+                    if user_ai_config.get('ai_provider') == 'deepseek'
+                    else None
+                ),
             )
 
             if ai_result:

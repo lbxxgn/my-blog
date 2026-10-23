@@ -64,6 +64,10 @@ class TestCatalogStorage:
         assert dashscope['default_model']
         assert dashscope['model_details']
 
+        deepseek = next(p for p in catalog if p['slug'] == 'deepseek')
+        assert deepseek['default_model'] == 'deepseek-flash'
+        assert 'deepseek-flash' in deepseek['models']
+
     def test_create_update_delete_provider_and_model(self, temp_db):
         provider_id = _create_provider()
         provider = get_provider('moonshot')
@@ -212,16 +216,17 @@ class TestCatalogStorage:
         deepseek = get_provider('deepseek')
         _create_model(
             deepseek['provider_pk'],
-            model_id='deepseek-flash',
+            model_id='deepseek-custom-model',
             input_price=None,
             output_price=None,
             is_default=False,
         )
 
         caplog.set_level('WARNING')
-        provider = TagGenerator.create_provider('deepseek', 'sk-test', 'deepseek-flash')
+        provider = TagGenerator.create_provider(
+            'deepseek', 'sk-test', 'deepseek-custom-model')
 
-        assert provider.model == 'deepseek-flash'
+        assert provider.model == 'deepseek-custom-model'
         assert not any(
             'may not be valid' in record.message for record in caplog.records
         )
