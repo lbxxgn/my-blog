@@ -29,13 +29,15 @@ class OpenAICompatibleProvider(BaseLLMProvider):
     COST_PER_1K_TOKENS = {}
     DEFAULT_PRICING = {'input': 0.001, 'output': 0.002}
     EXTRA_VALID_MODELS = []            # 定价表之外额外认可的型号（仅用于告警）
+    ALLOW_ANY_MODEL = False            # 目录允许自定义模型时不校验模型清单
     API_KEY_PREFIX = 'sk-'             # API key 预期前缀，None 表示不检查
     CURRENCY = 'USD'
     CURRENCY_SYMBOL = '$'
 
     def __init__(self, api_key: str, model: str = None, base_url: str = None,
                  pricing: Dict[str, float] = None, currency: str = None,
-                 currency_symbol: str = None):
+                 currency_symbol: str = None, valid_models: List[str] = None,
+                 allow_any_model: bool = False):
         super().__init__(api_key, model or self.DEFAULT_MODEL)
 
         # 目录配置优先于 Provider 类默认值
@@ -48,6 +50,10 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             self.CURRENCY = currency
         if currency_symbol:
             self.CURRENCY_SYMBOL = currency_symbol
+        if valid_models is not None:
+            self.EXTRA_VALID_MODELS = list(valid_models)
+        if allow_any_model:
+            self.ALLOW_ANY_MODEL = True
 
         self.client = None
         self._init_client()
@@ -63,9 +69,13 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             if self.API_KEY_PREFIX and not self.api_key.startswith(self.API_KEY_PREFIX):
                 logger.warning(f"API key may be invalid (doesn't start with '{self.API_KEY_PREFIX}'): {self.api_key[:10]}...")
 
-            valid_models = list(self.COST_PER_1K_TOKENS.keys()) + list(self.EXTRA_VALID_MODELS)
-            if valid_models and self.model not in valid_models:
-                logger.warning(f"Model '{self.model}' may not be valid. Supported models: {valid_models}")
+            if not self.ALLOW_ANY_MODEL:
+                valid_models = list(self.COST_PER_1K_TOKENS.keys()) + list(self.EXTRA_VALID_MODELS)
+                if valid_models and self.model not in valid_models:
+                    logger.warning(
+                        f"Model '{self.model}' may not be valid. "
+                        f"Supported models: {valid_models}"
+                    )
 
             client_kwargs = {'api_key': self.api_key}
             if self.BASE_URL:

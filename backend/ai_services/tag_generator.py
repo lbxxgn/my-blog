@@ -118,6 +118,12 @@ class TagGenerator:
                 pricing=pricing,
                 currency=catalog_provider.get('currency'),
                 currency_symbol=catalog_provider.get('currency_symbol'),
+                valid_models=[
+                    item.get('model_id')
+                    for item in catalog_provider.get('model_details', [])
+                    if item.get('model_id')
+                ],
+                allow_any_model=bool(catalog_provider.get('allow_custom_model')),
             )
 
         # 目录不可用时的兼容回退

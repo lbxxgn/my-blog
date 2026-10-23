@@ -203,6 +203,28 @@ class TestCatalogStorage:
             'output': 0.002,
         }
         assert provider.CURRENCY == 'CNY'
+        assert 'moonshot-v1-8k' in provider.EXTRA_VALID_MODELS
+
+    def test_catalog_model_does_not_trigger_invalid_model_warning(
+            self, temp_db, caplog):
+        from ai_services import TagGenerator
+
+        deepseek = get_provider('deepseek')
+        _create_model(
+            deepseek['provider_pk'],
+            model_id='deepseek-flash',
+            input_price=None,
+            output_price=None,
+            is_default=False,
+        )
+
+        caplog.set_level('WARNING')
+        provider = TagGenerator.create_provider('deepseek', 'sk-test', 'deepseek-flash')
+
+        assert provider.model == 'deepseek-flash'
+        assert not any(
+            'may not be valid' in record.message for record in caplog.records
+        )
 
 
 class TestCatalogRoutes:
