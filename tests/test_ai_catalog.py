@@ -216,7 +216,11 @@ class TestCatalogRoutes:
         self._login(client, test_admin_user)
         response = client.get('/admin/ai/catalog')
         assert response.status_code == 200
-        assert 'AI 提供商与模型管理' in response.get_data(as_text=True)
+        html = response.get_data(as_text=True)
+        assert 'AI 提供商与模型管理' in html
+        assert '新增供应商' in html
+        assert '新增模型' in html
+        assert 'providerDialog' in html
 
         client.get('/logout')
         self._login(client, test_user)
