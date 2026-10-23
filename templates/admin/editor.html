@@ -159,7 +159,10 @@
                 <div id="aiSuggestionPanel" class="ai-suggestion-panel" hidden>
                     <div class="ai-suggestion-grid">
                         <div class="suggestion-block">
-                            <span class="suggestion-label">建议标题</span>
+                            <div class="suggestion-block-head">
+                                <span class="suggestion-label">建议标题</span>
+                                <button type="button" class="suggestion-apply" data-apply-suggestion="title">应用</button>
+                            </div>
                             <div class="suggestion-value" id="suggestedTitle">-</div>
                         </div>
                         <div class="suggestion-block">
@@ -167,15 +170,24 @@
                             <div class="suggestion-value" id="suggestedType">-</div>
                         </div>
                         <div class="suggestion-block">
-                            <span class="suggestion-label">建议分类</span>
+                            <div class="suggestion-block-head">
+                                <span class="suggestion-label">建议分类</span>
+                                <button type="button" class="suggestion-apply" data-apply-suggestion="category">应用</button>
+                            </div>
                             <div class="suggestion-value" id="suggestedCategory">-</div>
                         </div>
                         <div class="suggestion-block suggestion-block-wide">
-                            <span class="suggestion-label">建议摘要</span>
+                            <div class="suggestion-block-head">
+                                <span class="suggestion-label">建议摘要</span>
+                                <button type="button" class="suggestion-apply" data-apply-suggestion="summary">应用</button>
+                            </div>
                             <div class="suggestion-value" id="suggestedSummary">-</div>
                         </div>
                         <div class="suggestion-block suggestion-block-wide">
-                            <span class="suggestion-label">建议标签</span>
+                            <div class="suggestion-block-head">
+                                <span class="suggestion-label">建议标签</span>
+                                <button type="button" class="suggestion-apply" data-apply-suggestion="tags">应用</button>
+                            </div>
                             <div class="suggestion-tags" id="suggestedTags"></div>
                         </div>
                     </div>
@@ -472,6 +484,35 @@
     margin-bottom: 0.45rem;
     color: var(--text-secondary, #6b7280);
     font-size: 0.8rem;
+}
+
+.suggestion-block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+}
+
+.suggestion-block-head .suggestion-label {
+    margin-bottom: 0;
+}
+
+.suggestion-apply {
+    flex: none;
+    padding: 0.1rem 0.35rem;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--primary-color, #1abc9c);
+    font-size: 0.72rem;
+    line-height: 1.2;
+    cursor: pointer;
+}
+
+.suggestion-apply:hover {
+    background: rgba(26, 188, 156, 0.12);
+    border-color: rgba(26, 188, 156, 0.25);
 }
 
 .suggestion-block-wide {

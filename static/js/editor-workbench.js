@@ -14,7 +14,7 @@ function getEditorHtml(){if(window.quill){return window.quill.root.innerHTML;}
 return document.getElementById('content')?.value||'';}
 function showStatus(id,message,kind='saving'){const node=document.getElementById(id);if(!node)return;node.textContent=message;node.className=`save-status ${kind}`;}
 function clearStatus(id){const node=document.getElementById(id);if(!node)return;node.textContent='';node.className='save-status';}
-function initAiOrganizer(){const trigger=document.getElementById('aiOrganizeBtn');const applyBtn=document.getElementById('applyAiSuggestions');const insertSummaryBtn=document.getElementById('insertAiSummary');trigger?.addEventListener('click',()=>organizeContent({manual:true}));applyBtn?.addEventListener('click',applyAiSuggestion);insertSummaryBtn?.addEventListener('click',insertAiSummary);window.addEventListener('editor:content-change',()=>{if(state.autoOrganizeTimer){window.clearTimeout(state.autoOrganizeTimer);}
+function initAiOrganizer(){const trigger=document.getElementById('aiOrganizeBtn');const applyBtn=document.getElementById('applyAiSuggestions');const insertSummaryBtn=document.getElementById('insertAiSummary');trigger?.addEventListener('click',()=>organizeContent({manual:true}));applyBtn?.addEventListener('click',applyAiSuggestion);insertSummaryBtn?.addEventListener('click',insertAiSummary);document.getElementById('aiSuggestionPanel')?.addEventListener('click',event=>{const button=event.target.closest('[data-apply-suggestion]');if(!button)return;applyAiSuggestionPart(button.dataset.applySuggestion);});window.addEventListener('editor:content-change',()=>{if(state.autoOrganizeTimer){window.clearTimeout(state.autoOrganizeTimer);}
 state.autoOrganizeTimer=window.setTimeout(()=>{const content=getEditorText();const title=document.getElementById('title')?.value?.trim()||'';const fingerprint=`${title}::${content.slice(0,500)}`;if(content.length<120||fingerprint===state.lastOrganizedFingerprint){return;}
 organizeContent({auto:true});},1400);});}
 function initAiAssistActions(){document.getElementById('aiTitleAssistBtn')?.addEventListener('click',()=>window.generateAITitle?.());document.getElementById('aiTagAssistBtn')?.addEventListener('click',()=>window.generateAITags?.());document.getElementById('aiSummaryAssistBtn')?.addEventListener('click',()=>window.generateAISummary?.());document.getElementById('aiContinueAssistBtn')?.addEventListener('click',()=>window.continueAIWriting?.());document.getElementById('aiRestructureBtn')?.addEventListener('click',()=>window.restructureAIContent?.());document.getElementById('aiRecommendAssistBtn')?.addEventListener('click',()=>window.generateAIRecommendations?.());}
@@ -29,6 +29,15 @@ function applyAiSuggestion(){const suggestion=state.aiSuggestion;if(!suggestion)
 if(tagsInput&&Array.isArray(suggestion.tags)&&suggestion.tags.length>0){tagsInput.value=suggestion.tags.join(', ');}
 if(categorySelect&&suggestion.category?.id){categorySelect.value=String(suggestion.category.id);}
 window.dispatchEvent(new CustomEvent('editor:content-change',{detail:{html:getEditorHtml(),text:getEditorText()}}));updateAiSuggestionState('已应用建议');showStatus('aiOrganizeStatus','建议已应用到当前编辑器。','saved');}
+function applyAiSuggestionPart(part){const suggestion=state.aiSuggestion;if(!suggestion)return;const titleInput=document.getElementById('title');const tagsInput=document.getElementById('tags');const categorySelect=document.getElementById('category_id');let appliedLabel='';if(part==='title'){if(!suggestion.title){showStatus('aiOrganizeStatus','当前没有可应用的标题建议。','error');return;}
+if(titleInput){titleInput.value=suggestion.title;}
+appliedLabel='标题';}else if(part==='tags'){if(!Array.isArray(suggestion.tags)||suggestion.tags.length===0){showStatus('aiOrganizeStatus','当前没有可应用的标签建议。','error');return;}
+if(tagsInput){tagsInput.value=suggestion.tags.join(', ');}
+appliedLabel='标签';}else if(part==='category'){if(!suggestion.category?.id){showStatus('aiOrganizeStatus','当前没有可应用的分类建议。','error');return;}
+if(categorySelect){categorySelect.value=String(suggestion.category.id);}
+appliedLabel='分类';}else if(part==='summary'){if(!suggestion.summary){showStatus('aiOrganizeStatus','当前没有可应用的摘要建议。','error');return;}
+insertAiSummary();return;}else{return;}
+window.dispatchEvent(new CustomEvent('editor:content-change',{detail:{html:getEditorHtml(),text:getEditorText()}}));updateAiSuggestionState('已应用建议');showStatus('aiOrganizeStatus',`已应用建议${appliedLabel}。`,'saved');}
 function insertAiSummary(){const summary=state.aiSuggestion?.summary;if(!summary){showStatus('aiOrganizeStatus','当前没有可插入的摘要。','error');return;}
 const summaryHtml=`<p><strong>摘要：</strong>${escapeHtml(summary)}</p><p><br></p>`;if(typeof window.insertEditorHtml==='function'){window.insertEditorHtml(summaryHtml,0);}
 showStatus('aiOrganizeStatus','摘要已插入到正文开头。','saved');}
