@@ -23,8 +23,11 @@ import shutil
 import sqlite3
 import stat
 import tempfile
+import threading
+import time
 import zipfile
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timedelta
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote
@@ -42,6 +45,10 @@ UPLOADS_ARCHIVE_ROOT = 'static/uploads'
 
 BACKUP_PREFIX = 'blog_backup_'
 SAFETY_PREFIX = 'pre_restore_'
+SCHEDULED_PREFIX = 'scheduled_backup_'
+
+SCHEDULER_LOCK_FILE = '.scheduler.lock'
+SCHEDULER_INITIAL_DELAY_SECONDS = 30
 
 # 备份/恢复 ZIP 的最大体积（同时限制解压后的总大小），默认 4GB
 MAX_ARCHIVE_BYTES = int(os.environ.get('BACKUP_MAX_RESTORE_MB', '4096')) * 1024 * 1024
@@ -330,17 +337,29 @@ def list_backups() -> list[dict[str, Any]]:
 
     for path in backup_dir.glob('*.zip'):
         name = path.name
-        if not (name.startswith(BACKUP_PREFIX) or name.startswith(SAFETY_PREFIX)):
+        if not (
+            name.startswith(BACKUP_PREFIX)
+            or name.startswith(SAFETY_PREFIX)
+            or name.startswith(SCHEDULED_PREFIX)
+        ):
             continue
         try:
             file_stat = path.stat()
         except OSError:
             continue
+
+        if name.startswith(SAFETY_PREFIX):
+            kind = 'safety'
+        elif name.startswith(SCHEDULED_PREFIX):
+            kind = 'scheduled'
+        else:
+            kind = 'backup'
+
         items.append({
             'name': name,
             'size': file_stat.st_size,
             'created_at': datetime.fromtimestamp(file_stat.st_mtime),
-            'kind': 'safety' if name.startswith(SAFETY_PREFIX) else 'backup',
+            'kind': kind,
         })
 
     items.sort(key=lambda item: item['created_at'], reverse=True)
@@ -351,7 +370,11 @@ def resolve_backup(name: str) -> Path:
     """根据文件名解析备份路径，拒绝目录穿越和未知文件。"""
     if not name or Path(name).name != name or not name.endswith('.zip'):
         raise BackupError('无效的备份文件名')
-    if not (name.startswith(BACKUP_PREFIX) or name.startswith(SAFETY_PREFIX)):
+    if not (
+        name.startswith(BACKUP_PREFIX)
+        or name.startswith(SAFETY_PREFIX)
+        or name.startswith(SCHEDULED_PREFIX)
+    ):
         raise BackupError('无效的备份文件名')
 
     path = get_backup_dir() / name
@@ -371,8 +394,180 @@ def delete_backup(name: str) -> str:
 
 
 # =============================================================================
+# 自动备份调度
+# =============================================================================
+
+def list_scheduled_backups() -> list[dict[str, Any]]:
+    """仅返回自动调度创建的备份。"""
+    return [item for item in list_backups() if item['kind'] == 'scheduled']
+
+
+def prune_scheduled_backups(keep: int | None = None) -> list[str]:
+    """只保留最近 N 份自动备份，返回被删除的文件名。"""
+    keep = max(1, int(keep if keep is not None else config.BACKUP_RETENTION_COUNT))
+    deleted: list[str] = []
+    for item in list_scheduled_backups()[keep:]:
+        try:
+            (get_backup_dir() / item['name']).unlink()
+            deleted.append(item['name'])
+        except OSError as exc:
+            logger.warning('清理旧自动备份失败 %s：%s', item['name'], exc)
+    return deleted
+
+
+def get_schedule_status() -> dict[str, Any]:
+    """返回自动备份策略与下次执行时间，供后台页面展示。"""
+    interval_days = max(1, int(config.BACKUP_INTERVAL_DAYS))
+    retention = max(1, int(config.BACKUP_RETENTION_COUNT))
+    scheduled = list_scheduled_backups()
+    latest = scheduled[0] if scheduled else None
+    now = datetime.now()
+    next_due = (
+        latest['created_at'] + timedelta(days=interval_days)
+        if latest else now
+    )
+
+    return {
+        'enabled': bool(config.BACKUP_SCHEDULE_ENABLED),
+        'interval_days': interval_days,
+        'retention_count': retention,
+        'scheduled_count': len(scheduled),
+        'last_backup_at': latest['created_at'] if latest else None,
+        'next_due_at': next_due,
+        'is_due': latest is None or now >= next_due,
+    }
+
+
+def _scheduled_backup_due(now: datetime | None = None) -> tuple[bool, datetime | None]:
+    now = now or datetime.now()
+    scheduled = list_scheduled_backups()
+    if not scheduled:
+        return True, None
+
+    next_due = scheduled[0]['created_at'] + timedelta(
+        days=max(1, int(config.BACKUP_INTERVAL_DAYS))
+    )
+    return now >= next_due, next_due
+
+
+def run_scheduled_backup_if_due(now: datetime | None = None) -> dict[str, Any]:
+    """到点则创建一份自动备份，并按保留数量清理旧自动备份。"""
+    due, next_due = _scheduled_backup_due(now)
+    result: dict[str, Any] = {
+        'created': False,
+        'next_due_at': next_due,
+        'archive': None,
+        'deleted': [],
+    }
+    if not due:
+        return result
+
+    archive_path, manifest = create_backup_archive(prefix=SCHEDULED_PREFIX)
+    deleted = prune_scheduled_backups()
+    result.update({
+        'created': True,
+        'archive': archive_path.name,
+        'deleted': deleted,
+        'manifest': manifest,
+    })
+    return result
+
+
+@contextmanager
+def _scheduler_lock():
+    """跨进程互斥锁，确保多 worker 部署时只有一个进程执行备份。"""
+    try:
+        import fcntl
+    except ImportError:
+        # 非 POSIX 平台不启用进程锁，交由部署方用 cron/计划任务实现
+        yield None
+        return
+
+    lock_path = get_backup_dir() / SCHEDULER_LOCK_FILE
+    handle = open(lock_path, 'a+')
+    try:
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            yield None
+            return
+        try:
+            yield handle
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+    finally:
+        handle.close()
+
+
+def run_scheduler_tick() -> None:
+    """执行一次调度检查（多进程安全）。"""
+    if not config.BACKUP_SCHEDULE_ENABLED:
+        return
+
+    with _scheduler_lock() as lock:
+        if lock is None:
+            return
+
+        result = run_scheduled_backup_if_due()
+        if not result['created']:
+            # 即使未到备份时间，也按最新保留策略清理多余自动备份
+            deleted = prune_scheduled_backups()
+            if deleted:
+                logger.info('按保留策略清理旧自动备份 %s 份', len(deleted))
+            return
+
+        from backend.logger import log_operation
+
+        archive = result['archive']
+        deleted = result['deleted']
+        detail = archive
+        if deleted:
+            detail += f'；清理 {len(deleted)} 份旧自动备份'
+        log_operation(None, '系统', '自动全量备份', detail)
+        logger.info('自动全量备份完成：%s（清理旧备份 %s 份）', archive, len(deleted))
+
+
+_scheduler_started = False
+_scheduler_start_lock = threading.Lock()
+
+
+def _scheduler_loop() -> None:
+    interval_seconds = max(1, int(config.BACKUP_SCHEDULER_CHECK_MINUTES)) * 60
+    logger.info(
+        '自动备份调度器已启动：每 %s 天备份一次，保留最近 %s 份',
+        config.BACKUP_INTERVAL_DAYS,
+        config.BACKUP_RETENTION_COUNT,
+    )
+    time.sleep(SCHEDULER_INITIAL_DELAY_SECONDS)
+    while True:
+        try:
+            run_scheduler_tick()
+        except Exception:  # noqa: BLE001 - 调度线程不能退出
+            logger.exception('自动备份任务执行失败')
+        time.sleep(interval_seconds)
+
+
+def start_backup_scheduler() -> threading.Thread | None:
+    """启动后台自动备份线程（每个进程只启动一次）。"""
+    global _scheduler_started
+    with _scheduler_start_lock:
+        if _scheduler_started:
+            return None
+        _scheduler_started = True
+
+    thread = threading.Thread(
+        target=_scheduler_loop,
+        name='backup-scheduler',
+        daemon=True,
+    )
+    thread.start()
+    return thread
+
+
+# =============================================================================
 # 恢复
 # =============================================================================
+
 
 def _validate_member_name(name: str, is_dir: bool = False) -> str:
     """校验 ZIP 内条目路径，并返回规范化后的路径。"""

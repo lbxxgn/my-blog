@@ -35,9 +35,11 @@ def backup_page():
     """备份与恢复页面。"""
     try:
         stats = backup_service.get_backup_stats()
+        backups = backup_service.list_backups()
+        schedule = backup_service.get_schedule_status()
     except Exception as exc:  # noqa: BLE001 - 页面仍应可打开
-        logger.exception('读取备份统计失败')
-        log_error(exc, context='读取备份统计', user_id=session.get('user_id'))
+        logger.exception('读取备份信息失败')
+        log_error(exc, context='读取备份信息', user_id=session.get('user_id'))
         stats = {
             'db_size': 0,
             'upload_files': 0,
@@ -46,14 +48,24 @@ def backup_page():
             'backup_bytes': 0,
             'disk_free': 0,
             'disk_total': 0,
-            'backup_dir': str(backup_service.get_backup_dir()),
+            'backup_dir': '',
+        }
+        backups = []
+        schedule = {
+            'enabled': False,
+            'interval_days': 7,
+            'retention_count': 5,
+            'scheduled_count': 0,
+            'last_backup_at': None,
+            'next_due_at': None,
+            'is_due': False,
         }
 
-    backups = backup_service.list_backups()
     return render_template(
         'admin/backup.html',
         stats=stats,
         backups=backups,
+        schedule=schedule,
         max_restore_mb=backup_service.MAX_ARCHIVE_BYTES // 1024 // 1024,
     )
 

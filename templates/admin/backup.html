@@ -39,6 +39,40 @@
     <section class="backup-section">
         <div class="section-heading">
             <div>
+                <h3>自动备份</h3>
+                {% if schedule.enabled %}
+                <p class="text-secondary">
+                    已启用：每 {{ schedule.interval_days }} 天自动创建一次全量备份，
+                    只保留最近 {{ schedule.retention_count }} 份自动备份。
+                    手动创建的备份和恢复前安全备份不会被自动清理。
+                </p>
+                {% else %}
+                <p class="text-secondary">
+                    未启用。可在 <code>.env</code> 中设置
+                    <code>BACKUP_SCHEDULE_ENABLED=True</code> 后重启服务。
+                </p>
+                {% endif %}
+            </div>
+            <span class="backup-badge {{ '' if schedule.enabled else 'safety' }}">
+                {{ '已启用' if schedule.enabled else '未启用' }}
+            </span>
+        </div>
+        {% if schedule.enabled %}
+        <div class="schedule-meta">
+            <span>上次自动备份：
+                <strong>{{ schedule.last_backup_at.strftime('%Y-%m-%d %H:%M:%S') if schedule.last_backup_at else '暂无' }}</strong>
+            </span>
+            <span>下次预计：
+                <strong>{{ schedule.next_due_at.strftime('%Y-%m-%d %H:%M:%S') if schedule.next_due_at else '暂无' }}</strong>
+            </span>
+            <span>已有自动备份：<strong>{{ schedule.scheduled_count }} 份</strong></span>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="backup-section">
+        <div class="section-heading">
+            <div>
                 <h3>创建全量备份</h3>
                 <p class="text-secondary">
                     备份包含 SQLite 数据库一致性快照与 <code>static/uploads</code> 下的全部附件，
@@ -75,6 +109,8 @@
                         <td>
                             {% if item.kind == 'safety' %}
                             <span class="backup-badge safety">恢复前自动备份</span>
+                            {% elif item.kind == 'scheduled' %}
+                            <span class="backup-badge scheduled">自动备份</span>
                             {% else %}
                             <span class="backup-badge">全量备份</span>
                             {% endif %}
@@ -278,6 +314,26 @@
 .backup-badge.safety {
     background-color: rgba(241, 196, 15, 0.16);
     color: #b7791f;
+}
+
+.backup-badge.scheduled {
+    background-color: rgba(102, 126, 234, 0.14);
+    color: #5b6ed6;
+}
+
+.schedule-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.schedule-meta strong {
+    color: var(--heading-color);
 }
 
 .empty-state {

@@ -101,6 +101,16 @@ UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 # 全量备份存放目录（可通过环境变量 BACKUP_DIR 覆盖）
 BACKUP_DIR = Path(os.environ.get('BACKUP_DIR') or (BASE_DIR / 'backups'))
 
+# 自动备份策略（默认每周一次，只保留最近 5 份自动备份）
+BACKUP_SCHEDULE_ENABLED = (
+    os.environ.get('BACKUP_SCHEDULE_ENABLED', 'True').lower() in ('true', '1', 'yes')
+)
+BACKUP_INTERVAL_DAYS = max(1, int(os.environ.get('BACKUP_INTERVAL_DAYS', 7)))
+BACKUP_RETENTION_COUNT = max(1, int(os.environ.get('BACKUP_RETENTION_COUNT', 5)))
+BACKUP_SCHEDULER_CHECK_MINUTES = max(
+    1, int(os.environ.get('BACKUP_SCHEDULER_CHECK_MINUTES', 60))
+)
+
 # 允许的图片文件扩展名（包含iPhone的HEIC格式）
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'}
 

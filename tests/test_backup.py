@@ -1,6 +1,7 @@
 """全量备份与恢复功能测试。"""
 
 import io
+import os
 import re
 import sqlite3
 import zipfile
@@ -174,6 +175,49 @@ def test_restore_endpoint_manually_validates_csrf(csrf_client, test_admin_user, 
     )
     assert response.status_code == 200
     assert '恢复完成' in response.get_data(as_text=True)
+
+
+def test_run_scheduled_backup_if_due(backup_env):
+    result = backup_service.run_scheduled_backup_if_due()
+    assert result['created'] is True
+
+    scheduled = backup_service.list_scheduled_backups()
+    assert len(scheduled) == 1
+    assert scheduled[0]['name'] == result['archive']
+
+    result = backup_service.run_scheduled_backup_if_due()
+    assert result['created'] is False
+
+    status = backup_service.get_schedule_status()
+    assert status['scheduled_count'] == 1
+    assert status['interval_days'] >= 1
+    assert status['retention_count'] >= 1
+
+
+def test_prune_scheduled_backups_keeps_latest_five(backup_env):
+    base_ts = 1767225600
+    for index in range(7):
+        path = (
+            backup_env['backups']
+            / f'scheduled_backup_202601{index + 1:02d}_000000.zip'
+        )
+        path.write_bytes(b'x')
+        timestamp = base_ts + index * 86400
+        os.utime(path, (timestamp, timestamp))
+
+    deleted = backup_service.prune_scheduled_backups(5)
+    assert len(deleted) == 2
+    remaining = list(backup_env['backups'].glob('scheduled_backup_*.zip'))
+    assert len(remaining) == 5
+
+    # 手动备份与恢复前安全备份不受自动清理影响
+    manual = backup_env['backups'] / 'blog_backup_20260101_000000.zip'
+    safety = backup_env['backups'] / 'pre_restore_20260101_000000.zip'
+    manual.write_bytes(b'x')
+    safety.write_bytes(b'x')
+    backup_service.prune_scheduled_backups(1)
+    assert manual.exists()
+    assert safety.exists()
 
 
 def test_archive_rejects_path_traversal(tmp_path):

@@ -1100,6 +1100,29 @@ def weekly_review_command():
             print(f"[{user['username']}] 生成异常: {e}")
 
 # =============================================================================
+# 自动备份调度器
+# =============================================================================
+def _maybe_start_backup_scheduler():
+    """在 Web 进程内启动自动备份线程（测试和调试重载父进程除外）。"""
+    if os.environ.get('TESTING') == '1' or 'pytest' in sys.modules:
+        return
+    if DEBUG and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        return
+
+    from backend.config import BACKUP_SCHEDULE_ENABLED
+
+    if not BACKUP_SCHEDULE_ENABLED:
+        return
+
+    from backend.services.backup import start_backup_scheduler
+
+    start_backup_scheduler()
+
+
+_maybe_start_backup_scheduler()
+
+
+# =============================================================================
 # 主程序入口
 # =============================================================================
 if __name__ == '__main__':
