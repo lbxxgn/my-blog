@@ -222,6 +222,7 @@ class TestCatalogRoutes:
         assert '供应商列表' in html
         assert 'providerDialog' in html
         assert '新增模型' not in html
+        assert '.catalog-name-link {' not in html
 
         client.get('/logout')
         self._login(client, test_user)
@@ -261,6 +262,7 @@ class TestCatalogRoutes:
         assert 'moonshot-v1-8k' in detail_html
         assert '新增模型' in detail_html
         assert '模型配置' in detail_html
+        assert '.provider-summary {' not in detail_html
 
     def test_api_returns_conflict_for_duplicate_slug(self, client, test_admin_user):
         self._login(client, test_admin_user)
