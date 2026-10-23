@@ -579,6 +579,8 @@ csrf.exempt(app.view_functions['knowledge_base.sync_annotations'])
 csrf.exempt(app.view_functions['knowledge_base.plugin_validate'])
 csrf.exempt(app.view_functions['mobile.mobile_upload_image'])
 csrf.exempt(app.view_functions['ai.test_ai_config'])
+# 全量备份恢复需要接收超过全局上限的 ZIP：先豁免，视图内提高 body 上限后手动校验 CSRF
+csrf.exempt(app.view_functions['admin.restore_backup'])
 
 
 def _apply_route_limit(endpoint: str, limit: str) -> None:

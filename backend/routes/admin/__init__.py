@@ -213,4 +213,4 @@ def validate_password_strength(password):
 mobile_bp = Blueprint('mobile', __name__)
 
 # 各功能子模块（在 __init__ 定义共享助手/蓝图之后导入，注册路由）
-from . import posts, batch, media, taxonomy, comments, import_export, users, site  # noqa: E402,F401
+from . import posts, batch, media, taxonomy, comments, import_export, users, site, backup  # noqa: E402,F401

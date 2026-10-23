@@ -14,6 +14,9 @@
             <a href="{{ url_for('review.review_page') }}" class="btn btn-sm">回顾</a>
             <a href="{{ url_for('export_page') }}" class="btn btn-sm">数据导出</a>
             <a href="{{ url_for('import_page') }}" class="btn btn-sm">数据导入</a>
+            {% if session.get('role') == 'admin' %}
+            <a href="{{ url_for('admin.backup_page') }}" class="btn btn-sm">全量备份</a>
+            {% endif %}
             <a href="{{ url_for('new_post') }}" class="btn btn-sm btn-primary">新建文章</a>
         </div>
     </div>

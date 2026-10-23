@@ -98,6 +98,9 @@ PERMANENT_SESSION_LIFETIME = timedelta(days=REMEMBER_DEVICE_DAYS)
 UPLOAD_FOLDER = BASE_DIR / 'static' / 'uploads'
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
+# 全量备份存放目录（可通过环境变量 BACKUP_DIR 覆盖）
+BACKUP_DIR = Path(os.environ.get('BACKUP_DIR') or (BASE_DIR / 'backups'))
+
 # 允许的图片文件扩展名（包含iPhone的HEIC格式）
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'}
 

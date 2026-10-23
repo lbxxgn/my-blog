@@ -56,7 +56,8 @@ EnvironmentFile=-/path/to/my-blog/.env
 # gunicorn 自身的日志默认走 stderr，会被 StandardError 收进 error.log；如需单独保存，追加：
 #   --access-logfile /path/to/my-blog/logs/access.log \
 #   --error-logfile  /path/to/my-blog/logs/gunicorn-error.log
-ExecStart=/path/to/my-blog/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5001 backend.app:app
+# 全量备份/恢复可能耗时较长，--timeout 需大于 gunicorn 默认的 30s
+ExecStart=/path/to/my-blog/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5001 --timeout 300 --graceful-timeout 60 backend.app:app
 
 # ============================================
 # 重启策略

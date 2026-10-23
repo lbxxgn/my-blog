@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}备份与恢复 - 管理后台{% endblock %}
+
+{% block page_type %}admin{% endblock %}
+
+{% block content %}
+<div class="container admin-backup">
+    <div class="dashboard-header">
+        <h2>备份与恢复</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('export_page') }}" class="btn btn-sm">文章导出</a>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-sm">返回管理后台</a>
+        </div>
+    </div>
+
+    <div class="backup-stats">
+        <div class="stat-card">
+            <span class="stat-label">数据库</span>
+            <strong class="stat-value">{{ stats.db_size|filesizeformat }}</strong>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">附件</span>
+            <strong class="stat-value">{{ stats.upload_files }} 个</strong>
+            <span class="stat-sub">{{ stats.upload_bytes|filesizeformat }}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">已有备份</span>
+            <strong class="stat-value">{{ stats.backup_count }} 份</strong>
+            <span class="stat-sub">{{ stats.backup_bytes|filesizeformat }}</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-label">备份目录可用空间</span>
+            <strong class="stat-value">{{ stats.disk_free|filesizeformat }}</strong>
+            <span class="stat-sub">共 {{ stats.disk_total|filesizeformat }}</span>
+        </div>
+    </div>
+
+    <section class="backup-section">
+        <div class="section-heading">
+            <div>
+                <h3>创建全量备份</h3>
+                <p class="text-secondary">
+                    备份包含 SQLite 数据库一致性快照与 <code>static/uploads</code> 下的全部附件，
+                    生成 ZIP 文件保存在服务器 <code>{{ stats.backup_dir }}</code>。
+                </p>
+            </div>
+            <form method="POST" action="{{ url_for('admin.create_backup') }}"
+                  data-confirm="确定创建一份全量备份吗？文件较大时可能需要等待一段时间。"
+                  data-confirm-text="创建备份">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="btn btn-primary">立即创建全量备份</button>
+            </form>
+        </div>
+    </section>
+
+    <section class="backup-section">
+        <h3>备份列表</h3>
+        {% if backups %}
+        <div class="table-wrap">
+            <table class="backup-table">
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>类型</th>
+                        <th>大小</th>
+                        <th>创建时间</th>
+                        <th class="actions-col">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in backups %}
+                    <tr>
+                        <td class="backup-name">{{ item.name }}</td>
+                        <td>
+                            {% if item.kind == 'safety' %}
+                            <span class="backup-badge safety">恢复前自动备份</span>
+                            {% else %}
+                            <span class="backup-badge">全量备份</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.size|filesizeformat }}</td>
+                        <td>{{ item.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td class="backup-actions">
+                            <a href="{{ url_for('admin.download_backup', name=item.name) }}"
+                               class="btn btn-xs">下载</a>
+
+                            <form method="POST" action="{{ url_for('admin.restore_backup') }}"
+                                  class="inline-form"
+                                  data-confirm="恢复会覆盖当前数据库和全部附件。确定使用 {{ item.name }} 恢复吗？"
+                                  data-confirm-destructive="true"
+                                  data-confirm-text="确认恢复">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="backup_name" value="{{ item.name }}"/>
+                                <input type="hidden" name="confirm" value="RESTORE"/>
+                                <button type="submit" class="btn btn-xs btn-danger">恢复</button>
+                            </form>
+
+                            <form method="POST" action="{{ url_for('admin.delete_backup') }}"
+                                  class="inline-form"
+                                  data-confirm="确定删除备份 {{ item.name }} 吗？此操作不可撤销。"
+                                  data-confirm-destructive="true"
+                                  data-confirm-text="删除">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="name" value="{{ item.name }}"/>
+                                <button type="submit" class="btn btn-xs btn-danger-outline">删除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            还没有备份文件，点击上方「立即创建全量备份」生成第一份备份。
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="backup-section danger-zone">
+        <h3>从备份文件恢复</h3>
+        <div class="warning-box">
+            <strong>⚠️ 高风险操作</strong>
+            <ul>
+                <li>恢复会<strong>覆盖当前数据库和全部附件</strong>，并自动生成一份
+                    <code>pre_restore_*.zip</code> 安全备份。</li>
+                <li>建议在恢复前先手动创建并下载一份当前备份。</li>
+                <li>恢复期间请勿同时发布文章或上传图片；文件较大时可能需要数十秒。</li>
+                <li>多进程/多实例部署时，恢复后建议重启服务，以清空各进程的页面缓存。</li>
+                <li>单次上传上限 {{ max_restore_mb }} MB。若使用 Nginx，请确认
+                    <code>client_max_body_size</code> 和代理超时足够大。</li>
+            </ul>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.restore_backup') }}"
+              enctype="multipart/form-data" class="restore-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="form-group">
+                <label for="backupFile">选择全量备份 ZIP</label>
+                <input type="file" id="backupFile" name="backup_file" accept=".zip,application/zip" required>
+            </div>
+            <div class="form-group">
+                <label for="restoreConfirm">输入 <code>RESTORE</code> 确认覆盖当前数据</label>
+                <input type="text" id="restoreConfirm" name="confirm" required
+                       pattern="RESTORE" autocomplete="off" placeholder="RESTORE">
+            </div>
+            <button type="submit" class="btn btn-danger">上传并恢复</button>
+        </form>
+    </section>
+</div>
+
+<style>
+.admin-backup {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.backup-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.stat-card {
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background-color: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.stat-value {
+    color: var(--heading-color);
+    font-size: 1.35rem;
+}
+
+.stat-sub {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.backup-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background-color: var(--bg-color);
+}
+
+.backup-section h3 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    color: var(--heading-color);
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+.section-heading {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.section-heading p {
+    margin: 0;
+    max-width: 640px;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.backup-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.backup-table th,
+.backup-table td {
+    padding: 0.7rem 0.6rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.backup-table th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.backup-name {
+    font-family: var(--font-mono);
+    word-break: break-all;
+    font-size: 0.85rem;
+}
+
+.actions-col {
+    width: 210px;
+}
+
+.backup-actions {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.inline-form {
+    display: inline;
+    margin: 0;
+}
+
+.backup-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background-color: rgba(26, 188, 156, 0.12);
+    color: var(--primary-color);
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.backup-badge.safety {
+    background-color: rgba(241, 196, 15, 0.16);
+    color: #b7791f;
+}
+
+.empty-state {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+}
+
+.danger-zone {
+    border-color: rgba(231, 76, 60, 0.35);
+}
+
+.warning-box {
+    padding: 1rem 1.25rem;
+    border-radius: 10px;
+    background-color: rgba(231, 76, 60, 0.07);
+    border: 1px solid rgba(231, 76, 60, 0.25);
+    margin-bottom: 1.25rem;
+}
+
+.warning-box ul {
+    margin: 0.6rem 0 0;
+    padding-left: 1.4rem;
+    color: var(--text-secondary);
+}
+
+.warning-box li {
+    margin-bottom: 0.35rem;
+}
+
+.restore-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.restore-form label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--heading-color);
+}
+
+.restore-form input[type="text"] {
+    width: 100%;
+    max-width: 260px;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-mono);
+}
+
+.btn-danger-outline {
+    background: transparent;
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.6);
+}
+
+.btn-danger-outline:hover {
+    background-color: rgba(231, 76, 60, 0.1);
+}
+
+@media (max-width: 768px) {
+    .backup-section {
+        padding: 1.1rem;
+    }
+
+    .section-heading {
+        align-items: flex-start;
+    }
+
+    .section-heading form,
+    .section-heading .btn {
+        width: 100%;
+    }
+
+    .actions-col {
+        width: auto;
+    }
+}
+</style>
+{% endblock %}

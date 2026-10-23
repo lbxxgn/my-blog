@@ -69,6 +69,10 @@ exports/
 exports.zip
 !exports/.gitkeep
 
+# Full backups (user-specific data)
+backups/*
+!backups/.gitkeep
+
 # XML exports and backups
 *.xml
 网易博客日志列表.xml
