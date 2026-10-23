@@ -160,3 +160,77 @@ def test_new_post_thread_updates_title_and_history(
     ]
     assert title_records
     assert '线程生成的标题' in title_records[0]['generated_tags']
+
+
+def test_generate_title_surfaces_empty_ai_response(
+        client, test_admin_user, monkeypatch):
+    from routes.ai import generation as generation_module
+    from models import update_user_ai_config
+
+    update_user_ai_config(test_admin_user['id'], {
+        'ai_tag_generation_enabled': True,
+        'ai_provider': 'dashscope',
+        'ai_model': 'qwen-turbo',
+        'ai_api_key': 'sk-test',
+    })
+    monkeypatch.setattr(
+        generation_module,
+        '_run_structured_prompt',
+        lambda *args, **kwargs: {
+            'content': '',
+            'model': 'qwen-turbo',
+            'tokens_used': 10,
+            'input_tokens': 10,
+            'output_tokens': 0,
+        },
+    )
+
+    client.post('/login', data={
+        'username': test_admin_user['username'],
+        'password': test_admin_user['password'],
+    })
+    response = client.post('/admin/ai/generate-title', json={
+        'content': '这是一段用于测试标题生成的正文内容。'
+    })
+    data = response.get_json()
+    assert data['success'] is True
+    assert data['source'] == 'heuristic'
+    assert '返回内容为空' in data['ai_error']
+
+
+def test_generate_title_uses_more_output_tokens_for_reasoning_models(
+        client, test_admin_user, monkeypatch):
+    from routes.ai import generation as generation_module
+    from models import update_user_ai_config
+
+    update_user_ai_config(test_admin_user['id'], {
+        'ai_tag_generation_enabled': True,
+        'ai_provider': 'deepseek',
+        'ai_model': 'deepseek-v4-pro',
+        'ai_api_key': 'sk-test',
+    })
+    captured = {}
+
+    def fake_prompt(*args, **kwargs):
+        captured.update(kwargs)
+        return {
+            'content': 'AI 标题',
+            'model': 'deepseek-v4-pro',
+            'tokens_used': 10,
+            'input_tokens': 10,
+            'output_tokens': 0,
+        }
+
+    monkeypatch.setattr(generation_module, '_run_structured_prompt', fake_prompt)
+
+    client.post('/login', data={
+        'username': test_admin_user['username'],
+        'password': test_admin_user['password'],
+    })
+    response = client.post('/admin/ai/generate-title', json={
+        'content': '这是一段用于测试标题生成的正文内容。'
+    })
+    data = response.get_json()
+    assert data['source'] == 'ai'
+    assert data['title'] == 'AI 标题'
+    assert captured['max_tokens'] == 300

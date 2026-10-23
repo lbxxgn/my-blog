@@ -47,12 +47,12 @@ def _async_ai_title(app, post_id, content, user_id):
 文章内容：
 {content[:3000]}
 """,
-                max_tokens=50,
+                max_tokens=300,
                 temperature=0.5
             )
 
             if ai_result:
-                ai_title = ai_result['content'].strip().strip('"\'').strip()
+                ai_title = (ai_result.get('content') or '').strip().strip('"\'').strip()
                 if ai_title:
                     conn = get_db_connection()
                     cursor = conn.cursor()
@@ -70,6 +70,14 @@ def _async_ai_title(app, post_id, content, user_id):
                         input_tokens=ai_result.get('input_tokens', 0),
                         output_tokens=ai_result.get('output_tokens', 0),
                         result_preview=ai_title
+                    )
+                else:
+                    logger.warning(
+                        "Async AI title generation returned empty content "
+                        "(post_id=%s, provider=%s, model=%s)",
+                        post_id,
+                        user_ai_config.get('ai_provider'),
+                        user_ai_config.get('ai_model'),
                     )
         except Exception as e:
             logger.warning(f"Async AI title generation failed: {e}")

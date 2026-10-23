@@ -224,12 +224,12 @@ def generate_title():
 文章内容：
 {content[:3000]}
 """,
-                max_tokens=50,
+                max_tokens=300,
                 temperature=0.5
             )
 
             if ai_result:
-                ai_title = ai_result['content'].strip().strip('"\'').strip()
+                ai_title = (ai_result.get('content') or '').strip().strip('"\'').strip()
                 if ai_title:
                     title = ai_title
                     source = 'ai'
@@ -246,6 +246,10 @@ def generate_title():
                         output_tokens=ai_result.get('output_tokens', 0),
                         result_preview=title
                     )
+                else:
+                    ai_error = 'AI 返回内容为空，可能是模型输出长度不足或模型不兼容'
+            else:
+                ai_error = 'AI 未返回结果，请检查 AI 配置'
         except Exception as e:
             ai_error = str(e)
             logger.warning(f"AI title generation failed, using heuristic: {e}")
