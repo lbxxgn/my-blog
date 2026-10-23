@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}AI 提供商与模型管理 - {{ site_name }}{% endblock %}
+{% block title %}AI 供应商管理 - {{ site_name }}{% endblock %}
 
 {% block content %}
 <div class="container admin-dashboard" style="max-width: 1100px;">
     <div class="dashboard-header">
-        <h2>AI 提供商与模型管理</h2>
+        <h2>AI 供应商</h2>
         <div class="header-actions">
             <a href="{{ url_for('ai.ai_settings') }}" class="btn">返回 AI 设置</a>
             <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
@@ -17,10 +17,10 @@
     <div class="ai-section">
         <div class="section-heading">
             <div>
-                <h3>供应商</h3>
+                <h3>供应商列表</h3>
                 <p class="section-description">
-                    供应商是模型的分组。新增供应商仅支持 OpenAI 兼容驱动；
-                    供应商标识创建后不可修改，因为它会被用户的 AI 配置引用。
+                    先在这里创建供应商，再进入供应商配置模型。供应商是模型的分组，
+                    新增供应商仅支持 OpenAI 兼容驱动；供应商标识创建后不可修改。
                 </p>
             </div>
             <button type="button" class="btn btn-primary" onclick="openProviderDialog()">
@@ -45,50 +45,16 @@
             </table>
         </div>
     </div>
-
-    <div class="ai-section">
-        <div class="section-heading">
-            <div>
-                <h3>模型</h3>
-                <p class="section-description">
-                    模型 ID 创建后不可修改；被用户引用的模型无法删除，只能停用。
-                    价格留空表示沿用驱动默认价，填 0 表示免费。
-                </p>
-            </div>
-            <button type="button" class="btn btn-primary" onclick="openModelDialog()">
-                + 新增模型
-            </button>
-        </div>
-
-        <div class="table-toolbar">
-            <label for="modelFilter">按供应商筛选</label>
-            <select id="modelFilter" onchange="renderModels()"></select>
-            <span class="muted" id="modelCount"></span>
-        </div>
-
-        <div class="table-wrap">
-            <table class="catalog-table">
-                <thead>
-                    <tr>
-                        <th>供应商</th>
-                        <th>模型</th>
-                        <th>价格（输入 / 输出，每 1K tokens）</th>
-                        <th>状态 / 引用</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="modelRows"></tbody>
-            </table>
-        </div>
-    </div>
 </div>
 
 <dialog id="providerDialog" class="catalog-dialog">
     <form id="providerForm">
         <header class="dialog-header">
             <div>
-                <h3 id="providerDialogTitle">新增供应商</h3>
-                <p class="dialog-subtitle" id="providerDialogSubtitle"></p>
+                <h3>新增供应商</h3>
+                <p class="dialog-subtitle">
+                    创建后可进入供应商配置页添加模型。建议先确认 Base URL 与币种。
+                </p>
             </div>
             <button type="button" class="dialog-close" aria-label="关闭"
                     onclick="closeDialog('providerDialog')">×</button>
@@ -115,7 +81,7 @@
                         <option value="dashscope">DashScope（内置）</option>
                         <option value="deepseek">DeepSeek（内置）</option>
                     </select>
-                    <small>新增供应商只能使用 OpenAI 兼容驱动；内置供应商不可更改。</small>
+                    <small>新增供应商只能使用 OpenAI 兼容驱动。</small>
                 </div>
                 <div class="form-field">
                     <label for="providerCurrency">币种</label>
@@ -160,457 +126,10 @@
     </form>
 </dialog>
 
-<dialog id="modelDialog" class="catalog-dialog">
-    <form id="modelForm">
-        <header class="dialog-header">
-            <div>
-                <h3 id="modelDialogTitle">新增模型</h3>
-                <p class="dialog-subtitle" id="modelDialogSubtitle"></p>
-            </div>
-            <button type="button" class="dialog-close" aria-label="关闭"
-                    onclick="closeDialog('modelDialog')">×</button>
-        </header>
-
-        <div class="dialog-body">
-            <div class="dialog-error" id="modelDialogError" style="display: none;"></div>
-            <div class="form-grid">
-                <div class="form-field">
-                    <label for="modelProvider">所属供应商 *</label>
-                    <select id="modelProvider" required onchange="updateModelCurrencyHint()"></select>
-                    <small>模型会归属到该供应商，创建后不可移动。</small>
-                </div>
-                <div class="form-field">
-                    <label for="modelId">模型 ID *</label>
-                    <input type="text" id="modelId" maxlength="128" required
-                           placeholder="例如 gpt-4o-mini" autocomplete="off">
-                    <small>调用 API 时使用的真实模型名，创建后不可修改。</small>
-                </div>
-                <div class="form-field">
-                    <label for="modelDisplayName">显示名称</label>
-                    <input type="text" id="modelDisplayName" maxlength="100"
-                           placeholder="留空则使用模型 ID" autocomplete="off">
-                </div>
-                <div class="form-field">
-                    <label for="modelSort">排序</label>
-                    <input type="number" id="modelSort" value="10">
-                    <small>数字越小越靠前。</small>
-                </div>
-                <div class="form-field">
-                    <label for="modelInputPrice">输入价格（每 1K tokens）</label>
-                    <input type="number" id="modelInputPrice" min="0" step="any"
-                           placeholder="留空=默认价">
-                    <small id="modelInputPriceHint">留空表示沿用驱动默认价。</small>
-                </div>
-                <div class="form-field">
-                    <label for="modelOutputPrice">输出价格（每 1K tokens）</label>
-                    <input type="number" id="modelOutputPrice" min="0" step="any"
-                           placeholder="留空=默认价">
-                    <small id="modelOutputPriceHint">留空表示沿用驱动默认价。</small>
-                </div>
-                <div class="form-field">
-                    <label>选项</label>
-                    <div class="checkbox-column">
-                        <label><input type="checkbox" id="modelEnabled" checked> 启用该模型</label>
-                        <label><input type="checkbox" id="modelDefault"> 设为供应商默认模型</label>
-                    </div>
-                </div>
-                <div class="form-field form-field-wide">
-                    <label for="modelDescription">描述</label>
-                    <input type="text" id="modelDescription" maxlength="500"
-                           placeholder="模型能力、适用场景等" autocomplete="off">
-                </div>
-            </div>
-        </div>
-
-        <footer class="dialog-footer">
-            <button type="button" class="btn" onclick="closeDialog('modelDialog')">取消</button>
-            <button type="submit" class="btn btn-primary" id="modelSubmitBtn">创建模型</button>
-        </footer>
-    </form>
-</dialog>
-
-<style>
-.ai-section {
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.ai-section h3 {
-    margin: 0 0 0.35rem 0;
-    font-size: 1.2rem;
-    color: var(--text-color, #1f2937);
-}
-
-.section-heading {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1.25rem;
-    margin-bottom: 1.25rem;
-}
-
-.section-heading .btn {
-    white-space: nowrap;
-}
-
-.section-description {
-    margin: 0;
-    color: var(--text-secondary, #6b7280);
-    font-size: 0.9rem;
-    line-height: 1.5;
-    max-width: 720px;
-}
-
-.table-toolbar {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-bottom: 0.9rem;
-    font-size: 0.9rem;
-    color: var(--text-secondary, #6b7280);
-}
-
-.table-toolbar select {
-    padding: 0.4rem 0.6rem;
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 7px;
-    background: var(--input-bg, #fff);
-    color: var(--text-color, #1f2937);
-}
-
-.muted {
-    color: var(--text-secondary, #6b7280);
-    font-size: 0.85rem;
-}
-
-.table-wrap {
-    overflow-x: auto;
-}
-
-.catalog-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
-}
-
-.catalog-table th,
-.catalog-table td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color, #e5e7eb);
-    vertical-align: middle;
-}
-
-.catalog-table th {
-    font-weight: 600;
-    color: var(--text-color, #1f2937);
-    background: var(--code-bg, #f9fafb);
-    white-space: nowrap;
-}
-
-.catalog-table tr:last-child td {
-    border-bottom: none;
-}
-
-.catalog-table .actions {
-    display: flex;
-    gap: 0.4rem;
-    flex-wrap: wrap;
-}
-
-.catalog-table .btn {
-    padding: 0.3rem 0.65rem;
-    font-size: 0.8rem;
-}
-
-.name-cell {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-}
-
-.name-cell strong {
-    color: var(--text-color, #1f2937);
-}
-
-.model-id {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.82rem;
-    color: var(--text-secondary, #6b7280);
-    word-break: break-all;
-}
-
-.badge {
-    display: inline-block;
-    padding: 0.1rem 0.45rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    border: 1px solid var(--border-color, #e5e7eb);
-    color: var(--text-secondary, #6b7280);
-    white-space: nowrap;
-}
-
-.badge-on {
-    color: #047857;
-    border-color: #10b981;
-    background: rgba(16, 185, 129, 0.1);
-}
-
-.badge-off {
-    color: #b45309;
-    border-color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
-}
-
-.badge-default {
-    color: #1d4ed8;
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.1);
-}
-
-.badge-builtin {
-    color: #6d28d9;
-    border-color: #8b5cf6;
-    background: rgba(139, 92, 246, 0.1);
-}
-
-.badge-stack {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-}
-
-.empty-row {
-    color: var(--text-secondary, #6b7280);
-    text-align: center;
-    padding: 1.5rem !important;
-}
-
-/* Toast */
-.catalog-message {
-    position: fixed;
-    top: 84px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 3000;
-    width: min(520px, calc(100% - 2rem));
-    padding: 0.85rem 1rem;
-    border-radius: 10px;
-    font-size: 0.9rem;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
-}
-
-.catalog-message.success {
-    background: #d1fae5;
-    color: #065f46;
-    border: 1px solid #10b981;
-}
-
-.catalog-message.error {
-    background: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #ef4444;
-}
-
-/* Dialog */
-.catalog-dialog {
-    width: min(720px, calc(100% - 2rem));
-    max-height: 90vh;
-    padding: 0;
-    border: none;
-    border-radius: 14px;
-    background: var(--card-bg, #fff);
-    color: var(--text-color, #1f2937);
-    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3);
-}
-
-.catalog-dialog::backdrop {
-    background: rgba(15, 23, 42, 0.55);
-    backdrop-filter: blur(2px);
-}
-
-.catalog-dialog form {
-    display: flex;
-    flex-direction: column;
-    max-height: 90vh;
-}
-
-.dialog-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.2rem 1.5rem;
-    border-bottom: 1px solid var(--border-color, #e5e7eb);
-}
-
-.dialog-header h3 {
-    margin: 0;
-    font-size: 1.15rem;
-    color: var(--text-color, #1f2937);
-}
-
-.dialog-subtitle {
-    margin: 0.3rem 0 0 0;
-    font-size: 0.85rem;
-    color: var(--text-secondary, #6b7280);
-    line-height: 1.4;
-}
-
-.dialog-close {
-    border: none;
-    background: transparent;
-    color: var(--text-secondary, #6b7280);
-    font-size: 1.6rem;
-    line-height: 1;
-    cursor: pointer;
-    padding: 0 0.25rem;
-}
-
-.dialog-close:hover {
-    color: var(--text-color, #1f2937);
-}
-
-.dialog-body {
-    padding: 1.25rem 1.5rem;
-    overflow-y: auto;
-}
-
-.dialog-error {
-    margin-bottom: 1rem;
-    padding: 0.7rem 0.85rem;
-    border-radius: 8px;
-    background: #fee2e2;
-    border: 1px solid #ef4444;
-    color: #991b1b;
-    font-size: 0.88rem;
-    line-height: 1.4;
-}
-
-.dialog-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border-color, #e5e7eb);
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-}
-
-.form-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.form-field-wide {
-    grid-column: 1 / -1;
-}
-
-.form-field label {
-    font-weight: 500;
-    color: var(--text-color, #1f2937);
-    font-size: 0.9rem;
-}
-
-.form-field input,
-.form-field select {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0.6rem 0.7rem;
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 7px;
-    background: var(--input-bg, #fff);
-    color: var(--text-color, #1f2937);
-    font-size: 0.95rem;
-}
-
-.form-field input[readonly],
-.form-field select:disabled {
-    background: var(--code-bg, #f3f4f6);
-    color: var(--text-secondary, #6b7280);
-    cursor: not-allowed;
-}
-
-.form-field small {
-    color: var(--text-secondary, #6b7280);
-    font-size: 0.78rem;
-    line-height: 1.4;
-}
-
-.checkbox-column {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    padding-top: 0.15rem;
-}
-
-.checkbox-column label {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-weight: 400;
-    font-size: 0.88rem;
-}
-
-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* Dark theme */
-.dark-theme .ai-section,
-.dark-theme .catalog-dialog {
-    background: #1f2937;
-    border-color: #374151;
-}
-
-.dark-theme .form-field input,
-.dark-theme .form-field select,
-.dark-theme .table-toolbar select {
-    background: #1f2937;
-    border-color: #4b5563;
-    color: #f9fafb;
-}
-
-.dark-theme .form-field input[readonly],
-.dark-theme .form-field select:disabled {
-    background: #374151;
-}
-
-.dark-theme .catalog-table th {
-    background: #374151;
-}
-
-@media (max-width: 640px) {
-    .section-heading {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .catalog-dialog {
-        width: calc(100% - 1rem);
-    }
-}
-</style>
+{% include 'admin/_ai_catalog_styles.html' %}
 
 <script>
 const catalog = {{ catalog|tojson }};
-
-let editingProviderPk = null;
-let editingModelPk = null;
 
 function esc(value) {
     return String(value === null || value === undefined ? '' : value)
@@ -658,170 +177,6 @@ async function api(url, method, payload) {
     return data;
 }
 
-function providerByPk(pk) {
-    return catalog.find(provider => String(provider.provider_pk) === String(pk));
-}
-
-function modelByPk(pk) {
-    for (const provider of catalog) {
-        const model = (provider.model_details || []).find(
-            item => String(item.id) === String(pk)
-        );
-        if (model) {
-            return {provider, model};
-        }
-    }
-    return null;
-}
-
-function priceText(value, symbol) {
-    if (value === null || value === undefined || value === '') {
-        return '默认';
-    }
-    return `${symbol || ''}${value}`;
-}
-
-function renderProviders() {
-    const tbody = document.getElementById('providerRows');
-    if (!catalog.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-row">暂无供应商</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = catalog.map(provider => {
-        const modelCount = (provider.model_details || []).length;
-        return `
-            <tr>
-                <td>
-                    <div class="name-cell">
-                        <strong>${esc(provider.name)}</strong>
-                        <span class="model-id">${esc(provider.slug)}</span>
-                    </div>
-                </td>
-                <td>${esc(provider.driver)}</td>
-                <td><span class="model-id">${esc(provider.base_url || '—')}</span></td>
-                <td>${esc(provider.currency)}</td>
-                <td>${modelCount}</td>
-                <td>
-                    <div class="badge-stack">
-                        <span class="badge ${provider.enabled ? 'badge-on' : 'badge-off'}">
-                            ${provider.enabled ? '启用' : '停用'}
-                        </span>
-                        ${provider.is_builtin ? '<span class="badge badge-builtin">内置</span>' : ''}
-                        <span class="badge">${provider.usage_count} 用户</span>
-                    </div>
-                </td>
-                <td>
-                    <div class="actions">
-                        <button type="button" class="btn"
-                                onclick="openModelDialog(null, ${provider.provider_pk})">加模型</button>
-                        <button type="button" class="btn"
-                                onclick="openProviderDialog(${provider.provider_pk})">编辑</button>
-                        ${provider.is_builtin ? '' : `
-                        <button type="button" class="btn btn-danger"
-                                onclick="removeProvider(${provider.provider_pk})">删除</button>`}
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function refreshModelFilter() {
-    const select = document.getElementById('modelFilter');
-    const current = select.value;
-    select.innerHTML = '<option value="">全部供应商</option>' + catalog.map(provider =>
-        `<option value="${provider.provider_pk}">${esc(provider.name)} (${esc(provider.slug)})</option>`
-    ).join('');
-    if (current) {
-        select.value = current;
-    }
-}
-
-function refreshProviderOptions(selectedPk) {
-    const select = document.getElementById('modelProvider');
-    const options = catalog
-        .filter(provider => provider.provider_pk !== null && provider.provider_pk !== undefined)
-        .map(provider =>
-            `<option value="${provider.provider_pk}">${esc(provider.name)} (${esc(provider.slug)})</option>`
-        );
-    select.innerHTML = options.join('');
-    if (selectedPk !== null && selectedPk !== undefined) {
-        select.value = selectedPk;
-    }
-}
-
-function updateModelCurrencyHint() {
-    const provider = providerByPk(document.getElementById('modelProvider').value);
-    const symbol = provider ? provider.currency_symbol : '';
-    const currency = provider ? provider.currency : '';
-    document.getElementById('modelInputPriceHint').textContent =
-        `留空表示沿用驱动默认价；当前币种：${currency} ${symbol}`;
-    document.getElementById('modelOutputPriceHint').textContent =
-        `留空表示沿用驱动默认价；当前币种：${currency} ${symbol}`;
-}
-
-function renderModels() {
-    const filter = document.getElementById('modelFilter').value;
-    const tbody = document.getElementById('modelRows');
-    const rows = [];
-    for (const provider of catalog) {
-        if (filter && String(provider.provider_pk) !== filter) {
-            continue;
-        }
-        for (const model of provider.model_details || []) {
-            rows.push({provider, model});
-        }
-    }
-
-    document.getElementById('modelCount').textContent = `${rows.length} 个模型`;
-
-    if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="5" class="empty-row">暂无模型</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = rows.map(({provider, model}) => `
-        <tr>
-            <td>
-                <div class="name-cell">
-                    <strong>${esc(provider.name)}</strong>
-                    <span class="model-id">${esc(provider.currency)}</span>
-                </div>
-            </td>
-            <td>
-                <div class="name-cell">
-                    <strong>${esc(model.display_name || model.model_id)}</strong>
-                    <span class="model-id">${esc(model.model_id)}</span>
-                </div>
-            </td>
-            <td>
-                <div class="name-cell">
-                    <span>输入：${esc(priceText(model.input_price, model.currency_symbol))}</span>
-                    <span class="muted">输出：${esc(priceText(model.output_price, model.currency_symbol))}</span>
-                </div>
-            </td>
-            <td>
-                <div class="badge-stack">
-                    <span class="badge ${model.enabled ? 'badge-on' : 'badge-off'}">
-                        ${model.enabled ? '启用' : '停用'}
-                    </span>
-                    ${model.is_default ? '<span class="badge badge-default">默认</span>' : ''}
-                    <span class="badge">${model.usage_count || 0} 用户</span>
-                </div>
-            </td>
-            <td>
-                <div class="actions">
-                    <button type="button" class="btn"
-                            onclick="openModelDialog(${model.id})">编辑</button>
-                    <button type="button" class="btn btn-danger"
-                            onclick="removeModel(${model.id})">删除</button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
-}
-
 function closeDialog(id) {
     const dialog = document.getElementById(id);
     if (dialog && dialog.open) {
@@ -847,141 +202,76 @@ function showDialogError(id, message) {
     box.scrollIntoView({behavior: 'smooth', block: 'nearest'});
 }
 
-function openProviderDialog(pk) {
+function renderProviders() {
+    const tbody = document.getElementById('providerRows');
+    if (!catalog.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="empty-row">暂无供应商，请先新增</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = catalog.map(provider => {
+        const modelCount = (provider.model_details || []).length;
+        const detailUrl = `/admin/ai/catalog/providers/${provider.provider_pk}`;
+        return `
+            <tr>
+                <td>
+                    <div class="name-cell">
+                        <a href="${detailUrl}" class="catalog-name-link">${esc(provider.name)}</a>
+                        <span class="model-id">${esc(provider.slug)}</span>
+                    </div>
+                </td>
+                <td>${esc(provider.driver)}</td>
+                <td><span class="model-id">${esc(provider.base_url || '—')}</span></td>
+                <td>${esc(provider.currency)}</td>
+                <td>${modelCount}</td>
+                <td>
+                    <div class="badge-stack">
+                        <span class="badge ${provider.enabled ? 'badge-on' : 'badge-off'}">
+                            ${provider.enabled ? '启用' : '停用'}
+                        </span>
+                        ${provider.is_builtin ? '<span class="badge badge-builtin">内置</span>' : ''}
+                        <span class="badge">${provider.usage_count} 用户</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="actions">
+                        <a href="${detailUrl}" class="btn">进入配置</a>
+                        ${provider.is_builtin ? '' : `
+                        <button type="button" class="btn btn-danger"
+                                onclick="removeProvider(${provider.provider_pk})">删除</button>`}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function openProviderDialog() {
     const form = document.getElementById('providerForm');
     form.reset();
     clearDialogError('providerDialogError');
 
-    const pkValue = pk === undefined ? null : pk;
-    editingProviderPk = pkValue;
-    const provider = pkValue === null ? null : providerByPk(pkValue);
+    document.getElementById('providerCurrency').value = 'CNY';
+    document.getElementById('providerSort').value = '50';
+    document.getElementById('providerEnabled').checked = true;
 
-    const slugInput = document.getElementById('providerSlug');
     const driverSelect = document.getElementById('providerDriver');
-
-    if (provider) {
-        document.getElementById('providerDialogTitle').textContent =
-            `编辑供应商：${provider.name}`;
-        document.getElementById('providerDialogSubtitle').textContent =
-            `${provider.is_builtin ? '内置供应商' : '自定义供应商'} · ${provider.slug} · 驱动 ${provider.driver}`;
-        document.getElementById('providerSubmitBtn').textContent = '保存供应商';
-
-        slugInput.value = provider.slug;
-        slugInput.readOnly = true;
-        document.getElementById('providerName').value = provider.name;
-        document.getElementById('providerDescription').value = provider.description || '';
-        document.getElementById('providerBaseUrl').value = provider.base_url || '';
-        document.getElementById('providerCurrency').value = provider.currency || 'CNY';
-        document.getElementById('providerSort').value = provider.sort_order || 0;
-        document.getElementById('providerEnabled').checked = !!provider.enabled;
-        document.getElementById('providerAllowCustom').checked = !!provider.allow_custom_model;
-        document.getElementById('providerRequiresBaseUrl').checked = !!provider.requires_base_url;
-
-        driverSelect.value = provider.driver;
-        driverSelect.disabled = true;
-        Array.from(driverSelect.options).forEach(option => {
-            option.disabled = false;
-        });
-    } else {
-        document.getElementById('providerDialogTitle').textContent = '新增供应商';
-        document.getElementById('providerDialogSubtitle').textContent =
-            '创建后可在该供应商下添加模型。建议先确认 Base URL 与币种。';
-        document.getElementById('providerSubmitBtn').textContent = '创建供应商';
-
-        slugInput.readOnly = false;
-        document.getElementById('providerCurrency').value = 'CNY';
-        document.getElementById('providerSort').value = '50';
-        document.getElementById('providerEnabled').checked = true;
-
-        driverSelect.value = 'openai_compatible';
-        driverSelect.disabled = false;
-        Array.from(driverSelect.options).forEach(option => {
-            option.disabled = option.value !== 'openai_compatible';
-        });
-    }
+    driverSelect.value = 'openai_compatible';
+    Array.from(driverSelect.options).forEach(option => {
+        option.disabled = option.value !== 'openai_compatible';
+    });
 
     document.getElementById('providerDialog').showModal();
-}
-
-function openModelDialog(pk, presetProviderPk) {
-    const form = document.getElementById('modelForm');
-    form.reset();
-    clearDialogError('modelDialogError');
-
-    const pkValue = pk === undefined ? null : pk;
-    editingModelPk = pkValue;
-
-    if (pkValue === null && catalog.length === 0) {
-        showMessage('请先新增供应商，再添加模型', 'error');
-        return;
-    }
-
-    const providerSelect = document.getElementById('modelProvider');
-    const modelIdInput = document.getElementById('modelId');
-
-    if (pkValue !== null) {
-        const found = modelByPk(pkValue);
-        if (!found) {
-            showMessage('模型不存在，请刷新页面后重试', 'error');
-            return;
-        }
-        const {provider, model} = found;
-
-        document.getElementById('modelDialogTitle').textContent =
-            `编辑模型：${model.model_id}`;
-        document.getElementById('modelDialogSubtitle').textContent =
-            `供应商：${provider.name} · 币种：${provider.currency} · 模型 ID 创建后不可修改`;
-        document.getElementById('modelSubmitBtn').textContent = '保存模型';
-
-        refreshProviderOptions(provider.provider_pk);
-        providerSelect.value = provider.provider_pk;
-        providerSelect.disabled = true;
-
-        modelIdInput.value = model.model_id;
-        modelIdInput.readOnly = true;
-        document.getElementById('modelDisplayName').value = model.display_name || '';
-        document.getElementById('modelDescription').value = model.description || '';
-        document.getElementById('modelInputPrice').value =
-            model.input_price === null || model.input_price === undefined ? '' : model.input_price;
-        document.getElementById('modelOutputPrice').value =
-            model.output_price === null || model.output_price === undefined ? '' : model.output_price;
-        document.getElementById('modelSort').value = model.sort_order || 0;
-        document.getElementById('modelEnabled').checked = !!model.enabled;
-        document.getElementById('modelDefault').checked = !!model.is_default;
-    } else {
-        document.getElementById('modelDialogTitle').textContent = '新增模型';
-        document.getElementById('modelSubmitBtn').textContent = '创建模型';
-
-        const selectedPk = presetProviderPk !== undefined && presetProviderPk !== null
-            ? presetProviderPk
-            : (catalog[0] ? catalog[0].provider_pk : null);
-
-        refreshProviderOptions(selectedPk);
-        providerSelect.disabled = false;
-        if (selectedPk !== null && selectedPk !== undefined) {
-            providerSelect.value = selectedPk;
-        }
-
-        modelIdInput.readOnly = false;
-        document.getElementById('modelSort').value = '10';
-        document.getElementById('modelEnabled').checked = true;
-
-        const provider = providerByPk(providerSelect.value);
-        document.getElementById('modelDialogSubtitle').textContent =
-            provider ? `将添加到：${provider.name}（${provider.slug}）` : '请选择所属供应商';
-    }
-
-    updateModelCurrencyHint();
-    document.getElementById('modelDialog').showModal();
 }
 
 async function submitProvider(event) {
     event.preventDefault();
     const button = document.getElementById('providerSubmitBtn');
-    const pk = editingProviderPk;
 
     const payload = {
+        slug: document.getElementById('providerSlug').value.trim(),
         name: document.getElementById('providerName').value.trim(),
+        driver: document.getElementById('providerDriver').value,
         description: document.getElementById('providerDescription').value.trim(),
         base_url: document.getElementById('providerBaseUrl').value.trim(),
         currency: document.getElementById('providerCurrency').value.trim(),
@@ -993,59 +283,17 @@ async function submitProvider(event) {
 
     button.disabled = true;
     try {
-        if (pk !== null) {
-            await api(`/admin/ai/catalog/providers/${pk}`, 'PUT', payload);
-            showMessage('供应商已更新', 'success');
-        } else {
-            payload.slug = document.getElementById('providerSlug').value.trim();
-            payload.driver = document.getElementById('providerDriver').value;
-            await api('/admin/ai/catalog/providers', 'POST', payload);
-            showMessage('供应商已新增', 'success');
-        }
+        const result = await api('/admin/ai/catalog/providers', 'POST', payload);
         closeDialog('providerDialog');
-        setTimeout(() => window.location.reload(), 400);
+        window.location.href = `/admin/ai/catalog/providers/${result.id}`;
     } catch (error) {
         button.disabled = false;
         showDialogError('providerDialogError', error.message);
     }
 }
 
-async function submitModel(event) {
-    event.preventDefault();
-    const button = document.getElementById('modelSubmitBtn');
-    const pk = editingModelPk;
-
-    const payload = {
-        display_name: document.getElementById('modelDisplayName').value.trim(),
-        description: document.getElementById('modelDescription').value.trim(),
-        input_price: document.getElementById('modelInputPrice').value,
-        output_price: document.getElementById('modelOutputPrice').value,
-        sort_order: document.getElementById('modelSort').value,
-        enabled: document.getElementById('modelEnabled').checked,
-        is_default: document.getElementById('modelDefault').checked
-    };
-
-    button.disabled = true;
-    try {
-        if (pk !== null) {
-            await api(`/admin/ai/catalog/models/${pk}`, 'PUT', payload);
-            showMessage('模型已更新', 'success');
-        } else {
-            payload.provider_id = document.getElementById('modelProvider').value;
-            payload.model_id = document.getElementById('modelId').value.trim();
-            await api('/admin/ai/catalog/models', 'POST', payload);
-            showMessage('模型已新增', 'success');
-        }
-        closeDialog('modelDialog');
-        setTimeout(() => window.location.reload(), 400);
-    } catch (error) {
-        button.disabled = false;
-        showDialogError('modelDialogError', error.message);
-    }
-}
-
 async function removeProvider(pk) {
-    const provider = providerByPk(pk);
+    const provider = catalog.find(item => String(item.provider_pk) === String(pk));
     if (!provider) {
         return;
     }
@@ -1061,32 +309,9 @@ async function removeProvider(pk) {
     }
 }
 
-async function removeModel(pk) {
-    const found = modelByPk(pk);
-    if (!found) {
-        return;
-    }
-    if (!confirm(`确定删除模型「${found.model.model_id}」？被用户引用时无法删除。`)) {
-        return;
-    }
-    try {
-        await api(`/admin/ai/catalog/models/${pk}`, 'DELETE');
-        showMessage('模型已删除', 'success');
-        setTimeout(() => window.location.reload(), 400);
-    } catch (error) {
-        showMessage(error.message, 'error');
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     renderProviders();
-    refreshModelFilter();
-    renderModels();
-    updateModelCurrencyHint();
-
     document.getElementById('providerForm').addEventListener('submit', submitProvider);
-    document.getElementById('modelForm').addEventListener('submit', submitModel);
-
     document.querySelectorAll('dialog').forEach(dialog => {
         dialog.addEventListener('click', event => {
             if (event.target === dialog) {

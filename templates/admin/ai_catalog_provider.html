@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+
+{% block title %}{{ provider.name }} - AI 供应商配置 - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container admin-dashboard" style="max-width: 1100px;">
+    <div class="dashboard-header">
+        <h2>供应商：{{ provider.name }}</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('ai.ai_catalog') }}" class="btn">返回供应商列表</a>
+            <a href="{{ url_for('ai.ai_settings') }}" class="btn">返回 AI 设置</a>
+        </div>
+    </div>
+
+    <div id="catalogMessage" class="catalog-message" style="display: none;"></div>
+
+    <div class="ai-section">
+        <div class="provider-summary">
+            <div class="provider-summary-head">
+                <div>
+                    <h3>{{ provider.name }}</h3>
+                    <span class="model-id">{{ provider.slug }}</span>
+                </div>
+                <button type="button" class="btn" onclick="openProviderDialog()">
+                    编辑供应商信息
+                </button>
+            </div>
+            <div class="provider-meta-grid">
+                <div class="provider-meta-item">
+                    <span>驱动</span>
+                    <strong>{{ provider.driver }}</strong>
+                </div>
+                <div class="provider-meta-item">
+                    <span>Base URL</span>
+                    <strong class="model-id">{{ provider.base_url or '—' }}</strong>
+                </div>
+                <div class="provider-meta-item">
+                    <span>币种</span>
+                    <strong>{{ provider.currency }}</strong>
+                </div>
+                <div class="provider-meta-item">
+                    <span>默认模型</span>
+                    <strong>{{ provider.default_model or '未设置' }}</strong>
+                </div>
+                <div class="provider-meta-item">
+                    <span>状态</span>
+                    <strong>
+                        <span class="badge {% if provider.enabled %}badge-on{% else %}badge-off{% endif %}">
+                            {% if provider.enabled %}启用{% else %}停用{% endif %}
+                        </span>
+                        {% if provider.is_builtin %}
+                        <span class="badge badge-builtin">内置</span>
+                        {% endif %}
+                    </strong>
+                </div>
+                <div class="provider-meta-item">
+                    <span>用户引用</span>
+                    <strong>{{ provider.usage_count }} 个用户</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ai-section">
+        <div class="section-heading">
+            <div>
+                <h3>模型配置</h3>
+                <p class="section-description">
+                    这里只展示「{{ provider.name }}」下的模型。模型 ID 创建后不可修改；
+                    被用户引用的模型无法删除，只能停用。价格留空表示沿用驱动默认价，填 0 表示免费。
+                </p>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="openModelDialog()">
+                + 新增模型
+            </button>
+        </div>
+
+        <div class="table-toolbar">
+            <span class="muted" id="modelCount"></span>
+        </div>
+
+        <div class="table-wrap">
+            <table class="catalog-table">
+                <thead>
+                    <tr>
+                        <th>模型</th>
+                        <th>价格（输入 / 输出，每 1K tokens）</th>
+                        <th>状态 / 引用</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="modelRows"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<dialog id="providerDialog" class="catalog-dialog">
+    <form id="providerForm">
+        <header class="dialog-header">
+            <div>
+                <h3>编辑供应商：{{ provider.name }}</h3>
+                <p class="dialog-subtitle">
+                    {{ '内置供应商' if provider.is_builtin else '自定义供应商' }}
+                    · {{ provider.slug }} · 驱动 {{ provider.driver }}
+                </p>
+            </div>
+            <button type="button" class="dialog-close" aria-label="关闭"
+                    onclick="closeDialog('providerDialog')">×</button>
+        </header>
+
+        <div class="dialog-body">
+            <div class="dialog-error" id="providerDialogError" style="display: none;"></div>
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="providerSlug">供应商标识</label>
+                    <input type="text" id="providerSlug" readonly>
+                    <small>创建后不可修改，因为用户配置会引用该标识。</small>
+                </div>
+                <div class="form-field">
+                    <label for="providerName">显示名称 *</label>
+                    <input type="text" id="providerName" maxlength="100" required autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="providerDriver">驱动</label>
+                    <select id="providerDriver" disabled>
+                        <option value="openai_compatible">OpenAI 兼容</option>
+                        <option value="dashscope">DashScope（内置）</option>
+                        <option value="deepseek">DeepSeek（内置）</option>
+                    </select>
+                    <small>驱动创建后不可修改。</small>
+                </div>
+                <div class="form-field">
+                    <label for="providerCurrency">币种</label>
+                    <input type="text" id="providerCurrency" maxlength="3"
+                           placeholder="CNY" autocomplete="off">
+                    <small>例如 CNY、USD，用于展示模型价格。</small>
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="providerBaseUrl">Base URL</label>
+                    <input type="text" id="providerBaseUrl"
+                           placeholder="例如 https://api.example.com/v1" autocomplete="off">
+                    <small>
+                        站点级接口地址。仅勾选“由用户填写 Base URL”的供应商可以留空。
+                    </small>
+                </div>
+                <div class="form-field">
+                    <label for="providerSort">排序</label>
+                    <input type="number" id="providerSort">
+                    <small>数字越小越靠前。</small>
+                </div>
+                <div class="form-field">
+                    <label>选项</label>
+                    <div class="checkbox-column">
+                        <label><input type="checkbox" id="providerEnabled"> 启用该供应商</label>
+                        <label><input type="checkbox" id="providerAllowCustom"> 允许用户填写目录外模型</label>
+                        <label><input type="checkbox" id="providerRequiresBaseUrl"> 由用户填写 Base URL</label>
+                    </div>
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="providerDescription">描述</label>
+                    <input type="text" id="providerDescription" maxlength="500"
+                           placeholder="展示在 AI 设置页的说明" autocomplete="off">
+                </div>
+            </div>
+        </div>
+
+        <footer class="dialog-footer">
+            <button type="button" class="btn" onclick="closeDialog('providerDialog')">取消</button>
+            <button type="submit" class="btn btn-primary" id="providerSubmitBtn">保存供应商</button>
+        </footer>
+    </form>
+</dialog>
+
+<dialog id="modelDialog" class="catalog-dialog">
+    <form id="modelForm">
+        <header class="dialog-header">
+            <div>
+                <h3 id="modelDialogTitle">新增模型</h3>
+                <p class="dialog-subtitle" id="modelDialogSubtitle"></p>
+            </div>
+            <button type="button" class="dialog-close" aria-label="关闭"
+                    onclick="closeDialog('modelDialog')">×</button>
+        </header>
+
+        <div class="dialog-body">
+            <div class="dialog-error" id="modelDialogError" style="display: none;"></div>
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="modelId">模型 ID *</label>
+                    <input type="text" id="modelId" maxlength="128" required
+                           placeholder="例如 gpt-4o-mini" autocomplete="off">
+                    <small>调用 API 时使用的真实模型名，创建后不可修改。</small>
+                </div>
+                <div class="form-field">
+                    <label for="modelDisplayName">显示名称</label>
+                    <input type="text" id="modelDisplayName" maxlength="100"
+                           placeholder="留空则使用模型 ID" autocomplete="off">
+                </div>
+                <div class="form-field">
+                    <label for="modelInputPrice">输入价格（每 1K tokens）</label>
+                    <input type="number" id="modelInputPrice" min="0" step="any"
+                           placeholder="留空=默认价">
+                    <small id="modelInputPriceHint"></small>
+                </div>
+                <div class="form-field">
+                    <label for="modelOutputPrice">输出价格（每 1K tokens）</label>
+                    <input type="number" id="modelOutputPrice" min="0" step="any"
+                           placeholder="留空=默认价">
+                    <small id="modelOutputPriceHint"></small>
+                </div>
+                <div class="form-field">
+                    <label for="modelSort">排序</label>
+                    <input type="number" id="modelSort" value="10">
+                    <small>数字越小越靠前。</small>
+                </div>
+                <div class="form-field">
+                    <label>选项</label>
+                    <div class="checkbox-column">
+                        <label><input type="checkbox" id="modelEnabled" checked> 启用该模型</label>
+                        <label><input type="checkbox" id="modelDefault"> 设为供应商默认模型</label>
+                    </div>
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="modelDescription">描述</label>
+                    <input type="text" id="modelDescription" maxlength="500"
+                           placeholder="模型能力、适用场景等" autocomplete="off">
+                </div>
+            </div>
+        </div>
+
+        <footer class="dialog-footer">
+            <button type="button" class="btn" onclick="closeDialog('modelDialog')">取消</button>
+            <button type="submit" class="btn btn-primary" id="modelSubmitBtn">创建模型</button>
+        </footer>
+    </form>
+</dialog>
+
+{% include 'admin/_ai_catalog_styles.html' %}
+
+<script>
+const provider = {{ provider|tojson }};
+let editingModelPk = null;
+
+function esc(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function showMessage(text, type) {
+    const box = document.getElementById('catalogMessage');
+    box.textContent = text;
+    box.className = 'catalog-message ' + (type || 'success');
+    box.style.display = 'block';
+}
+
+function csrfToken() {
+    const meta = document.querySelector('meta[name="csrf_token"]');
+    return meta ? meta.content : '';
+}
+
+async function api(url, method, payload) {
+    const options = {
+        method,
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken()
+        }
+    };
+    if (payload !== undefined) {
+        options.body = JSON.stringify(payload);
+    }
+    const response = await fetch(url, options);
+    let data = {};
+    try {
+        data = await response.json();
+    } catch (error) {
+        data = {success: false, error: `服务器返回异常 (${response.status})`};
+    }
+    if (!response.ok || !data.success) {
+        throw new Error(data.error || `请求失败 (${response.status})`);
+    }
+    return data;
+}
+
+function closeDialog(id) {
+    const dialog = document.getElementById(id);
+    if (dialog && dialog.open) {
+        dialog.close();
+    }
+}
+
+function clearDialogError(id) {
+    const box = document.getElementById(id);
+    if (box) {
+        box.textContent = '';
+        box.style.display = 'none';
+    }
+}
+
+function showDialogError(id, message) {
+    const box = document.getElementById(id);
+    if (!box) {
+        return;
+    }
+    box.textContent = message;
+    box.style.display = 'block';
+    box.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+function modelByPk(pk) {
+    return (provider.model_details || []).find(
+        model => String(model.id) === String(pk)
+    );
+}
+
+function priceText(value) {
+    if (value === null || value === undefined || value === '') {
+        return '默认';
+    }
+    return `${provider.currency_symbol || ''}${value}`;
+}
+
+function renderModels() {
+    const tbody = document.getElementById('modelRows');
+    const models = provider.model_details || [];
+    document.getElementById('modelCount').textContent = `${models.length} 个模型`;
+
+    if (!models.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-row">该供应商暂无模型，请先新增</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = models.map(model => `
+        <tr>
+            <td>
+                <div class="name-cell">
+                    <strong>${esc(model.display_name || model.model_id)}</strong>
+                    <span class="model-id">${esc(model.model_id)}</span>
+                </div>
+            </td>
+            <td>
+                <div class="name-cell">
+                    <span>输入：${esc(priceText(model.input_price))}</span>
+                    <span class="muted">输出：${esc(priceText(model.output_price))}</span>
+                </div>
+            </td>
+            <td>
+                <div class="badge-stack">
+                    <span class="badge ${model.enabled ? 'badge-on' : 'badge-off'}">
+                        ${model.enabled ? '启用' : '停用'}
+                    </span>
+                    ${model.is_default ? '<span class="badge badge-default">默认</span>' : ''}
+                    <span class="badge">${model.usage_count || 0} 用户</span>
+                </div>
+            </td>
+            <td>
+                <div class="actions">
+                    <button type="button" class="btn"
+                            onclick="openModelDialog(${model.id})">编辑</button>
+                    <button type="button" class="btn btn-danger"
+                            onclick="removeModel(${model.id})">删除</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updateModelPriceHints() {
+    const currency = provider.currency || '';
+    const symbol = provider.currency_symbol || '';
+    document.getElementById('modelInputPriceHint').textContent =
+        `留空表示沿用驱动默认价；当前币种：${currency} ${symbol}`;
+    document.getElementById('modelOutputPriceHint').textContent =
+        `留空表示沿用驱动默认价；当前币种：${currency} ${symbol}`;
+}
+
+function openProviderDialog() {
+    clearDialogError('providerDialogError');
+
+    document.getElementById('providerSlug').value = provider.slug;
+    document.getElementById('providerName').value = provider.name;
+    document.getElementById('providerDescription').value = provider.description || '';
+    document.getElementById('providerBaseUrl').value = provider.base_url || '';
+    document.getElementById('providerCurrency').value = provider.currency || 'CNY';
+    document.getElementById('providerSort').value = provider.sort_order || 0;
+    document.getElementById('providerEnabled').checked = !!provider.enabled;
+    document.getElementById('providerAllowCustom').checked = !!provider.allow_custom_model;
+    document.getElementById('providerRequiresBaseUrl').checked = !!provider.requires_base_url;
+    document.getElementById('providerDriver').value = provider.driver;
+
+    document.getElementById('providerDialog').showModal();
+}
+
+async function submitProvider(event) {
+    event.preventDefault();
+    const button = document.getElementById('providerSubmitBtn');
+
+    const payload = {
+        name: document.getElementById('providerName').value.trim(),
+        description: document.getElementById('providerDescription').value.trim(),
+        base_url: document.getElementById('providerBaseUrl').value.trim(),
+        currency: document.getElementById('providerCurrency').value.trim(),
+        sort_order: document.getElementById('providerSort').value,
+        enabled: document.getElementById('providerEnabled').checked,
+        allow_custom_model: document.getElementById('providerAllowCustom').checked,
+        requires_base_url: document.getElementById('providerRequiresBaseUrl').checked
+    };
+
+    button.disabled = true;
+    try {
+        await api(`/admin/ai/catalog/providers/${provider.provider_pk}`, 'PUT', payload);
+        closeDialog('providerDialog');
+        showMessage('供应商信息已更新', 'success');
+        setTimeout(() => window.location.reload(), 400);
+    } catch (error) {
+        button.disabled = false;
+        showDialogError('providerDialogError', error.message);
+    }
+}
+
+function openModelDialog(pk) {
+    const form = document.getElementById('modelForm');
+    form.reset();
+    clearDialogError('modelDialogError');
+
+    const pkValue = pk === undefined ? null : pk;
+    editingModelPk = pkValue;
+
+    const modelIdInput = document.getElementById('modelId');
+    const title = document.getElementById('modelDialogTitle');
+    const subtitle = document.getElementById('modelDialogSubtitle');
+    const submitBtn = document.getElementById('modelSubmitBtn');
+
+    if (pkValue !== null) {
+        const model = modelByPk(pkValue);
+        if (!model) {
+            showMessage('模型不存在，请刷新页面后重试', 'error');
+            return;
+        }
+        title.textContent = `编辑模型：${model.model_id}`;
+        subtitle.textContent =
+            `供应商：${provider.name} · 币种：${provider.currency} · 模型 ID 创建后不可修改`;
+        submitBtn.textContent = '保存模型';
+
+        modelIdInput.value = model.model_id;
+        modelIdInput.readOnly = true;
+        document.getElementById('modelDisplayName').value = model.display_name || '';
+        document.getElementById('modelDescription').value = model.description || '';
+        document.getElementById('modelInputPrice').value =
+            model.input_price === null || model.input_price === undefined ? '' : model.input_price;
+        document.getElementById('modelOutputPrice').value =
+            model.output_price === null || model.output_price === undefined ? '' : model.output_price;
+        document.getElementById('modelSort').value = model.sort_order || 0;
+        document.getElementById('modelEnabled').checked = !!model.enabled;
+        document.getElementById('modelDefault').checked = !!model.is_default;
+    } else {
+        title.textContent = '新增模型';
+        subtitle.textContent = `将添加到：${provider.name}（${provider.slug}）`;
+        submitBtn.textContent = '创建模型';
+
+        modelIdInput.readOnly = false;
+        document.getElementById('modelSort').value = '10';
+        document.getElementById('modelEnabled').checked = true;
+        document.getElementById('modelDefault').checked = false;
+    }
+
+    updateModelPriceHints();
+    document.getElementById('modelDialog').showModal();
+}
+
+async function submitModel(event) {
+    event.preventDefault();
+    const button = document.getElementById('modelSubmitBtn');
+    const pk = editingModelPk;
+
+    const payload = {
+        display_name: document.getElementById('modelDisplayName').value.trim(),
+        description: document.getElementById('modelDescription').value.trim(),
+        input_price: document.getElementById('modelInputPrice').value,
+        output_price: document.getElementById('modelOutputPrice').value,
+        sort_order: document.getElementById('modelSort').value,
+        enabled: document.getElementById('modelEnabled').checked,
+        is_default: document.getElementById('modelDefault').checked
+    };
+
+    button.disabled = true;
+    try {
+        if (pk !== null) {
+            await api(`/admin/ai/catalog/models/${pk}`, 'PUT', payload);
+            showMessage('模型已更新', 'success');
+        } else {
+            payload.provider_id = provider.provider_pk;
+            payload.model_id = document.getElementById('modelId').value.trim();
+            await api('/admin/ai/catalog/models', 'POST', payload);
+            showMessage('模型已新增', 'success');
+        }
+        closeDialog('modelDialog');
+        setTimeout(() => window.location.reload(), 400);
+    } catch (error) {
+        button.disabled = false;
+        showDialogError('modelDialogError', error.message);
+    }
+}
+
+async function removeModel(pk) {
+    const model = modelByPk(pk);
+    if (!model) {
+        return;
+    }
+    if (!confirm(`确定删除模型「${model.model_id}」？被用户引用时无法删除。`)) {
+        return;
+    }
+    try {
+        await api(`/admin/ai/catalog/models/${pk}`, 'DELETE');
+        showMessage('模型已删除', 'success');
+        setTimeout(() => window.location.reload(), 400);
+    } catch (error) {
+        showMessage(error.message, 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    renderModels();
+    document.getElementById('providerForm').addEventListener('submit', submitProvider);
+    document.getElementById('modelForm').addEventListener('submit', submitModel);
+    document.querySelectorAll('dialog').forEach(dialog => {
+        dialog.addEventListener('click', event => {
+            if (event.target === dialog) {
+                dialog.close();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

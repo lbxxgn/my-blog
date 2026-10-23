@@ -217,10 +217,11 @@ class TestCatalogRoutes:
         response = client.get('/admin/ai/catalog')
         assert response.status_code == 200
         html = response.get_data(as_text=True)
-        assert 'AI 提供商与模型管理' in html
+        assert 'AI 供应商' in html
         assert '新增供应商' in html
-        assert '新增模型' in html
+        assert '供应商列表' in html
         assert 'providerDialog' in html
+        assert '新增模型' not in html
 
         client.get('/logout')
         self._login(client, test_user)
@@ -253,6 +254,13 @@ class TestCatalogRoutes:
         catalog = client.get('/admin/ai/catalog/data').get_json()['data']
         provider = next(p for p in catalog if p['slug'] == 'moonshot')
         assert provider['default_model'] == 'moonshot-v1-8k'
+
+        detail = client.get(f'/admin/ai/catalog/providers/{provider_id}')
+        assert detail.status_code == 200
+        detail_html = detail.get_data(as_text=True)
+        assert 'moonshot-v1-8k' in detail_html
+        assert '新增模型' in detail_html
+        assert '模型配置' in detail_html
 
     def test_api_returns_conflict_for_duplicate_slug(self, client, test_admin_user):
         self._login(client, test_admin_user)
@@ -300,6 +308,11 @@ class TestCatalogRoutes:
 
         catalog = client.get('/admin/ai/catalog/data').get_json()['data']
         assert not any(provider['slug'] == 'moonshot' for provider in catalog)
+
+    def test_provider_detail_returns_404_for_unknown_provider(
+            self, client, test_admin_user):
+        self._login(client, test_admin_user)
+        assert client.get('/admin/ai/catalog/providers/999999').status_code == 404
 
     def test_non_admin_cannot_modify_catalog(self, client, test_user):
         self._login(client, test_user)

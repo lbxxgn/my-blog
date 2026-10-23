@@ -1,6 +1,6 @@
 """AI 提供商与模型目录管理（ai 蓝图子模块）。"""
 
-from flask import jsonify, render_template, request, session
+from flask import abort, jsonify, render_template, request, session
 
 from auth_decorators import admin_required
 from logger import log_error, log_operation
@@ -41,9 +41,23 @@ def _unexpected_error(exc, action):
 @ai_bp.route('/catalog')
 @admin_required
 def ai_catalog():
-    """AI 提供商与模型目录管理页（仅管理员）。"""
+    """供应商列表页（仅管理员）。"""
     return render_template('admin/ai_catalog.html',
                            catalog=get_catalog(include_disabled=True))
+
+
+@ai_bp.route('/catalog/providers/<int:provider_id>')
+@admin_required
+def ai_catalog_provider(provider_id):
+    """单个供应商配置页：维护该供应商下的模型。"""
+    provider = next(
+        (item for item in get_catalog(include_disabled=True)
+         if item.get('provider_pk') == provider_id),
+        None,
+    )
+    if not provider:
+        abort(404)
+    return render_template('admin/ai_catalog_provider.html', provider=provider)
 
 
 @ai_bp.route('/catalog/data')
