@@ -166,6 +166,71 @@ function appendHtmlToEditor(html) {
     }
 }
 
+// Generate AI title
+async function generateAITitle() {
+    const titleInput = document.getElementById('title');
+    const currentTitle = titleInput?.value?.trim() || '';
+    const content = window.quill
+        ? window.quill.getText().trim()
+        : (document.getElementById('content')?.value || '').trim();
+
+    if (!content) {
+        showAiToolsStatus('error', '❌ 请先输入文章内容');
+        return;
+    }
+
+    if (currentTitle) {
+        const confirmFn = window.showAppConfirm || ((msg) => Promise.resolve(window.confirm(msg)));
+        const ok = await confirmFn('AI 生成会覆盖当前标题，继续吗？');
+        if (!ok) return;
+    }
+
+    openAiAssistPanel();
+    showAiToolsStatus('loading', '🤖 AI正在生成标题...');
+
+    let postId = null;
+    const pathParts = window.location.pathname.split('/');
+    const maybeId = pathParts[pathParts.length - 1];
+    if (!isNaN(parseInt(maybeId, 10))) {
+        postId = parseInt(maybeId, 10);
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content || '';
+
+    try {
+        const response = await fetch('/admin/ai/generate-title', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({content, post_id: postId})
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || '生成失败');
+        }
+
+        if (data.title && titleInput) {
+            titleInput.value = data.title;
+            titleInput.dispatchEvent(new Event('input', {bubbles: true}));
+            window.dispatchEvent(new CustomEvent('editor:content-change', {
+                detail: {html: window.quill ? window.quill.root.innerHTML : '', text: content}
+            }));
+        }
+
+        if (data.source === 'ai') {
+            showAiToolsStatus('success', `✅ 标题已生成：${data.title}`);
+        } else {
+            showAiToolsStatus('error', `⚠️ AI 未生成标题，已使用启发式标题：${data.ai_error || '未知原因'}`);
+        }
+    } catch (error) {
+        showAiToolsStatus('error', `❌ 标题生成失败：${error.message}`);
+    }
+}
+
+window.generateAITitle = generateAITitle;
+
 // Generate AI summary
 async function generateAISummary() {
     const title = document.getElementById('title').value.trim();

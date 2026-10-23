@@ -106,3 +106,57 @@ def test_user_title_does_not_trigger_ai_title(
     import time
     time.sleep(0.15)
     assert not calls
+
+
+def test_new_post_thread_updates_title_and_history(
+        client, test_admin_user, temp_db, monkeypatch):
+    import time
+    from routes import admin as admin_module
+    from models import get_ai_tag_history, get_post_by_id, update_user_ai_config
+
+    update_user_ai_config(test_admin_user['id'], {
+        'ai_tag_generation_enabled': True,
+        'ai_provider': 'dashscope',
+        'ai_model': 'qwen-turbo',
+        'ai_api_key': 'sk-test',
+    })
+    monkeypatch.setattr(
+        admin_module,
+        '_run_structured_prompt',
+        lambda *args, **kwargs: {
+            'content': '线程生成的标题',
+            'model': 'qwen-turbo',
+            'tokens_used': 10,
+            'input_tokens': 5,
+            'output_tokens': 5,
+        },
+    )
+
+    client.post('/login', data={
+        'username': test_admin_user['username'],
+        'password': test_admin_user['password'],
+    })
+    response = client.post('/admin/new', data={
+        'title': '',
+        'content': '<p>这是一段用于测试异步线程自动标题的正文内容。</p>',
+        'content_format': 'html',
+    })
+    assert response.status_code in (302, 200)
+
+    deadline = time.time() + 3
+    title = None
+    while time.time() < deadline:
+        post = get_post_by_id(1)
+        if post and post['title'] == '线程生成的标题':
+            title = post['title']
+            break
+        time.sleep(0.05)
+    assert title == '线程生成的标题'
+
+    history = get_ai_tag_history(user_id=test_admin_user['id'])
+    title_records = [
+        row for row in history
+        if 'generate_title' in (row.get('generated_tags') or '')
+    ]
+    assert title_records
+    assert '线程生成的标题' in title_records[0]['generated_tags']

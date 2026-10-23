@@ -63,6 +63,12 @@
                                 <span class="action-tag tag-type-recommend">推荐文章</span>
                             {% elif record.parsed_data.action == 'continue_writing' %}
                                 <span class="action-tag tag-type-continue">内容续写</span>
+                            {% elif record.parsed_data.action == 'generate_title' %}
+                                <span class="action-tag tag-type-generate">标题生成</span>
+                            {% elif record.parsed_data.action == 'organize_content' %}
+                                <span class="action-tag tag-type-summary">内容整理</span>
+                            {% elif record.parsed_data.action == 'restructure' %}
+                                <span class="action-tag tag-type-continue">内容重组</span>
                             {% else %}
                                 <span class="action-tag tag-type-default">未知: {{ record.parsed_data.action }}</span>
                             {% endif %}
@@ -107,6 +113,10 @@
                                 <span class="recommend-result">推荐 {{ record.parsed_data.recommendations_count or 0 }} 篇</span>
                             {% elif record.parsed_data.action == 'continue_writing' %}
                                 <span class="continue-result">续写 {{ record.parsed_data.continuation_length or 0 }} 字</span>
+                            {% elif record.parsed_data.action == 'generate_title' %}
+                                <span class="summary-result">{{ record.parsed_data.title or '（无标题数据）' }}</span>
+                            {% elif record.parsed_data.action in ['organize_content', 'restructure'] %}
+                                <span class="text-muted">{{ record.parsed_data.preview or '（无预览）' }}</span>
                             {% else %}
                                 <span class="text-muted">未知格式</span>
                             {% endif %}

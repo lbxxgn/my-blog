@@ -205,6 +205,7 @@ def generate_title():
     # 启发式标题作为 fallback
     title = _heuristic_title(content)
     source = 'heuristic'
+    ai_error = None
 
     # 尝试 AI 生成
     if user_ai_config and user_ai_config.get('ai_tag_generation_enabled'):
@@ -246,12 +247,18 @@ def generate_title():
                         result_preview=title
                     )
         except Exception as e:
+            ai_error = str(e)
             logger.warning(f"AI title generation failed, using heuristic: {e}")
+    elif user_ai_config:
+        ai_error = 'AI 功能未启用，请先在 AI 设置中开启'
+    else:
+        ai_error = '未配置 AI，请先在 AI 设置中配置供应商和密钥'
 
     return jsonify({
         'success': True,
         'title': title,
-        'source': source
+        'source': source,
+        'ai_error': ai_error
     })
 
 @ai_bp.route('/continue-writing', methods=['POST'])

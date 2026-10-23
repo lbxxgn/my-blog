@@ -412,6 +412,12 @@ def save_ai_tag_history(post_id=None, user_id=None, prompt=None, generated_tags=
         elif action == 'continue_writing':
             result_data['continuation_length'] = kwargs.get('continuation_length', 0)
             result_data['continuation_preview'] = result_preview[:200] if result_preview else ''
+        elif action == 'generate_title':
+            result_data['title'] = result_preview or ''
+        elif action == 'organize_content':
+            result_data['preview'] = (result_preview or '')[:200]
+        elif action == 'restructure':
+            result_data['preview'] = (result_preview or '')[:200]
 
         # 添加token信息
         if input_tokens is not None or output_tokens is not None:
