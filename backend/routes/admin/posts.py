@@ -141,7 +141,8 @@ def admin_dashboard():
 def new_post():
     """创建新文章"""
     if request.method == 'POST':
-        title = request.form.get('title')
+        raw_title = (request.form.get('title') or '').strip()
+        title = raw_title
         content = request.form.get('content')
         content_format = _normalize_content_format(request.form.get('content_format'))
         is_published = request.form.get('is_published') is not None
@@ -182,7 +183,7 @@ def new_post():
         post_id = create_post(title, content, is_published, category_id, author_id, access_level, access_password, content_format=content_format)
 
         # 如果原标题为空，后台异步调用AI生成更好的标题
-        if not request.form.get('title') and post_id:
+        if not raw_title and post_id:
             app = current_app._get_current_object()
             t = threading.Thread(target=_async_ai_title, args=(app, post_id, content, author_id))
             t.daemon = True
@@ -244,7 +245,8 @@ def edit_post(post_id):
         return redirect(url_for('admin.admin_dashboard'))
 
     if request.method == 'POST':
-        title = request.form.get('title')
+        raw_title = (request.form.get('title') or '').strip()
+        title = raw_title
         content = request.form.get('content')
         content_format = _normalize_content_format(request.form.get('content_format'))
         # 如果文章已经发布，保持发布状态；否则根据表单决定
@@ -284,7 +286,7 @@ def edit_post(post_id):
         update_post(post_id, title, content, is_published, category_id, access_level, access_password, content_format=content_format)
 
         # 如果原标题为空，后台异步调用AI生成更好的标题
-        if not request.form.get('title'):
+        if not raw_title:
             user_id = session.get('user_id')
             app = current_app._get_current_object()
             t = threading.Thread(target=_async_ai_title, args=(app, post_id, content, user_id))

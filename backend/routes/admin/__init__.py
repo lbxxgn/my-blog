@@ -12,6 +12,7 @@ import re
 from models import get_db_connection, get_user_ai_config, save_ai_tag_history
 from backend.routes.ai import _run_structured_prompt
 from auth_decorators import get_current_user
+from logger import log_error
 from backend.config import ALLOWED_EXTENSIONS
 
 def _auto_title(content: str) -> str:
@@ -72,6 +73,11 @@ def _async_ai_title(app, post_id, content, user_id):
                     )
         except Exception as e:
             logger.warning(f"Async AI title generation failed: {e}")
+            log_error(
+                e,
+                context=f'异步AI标题生成失败 | 文章ID: {post_id}',
+                user_id=user_id,
+            )
 
 # 创建管理后台蓝图
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
