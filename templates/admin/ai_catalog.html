@@ -1,0 +1,714 @@
+{% extends "base.html" %}
+
+{% block title %}AI 提供商与模型管理 - {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="container admin-dashboard" style="max-width: 1100px;">
+    <div class="dashboard-header">
+        <h2>AI 提供商与模型管理</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('ai.ai_settings') }}" class="btn">返回 AI 设置</a>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+        </div>
+    </div>
+
+    <div id="catalogMessage" class="catalog-message" style="display: none;"></div>
+
+    <div class="ai-section">
+        <div class="section-heading">
+            <div>
+                <h3>供应商</h3>
+                <p class="section-description">
+                    新增供应商仅支持 OpenAI 兼容驱动。供应商标识创建后不可修改，
+                    因为它会被用户的 AI 配置引用。
+                </p>
+            </div>
+        </div>
+
+        <form id="providerForm" class="catalog-form">
+            <input type="hidden" id="providerPk">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="providerSlug">供应商标识 *</label>
+                    <input type="text" id="providerSlug" maxlength="32" required
+                           placeholder="例如 moonshot">
+                    <small>小写字母、数字、-、_，长度 2-32，创建后不可改。</small>
+                </div>
+                <div class="form-field">
+                    <label for="providerName">显示名称 *</label>
+                    <input type="text" id="providerName" maxlength="100" required
+                           placeholder="例如 Moonshot">
+                </div>
+                <div class="form-field">
+                    <label for="providerDriver">驱动</label>
+                    <select id="providerDriver">
+                        <option value="openai_compatible">OpenAI 兼容</option>
+                        <option value="dashscope">DashScope（内置）</option>
+                        <option value="deepseek">DeepSeek（内置）</option>
+                    </select>
+                    <small>内置供应商的驱动不可修改。</small>
+                </div>
+                <div class="form-field">
+                    <label for="providerCurrency">币种</label>
+                    <input type="text" id="providerCurrency" maxlength="3" value="CNY"
+                           placeholder="CNY">
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="providerBaseUrl">Base URL</label>
+                    <input type="text" id="providerBaseUrl"
+                           placeholder="例如 https://api.example.com/v1">
+                    <small>站点级接口地址；仅“由用户填写 Base URL”的供应商可以留空。</small>
+                </div>
+                <div class="form-field">
+                    <label for="providerSort">排序</label>
+                    <input type="number" id="providerSort" value="50">
+                </div>
+                <div class="form-field form-field-wide">
+                    <label>选项</label>
+                    <div class="checkbox-row">
+                        <label><input type="checkbox" id="providerEnabled" checked> 启用</label>
+                        <label><input type="checkbox" id="providerAllowCustom"> 允许用户填写目录外模型</label>
+                        <label><input type="checkbox" id="providerRequiresBaseUrl"> 由用户填写 Base URL</label>
+                    </div>
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="providerDescription">描述</label>
+                    <input type="text" id="providerDescription" maxlength="500"
+                           placeholder="展示在 AI 设置页的说明">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="providerSubmitBtn">新增供应商</button>
+                <button type="button" class="btn" onclick="resetProviderForm()">取消编辑</button>
+            </div>
+        </form>
+
+        <div class="table-wrap">
+            <table class="catalog-table">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>标识</th>
+                        <th>驱动</th>
+                        <th>Base URL</th>
+                        <th>币种</th>
+                        <th>状态</th>
+                        <th>引用用户</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="providerRows"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="ai-section">
+        <div class="section-heading">
+            <div>
+                <h3>模型</h3>
+                <p class="section-description">
+                    模型 ID 创建后不可修改；被用户引用的模型无法删除，只能停用。
+                    价格留空表示沿用驱动默认价，填 0 表示免费。
+                </p>
+            </div>
+        </div>
+
+        <form id="modelForm" class="catalog-form">
+            <input type="hidden" id="modelPk">
+            <div class="form-grid">
+                <div class="form-field">
+                    <label for="modelProvider">所属供应商 *</label>
+                    <select id="modelProvider" required></select>
+                </div>
+                <div class="form-field">
+                    <label for="modelId">模型 ID *</label>
+                    <input type="text" id="modelId" maxlength="128" required
+                           placeholder="例如 gpt-4o-mini">
+                    <small>创建后不可修改。</small>
+                </div>
+                <div class="form-field">
+                    <label for="modelDisplayName">显示名称</label>
+                    <input type="text" id="modelDisplayName" maxlength="100"
+                           placeholder="留空则使用模型 ID">
+                </div>
+                <div class="form-field">
+                    <label for="modelSort">排序</label>
+                    <input type="number" id="modelSort" value="10">
+                </div>
+                <div class="form-field">
+                    <label for="modelInputPrice">输入价格 (每 1K tokens)</label>
+                    <input type="number" id="modelInputPrice" min="0" step="any"
+                           placeholder="留空=默认价">
+                </div>
+                <div class="form-field">
+                    <label for="modelOutputPrice">输出价格 (每 1K tokens)</label>
+                    <input type="number" id="modelOutputPrice" min="0" step="any"
+                           placeholder="留空=默认价">
+                </div>
+                <div class="form-field form-field-wide">
+                    <label>选项</label>
+                    <div class="checkbox-row">
+                        <label><input type="checkbox" id="modelEnabled" checked> 启用</label>
+                        <label><input type="checkbox" id="modelDefault"> 设为默认模型</label>
+                    </div>
+                </div>
+                <div class="form-field form-field-wide">
+                    <label for="modelDescription">描述</label>
+                    <input type="text" id="modelDescription" maxlength="500"
+                           placeholder="模型能力、适用场景等">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="modelSubmitBtn">新增模型</button>
+                <button type="button" class="btn" onclick="resetModelForm()">取消编辑</button>
+            </div>
+        </form>
+
+        <div class="table-wrap">
+            <table class="catalog-table">
+                <thead>
+                    <tr>
+                        <th>供应商</th>
+                        <th>模型 ID</th>
+                        <th>显示名称</th>
+                        <th>输入价格</th>
+                        <th>输出价格</th>
+                        <th>状态</th>
+                        <th>引用用户</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="modelRows"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.ai-section {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.ai-section h3 {
+    margin: 0 0 0.35rem 0;
+    font-size: 1.2rem;
+    color: var(--text-color, #1f2937);
+}
+
+.section-description {
+    margin: 0 0 1.25rem 0;
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.catalog-form {
+    background: var(--code-bg, #f9fafb);
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1rem;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.form-field-wide {
+    grid-column: 1 / -1;
+}
+
+.form-field label {
+    font-weight: 500;
+    color: var(--text-color, #1f2937);
+    font-size: 0.9rem;
+}
+
+.form-field input,
+.form-field select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 7px;
+    background: var(--input-bg, #fff);
+    color: var(--text-color, #1f2937);
+    font-size: 0.95rem;
+}
+
+.form-field small {
+    color: var(--text-secondary, #6b7280);
+    font-size: 0.78rem;
+}
+
+.checkbox-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding-top: 0.25rem;
+}
+
+.checkbox-row label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 400;
+}
+
+.form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.catalog-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.catalog-table th,
+.catalog-table td {
+    padding: 0.7rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    vertical-align: top;
+}
+
+.catalog-table th {
+    font-weight: 600;
+    color: var(--text-color, #1f2937);
+    background: var(--code-bg, #f9fafb);
+    white-space: nowrap;
+}
+
+.catalog-table tr:last-child td {
+    border-bottom: none;
+}
+
+.catalog-table .actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.catalog-table .btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    color: var(--text-secondary, #6b7280);
+    white-space: nowrap;
+}
+
+.badge-on {
+    color: #047857;
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.badge-off {
+    color: #b45309;
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.badge-default {
+    color: #1d4ed8;
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.empty-row {
+    color: var(--text-secondary, #6b7280);
+    text-align: center;
+    padding: 1.5rem !important;
+}
+
+.catalog-message {
+    padding: 0.85rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.catalog-message.success {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #10b981;
+}
+
+.catalog-message.error {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #ef4444;
+}
+
+.dark-theme .ai-section {
+    background: #1f2937;
+    border-color: #374151;
+}
+
+.dark-theme .catalog-form {
+    background: #374151;
+    border-color: #4b5563;
+}
+
+.dark-theme .form-field input,
+.dark-theme .form-field select {
+    background: #1f2937;
+    border-color: #4b5563;
+    color: #f9fafb;
+}
+
+.dark-theme .catalog-table th {
+    background: #374151;
+}
+</style>
+
+<script>
+const catalog = {{ catalog|tojson }};
+
+function esc(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function showMessage(text, type) {
+    const box = document.getElementById('catalogMessage');
+    box.textContent = text;
+    box.className = 'catalog-message ' + (type || 'success');
+    box.style.display = 'block';
+    box.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+function csrfToken() {
+    const meta = document.querySelector('meta[name="csrf_token"]');
+    return meta ? meta.content : '';
+}
+
+async function api(url, method, payload) {
+    const options = {
+        method,
+        credentials: 'same-origin',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken()
+        }
+    };
+    if (payload !== undefined) {
+        options.body = JSON.stringify(payload);
+    }
+    const response = await fetch(url, options);
+    let data = {};
+    try {
+        data = await response.json();
+    } catch (error) {
+        data = {success: false, error: `服务器返回异常 (${response.status})`};
+    }
+    if (!response.ok || !data.success) {
+        throw new Error(data.error || `请求失败 (${response.status})`);
+    }
+    return data;
+}
+
+function providerByPk(pk) {
+    return catalog.find(provider => String(provider.provider_pk) === String(pk));
+}
+
+function modelByPk(pk) {
+    for (const provider of catalog) {
+        const model = (provider.model_details || []).find(
+            item => String(item.id) === String(pk)
+        );
+        if (model) {
+            return {provider, model};
+        }
+    }
+    return null;
+}
+
+function priceText(value, symbol) {
+    if (value === null || value === undefined || value === '') {
+        return '默认';
+    }
+    return `${symbol || ''}${value}`;
+}
+
+function renderProviders() {
+    const tbody = document.getElementById('providerRows');
+    if (!catalog.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-row">暂无供应商</td></tr>';
+    } else {
+        tbody.innerHTML = catalog.map(provider => `
+            <tr>
+                <td>${esc(provider.name)}</td>
+                <td><code>${esc(provider.slug)}</code></td>
+                <td>${esc(provider.driver)}</td>
+                <td>${esc(provider.base_url || '—')}</td>
+                <td>${esc(provider.currency)}</td>
+                <td>
+                    <span class="badge ${provider.enabled ? 'badge-on' : 'badge-off'}">
+                        ${provider.enabled ? '启用' : '停用'}
+                    </span>
+                    ${provider.is_builtin ? '<span class="badge">内置</span>' : ''}
+                </td>
+                <td>${provider.usage_count}</td>
+                <td>
+                    <div class="actions">
+                        <button type="button" class="btn" onclick="editProvider(${provider.provider_pk})">编辑</button>
+                        ${provider.is_builtin ? '' : `
+                        <button type="button" class="btn btn-danger"
+                                onclick="removeProvider(${provider.provider_pk})">删除</button>`}
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    const select = document.getElementById('modelProvider');
+    const current = select.value;
+    const options = catalog
+        .filter(provider => provider.provider_pk !== null && provider.provider_pk !== undefined)
+        .map(provider => `<option value="${provider.provider_pk}">${esc(provider.name)} (${esc(provider.slug)})</option>`);
+    select.innerHTML = options.join('');
+    if (current) {
+        select.value = current;
+    }
+}
+
+function renderModels() {
+    const tbody = document.getElementById('modelRows');
+    const rows = [];
+    for (const provider of catalog) {
+        for (const model of provider.model_details || []) {
+            rows.push({provider, model});
+        }
+    }
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-row">暂无模型</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(({provider, model}) => `
+        <tr>
+            <td>${esc(provider.name)}</td>
+            <td><code>${esc(model.model_id)}</code></td>
+            <td>${esc(model.display_name || '')}</td>
+            <td>${esc(priceText(model.input_price, model.currency_symbol))}</td>
+            <td>${esc(priceText(model.output_price, model.currency_symbol))}</td>
+            <td>
+                <span class="badge ${model.enabled ? 'badge-on' : 'badge-off'}">
+                    ${model.enabled ? '启用' : '停用'}
+                </span>
+                ${model.is_default ? '<span class="badge badge-default">默认</span>' : ''}
+            </td>
+            <td>${model.usage_count || 0}</td>
+            <td>
+                <div class="actions">
+                    <button type="button" class="btn" onclick="editModel(${model.id})">编辑</button>
+                    <button type="button" class="btn btn-danger"
+                            onclick="removeModel(${model.id})">删除</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function resetProviderForm() {
+    document.getElementById('providerForm').reset();
+    document.getElementById('providerPk').value = '';
+    document.getElementById('providerSlug').disabled = false;
+    document.getElementById('providerDriver').value = 'openai_compatible';
+    document.getElementById('providerDriver').disabled = false;
+    document.getElementById('providerCurrency').value = 'CNY';
+    document.getElementById('providerSort').value = '50';
+    document.getElementById('providerEnabled').checked = true;
+    document.getElementById('providerSubmitBtn').textContent = '新增供应商';
+}
+
+function editProvider(pk) {
+    const provider = providerByPk(pk);
+    if (!provider) {
+        return;
+    }
+    document.getElementById('providerPk').value = provider.provider_pk;
+    document.getElementById('providerSlug').value = provider.slug;
+    document.getElementById('providerSlug').disabled = true;
+    document.getElementById('providerName').value = provider.name;
+    document.getElementById('providerDescription').value = provider.description || '';
+    document.getElementById('providerDriver').value = provider.driver;
+    document.getElementById('providerDriver').disabled = true;
+    document.getElementById('providerBaseUrl').value = provider.base_url || '';
+    document.getElementById('providerCurrency').value = provider.currency || 'CNY';
+    document.getElementById('providerSort').value = provider.sort_order || 0;
+    document.getElementById('providerEnabled').checked = !!provider.enabled;
+    document.getElementById('providerAllowCustom').checked = !!provider.allow_custom_model;
+    document.getElementById('providerRequiresBaseUrl').checked = !!provider.requires_base_url;
+    document.getElementById('providerSubmitBtn').textContent = '保存供应商';
+    document.getElementById('providerForm').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+async function submitProvider(event) {
+    event.preventDefault();
+    const pk = document.getElementById('providerPk').value;
+    const payload = {
+        name: document.getElementById('providerName').value.trim(),
+        description: document.getElementById('providerDescription').value.trim(),
+        base_url: document.getElementById('providerBaseUrl').value.trim(),
+        currency: document.getElementById('providerCurrency').value.trim(),
+        sort_order: document.getElementById('providerSort').value,
+        enabled: document.getElementById('providerEnabled').checked,
+        allow_custom_model: document.getElementById('providerAllowCustom').checked,
+        requires_base_url: document.getElementById('providerRequiresBaseUrl').checked
+    };
+    try {
+        if (pk) {
+            await api(`/admin/ai/catalog/providers/${pk}`, 'PUT', payload);
+            showMessage('供应商已更新', 'success');
+        } else {
+            payload.slug = document.getElementById('providerSlug').value.trim();
+            payload.driver = document.getElementById('providerDriver').value;
+            await api('/admin/ai/catalog/providers', 'POST', payload);
+            showMessage('供应商已新增', 'success');
+        }
+        window.location.reload();
+    } catch (error) {
+        showMessage(error.message, 'error');
+    }
+}
+
+async function removeProvider(pk) {
+    const provider = providerByPk(pk);
+    if (!provider) {
+        return;
+    }
+    if (!confirm(`确定删除供应商「${provider.name}」？被用户引用时无法删除。`)) {
+        return;
+    }
+    try {
+        await api(`/admin/ai/catalog/providers/${pk}`, 'DELETE');
+        showMessage('供应商已删除', 'success');
+        window.location.reload();
+    } catch (error) {
+        showMessage(error.message, 'error');
+    }
+}
+
+function resetModelForm() {
+    document.getElementById('modelForm').reset();
+    document.getElementById('modelPk').value = '';
+    document.getElementById('modelProvider').disabled = false;
+    document.getElementById('modelId').disabled = false;
+    document.getElementById('modelEnabled').checked = true;
+    document.getElementById('modelDefault').checked = false;
+    document.getElementById('modelSort').value = '10';
+    document.getElementById('modelSubmitBtn').textContent = '新增模型';
+}
+
+function editModel(pk) {
+    const found = modelByPk(pk);
+    if (!found) {
+        return;
+    }
+    const {provider, model} = found;
+    document.getElementById('modelPk').value = model.id;
+    document.getElementById('modelProvider').value = provider.provider_pk;
+    document.getElementById('modelProvider').disabled = true;
+    document.getElementById('modelId').value = model.model_id;
+    document.getElementById('modelId').disabled = true;
+    document.getElementById('modelDisplayName').value = model.display_name || '';
+    document.getElementById('modelDescription').value = model.description || '';
+    document.getElementById('modelInputPrice').value =
+        model.input_price === null || model.input_price === undefined ? '' : model.input_price;
+    document.getElementById('modelOutputPrice').value =
+        model.output_price === null || model.output_price === undefined ? '' : model.output_price;
+    document.getElementById('modelSort').value = model.sort_order || 0;
+    document.getElementById('modelEnabled').checked = !!model.enabled;
+    document.getElementById('modelDefault').checked = !!model.is_default;
+    document.getElementById('modelSubmitBtn').textContent = '保存模型';
+    document.getElementById('modelForm').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+async function submitModel(event) {
+    event.preventDefault();
+    const pk = document.getElementById('modelPk').value;
+    const payload = {
+        display_name: document.getElementById('modelDisplayName').value.trim(),
+        description: document.getElementById('modelDescription').value.trim(),
+        input_price: document.getElementById('modelInputPrice').value,
+        output_price: document.getElementById('modelOutputPrice').value,
+        sort_order: document.getElementById('modelSort').value,
+        enabled: document.getElementById('modelEnabled').checked,
+        is_default: document.getElementById('modelDefault').checked
+    };
+    try {
+        if (pk) {
+            await api(`/admin/ai/catalog/models/${pk}`, 'PUT', payload);
+            showMessage('模型已更新', 'success');
+        } else {
+            payload.provider_id = document.getElementById('modelProvider').value;
+            payload.model_id = document.getElementById('modelId').value.trim();
+            await api('/admin/ai/catalog/models', 'POST', payload);
+            showMessage('模型已新增', 'success');
+        }
+        window.location.reload();
+    } catch (error) {
+        showMessage(error.message, 'error');
+    }
+}
+
+async function removeModel(pk) {
+    const found = modelByPk(pk);
+    if (!found) {
+        return;
+    }
+    if (!confirm(`确定删除模型「${found.model.model_id}」？被用户引用时无法删除。`)) {
+        return;
+    }
+    try {
+        await api(`/admin/ai/catalog/models/${pk}`, 'DELETE');
+        showMessage('模型已删除', 'success');
+        window.location.reload();
+    } catch (error) {
+        showMessage(error.message, 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    renderProviders();
+    renderModels();
+    resetProviderForm();
+    resetModelForm();
+    document.getElementById('providerForm').addEventListener('submit', submitProvider);
+    document.getElementById('modelForm').addEventListener('submit', submitModel);
+});
+</script>
+{% endblock %}

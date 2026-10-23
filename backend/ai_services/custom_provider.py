@@ -24,11 +24,11 @@ class CustomOpenAIProvider(OpenAICompatibleProvider):
     COST_PER_1K_TOKENS = {}
     DEFAULT_PRICING = {'input': 0.0, 'output': 0.0}
 
-    def __init__(self, api_key: str, model: str = None, base_url: str = None):
+    def __init__(self, api_key: str, model: str = None, base_url: str = None, **kwargs):
         if not base_url:
             raise ValueError("自定义提供商需要填写 Base URL")
         if not model:
             raise ValueError("自定义提供商需要填写模型 ID")
         validate_ai_base_url(base_url)
         self.BASE_URL = base_url.rstrip('/')
-        super().__init__(api_key, model)
+        super().__init__(api_key, model, base_url=self.BASE_URL, **kwargs)

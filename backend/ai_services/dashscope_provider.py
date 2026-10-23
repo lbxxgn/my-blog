@@ -64,5 +64,5 @@ class DashscopeProvider(OpenAICompatibleProvider):
         'qwen-vl-max-latest': 'VL Max Latest - 最新视觉模型',
     }
 
-    def __init__(self, api_key: str, model: str = 'qwen-turbo'):
-        super().__init__(api_key, model)
+    def __init__(self, api_key: str, model: str = None, **kwargs):
+        super().__init__(api_key, model or self.DEFAULT_MODEL, **kwargs)

@@ -184,33 +184,3 @@ AI_CONTENT_MAX_LENGTH = int(os.environ.get('AI_CONTENT_MAX_LENGTH', 500))
 # 是否启用AI历史记录（默认启用）
 AI_HISTORY_ENABLED = os.environ.get('AI_HISTORY_ENABLED', 'True').lower() in ('true', '1', 'yes')
 
-# 支持的AI提供商和模型
-AI_SUPPORTED_PROVIDERS = {
-    'dashscope': {
-        'name': '阿里百炼',
-        'models': [
-            'qwen-flash',
-            'qwen-turbo',
-            'qwen-plus',
-            'qwen-max',
-            'qwen-coder-plus',
-            'qwen-coder-plus-1106',
-            'qwen-coder-plus-latest',
-            'qwen-long-latest',
-            'qwen-long-2025-01-25',
-            'qwen-vl-max',
-            'qwen-vl-max-latest',
-        ],
-        'default_model': 'qwen-turbo'
-    },
-    'deepseek': {
-        'name': 'DeepSeek',
-        'models': ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp'],
-        'default_model': 'deepseek-v4-flash'
-    },
-    'custom': {
-        'name': '自定义 (OpenAI 兼容)',
-        'models': [],
-        'default_model': ''
-    },
-}

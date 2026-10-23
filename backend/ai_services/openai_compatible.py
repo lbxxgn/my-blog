@@ -33,8 +33,22 @@ class OpenAICompatibleProvider(BaseLLMProvider):
     CURRENCY = 'USD'
     CURRENCY_SYMBOL = '$'
 
-    def __init__(self, api_key: str, model: str = None):
+    def __init__(self, api_key: str, model: str = None, base_url: str = None,
+                 pricing: Dict[str, float] = None, currency: str = None,
+                 currency_symbol: str = None):
         super().__init__(api_key, model or self.DEFAULT_MODEL)
+
+        # 目录配置优先于 Provider 类默认值
+        if base_url:
+            self.BASE_URL = base_url.rstrip('/')
+        if pricing:
+            self.COST_PER_1K_TOKENS = {self.model: dict(pricing)}
+            self.DEFAULT_PRICING = dict(pricing)
+        if currency:
+            self.CURRENCY = currency
+        if currency_symbol:
+            self.CURRENCY_SYMBOL = currency_symbol
+
         self.client = None
         self._init_client()
 

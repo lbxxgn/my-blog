@@ -34,6 +34,7 @@ MIGRATIONS = [
     ('009_embeddings', '向量嵌入表与用户 Embedding 配置', 'backend.migrations.migrate_embeddings', 'migrate'),
     ('010_site_settings', '站点配置表（自定义站点图标等）', 'backend.migrations.migrate_site_settings', 'migrate'),
     ('011_content_format', '存量文章 content_format 标注纠偏（检测真实格式）', 'backend.migrations.migrate_content_format', 'migrate'),
+    ('012_ai_catalog', 'AI 提供商与模型目录表', 'backend.migrations.migrate_ai_catalog', 'migrate'),
 ]
 
 

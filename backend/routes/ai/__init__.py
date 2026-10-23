@@ -136,4 +136,4 @@ def _parse_json_block(content: str):
         raise
 
 # 各功能子模块（在 __init__ 定义共享助手/蓝图之后导入，注册路由）
-from . import config, generation, organize, mentor  # noqa: E402,F401
+from . import config, generation, organize, mentor, catalog  # noqa: E402,F401

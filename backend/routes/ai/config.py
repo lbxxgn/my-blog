@@ -12,9 +12,11 @@ from ai_services.embeddings import (
 )
 from models import (
     get_db_connection,
+    get_provider,
     get_user_ai_config, update_user_ai_config,
     get_ai_tag_history,
-    get_ai_usage_stats
+    get_ai_usage_stats,
+    resolve_model_selection,
 )
 from auth_decorators import login_required, admin_required
 from logger import log_operation, log_error
@@ -56,7 +58,8 @@ def ai_settings():
     else:  # POST
         try:
             # 更新AI配置
-            data = request.get_json()
+            data = request.get_json() or {}
+            current_config = get_user_ai_config(user_id) or {}
 
             # 验证数据
             ai_config = {}
@@ -64,42 +67,72 @@ def ai_settings():
             if 'ai_tag_generation_enabled' in data:
                 ai_config['ai_tag_generation_enabled'] = bool(data['ai_tag_generation_enabled'])
 
+            final_provider_slug = data.get(
+                'ai_provider', current_config.get('ai_provider') or 'dashscope')
+            provider = get_provider(final_provider_slug)
+            if not provider:
+                return jsonify({
+                    'success': False,
+                    'error': f'不支持的AI提供商: {final_provider_slug}'
+                }), 400
+
+            provider_changed = final_provider_slug != current_config.get('ai_provider')
+            if not provider['enabled'] and provider_changed:
+                return jsonify({
+                    'success': False,
+                    'error': f'供应商 {provider["name"]} 已停用，暂时无法选择'
+                }), 400
+
             if 'ai_provider' in data:
-                provider = data['ai_provider']
-                # 验证提供商是否支持
-                supported = [p['id'] for p in TagGenerator.get_supported_providers()]
-                if provider not in supported:
-                    return jsonify({
-                        'success': False,
-                        'error': f'不支持的AI提供商: {provider}'
-                    }), 400
-                ai_config['ai_provider'] = provider
+                ai_config['ai_provider'] = final_provider_slug
 
             if 'ai_api_key' in data:
-                api_key = data['ai_api_key'].strip()
+                api_key = (data['ai_api_key'] or '').strip()
                 if api_key:
                     ai_config['ai_api_key'] = api_key
 
-            if 'ai_model' in data:
-                model = data['ai_model'].strip()
-                if model:
-                    ai_config['ai_model'] = model
+            # 供应商或模型发生变化时，校验组合并按需回填默认模型
+            if 'ai_provider' in data or 'ai_model' in data:
+                raw_model = data.get('ai_model')
+                if raw_model is None:
+                    raw_model = current_config.get('ai_model') \
+                        if not provider_changed else ''
+                raw_model = (raw_model or '').strip()
 
-            if 'ai_base_url' in data:
-                base_url = (data['ai_base_url'] or '').strip()
-                if base_url:
-                    try:
-                        validate_ai_base_url(base_url)
-                    except UnsafeBaseUrlError as e:
-                        return jsonify({'success': False, 'error': str(e)}), 400
-                ai_config['ai_base_url'] = base_url or None
+                _, resolved_model, model_error = resolve_model_selection(
+                    final_provider_slug, raw_model)
 
-            # 自定义提供商必须填写 Base URL
-            if ai_config.get('ai_provider') == 'custom' and not ai_config.get('ai_base_url'):
+                if model_error:
+                    unchanged_model = (
+                        not provider_changed
+                        and raw_model == (current_config.get('ai_model') or '')
+                    )
+                    if not unchanged_model:
+                        return jsonify({'success': False, 'error': model_error}), 400
+                    resolved_model = raw_model
+
+                ai_config['ai_model'] = resolved_model
+
+            base_url_supplied = 'ai_base_url' in data
+            if base_url_supplied:
+                base_url = (data.get('ai_base_url') or '').strip()
+            else:
+                base_url = (current_config.get('ai_base_url') or '').strip()
+
+            if base_url:
+                try:
+                    validate_ai_base_url(base_url)
+                except UnsafeBaseUrlError as e:
+                    return jsonify({'success': False, 'error': str(e)}), 400
+
+            if provider['requires_base_url'] and not base_url:
                 return jsonify({
                     'success': False,
-                    'error': '自定义提供商需要填写 Base URL'
+                    'error': f'{provider["name"]} 需要填写 Base URL'
                 }), 400
+
+            if base_url_supplied:
+                ai_config['ai_base_url'] = base_url or None
 
             # Embedding 服务配置（独立于对话类 AI 配置）
             embedding_data = {}

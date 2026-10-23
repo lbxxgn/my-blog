@@ -35,5 +35,5 @@ class DeepSeekProvider(OpenAICompatibleProvider):
         'deepseek-v4-flash-vision-exp': 'V4 Flash Vision (实验) - 支持图片理解',
     }
 
-    def __init__(self, api_key: str, model: str = 'deepseek-v4-flash'):
-        super().__init__(api_key, model)
+    def __init__(self, api_key: str, model: str = None, **kwargs):
+        super().__init__(api_key, model or self.DEFAULT_MODEL, **kwargs)

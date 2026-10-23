@@ -18,12 +18,35 @@ logger = logging.getLogger(__name__)
 class TagGenerator:
     """Main tag generator class that manages provider creation and tag generation"""
 
-    # Supported providers
+    # 内置供应商到代码适配器的映射（slug -> class）
     SUPPORTED_PROVIDERS = {
         'dashscope': DashscopeProvider,
         'deepseek': DeepSeekProvider,
         'custom': CustomOpenAIProvider,
     }
+
+    # 驱动到代码适配器的映射（目录中新增供应商使用 openai_compatible）
+    DRIVER_CLASSES = {
+        'dashscope': DashscopeProvider,
+        'deepseek': DeepSeekProvider,
+        'openai_compatible': CustomOpenAIProvider,
+    }
+
+    DRIVER_DEFAULT_MODELS = {
+        'dashscope': DashscopeProvider.DEFAULT_MODEL,
+        'deepseek': DeepSeekProvider.DEFAULT_MODEL,
+    }
+
+    @classmethod
+    def _catalog_provider(cls, provider_name: str):
+        """从目录解析供应商；目录不可用时返回 None 交由回退逻辑处理。"""
+        try:
+            from models.ai_catalog import resolve_provider
+
+            return resolve_provider(provider_name)
+        except Exception as exc:
+            logger.warning(f"Failed to load AI provider catalog: {exc}")
+            return None
 
     @classmethod
     def create_provider(cls, provider_name: str, api_key: str, model: str = None,
@@ -32,10 +55,10 @@ class TagGenerator:
         Factory method to create LLM provider
 
         Args:
-            provider_name: Name of the provider (dashscope, deepseek, custom)
+            provider_name: Provider slug configured in the AI catalog
             api_key: API key for the provider
-            model: Model name (optional, uses provider default if not specified)
-            base_url: API base URL (required for the custom provider)
+            model: Model name (optional, uses catalog default if not specified)
+            base_url: API base URL (required for providers that ask users to fill it)
 
         Returns:
             Provider instance
@@ -43,8 +66,61 @@ class TagGenerator:
         Raises:
             ValueError: If provider is not supported
         """
-        provider_name = provider_name.lower()
+        provider_name = (provider_name or 'dashscope').lower()
+        catalog_provider = cls._catalog_provider(provider_name)
 
+        if catalog_provider:
+            driver = catalog_provider.get('driver') or 'openai_compatible'
+            provider_class = cls.SUPPORTED_PROVIDERS.get(provider_name) or \
+                cls.DRIVER_CLASSES.get(driver)
+
+            if not provider_class:
+                raise ValueError(f"Unsupported provider driver: {driver}")
+
+            model = model or catalog_provider.get('default_model') or \
+                cls.DRIVER_DEFAULT_MODELS.get(driver)
+
+            if not model:
+                raise ValueError(f"供应商 {provider_name} 未配置可用模型，请先在模型管理中配置")
+
+            model_spec = next(
+                (m for m in catalog_provider.get('model_details', [])
+                 if m.get('model_id') == model),
+                None
+            )
+
+            pricing = None
+            if model_spec and (
+                model_spec.get('input_price') is not None
+                or model_spec.get('output_price') is not None
+            ):
+                class_pricing = getattr(provider_class, 'COST_PER_1K_TOKENS', {}).get(model) \
+                    or getattr(provider_class, 'DEFAULT_PRICING', {'input': 0, 'output': 0})
+                pricing = {
+                    'input': model_spec.get('input_price')
+                    if model_spec.get('input_price') is not None
+                    else class_pricing.get('input', 0),
+                    'output': model_spec.get('output_price')
+                    if model_spec.get('output_price') is not None
+                    else class_pricing.get('output', 0),
+                }
+
+            if catalog_provider.get('requires_base_url'):
+                # 由用户填写 Base URL，保留旧 custom 行为
+                resolved_base_url = base_url or None
+            else:
+                resolved_base_url = catalog_provider.get('base_url') or None
+
+            return provider_class(
+                api_key=api_key,
+                model=model,
+                base_url=resolved_base_url,
+                pricing=pricing,
+                currency=catalog_provider.get('currency'),
+                currency_symbol=catalog_provider.get('currency_symbol'),
+            )
+
+        # 目录不可用时的兼容回退
         if provider_name not in cls.SUPPORTED_PROVIDERS:
             raise ValueError(
                 f"Unsupported provider: {provider_name}. "
@@ -52,14 +128,8 @@ class TagGenerator:
             )
 
         provider_class = cls.SUPPORTED_PROVIDERS[provider_name]
-
-        # Set default model if not specified
         if not model:
-            default_models = {
-                'dashscope': 'qwen-turbo',
-                'deepseek': 'deepseek-v4-flash',
-            }
-            model = default_models.get(provider_name)
+            model = cls.DRIVER_DEFAULT_MODELS.get(provider_name)
 
         if provider_name == 'custom':
             return provider_class(api_key=api_key, model=model, base_url=base_url)
@@ -175,53 +245,39 @@ class TagGenerator:
             }
 
     @classmethod
-    def get_supported_providers(cls) -> List[Dict[str, str]]:
+    def get_supported_providers(cls) -> List[Dict[str, Any]]:
         """
-        Get list of supported providers with their info
+        Get providers configured in the AI catalog.
 
         Returns:
-            List of provider info dicts
+            List of provider info dicts (contains models/model_details)
         """
-        return [
-            {
-                'id': 'dashscope',
-                'name': '阿里百炼',
-                'description': '通义千问系列',
-                'default_model': 'qwen-turbo',
-                'models': [
-                    'qwen-flash',
-                    'qwen-turbo',
-                    'qwen-plus',
-                    'qwen-max',
-                    'qwen-coder-plus',
-                    'qwen-coder-plus-1106',
-                    'qwen-coder-plus-latest',
-                    'qwen-long-latest',
-                    'qwen-long-2025-01-25',
-                    'qwen-vl-max',
-                    'qwen-vl-max-latest',
-                ],
-                'currency': 'CNY'
-            },
-            {
-                'id': 'deepseek',
-                'name': 'DeepSeek',
-                'description': 'deepseek-v4-flash / deepseek-v4-pro',
-                'default_model': 'deepseek-v4-flash',
-                'models': ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp'],
-                'currency': 'CNY'
-            },
-            {
-                'id': 'custom',
-                'name': '自定义 (OpenAI 兼容)',
-                'description': '任意 OpenAI 兼容接口，需填写 Base URL 与模型 ID',
-                'default_model': '',
-                'models': [],
-                'currency': 'USD',
-                'allow_custom_model': True,
-                'requires_base_url': True
-            },
-        ]
+        try:
+            from models.ai_catalog import get_catalog
+
+            return get_catalog(include_disabled=True)
+        except Exception as exc:
+            logger.warning(f"Failed to load AI provider catalog, using defaults: {exc}")
+            from .provider_defaults import DEFAULT_CATALOG
+
+            return [
+                {
+                    **{k: v for k, v in provider.items() if k != 'models'},
+                    'id': provider['slug'],
+                    'provider_pk': None,
+                    'currency_symbol': '¥' if provider.get('currency') == 'CNY' else '$',
+                    'usage_count': 0,
+                    'default_model': next(
+                        (m['model_id'] for m in provider.get('models', [])
+                         if m.get('is_default')),
+                        (provider.get('models') or [{}])[0].get('model_id', '')
+                    ),
+                    'models': [m['model_id'] for m in provider.get('models', [])
+                              if m.get('enabled', True)],
+                    'model_details': provider.get('models', []),
+                }
+                for provider in DEFAULT_CATALOG
+            ]
 
     @classmethod
     def generate_summary(

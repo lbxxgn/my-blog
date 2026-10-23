@@ -6,6 +6,22 @@ This package provides all database models and functions for the Simple Blog appl
 
 # Import all functions from models.py
 from .models import *
+from .ai_catalog import (
+    CatalogError,
+    ensure_ai_catalog_tables,
+    get_catalog,
+    get_provider,
+    get_model,
+    resolve_provider,
+    resolve_model,
+    resolve_model_selection,
+    create_provider,
+    update_provider,
+    delete_provider,
+    create_model,
+    update_model,
+    delete_model,
+)
 
 __all__ = [
     # Database functions
@@ -104,6 +120,22 @@ __all__ = [
     'init_cards_table',
     'init_api_keys_table',
     'init_card_annotations_table',
+
+    # AI catalog functions
+    'ensure_ai_catalog_tables',
+    'get_catalog',
+    'get_provider',
+    'get_model',
+    'resolve_provider',
+    'resolve_model',
+    'resolve_model_selection',
+    'create_provider',
+    'update_provider',
+    'delete_provider',
+    'create_model',
+    'update_model',
+    'delete_model',
+    'CatalogError',
 
     # Card functions
     'create_card',
