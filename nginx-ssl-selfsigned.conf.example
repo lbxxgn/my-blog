@@ -27,6 +27,16 @@ http {
     keepalive_timeout 65;
     server_tokens off;
 
+    # 访问日志格式：包含状态码、请求 URI、耗时与上游信息，便于排查 403/502
+    log_format app_main '$remote_addr - $remote_user [$time_local] '
+                        '"$request" $status $body_bytes_sent '
+                        '"$http_referer" "$http_user_agent" '
+                        'host="$host" rt=$request_time '
+                        'upstream="$upstream_addr" urt=$upstream_response_time';
+
+    access_log /var/log/nginx/access.log app_main;
+    error_log  /var/log/nginx/error.log warn;
+
     # 对齐 backend/config.py 的 MAX_CONTENT_LENGTH (100MB)
     client_max_body_size 100m;
 
@@ -64,21 +74,40 @@ http {
         ssl_session_cache   shared:SSL:10m;
         ssl_session_timeout 1d;
 
+        access_log /var/log/nginx/my-blog.access.log app_main;
+        error_log  /var/log/nginx/my-blog.error.log warn;
+
         # 静态资源由 nginx 直发
         # ⚠️ 项目若在 /root 下（默认 700），nginx 用户无法穿越 → /static/ 会 403。
-        #    解决：sudo chmod o+x /root（并确保各级目录 o+x、文件 o+r），
-        #    或更稳妥地把项目移到 /opt/my-blog、/var/www/my-blog。
+        #    日志会记录具体 URI 和 403；也可 sudo chmod o+x /root（确保各级目录
+        #    o+x、文件 o+r），或更稳妥地把项目移到 /opt/my-blog、/var/www/my-blog。
         location /static/frontend/ {
             alias /root/my-blog/static/frontend/;
             expires 1y;
             add_header Cache-Control "public, immutable";
-            access_log off;
+            access_log /var/log/nginx/my-blog.static.access.log app_main;
+            # 权限不足或文件缺失时回退给 Flask，移动端不会再直接 403
+            error_page 403 404 = @static_fallback;
         }
         location /static/ {
             alias /root/my-blog/static/;
             expires 30d;
             add_header Cache-Control "public";
-            access_log off;
+            access_log /var/log/nginx/my-blog.static.access.log app_main;
+            error_page 403 404 = @static_fallback;
+        }
+
+        # 静态文件由 NGINX 无法读取时回退到 Flask（权限/SELinux/路径错误）
+        location @static_fallback {
+            proxy_pass http://simple_blog;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host              $host;
+            proxy_set_header X-Real-IP         $remote_addr;
+            proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host  $host;
+            proxy_intercept_errors off;
         }
 
         # 全量备份恢复：允许较大的 ZIP 上传并放宽超时

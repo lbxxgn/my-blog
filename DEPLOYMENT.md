@@ -606,6 +606,12 @@ FORCE_HTTPS=True
 - **Android**：设置-安全-加密与凭据-安装证书-CA 证书
 
 > ⚠️ **静态资源 403**：该配置让 Nginx 直发 `/static/`。若项目部署在 `/root` 下（默认 `700`），Nginx 用户无法穿越 `/root`，会全部 403。解决：`sudo chmod o+x /root`（并确保各级目录 `o+x`、文件 `o+r`），或更稳妥地把项目移到 `/opt/my-blog`、`/var/www/my-blog`。也可删掉 Nginx 的 `location /static/` 由 Flask 直接返回。
+>
+> 当前仓库的 Nginx 示例已启用访问日志，并在静态资源 403/404 时回退到 Flask，便于先恢复访问再排查：
+> ```bash
+> sudo tail -f /var/log/nginx/my-blog.access.log /var/log/nginx/my-blog.error.log /var/log/nginx/my-blog.static.access.log
+> ```
+> 日志里会直接看到 403 的具体 URI；`error.log` 中的 `Permission denied` 通常就是目录权限或 SELinux 上下文问题。
 
 ### 4. 启用安全选项
 

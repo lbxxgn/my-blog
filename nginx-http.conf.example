@@ -23,6 +23,16 @@ http {
     sendfile      on;
     keepalive_timeout 65;
 
+    # 访问日志格式：包含状态码、请求 URI、耗时与上游信息，便于排查 403/502
+    log_format app_main '$remote_addr - $remote_user [$time_local] '
+                        '"$request" $status $body_bytes_sent '
+                        '"$http_referer" "$http_user_agent" '
+                        'host="$host" rt=$request_time '
+                        'upstream="$upstream_addr" urt=$upstream_response_time';
+
+    access_log /var/log/nginx/access.log app_main;
+    error_log  /var/log/nginx/error.log warn;
+
     # 图片上传对齐 backend/config.py 的 MAX_CONTENT_LENGTH (100MB)
     client_max_body_size 100m;
 
@@ -34,11 +44,26 @@ http {
         listen 80;
         server_name _;                       # 匹配任意主机名 / IP
 
+        access_log /var/log/nginx/my-blog.access.log app_main;
+        error_log  /var/log/nginx/my-blog.error.log warn;
+
         # 静态资源由 nginx 直发（含 /static/frontend/ Vite 产物）
         location /static/ {
             alias /path/to/my-blog/static/;
             expires 30d;
-            access_log off;
+            access_log /var/log/nginx/my-blog.static.access.log app_main;
+            # 目录权限不足（常见于项目放在 /root 下）或文件缺失时回退给 Flask
+            error_page 403 404 = @static_fallback;
+        }
+
+        # 静态文件由 NGINX 无法读取时回退到 Flask，避免移动端直接收到 403
+        location @static_fallback {
+            proxy_pass http://simple_blog;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_intercept_errors off;
         }
 
         # 全量备份恢复：允许较大的 ZIP 上传并放宽超时
