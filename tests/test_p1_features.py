@@ -199,6 +199,7 @@ class TestKnowledgePermissionsAndSearch:
         _login(client, test_admin_user)
         page = client.get('/knowledge/').get_data(as_text=True)
         assert 'Tree doc title' in page
+        assert 'kb-tree-docs collapsed' in page
 
     def test_uncategorized_documents_page(self, client, temp_db, test_admin_user):
         from models import create_knowledge_doc

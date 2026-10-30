@@ -15,7 +15,7 @@
         <div class="kb-sidebar-header">
             <h2><a href="{{ url_for('knowledge.index') }}">📚 知识库</a></h2>
         </div>
-        {{ render_tree(tree, active_category_id=doc.category_id, can_manage=can_manage) }}
+        {{ render_tree(tree, active_category_id=doc.category_id, can_manage=can_manage, active_doc_id=doc.id) }}
     </div>
 
     <div class="kb-main kb-doc-page">

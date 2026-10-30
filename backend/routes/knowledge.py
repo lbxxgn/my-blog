@@ -162,7 +162,7 @@ def view_doc(doc_id):
         'knowledge/doc.html', doc=doc, tags=tags,
         breadcrumb=breadcrumb, tree=tree,
         tree_docs=get_knowledge_docs_for_tree(session.get('user_id'), session.get('role')),
-        can_manage=_is_manager(), can_edit=_can_edit_doc(doc),
+        can_manage=_is_manager(), can_edit=_can_edit_doc(doc), active_doc_id=doc_id,
     )
 
 

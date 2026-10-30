@@ -187,11 +187,28 @@
     tree.addEventListener('click', function(e) {
         var toggle = e.target.closest('.kb-tree-toggle');
         if (!toggle) return;
+        e.preventDefault();
         var li = toggle.closest('.kb-tree-node');
-        var children = li && li.querySelector(':scope > .kb-tree-children');
-        if (children) {
-            children.classList.toggle('collapsed');
-            toggle.textContent = children.classList.contains('collapsed') ? '▸' : '▾';
-        }
+        if (!li) return;
+        var groups = Array.from(li.querySelectorAll(':scope > .kb-tree-children, :scope > .kb-tree-docs'));
+        if (!groups.length) return;
+        var shouldExpand = groups.some(function(group) { return group.classList.contains('collapsed'); });
+        groups.forEach(function(group) { group.classList.toggle('collapsed', !shouldExpand); });
+        toggle.textContent = shouldExpand ? '▾' : '▸';
     });
+
+    // 默认折叠所有分支，但自动展开当前浏览文档/目录所在的父级路径
+    function expandActivePath() {
+        var active = tree.querySelector('.kb-tree-doc.active, .kb-tree-item.active');
+        if (!active) return;
+        var parentUl = active.closest('.kb-tree-docs, .kb-tree-children');
+        while (parentUl) {
+            parentUl.classList.remove('collapsed');
+            var parentNode = parentUl.closest('.kb-tree-node');
+            var parentToggle = parentNode && parentNode.querySelector(':scope > .kb-tree-item .kb-tree-toggle');
+            if (parentToggle) parentToggle.textContent = '▾';
+            parentUl = parentNode ? parentNode.parentElement.closest('.kb-tree-docs, .kb-tree-children') : null;
+        }
+    }
+    expandActivePath();
 })();

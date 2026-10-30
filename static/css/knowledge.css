@@ -16,7 +16,7 @@
 .kb-tree-toggle{display:inline-block;width:1rem;text-align:center;color:var(--text-secondary);user-select:none;cursor:pointer}
 .kb-tree-icon{font-size:0.85rem}
 .kb-tree-item a{text-decoration:none;color:var(--text-color);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.kb-tree-children.collapsed{display:none}
+.kb-tree-children.collapsed,.kb-tree-docs.collapsed{display:none}
 
 /* 主区域 */
 .kb-main{flex:1;min-width:0}
