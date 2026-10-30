@@ -3,10 +3,11 @@
 from flask import render_template, request, redirect, url_for, flash
 
 from models import (
-    get_site_icon_version, set_site_setting,
+    get_site_icon_version, set_site_setting, get_site_identity,
 )
 from auth_decorators import login_required, admin_required
 from backend.utils.site_icon import generate_site_icons, reset_site_icons, has_custom_icons
+from backend.config import SITE_NAME, SITE_DESCRIPTION, SITE_AUTHOR
 import time
 
 
@@ -24,11 +25,38 @@ def knowledge_admin():
 @admin_required
 def site_settings():
     """站点设置页（仅管理员）"""
+    identity = get_site_identity({
+        'site_name': SITE_NAME,
+        'site_description': SITE_DESCRIPTION,
+        'site_author': SITE_AUTHOR,
+    })
     return render_template(
         'admin/site_settings.html',
         has_custom_icon=has_custom_icons(),
         icon_version=get_site_icon_version(),
+        identity=identity,
     )
+
+
+@admin_bp.route('/site/general', methods=['POST'])
+@login_required
+@admin_required
+def update_site_identity():
+    """保存站点名称、描述与作者。"""
+    site_name = (request.form.get('site_name') or '').strip()
+    site_description = (request.form.get('site_description') or '').strip()
+    site_author = (request.form.get('site_author') or '').strip()
+    if not site_name:
+        flash('站点名称不能为空', 'error')
+        return redirect(url_for('admin.site_settings'))
+    if len(site_name) > 80 or len(site_description) > 300 or len(site_author) > 80:
+        flash('站点信息过长，请缩短后重试', 'error')
+        return redirect(url_for('admin.site_settings'))
+    set_site_setting('site_name', site_name)
+    set_site_setting('site_description', site_description)
+    set_site_setting('site_author', site_author)
+    flash('站点信息已更新', 'success')
+    return redirect(url_for('admin.site_settings'))
 
 @admin_bp.route('/site/icon', methods=['POST'])
 @login_required

@@ -560,7 +560,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const existingTags = tagsInput.value.trim();
                     tagsInput.value = existingTags ? existingTags + ', ' + newTags : newTags;
                 }
-                showAIStatus('success', `✅ 已生成标签:${data.tags.join(', ')}(${data.tokens_used}tokens,约$${data.cost.toFixed(4)})`);
+                showAIStatus('success', `✅ 已生成标签：${data.tags.join(', ')}`);
                 if (window.EditorWorkbench?.updateAiSuggestionState) {
                     window.EditorWorkbench.updateAiSuggestionState('标签已更新');
                 }

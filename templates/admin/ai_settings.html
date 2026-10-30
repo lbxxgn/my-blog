@@ -180,12 +180,6 @@
                     <div class="stat-label">总Token数</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">
-                        {% if stats.currency == 'CNY' %}¥{% else %}${% endif %}{{ "%.4f"|format(stats.total_cost) }}
-                    </div>
-                    <div class="stat-label">总成本</div>
-                </div>
-                <div class="stat-item">
                     <div class="stat-value">{{ "%.0f"|format(stats.avg_tokens) }}</div>
                     <div class="stat-label">平均Token</div>
                 </div>
@@ -196,67 +190,6 @@
         </div>
         {% endif %}
 
-        <!-- 成本说明 -->
-        <div class="ai-section ai-info-section">
-            <h3>成本说明</h3>
-
-            {% for provider in supported_providers %}
-            {% if provider.model_details %}
-            <h4 style="margin-top: {% if loop.first %}0{% else %}1.5rem{% endif %}; color: var(--text-color);">
-                {{ provider.name }} ({{ provider.currency }})
-                {% if not provider.enabled %}<span style="font-size: 0.85em; color: var(--text-secondary);">已停用</span>{% endif %}
-            </h4>
-            <table class="cost-table">
-                <thead>
-                    <tr>
-                        <th>模型</th>
-                        <th>输入 (每1K tokens)</th>
-                        <th>输出 (每1K tokens)</th>
-                        <th>预估单次成本</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for model in provider.model_details %}
-                    <tr>
-                        <td>
-                            {{ model.display_name or model.model_id }}
-                            {% if model.display_name and model.display_name != model.model_id %}
-                            <span style="font-size: 0.85em; color: var(--text-secondary);">({{ model.model_id }})</span>
-                            {% endif %}
-                            {% if model.is_default %}
-                            <span style="font-size: 0.85em; color: var(--text-secondary);">默认</span>
-                            {% endif %}
-                            {% if not model.enabled %}
-                            <span style="font-size: 0.85em; color: var(--text-secondary);">已停用</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if model.input_price is not none %}
-                            {{ model.currency_symbol }}{{ model.input_price }}
-                            {% else %}按驱动默认{% endif %}
-                        </td>
-                        <td>
-                            {% if model.output_price is not none %}
-                            {{ model.currency_symbol }}{{ model.output_price }}
-                            {% else %}按驱动默认{% endif %}
-                        </td>
-                        <td>
-                            {% if model.input_price is not none and model.output_price is not none %}
-                            ~{{ model.currency_symbol }}{{ "%.6f"|format(model.input_price * 0.25 + model.output_price * 0.05) }}
-                            {% else %}-{% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endif %}
-            {% endfor %}
-
-            <p class="info-text">
-                <strong>提示：</strong>每次生成约使用200-300 tokens（输入） + 50 tokens（输出）。
-                以上价格与模型来自「管理提供商与模型」，修改后本表会自动更新。
-            </p>
-        </div>
     </div>
 </div>
 
@@ -448,44 +381,6 @@
     color: var(--text-secondary, #6b7280);
 }
 
-/* Cost Table */
-.cost-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
-}
-
-.cost-table th,
-.cost-table td {
-    padding: 0.75rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color, #e5e7eb);
-}
-
-.cost-table th {
-    font-weight: 600;
-    color: var(--text-color, #1f2937);
-    background: var(--code-bg, #f9fafb);
-}
-
-.cost-table tr:last-child td {
-    border-bottom: none;
-}
-
-.info-text {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    background: var(--code-bg, #f9fafb);
-    border-left: 3px solid var(--primary-color, #10b981);
-    border-radius: 4px;
-    font-size: 0.875rem;
-    line-height: 1.5;
-}
-
-.ai-info-section {
-    background: var(--card-bg, #f9fafb);
-}
-
 /* Dark theme */
 .dark-theme .ai-section {
     background: #1f2937;
@@ -506,11 +401,6 @@
     background: #374151;
 }
 
-.dark-theme .cost-table th {
-    background: #374151;
-}
-
-.dark-theme .info-text,
 .dark-theme .ai-info-section {
     background: #374151;
 }

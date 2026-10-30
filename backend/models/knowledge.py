@@ -36,6 +36,8 @@ __all__ = [
     'delete_knowledge_doc',
     'html_to_markdown',
     'precipitate_post_to_knowledge',
+    'get_knowledge_doc_by_source_post_id',
+    'get_blog_post_by_source_doc_id',
     'archive_card_to_knowledge',
 ]
 
@@ -458,16 +460,51 @@ def html_to_markdown(html_content):
         return re.sub(r'<[^>]+>', '', text)
 
 
+def get_knowledge_doc_by_source_post_id(post_id):
+    """查找由某篇博客沉淀出的知识库文档。"""
+    with get_db_context() as conn:
+        row = conn.execute('''
+            SELECT * FROM posts
+            WHERE source_post_id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
+            ORDER BY id DESC LIMIT 1
+        ''', (post_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def get_blog_post_by_source_doc_id(doc_id):
+    """查找由某篇知识库文档转出的博客草稿。"""
+    with get_db_context() as conn:
+        row = conn.execute('''
+            SELECT * FROM posts
+            WHERE source_post_id = ? AND post_type = 'blog' AND deleted_at IS NULL
+            ORDER BY id DESC LIMIT 1
+        ''', (doc_id,)).fetchone()
+        return dict(row) if row else None
+
+
 def precipitate_post_to_knowledge(post_id, category_id, tag_names=None):
-    """将博客文章沉淀为知识库文档（HTML→Markdown 转换）"""
+    """将博客文章沉淀为知识库文档（HTML→Markdown 转换，按来源幂等更新）。"""
     post = get_post_by_id(post_id)
     if not post:
         return None
     markdown_content = html_to_markdown(post['content'])
-    title = post['title'] + '（沉淀自博客）'
+    title = post['title']
     if tag_names is None:
         original_tags = get_post_tags(post_id)
         tag_names = [t['name'] for t in original_tags]
+
+    existing = get_knowledge_doc_by_source_post_id(post_id)
+    if existing:
+        with get_db_context() as conn:
+            conn.execute('''
+                UPDATE posts SET title = ?, content = ?, content_format = 'markdown',
+                    category_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND post_type = 'knowledge'
+            ''', (title, markdown_content, category_id, existing['id']))
+        set_post_tags(existing['id'], tag_names)
+        _enqueue_doc_embedding(existing['id'])
+        return existing['id']
+
     new_doc_id = create_knowledge_doc(
         title=title,
         content=markdown_content,

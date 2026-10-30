@@ -4,6 +4,7 @@ from flask import render_template, request, session
 from models import (
     search_posts,
     sanitize_posts_for_viewer,
+    search_knowledge_docs,
 )
 
 from . import blog_bp, logger, get_optimized_image_url, get_optimized_image_url_cached, extract_post_image_urls, extract_post_excerpt, rewrite_post_image_sources, determine_mobile_image_layout, build_post_card_payload, build_post_card_payloads, serialize_post_for_json  # noqa: F401
@@ -32,11 +33,35 @@ def search():
         return render_template('search.html', query='', posts=None, pagination=None, source=source,
                                embedding_configured=False, semantic_items=None)
 
-    post_type_filter = 'blog' if source == 'blog' else ('knowledge' if source == 'knowledge' else 'all')
-    posts_data = search_posts(query, include_drafts=False, page=page, per_page=per_page,
-                              post_type_filter=post_type_filter)
-    posts_data['posts'] = sanitize_posts_for_viewer(
-        posts_data['posts'], session.get('user_id'), session.get('role'))
+    user_id = session.get('user_id')
+    kb_results = None
+    card_results = []
+    annotation_results = []
+
+    if source == 'knowledge' and user_id:
+        posts_data = search_knowledge_docs(
+            query, viewer_id=user_id, viewer_role=session.get('role'),
+            page=page, per_page=per_page,
+        )
+    elif source == 'all' and user_id:
+        posts_data = search_posts(query, include_drafts=False, page=page, per_page=per_page,
+                                  post_type_filter='blog')
+        posts_data['posts'] = sanitize_posts_for_viewer(
+            posts_data['posts'], user_id, session.get('role'))
+        kb_results = search_knowledge_docs(
+            query, viewer_id=user_id, viewer_role=session.get('role'),
+            page=1, per_page=20,
+        )
+        from routes.search_helpers import search_cards_and_annotations
+        extra = search_cards_and_annotations(user_id, query, limit=20)
+        card_results = extra['cards']
+        annotation_results = extra['annotations']
+    else:
+        post_type_filter = 'blog' if source == 'blog' else 'all'
+        posts_data = search_posts(query, include_drafts=False, page=page, per_page=per_page,
+                                  post_type_filter=post_type_filter)
+        posts_data['posts'] = sanitize_posts_for_viewer(
+            posts_data['posts'], user_id, session.get('role'))
 
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
@@ -58,7 +83,10 @@ def search():
                          show_ellipsis=show_ellipsis,
                          source=source,
                          embedding_configured=False,
-                         semantic_items=None)
+                         semantic_items=None,
+                         kb_results=kb_results,
+                         card_results=card_results,
+                         annotation_results=annotation_results)
 
 def _search_semantic(query, source):
     """语义搜索页：结果按相似度降序，不做分页与高亮"""

@@ -95,7 +95,7 @@ except ImportError:
 # =============================================================================
 from models import (
     get_db_connection, init_db, get_user_by_username, create_user,
-    get_site_icon_version
+    get_site_icon_version, get_site_identity
 )
 
 # =============================================================================
@@ -249,9 +249,15 @@ def site_icon_versioned(size, version):
 def site_webmanifest():
     """动态 manifest：图标 URL 带版本号，自定义图标后 PWA 能及时拿到新图标。"""
     version = get_site_icon_version()
+    identity = get_site_identity({
+        'site_name': SITE_NAME,
+        'site_description': SITE_DESCRIPTION,
+        'site_author': SITE_AUTHOR,
+    })
+    manifest_name = identity.get('site_name') or SITE_NAME
     manifest = {
-        'name': SITE_NAME,
-        'short_name': SITE_NAME,
+        'name': manifest_name,
+        'short_name': manifest_name,
         'start_url': '/',
         'display': 'standalone',
         'background_color': '#ffffff',
@@ -413,11 +419,16 @@ def vite_asset(entry: str = 'src/main.tsx'):
 # =============================================================================
 @app.context_processor
 def inject_site_settings():
-    """将网站设置注入到所有模板中"""
+    """将网站设置注入到所有模板中（优先使用后台保存的配置）"""
+    identity = get_site_identity({
+        'site_name': SITE_NAME,
+        'site_description': SITE_DESCRIPTION,
+        'site_author': SITE_AUTHOR,
+    })
     return dict(
-        site_name=SITE_NAME,
-        site_description=SITE_DESCRIPTION,
-        site_author=SITE_AUTHOR,
+        site_name=identity.get('site_name') or SITE_NAME,
+        site_description=identity.get('site_description') or SITE_DESCRIPTION,
+        site_author=identity.get('site_author') or SITE_AUTHOR,
         remember_device_days=REMEMBER_DEVICE_DAYS,
         site_icon_version=get_site_icon_version(),
         vite_asset=vite_asset,

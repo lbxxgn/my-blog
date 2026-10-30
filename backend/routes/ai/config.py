@@ -376,10 +376,10 @@ def ai_status():
     user_id = session.get('user_id')
     ai_config = get_user_ai_config(user_id)
 
-    ai_enabled = False
-    if ai_config:
-        ai_enabled = ai_config.get('ai_tag_generation_enabled', False)
+    ai_enabled = bool(ai_config and ai_config.get('ai_tag_generation_enabled', False))
+    ai_configured = bool(ai_config and ai_config.get('ai_api_key'))
 
     return jsonify({
-        'ai_enabled': ai_enabled
+        'ai_enabled': ai_enabled,
+        'ai_configured': ai_configured
     })

@@ -19,6 +19,9 @@ interface AiPanelProps {
   onTitleChange: (title: string) => void;
   onTagsChange: (tags: string) => void;
   onCategoryChange: (categoryId: number | '') => void;
+  onDirty: () => void;
+  aiEnabled: boolean;
+  aiConfigured: boolean;
 }
 
 function flattenCategories(cats: Category[]): Category[] {
@@ -42,6 +45,9 @@ export function AiPanel({
   onTitleChange,
   onTagsChange,
   onCategoryChange,
+  onDirty,
+  aiEnabled,
+  aiConfigured,
 }: AiPanelProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<any>(null);
@@ -82,7 +88,8 @@ export function AiPanel({
     if (suggestion.title) onTitleChange(suggestion.title);
     if (suggestion.tags?.length) onTagsChange(suggestion.tags.join(', '));
     if (suggestion.category?.id) onCategoryChange(suggestion.category.id);
-    setStatus('建议已应用');
+    onDirty();
+    setStatus('建议已应用，请记得保存');
   };
 
   const handleSummary = async () => {
@@ -103,11 +110,15 @@ export function AiPanel({
 
   const insertSummary = async () => {
     if (!editor || !summary) return;
-    const current = await getMarkdown();
-    const newContent = `**摘要：**${summary}\n\n${current}`;
-    const blocks = await editor.tryParseMarkdownToBlocks(newContent);
-    editor.replaceBlocks(editor.document, blocks);
-    setStatus('摘要已插入正文开头');
+    const blocks = await editor.tryParseMarkdownToBlocks(`**摘要：**${summary}`);
+    const firstBlock = editor.document[0];
+    if (firstBlock) {
+      editor.insertBlocks(blocks, firstBlock.id, 'before');
+    } else {
+      editor.replaceBlocks(editor.document, blocks);
+    }
+    onDirty();
+    setStatus('摘要已插入正文开头，请记得保存');
   };
 
   const handleContinue = async () => {
@@ -122,7 +133,8 @@ export function AiPanel({
       });
       const blocks = await editor.tryParseMarkdownToBlocks(continuation);
       editor.insertBlocks(blocks, editor.document[editor.document.length - 1].id);
-      setStatus('续写内容已插入');
+      onDirty();
+      setStatus('续写内容已插入，请记得保存');
     } catch (e) {
       setStatus('续写失败：' + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -137,6 +149,16 @@ export function AiPanel({
   return (
     <div className="kb-ai-panel">
       <h4>AI 辅助</h4>
+      {!aiConfigured && (
+        <div className="kb-ai-status">
+          AI 尚未配置，当前只能提供规则建议。<a href="/admin/ai/configure">前往 AI 设置</a>
+        </div>
+      )}
+      {!aiEnabled && aiConfigured && (
+        <div className="kb-ai-status">
+          AI 功能已关闭，当前只能提供规则建议。
+        </div>
+      )}
 
       <div className="kb-ai-section">
         <button
@@ -148,6 +170,7 @@ export function AiPanel({
         </button>
         {suggestion && (
           <div className="kb-ai-suggestion">
+            <p><strong>来源：</strong>{suggestion.source === 'ai' ? 'AI 生成' : '规则生成'}</p>
             <p><strong>标题：</strong>{suggestion.title}</p>
             <p><strong>摘要：</strong>{suggestion.summary}</p>
             <p><strong>标签：</strong>{suggestion.tags?.join(', ')}</p>

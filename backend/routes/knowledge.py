@@ -30,7 +30,8 @@ from models import (
     get_category_tree, get_category_path, get_subcategories,
     get_doc_count_by_category, get_knowledge_doc, get_knowledge_docs_by_category, get_recent_knowledge_docs,
     get_knowledge_docs_for_tree, get_all_knowledge_docs, search_knowledge_docs,
-    get_post_tags, search_posts, get_category_by_id,
+    get_post_tags, search_posts, get_category_by_id, create_post, set_post_tags, get_db_connection, get_post_by_id,
+    get_knowledge_doc_by_source_post_id, get_blog_post_by_source_doc_id,
     create_kb_category, move_kb_category, delete_kb_category, update_kb_category,
     create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
     soft_delete_post,
@@ -152,6 +153,7 @@ def view_doc(doc_id):
 
     doc['content_html'] = render_content(doc['content'], doc.get('content_format'), with_header_ids=True)
     tags = get_post_tags(doc_id)
+    source_post = get_post_by_id(doc['source_post_id']) if doc.get('source_post_id') else None
 
     breadcrumb = []
     if doc.get('category_id'):
@@ -159,7 +161,7 @@ def view_doc(doc_id):
 
     tree = get_category_tree('knowledge')
     return render_template(
-        'knowledge/doc.html', doc=doc, tags=tags,
+        'knowledge/doc.html', doc=doc, tags=tags, source_post=source_post,
         breadcrumb=breadcrumb, tree=tree,
         tree_docs=get_knowledge_docs_for_tree(session.get('user_id'), session.get('role')),
         can_manage=_is_manager(), can_edit=_can_edit_doc(doc), active_doc_id=doc_id,
@@ -348,6 +350,41 @@ def edit_doc(doc_id):
     tags = get_post_tags(doc_id)
     return render_template('knowledge/editor.html', tree=tree,
                            tree_flattened=_flatten_tree(tree), doc=doc, tags=tags)
+
+
+@knowledge_bp.route('/doc/<int:doc_id>/to-blog', methods=['POST'])
+@login_required
+def doc_to_blog(doc_id):
+    """把知识库文档转为博客草稿（已转过则打开已有草稿）。"""
+    doc = get_knowledge_doc(doc_id)
+    if not doc:
+        abort(404)
+    if not _can_edit_doc(doc):
+        abort(403)
+    existing = get_blog_post_by_source_doc_id(doc_id)
+    if existing:
+        flash('该文档已转为博客草稿，已为你打开', 'info')
+        return redirect(url_for('admin.edit_post', post_id=existing['id']))
+    post_id = create_post(
+        title=doc['title'],
+        content=doc['content'],
+        is_published=False,
+        category_id=None,
+        author_id=session['user_id'],
+        post_type='blog',
+        content_format=doc.get('content_format') or 'markdown',
+        dedupe=False,
+    )
+    if not post_id:
+        flash('转为博客草稿失败', 'error')
+        return redirect(url_for('knowledge.view_doc', doc_id=doc_id))
+    conn = get_db_connection()
+    conn.execute('UPDATE posts SET source_post_id = ? WHERE id = ?', (doc_id, post_id))
+    conn.commit()
+    conn.close()
+    set_post_tags(post_id, [tag['name'] for tag in get_post_tags(doc_id)])
+    flash('已转为博客草稿，可继续编辑后发布', 'success')
+    return redirect(url_for('admin.edit_post', post_id=post_id))
 
 
 @knowledge_bp.route('/doc/<int:doc_id>/delete', methods=['POST'])

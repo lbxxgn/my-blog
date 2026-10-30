@@ -38,6 +38,9 @@
 </head>
 {% set current_page_type %}{% block page_type %}site{% endblock %}{% endset %}
 {% set current_page_type = current_page_type|trim or 'site' %}
+{% if request.path.startswith('/admin') and current_page_type == 'site' %}
+{% set current_page_type = 'admin' %}
+{% endif %}
 {% set mobile_shell_enabled = current_page_type == 'home' %}
 <body data-page="{{ current_page_type }}">
     <script>
@@ -398,6 +401,20 @@
         </div>
         {% endif %}
     </main>
+
+{% if current_page_type == 'admin' %}
+<nav class="mobile-admin-nav">
+    <a href="{{ url_for('admin_dashboard') }}" class="nav-item {% if request.path == '/admin' or request.path == '/admin/' %}active{% endif %}"><span class="nav-item-icon">📄</span><span class="nav-item-label">文章</span></a>
+    {% if session.get('role') in ['admin', 'editor'] %}
+    <a href="{{ url_for('admin.comment_list') }}" class="nav-item {% if '/comments' in request.path %}active{% endif %}"><span class="nav-item-icon">💬</span><span class="nav-item-label">评论</span></a>
+    {% endif %}
+    {% if session.get('role') == 'admin' %}
+    <a href="{{ url_for('admin.user_list') }}" class="nav-item {% if '/users' in request.path %}active{% endif %}"><span class="nav-item-icon">👤</span><span class="nav-item-label">用户</span></a>
+    <a href="{{ url_for('admin.site_settings') }}" class="nav-item {% if '/site' in request.path %}active{% endif %}"><span class="nav-item-icon">⚙️</span><span class="nav-item-label">设置</span></a>
+    {% endif %}
+    <a href="{{ url_for('knowledge.index') }}" class="nav-item"><span class="nav-item-icon">📚</span><span class="nav-item-label">知识库</span></a>
+</nav>
+{% endif %}
 
 {% if mobile_shell_enabled %}
 <!-- 移动端底部导航 -->

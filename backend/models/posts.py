@@ -55,7 +55,7 @@ def verify_access_password(stored, provided):
     return hmac.compare_digest(stored, str(provided))
 
 
-def create_post(title, content, is_published=False, category_id=None, author_id=None, access_level='public', access_password=None, type='post', post_type='blog', content_format='html'):
+def create_post(title, content, is_published=False, category_id=None, author_id=None, access_level='public', access_password=None, type='post', post_type='blog', content_format='html', dedupe=True):
     """
     创建新文章
 
@@ -83,7 +83,7 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
     cursor = conn.cursor()
 
     # 防重保护：同一作者60秒内发布相同标题+内容的文章，返回已有文章ID
-    if author_id is not None:
+    if dedupe and author_id is not None:
         cursor.execute(
             """SELECT id FROM posts
                WHERE author_id = ? AND title = ? AND content = ?

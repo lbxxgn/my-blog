@@ -6,9 +6,19 @@ from models import (
     get_post_by_id,
     get_post_tags, get_comments_by_post, create_comment,
     check_post_access, verify_post_password, get_category_tree, precipitate_post_to_knowledge, get_adjacent_posts,
+    get_knowledge_doc_by_source_post_id, get_knowledge_doc,
 )
 
 from . import blog_bp, logger, get_optimized_image_url, get_optimized_image_url_cached, extract_post_image_urls, extract_post_excerpt, rewrite_post_image_sources, determine_mobile_image_layout, build_post_card_payload, build_post_card_payloads, serialize_post_for_json  # noqa: F401
+
+
+def _flatten_tree(nodes, depth=0):
+    result = []
+    for node in nodes or []:
+        result.append({'id': node['id'], 'name': node['name'],
+                       'indent': '　' * depth + ('└ ' if depth > 0 else '')})
+        result.extend(_flatten_tree(node.get('children'), depth + 1))
+    return result
 
 
 @blog_bp.route('/post/<int:post_id>')
@@ -90,12 +100,20 @@ def view_post(post_id):
 
     # 知识库分类树（用于"沉淀到知识库"弹窗，仅登录用户）
     kb_tree = get_category_tree('knowledge') if session.get('user_id') else None
+    kb_tree_flattened = _flatten_tree(kb_tree) if kb_tree else []
+
+    # 与知识库的双向来源关系
+    linked_kb_doc = get_knowledge_doc_by_source_post_id(post_id) if kb_tree else None
+    source_kb_doc = (get_knowledge_doc(post['source_post_id'])
+                     if session.get('user_id') and post.get('source_post_id') else None)
 
     # 上一篇/下一篇（仅公开博客文章）
     adjacent = get_adjacent_posts(post_id)
 
     return render_template('post.html', post=post, comments=comments, post_url=post_url,
-                           kb_tree=kb_tree, adjacent=adjacent)
+                           kb_tree=kb_tree, kb_tree_flattened=kb_tree_flattened,
+                           linked_kb_doc=linked_kb_doc, source_kb_doc=source_kb_doc,
+                           adjacent=adjacent)
 
 @blog_bp.route('/post/<int:post_id>/precipitate', methods=['POST'])
 def precipitate_to_knowledge(post_id):

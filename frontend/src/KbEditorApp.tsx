@@ -31,6 +31,8 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
   const editorRef = useRef<BlockNoteEditor | null>(null);
   const [activePanel, setActivePanel] = useState<'ai' | 'toc' | 'meta' | 'related' | null>('toc');
   const [isSaving, setIsSaving] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiConfigured, setAiConfigured] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('未修改');
   // 新建文档首次保存后切换为"编辑已有文档"，避免重复创建
@@ -60,6 +62,19 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
     markDirty();
     setDirty(true);
   }, [markDirty]);
+
+  useEffect(() => {
+    fetch('/admin/ai/status', { headers: { Accept: 'application/json' } })
+      .then((res) => res.json())
+      .then((data) => {
+        setAiEnabled(Boolean(data.ai_enabled));
+        setAiConfigured(Boolean(data.ai_configured));
+      })
+      .catch(() => {
+        setAiEnabled(false);
+        setAiConfigured(false);
+      });
+  }, []);
 
   const handleEditorChange = useCallback(() => {
     handleDirty();
@@ -425,6 +440,9 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
                 onTitleChange={setTitle}
                 onTagsChange={setTags}
                 onCategoryChange={setCategoryId}
+                onDirty={handleDirty}
+                aiEnabled={aiEnabled}
+                aiConfigured={aiConfigured}
               />
             )}
             {activePanel === 'meta' && (

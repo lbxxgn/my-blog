@@ -46,8 +46,11 @@
                 <div class="import-action">
                     <form action="{{ url_for('import_json') }}" method="post" enctype="multipart/form-data" class="import-form">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <input type="file" name="import_file" accept=".json" id="jsonFileInput" required>
-                        <label for="jsonFileInput" class="file-label">选择 JSON 文件</label>
+                        <input type="file" name="import_file" accept=".json,.zip" id="jsonFileInput" required>
+                        <label for="jsonFileInput" class="file-label">选择 JSON / 完整导出 ZIP</label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;color:var(--text-secondary);">
+                            <input type="checkbox" name="dry_run" value="1" style="width:auto;"> 仅预检，不写入数据库
+                        </label>
                         <button type="submit" class="btn btn-primary">导入 JSON</button>
                     </form>
                 </div>
@@ -71,6 +74,9 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="file" name="import_file" accept=".zip" id="markdownFileInput" required>
                         <label for="markdownFileInput" class="file-label">选择 ZIP 文件</label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;color:var(--text-secondary);">
+                            <input type="checkbox" name="dry_run" value="1" style="width:auto;"> 仅预检，不写入数据库
+                        </label>
                         <button type="submit" class="btn btn-primary">导入 Markdown</button>
                     </form>
                 </div>
@@ -93,7 +99,7 @@
         <div class="import-warning-box">
             <h4>⚠️ 注意事项</h4>
             <ul>
-                <li>导入操作不可撤销，请确保备份重要数据</li>
+                <li>建议先勾选“仅预检”查看结果；正式导入会使用单事务，失败自动回滚</li>
                 <li>重复的文章会被自动跳过</li>
                 <li>如果文章数量较多，导入可能需要一些时间</li>
                 <li>建议在导入前先清空测试数据</li>

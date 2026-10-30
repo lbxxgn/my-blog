@@ -28,6 +28,10 @@
                 <div class="kb-article-actions">
                     <a href="{{ url_for('knowledge.edit_doc', doc_id=doc.id) }}" class="btn btn-sm">✏️ 编辑</a>
                     <a href="{{ url_for('admin.revision_list', post_id=doc.id) }}" class="btn btn-sm">历史版本</a>
+                    <form method="POST" action="{{ url_for('knowledge.doc_to_blog', doc_id=doc.id) }}" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm">转为博客草稿</button>
+                    </form>
                     <form method="POST" action="{{ url_for('knowledge.delete_doc', doc_id=doc.id) }}"
                           data-confirm="确定删除此文档？" data-confirm-destructive="true" data-confirm-text="删除"
                           style="display:inline">
@@ -38,6 +42,9 @@
                 {% endif %}
             </div>
             <div class="kb-article-meta">
+                {% if source_post %}
+                <a href="{{ url_for('blog.view_post', post_id=source_post.id) }}">来源博客：{{ source_post.title }}</a>
+                {% endif %}
                 {% if doc.category_name %}<span>📁 {{ doc.category_name }}</span>{% endif %}
                 <time>创建于 {{ (doc.created_at|localtime)[:10] }}</time>
                 {% if doc.updated_at and (doc.updated_at|localtime)[:10] != (doc.created_at|localtime)[:10] %}
