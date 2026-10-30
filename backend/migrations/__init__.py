@@ -13,9 +13,21 @@
     2. 在下方 MIGRATIONS 末尾追加 (version, 描述, 模块名, 函数名)
 """
 import importlib
+import os
 import sqlite3
 import sys
 from pathlib import Path
+
+# 迁移是运维 CLI，不需要 Web 会话密钥；避免生产环境因 SECRET_KEY 未就绪而无法执行迁移。
+# 必须在 import backend.config 之前设置，因为 config 在导入时会做安全校验。
+os.environ.setdefault('SKIP_SECRET_KEY_CHECK', '1')
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_PROJECT_ROOT / '.env', override=False)
+except ImportError:
+    print('⚠️  未安装 python-dotenv，跳过 .env 加载；请确保 DATABASE_URL 等变量已在环境中。')
 
 sys.path.append(str(Path(__file__).parent.parent))
 
