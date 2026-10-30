@@ -87,6 +87,14 @@ class TestAdminFiltersAndTaxonomy:
         assert 'Unique Draft Target' in page
         assert 'Published Other' not in page
 
+    def test_admin_dashboard_empty_filter_values_do_not_hide_posts(self, client, temp_db, test_admin_user):
+        from models import create_post
+        create_post('Visible With Empty Filters', 'body', True, None, test_admin_user['id'])
+        _login(client, test_admin_user)
+
+        page = client.get('/admin?q=&status=&access_level=&category_id=&type=&author_id=&per_page=20').get_data(as_text=True)
+        assert 'Visible With Empty Filters' in page
+
     def test_category_rename_and_merge(self, client, temp_db, test_admin_user):
         from models import create_category, create_post, get_category_by_id
         source = create_category('OldCat')

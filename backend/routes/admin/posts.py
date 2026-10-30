@@ -133,8 +133,10 @@ def admin_dashboard():
         pass
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
-    category_id = request.args.get('category_id')
-    type_filter = request.args.get('type')
+    # 表单中未选择的筛选项会以空字符串提交，必须归一为 None，
+    # 否则会被当作 category_id='' / type='' 去查询，导致列表恒为空。
+    category_id = request.args.get('category_id') or None
+    type_filter = request.args.get('type') or None
     query = (request.args.get('q') or '').strip()
     status_filter = request.args.get('status') or ''
     access_filter = request.args.get('access_level') or ''
