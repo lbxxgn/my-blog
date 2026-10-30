@@ -66,6 +66,18 @@
                     </div>
                 {% endif %}
             </div>
+
+            {% if pagination.total_pages > 1 %}
+            <div class="pagination-bar" style="margin-top:20px;display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;">
+                {% if pagination.page > 1 %}
+                <a class="filter-btn" href="{{ url_for('blog.archive', days=days, year=year, month=month, per_page=pagination.per_page, page=pagination.page-1) }}">上一页</a>
+                {% endif %}
+                <span>第 {{ pagination.page }} / {{ pagination.total_pages }} 页 · 共 {{ pagination.total }} 篇</span>
+                {% if pagination.page < pagination.total_pages %}
+                <a class="filter-btn" href="{{ url_for('blog.archive', days=days, year=year, month=month, per_page=pagination.per_page, page=pagination.page+1) }}">下一页</a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

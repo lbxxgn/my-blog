@@ -16,6 +16,7 @@ __all__ = [
     'update_category',
     'delete_category',
     'get_posts_by_category',
+    'merge_category',
 ]
 
 
@@ -41,7 +42,7 @@ def get_all_categories(post_type=None, only_with_posts=False, space=None):
         only_with_posts (bool): 仅返回至少有一篇符合条件文章的分类（过滤空分类）
         space (str, optional): 仅返回该空间的分类（'blog'/'knowledge'）；None=全部
     """
-    count_where = 'p.is_published = 1'
+    count_where = 'p.is_published = 1 AND p.deleted_at IS NULL'
     params = []
     if post_type:
         count_where += ' AND p.post_type = ?'
@@ -115,15 +116,26 @@ def delete_category(category_id):
         # Then delete the category
         cursor.execute('DELETE FROM categories WHERE id = ?', (category_id,))
 
+def merge_category(source_id, target_id):
+    """把源分类下的文章迁移到目标分类，然后删除源分类。"""
+    if source_id == target_id:
+        return False
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('UPDATE posts SET category_id = ? WHERE category_id = ?', (target_id, source_id))
+        cursor.execute('DELETE FROM categories WHERE id = ?', (source_id,))
+        return cursor.rowcount > 0
+
+
 def get_posts_by_category(category_id, include_drafts=False):
     """Get all posts in a category"""
     conn = get_db_connection()
     cursor = conn.cursor()
 
     if include_drafts:
-        cursor.execute('SELECT * FROM posts WHERE category_id = ? ORDER BY created_at DESC', (category_id,))
+        cursor.execute('SELECT * FROM posts WHERE category_id = ? AND deleted_at IS NULL ORDER BY created_at DESC', (category_id,))
     else:
-        cursor.execute('SELECT * FROM posts WHERE category_id = ? AND is_published = 1 ORDER BY created_at DESC', (category_id,))
+        cursor.execute('SELECT * FROM posts WHERE category_id = ? AND is_published = 1 AND deleted_at IS NULL ORDER BY created_at DESC', (category_id,))
 
     posts = [dict(row) for row in cursor.fetchall()]
     conn.close()

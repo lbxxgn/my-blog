@@ -139,25 +139,48 @@ function filterByCategory() {
     window.location = url.toString();
 }
 
-function toggleSelectAll() {
+async function toggleSelectAll() {
     const selectAllCheckbox = document.getElementById('selectAll');
     const checkboxes = document.querySelectorAll('.post-checkbox');
 
-    checkboxes.forEach(checkbox => {
-        const postId = parseInt(checkbox.value);
-        const row = checkbox.closest('tr');
+    if (!selectAllCheckbox.checked) {
+        checkboxes.forEach(checkbox => { checkbox.checked = false; });
+        selectedPosts.clear();
+        updateBatchActions();
+        return;
+    }
 
-        // Only toggle visible rows
-        if (row.style.display !== 'none') {
-            checkbox.checked = selectAllCheckbox.checked;
-            if (checkbox.checked) {
-                selectedPosts.add(postId);
-            } else {
-                selectedPosts.delete(postId);
-            }
+    selectAllCheckbox.disabled = true;
+    try {
+        // 全选范围是“当前筛选结果”，不只当前页
+        const response = await fetch('/admin/post-ids' + window.location.search, {
+            headers: { 'Accept': 'application/json' }
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || '加载筛选结果失败');
         }
-    });
+        selectedPosts = new Set(data.ids.map(id => Number(id)));
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = selectedPosts.has(parseInt(checkbox.value));
+        });
+        notifyDashboard(`已选择当前筛选结果 ${selectedPosts.size} 篇`);
+    } catch (error) {
+        selectAllCheckbox.checked = false;
+        notifyDashboard('全选失败：' + (error.message || error), 'error');
+    } finally {
+        selectAllCheckbox.disabled = false;
+        updateBatchActions();
+    }
+}
 
+function togglePostSelection(checkbox) {
+    const postId = parseInt(checkbox.value);
+    if (checkbox.checked) {
+        selectedPosts.add(postId);
+    } else {
+        selectedPosts.delete(postId);
+    }
     updateBatchActions();
 }
 
@@ -178,21 +201,21 @@ function changePerPage() {
 }
 
 function updateBatchActions() {
-    const checkboxes = document.querySelectorAll('.post-checkbox:checked');
-    selectedPosts.clear();
-
-    checkboxes.forEach(checkbox => {
-        selectedPosts.add(parseInt(checkbox.value));
-    });
-
     const batchActionsBar = document.getElementById('batchActionsBar');
     const selectedCount = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const visibleCheckboxes = Array.from(document.querySelectorAll('.post-checkbox'));
+    const checkedVisible = visibleCheckboxes.filter(checkbox => checkbox.checked).length;
 
-    if (selectedPosts.size > 0) {
-        batchActionsBar.style.display = 'flex';
+    if (batchActionsBar) {
+        batchActionsBar.style.display = selectedPosts.size > 0 ? 'flex' : 'none';
+    }
+    if (selectedCount) {
         selectedCount.textContent = selectedPosts.size;
-    } else {
-        batchActionsBar.style.display = 'none';
+    }
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = selectedPosts.size > 0;
+        selectAllCheckbox.indeterminate = checkedVisible > 0 && checkedVisible < visibleCheckboxes.length;
     }
 }
 
@@ -260,7 +283,7 @@ function confirmBatchDelete() {
         if (data.success) {
             closeBatchDeleteModal();
             notifyDashboard(data.message);
-            removeSelectedRows();
+            reloadAfterToast();
         } else {
             notifyDashboard(actionFailureMessage(result), 'error');
         }

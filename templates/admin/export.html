@@ -13,7 +13,7 @@
 
     <div class="export-section">
         <h3>导出选项</h3>
-        <p class="text-secondary">选择导出格式，导出的文件将保存在服务器的 <code>exports/</code> 目录中。</p>
+        <p class="text-secondary">选择导出格式，点击后直接下载导出文件。</p>
 
         <div class="export-options">
             <!-- Markdown Export -->
@@ -59,17 +59,47 @@
                     </a>
                 </div>
             </div>
+
+            <!-- Knowledge Export -->
+            <div class="export-option-card">
+                <div class="export-icon">📚</div>
+                <div class="export-info">
+                    <h4>知识库单独导出</h4>
+                    <p>只导出知识库文档及其图片，不影响博客文章。</p>
+                </div>
+                <div class="export-action">
+                    <a href="{{ url_for('admin.export_knowledge') }}" class="btn btn-primary"
+                       data-confirm="确定导出全部知识库文档吗？" data-confirm-text="导出">导出知识库</a>
+                </div>
+            </div>
+
+            <!-- Full Export -->
+            <div class="export-option-card">
+                <div class="export-icon">🗄️</div>
+                <div class="export-info">
+                    <h4>完整导出（JSON + 图片）</h4>
+                    <p>包含完整字段、知识库文档、目录信息和上传图片，适合迁移或完整恢复。</p>
+                    <ul class="export-features">
+                        <li>✓ 完整字段与内容空间</li>
+                        <li>✓ 包含上传图片</li>
+                        <li>✓ 可直接用于导入</li>
+                    </ul>
+                </div>
+                <div class="export-action">
+                    <a href="{{ url_for('admin.export_full') }}" class="btn btn-primary"
+                       data-confirm="确定要创建完整导出吗？" data-confirm-text="导出">完整导出</a>
+                </div>
+            </div>
         </div>
 
         <!-- Export Info -->
         <div class="export-info-box">
             <h4>📌 导出说明</h4>
             <ul>
-                <li>导出的文件保存在服务器 <code>exports/</code> 目录中</li>
-                <li>每次导出都会创建新的文件，不会覆盖之前的导出</li>
-                <li>Markdown 文件命名格式：<code>ID_Title.md</code></li>
-                <li>JSON 文件包含时间戳：<code>blog_export_YYYYMMDD_HHMMSS.json</code></li>
-                <li>请定期下载导出文件到本地进行备份</li>
+                <li>导出文件会直接下载，服务器同时保留一份在 <code>exports/</code></li>
+                <li>JSON 包含权限、内容格式、文章类型、知识库目录与标签</li>
+                <li>完整导出 ZIP 额外包含上传图片，可直接用于导入恢复</li>
+                <li>Markdown 导出已包含图片目录</li>
             </ul>
         </div>
 
@@ -77,7 +107,7 @@
         <div class="export-info-box">
             <h4>💻 命令行导出</h4>
             <p>你也可以通过命令行直接导出：</p>
-            <pre><code>cd /Users/gn/simple-blog
+            <pre><code>cd /path/to/my-blog
 python3 backend/export.py</code></pre>
         </div>
     </div>

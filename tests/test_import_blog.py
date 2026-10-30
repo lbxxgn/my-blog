@@ -103,7 +103,8 @@ class TestImportBlogsFromXml:
         }])
 
         # Execute
-        import_blog.import_blogs_from_xml(str(xml_file), author_id=1)
+        with patch('import_blog.get_all_categories', return_value=[]):
+            import_blog.import_blogs_from_xml(str(xml_file), author_id=1)
 
         # Verify create_post was called
         mock_create_post.assert_called_once()
@@ -117,7 +118,7 @@ class TestImportBlogsFromXml:
         mock_conn = MagicMock()
         mock_get_conn.return_value = mock_conn
 
-        with patch('import_blog.Path') as mock_path:
+        with patch('import_blog.Path') as mock_path, patch('import_blog.get_all_categories', return_value=[]):
             mock_path.return_value.exists.return_value = True
             mock_path.return_value.parent.parent = tmp_path
             import_blog.import_blogs_from_xml(str(xml_file), author_id=1)

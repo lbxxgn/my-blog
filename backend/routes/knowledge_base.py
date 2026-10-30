@@ -15,7 +15,7 @@ from models import (
     update_card_status, update_card, delete_card,
     merge_cards_to_post, get_user_ai_config, ai_merge_cards_to_post,
     create_annotation, get_annotations_by_url, create_post,
-    get_category_by_name, create_category
+    get_category_by_name, create_category, get_category_by_id, get_db_connection
 )
 from datetime import datetime
 from logger import log_operation, api_internal_error
@@ -558,12 +558,24 @@ def ai_merge_cards():
         return jsonify({'success': False, 'error': 'AI功能未启用，请先在设置中配置'}), 400
 
     try:
+        category_id = data.get('category_id')
+        try:
+            cat = get_category_by_id(int(category_id))
+        except (TypeError, ValueError):
+            cat = None
+        if not cat or cat.get('space') != 'knowledge':
+            return jsonify({'success': False, 'error': '请选择有效的知识库目标目录'}), 400
+
         result = ai_merge_cards_to_post(
             card_ids=card_ids,
             user_id=session['user_id'],
             user_config=user_ai_config,
             merge_style=merge_style
         )
+        conn = get_db_connection()
+        conn.execute('UPDATE posts SET category_id = ? WHERE id = ?', (cat['id'], result['post_id']))
+        conn.commit()
+        conn.close()
 
         log_operation(session['user_id'], session.get('username', 'Unknown'),
                      f'AI合并卡片', f'卡片IDs: {card_ids} -> 文章ID: {result["post_id"]}')

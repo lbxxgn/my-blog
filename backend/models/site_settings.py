@@ -14,6 +14,7 @@ __all__ = [
     'set_site_setting',
     'delete_site_setting',
     'get_site_icon_version',
+    'get_site_identity',
 ]
 
 
@@ -76,6 +77,29 @@ def delete_site_setting(key):
             pass
     finally:
         conn.close()
+
+
+def get_site_identity(defaults=None):
+    """读取站点名称/描述/作者，未配置时回退默认值。"""
+    defaults = defaults or {}
+    keys = ('site_name', 'site_description', 'site_author')
+    values = dict(defaults)
+    conn = get_db_connection()
+    try:
+        try:
+            placeholders = ','.join('?' for _ in keys)
+            rows = conn.execute(
+                f'SELECT key, value FROM site_settings WHERE key IN ({placeholders})',
+                keys,
+            ).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        for row in rows:
+            if row['value'] is not None and str(row['value']).strip():
+                values[row['key']] = row['value']
+    finally:
+        conn.close()
+    return values
 
 
 def get_site_icon_version():

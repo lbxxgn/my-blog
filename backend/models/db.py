@@ -149,6 +149,8 @@ def init_db(db_path=None):
             author_id INTEGER DEFAULT 1,
             access_level TEXT DEFAULT 'public',
             access_password TEXT,
+            publish_at TIMESTAMP,
+            deleted_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (category_id) REFERENCES categories(id),
@@ -166,6 +168,15 @@ def init_db(db_path=None):
         cursor.execute('ALTER TABLE posts ADD COLUMN type TEXT DEFAULT \'post\'')
     except Exception:
         pass  # Column already exists
+
+    for _col, _def in [
+        ('publish_at', 'TIMESTAMP'),
+        ('deleted_at', 'TIMESTAMP'),
+    ]:
+        try:
+            cursor.execute(f'ALTER TABLE posts ADD COLUMN {_col} {_def}')
+        except Exception:
+            pass  # Column already exists
 
     try:
         cursor.execute('ALTER TABLE posts ADD COLUMN source_card_ids TEXT')
@@ -430,6 +441,27 @@ def init_db(db_path=None):
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_post_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_type ON posts(post_type)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_parent_note ON posts(parent_note_id)')
+
+    # 文章修订历史
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS post_revisions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            content_format TEXT DEFAULT 'html',
+            category_id INTEGER,
+            tags_json TEXT,
+            access_level TEXT DEFAULT 'public',
+            access_password TEXT,
+            post_type TEXT DEFAULT 'blog',
+            type TEXT DEFAULT 'post',
+            author_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+        )
+    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_revisions_post ON post_revisions(post_id, created_at DESC)')
 
     # 迁移版本记录表（见 backend/migrations/__init__.py）
     cursor.execute('''

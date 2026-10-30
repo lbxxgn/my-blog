@@ -2,6 +2,8 @@
 
 import logging
 import os
+import shlex
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -73,30 +75,31 @@ def backup_page():
 @admin_bp.route('/backup/create', methods=['POST'])
 @admin_required
 def create_backup():
-    """创建一份全量备份（数据库 + 全部附件）。"""
+    """在后台线程创建全量备份，避免同步请求被 nginx 超时。"""
     try:
-        archive_path, manifest = backup_service.create_backup_archive()
-        size_mb = archive_path.stat().st_size / 1024 / 1024
+        job_id = backup_service.start_backup_job()
         log_operation(
             session.get('user_id'),
             session.get('username'),
             '创建全量备份',
-            f'{archive_path.name} ({size_mb:.2f} MB)',
+            f'后台任务 {job_id}',
         )
-        flash(
-            f'全量备份已创建：{archive_path.name}（{size_mb:.2f} MB，'
-            f'{manifest["uploads"]["file_count"]} 个附件）',
-            'success',
-        )
-    except backup_service.BackupError as exc:
+        flash('备份任务已开始，页面会自动显示进度。', 'success')
+        return redirect(url_for('admin.backup_page', job_id=job_id))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception('启动备份任务失败')
         flash(f'备份失败：{exc}', 'error')
         log_error(exc, context='创建全量备份', user_id=session.get('user_id'))
-    except Exception as exc:  # noqa: BLE001 - 统一提示并记录
-        logger.exception('创建全量备份失败')
-        flash(f'备份失败：{exc}', 'error')
-        log_error(exc, context='创建全量备份', user_id=session.get('user_id'))
+        return redirect(url_for('admin.backup_page'))
 
-    return redirect(url_for('admin.backup_page'))
+
+@admin_bp.route('/backup/job/<job_id>')
+@admin_required
+def backup_job_status(job_id):
+    job = backup_service.get_backup_job(job_id)
+    if not job:
+        return {'success': False, 'error': '任务不存在'}, 404
+    return {'success': True, 'job': job}
 
 
 @admin_bp.route('/backup/download/<name>')
@@ -235,6 +238,17 @@ def restore_backup():
                 f'已自动应用 {migration_result["applied"]} 个数据库迁移',
                 'info',
             )
+
+        restart_command = (os.environ.get('BACKUP_RESTART_COMMAND') or '').strip()
+        if restart_command:
+            try:
+                subprocess.Popen(shlex.split(restart_command))
+                flash('已触发服务重启，请稍候刷新页面。', 'info')
+            except Exception as exc:  # noqa: BLE001
+                logger.warning('自动重启失败：%s', exc)
+                flash(f'恢复完成，但自动重启失败：{exc}，请手动重启服务。', 'warning')
+        else:
+            flash('恢复完成，请立即重启 Web 服务，避免其他 worker 继续使用旧数据库。', 'warning')
 
         logger.info(
             '用户 %s 恢复全量备份 %s（格式版本 %s）',

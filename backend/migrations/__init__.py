@@ -13,9 +13,21 @@
     2. 在下方 MIGRATIONS 末尾追加 (version, 描述, 模块名, 函数名)
 """
 import importlib
+import os
 import sqlite3
 import sys
 from pathlib import Path
+
+# 迁移是运维 CLI，不需要 Web 会话密钥；避免生产环境因 SECRET_KEY 未就绪而无法执行迁移。
+# 必须在 import backend.config 之前设置，因为 config 在导入时会做安全校验。
+os.environ.setdefault('SKIP_SECRET_KEY_CHECK', '1')
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+try:
+    from dotenv import load_dotenv
+    load_dotenv(_PROJECT_ROOT / '.env', override=False)
+except ImportError:
+    print('⚠️  未安装 python-dotenv，跳过 .env 加载；请确保 DATABASE_URL 等变量已在环境中。')
 
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -35,6 +47,7 @@ MIGRATIONS = [
     ('010_site_settings', '站点配置表（自定义站点图标等）', 'backend.migrations.migrate_site_settings', 'migrate'),
     ('011_content_format', '存量文章 content_format 标注纠偏（检测真实格式）', 'backend.migrations.migrate_content_format', 'migrate'),
     ('012_ai_catalog', 'AI 提供商与模型目录表', 'backend.migrations.migrate_ai_catalog', 'migrate'),
+    ('013_p1_features', '定时发布、软删除、修订历史与多草稿设备', 'backend.migrations.migrate_p1_features', 'migrate'),
 ]
 
 

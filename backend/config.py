@@ -150,10 +150,12 @@ _INSECURE_SECRET_KEYS = {
     '',  # 空字符串
     'change-this-to-a-random-secret-key-in-production',  # .env.example 占位符
 }
-# 测试环境（pytest）豁免，避免影响测试套件
+# 测试环境（pytest）与 CLI 工具（迁移等）豁免，避免影响测试套件/运维脚本
 _IS_TESTING = os.environ.get('TESTING') == '1' or 'pytest' in sys.modules
+_SKIP_SECRET_KEY_CHECK = os.environ.get('SKIP_SECRET_KEY_CHECK') == '1'
 
-if IS_PRODUCTION and not _IS_TESTING and SECRET_KEY in _INSECURE_SECRET_KEYS:
+if (IS_PRODUCTION and not _IS_TESTING and not _SKIP_SECRET_KEY_CHECK
+        and SECRET_KEY in _INSECURE_SECRET_KEYS):
     raise RuntimeError(
         '\n' + '=' * 70 +
         '\n SECURITY ERROR: 检测到生产环境使用默认/弱 SECRET_KEY，已拒绝启动。' +

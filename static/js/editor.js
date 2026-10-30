@@ -109,6 +109,17 @@ document.addEventListener('DOMContentLoaded', function () {
             imageUpload.addEventListener('change', async function (e) {
                 const files = Array.from(e.target.files);
                 if (!files.length) return;
+                const invalid = files.find(file => !file.type.startsWith('image/') || file.size > 50 * 1024 * 1024);
+                if (invalid) {
+                    if (saveStatus) {
+                        saveStatus.textContent = invalid.type.startsWith('image/')
+                            ? `图片过大：${invalid.name}（最大 50MB）`
+                            : `不支持的文件类型：${invalid.name}`;
+                        saveStatus.className = 'save-status error';
+                    }
+                    e.target.value = '';
+                    return;
+                }
                 const totalFiles = files.length;
                 let uploadedCount = 0;
                 let successCount = 0;
@@ -173,11 +184,41 @@ document.addEventListener('DOMContentLoaded', function () {
                 e.target.value = '';
                 window.dispatchEvent(new CustomEvent('editor:images-updated'));
             });
+
+            // 拖拽/粘贴图片也复用同一套上传逻辑
+            const forwardFiles = (files) => {
+                if (!files || !files.length) return;
+                const dt = new DataTransfer();
+                Array.from(files).forEach(file => dt.items.add(file));
+                imageUpload.files = dt.files;
+                imageUpload.dispatchEvent(new Event('change'));
+            };
+            quill.root.addEventListener('dragover', function (e) {
+                if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+                    e.preventDefault();
+                }
+            });
+            quill.root.addEventListener('drop', function (e) {
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+                    e.preventDefault();
+                    forwardFiles(e.dataTransfer.files);
+                }
+            });
+            quill.root.addEventListener('paste', function (e) {
+                const items = Array.from((e.clipboardData && e.clipboardData.items) || [])
+                    .filter(item => item.type && item.type.indexOf('image/') === 0);
+                if (!items.length) return;
+                e.preventDefault();
+                forwardFiles(items.map(item => item.getAsFile()).filter(Boolean));
+            }, true);
         }
         const publishToggle = document.getElementById('publishToggle');
         const isPublishedCheckbox = document.getElementById('is_published');
         window.togglePublish = function () {
             if (publishToggle && isPublishedCheckbox) {
+                const scheduleInput = document.getElementById('publish_at');
+                const when = scheduleInput && scheduleInput.value ? `\n定时发布时间：${scheduleInput.value.replace('T', ' ')}` : '\n发布后可在编辑页取消发布。';
+                if (!window.confirm('确认发布这篇文章？' + when)) return;
                 syncTextareaFromQuill();
                 isPublishedCheckbox.checked = true;
                 setTimeout(function () {
@@ -415,6 +456,75 @@ document.addEventListener('DOMContentLoaded', function () {
             indentBtn.innerHTML = '↹';
             indentBtn.addEventListener('click', applyFirstLineIndent);
             toolbar.container.appendChild(indentBtn);
+
+            const mediaBtn = document.createElement('button');
+            mediaBtn.type = 'button';
+            mediaBtn.className = 'ql-media-library';
+            mediaBtn.title = '媒体库';
+            mediaBtn.innerHTML = '🖼';
+            mediaBtn.addEventListener('click', openMediaLibrary);
+            toolbar.container.appendChild(mediaBtn);
+        }
+
+        function openMediaLibrary() {
+            fetch('/admin/media/library', { headers: { 'Accept': 'application/json' } })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) throw new Error(data.error || '加载失败');
+                    const overlay = document.createElement('div');
+                    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+                    const panel = document.createElement('div');
+                    panel.style.cssText = 'background:var(--card-bg,#fff);border-radius:12px;max-width:900px;width:100%;max-height:80vh;overflow:auto;padding:16px;';
+                    panel.innerHTML = '<div style="display:flex;gap:10px;justify-content:space-between;align-items:center;margin-bottom:12px;"><strong>媒体库</strong><input type="search" data-media-search placeholder="搜索文件名..." style="flex:1;max-width:240px;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;"><button type="button" class="btn btn-sm" data-close>关闭</button></div><div data-media-grid style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;"></div>';
+                    const grid = panel.querySelector('[data-media-grid]');
+                    const search = panel.querySelector('[data-media-search]');
+                    function renderItems(keyword) {
+                        const q = String(keyword || '').toLowerCase();
+                        grid.innerHTML = '';
+                        const items = data.items.filter(item => !q || item.name.toLowerCase().includes(q));
+                        if (!items.length) {
+                            grid.innerHTML = '<p style="color:var(--text-secondary);">没有匹配的图片。</p>';
+                            return;
+                        }
+                        items.forEach(item => {
+                            const card = document.createElement('div');
+                            card.style.cssText = 'border:1px solid var(--border-color,#ddd);border-radius:8px;padding:4px;background:transparent;';
+                            card.innerHTML = '<img src="' + item.url + '" alt="' + item.name + '" style="width:100%;height:88px;object-fit:cover;border-radius:6px;display:block;cursor:pointer;" data-insert><div style="font-size:11px;color:var(--text-secondary);margin:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + item.name + ' · 引用 ' + (item.references || 0) + '</div><div style="display:flex;gap:4px;"><button type="button" class="btn btn-sm" data-insert>插入</button><button type="button" class="btn btn-sm btn-danger" data-delete>删除</button></div>';
+                            card.querySelectorAll('[data-insert]').forEach(el => el.addEventListener('click', function () {
+                                const range = quill.getSelection(true);
+                                const index = range ? range.index : quill.getLength();
+                                quill.insertEmbed(index, 'image', item.url);
+                                quill.insertText(index + 1, '\n');
+                                textarea.value = quill.root.innerHTML;
+                                window.dispatchEvent(new CustomEvent('editor:content-change', { detail: { html: quill.root.innerHTML, text: quill.getText().trim() } }));
+                                window.dispatchEvent(new CustomEvent('editor:images-updated'));
+                                overlay.remove();
+                            }));
+                            card.querySelector('[data-delete]').addEventListener('click', async function () {
+                                if (!window.confirm('确定删除这张图片？')) return;
+                                const fd = new FormData();
+                                fd.append('name', item.name);
+                                fd.append('csrf_token', csrfToken);
+                                const resp = await fetch('/admin/media/library/delete', { method: 'POST', body: fd, headers: { 'X-CSRFToken': csrfToken } });
+                                const result = await resp.json().catch(() => ({}));
+                                if (!resp.ok || !result.success) {
+                                    alert(result.error || '删除失败');
+                                    return;
+                                }
+                                data.items = data.items.filter(x => x.name !== item.name);
+                                renderItems(search.value);
+                            });
+                            grid.appendChild(card);
+                        });
+                    }
+                    renderItems('');
+                    search.addEventListener('input', function () { renderItems(this.value); });
+                    panel.querySelector('[data-close]').addEventListener('click', () => overlay.remove());
+                    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+                    overlay.appendChild(panel);
+                    document.body.appendChild(overlay);
+                })
+                .catch(err => alert('媒体库加载失败：' + err.message));
         }
 
         // Keyboard shortcut: Tab / Shift+Tab to indent/outdent first line at paragraph start.
@@ -485,7 +595,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const existingTags = tagsInput.value.trim();
                     tagsInput.value = existingTags ? existingTags + ', ' + newTags : newTags;
                 }
-                showAIStatus('success', `✅ 已生成标签:${data.tags.join(', ')}(${data.tokens_used}tokens,约$${data.cost.toFixed(4)})`);
+                showAIStatus('success', `✅ 已生成标签：${data.tags.join(', ')}`);
                 if (window.EditorWorkbench?.updateAiSuggestionState) {
                     window.EditorWorkbench.updateAiSuggestionState('标签已更新');
                 }

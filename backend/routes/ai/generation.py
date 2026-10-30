@@ -51,8 +51,8 @@ def generate_tags():
         if not user_ai_config:
             return jsonify({
                 'success': False,
-                'error': '用户不存在'
-            }), 404
+                'error': 'AI 未配置，请先在 AI 设置中填写供应商和密钥'
+            }), 400
 
         # 生成标签
         try:

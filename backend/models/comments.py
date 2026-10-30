@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 
-def create_comment(post_id, author_name, author_email=None, content=None):
+def create_comment(post_id, author_name, author_email=None, content=None, is_visible=True):
     """Create a new comment"""
     if content is None:
         content = author_email
@@ -33,8 +33,8 @@ def create_comment(post_id, author_name, author_email=None, content=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
-        'INSERT INTO comments (post_id, author_name, author_email, content) VALUES (?, ?, ?, ?)',
-        (post_id, author_name, author_email, content)
+        'INSERT INTO comments (post_id, author_name, author_email, content, is_visible) VALUES (?, ?, ?, ?, ?)',
+        (post_id, author_name, author_email, content, 1 if is_visible else 0)
     )
     conn.commit()
     comment_id = cursor.lastrowid
@@ -122,14 +122,14 @@ def get_all_comments(include_hidden=False):
         cursor.execute('''
             SELECT comments.*, posts.title as post_title, posts.id as post_id
             FROM comments
-            JOIN posts ON comments.post_id = posts.id
+            JOIN posts ON comments.post_id = posts.id AND posts.deleted_at IS NULL
             ORDER BY comments.created_at DESC
         ''')
     else:
         cursor.execute('''
             SELECT comments.*, posts.title as post_title, posts.id as post_id
             FROM comments
-            JOIN posts ON comments.post_id = posts.id
+            JOIN posts ON comments.post_id = posts.id AND posts.deleted_at IS NULL
             WHERE comments.is_visible = 1
             ORDER BY comments.created_at DESC
         ''')

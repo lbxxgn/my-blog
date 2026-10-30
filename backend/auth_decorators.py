@@ -4,14 +4,19 @@
 """
 from functools import wraps
 from flask import session, flash, redirect, url_for, request
-from models import get_user_by_username, get_post_by_id
+from models import get_user_by_username, get_user_by_id, get_post_by_id
 
 
 def login_required(f):
     """要求用户登录的装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if session.get('user_id') is None:
+        user = None
+        if session.get('user_id') is not None:
+            user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+        if session.get('user_id') is None or not user or not user.get('is_active', 1):
+            if session.get('user_id') is not None:
+                session.clear()
             # AJAX/JSON 请求返回 401，由前端统一提示并跳转登录
             if (request.is_json or request.path.startswith('/api/')
                     or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -69,9 +74,10 @@ def role_required(*allowed_roles):
                 flash('请先登录', 'warning')
                 return redirect(url_for('auth.login', next=request.url))
 
-            user = get_user_by_username(session.get('username'))
-            if not user:
-                flash('用户不存在', 'error')
+            user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+            if not user or not user.get('is_active', 1):
+                session.clear()
+                flash('用户不存在或已被停用', 'error')
                 return redirect(url_for('logout'))
 
             if user.get('role') not in allowed_roles:
@@ -100,9 +106,10 @@ def can_edit_post(f):
             flash('请先登录', 'warning')
             return redirect(url_for('auth.login', next=request.url))
 
-        user = get_user_by_username(session.get('username'))
-        if not user:
-            flash('用户不存在', 'error')
+        user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+        if not user or not user.get('is_active', 1):
+            session.clear()
+            flash('用户不存在或已被停用', 'error')
             return redirect(url_for('logout'))
 
         post = get_post_by_id(post_id)
@@ -139,9 +146,10 @@ def can_delete_post(f):
             flash('请先登录', 'warning')
             return redirect(url_for('auth.login', next=request.url))
 
-        user = get_user_by_username(session.get('username'))
-        if not user:
-            flash('用户不存在', 'error')
+        user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+        if not user or not user.get('is_active', 1):
+            session.clear()
+            flash('用户不存在或已被停用', 'error')
             return redirect(url_for('logout'))
 
         # 只有admin可以删除文章
@@ -162,8 +170,8 @@ def can_manage_users(f):
             flash('请先登录', 'warning')
             return redirect(url_for('auth.login', next=request.url))
 
-        user = get_user_by_username(session.get('username'))
-        if not user or user.get('role') != 'admin':
+        user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+        if not user or not user.get('is_active', 1) or user.get('role') != 'admin':
             flash('只有管理员可以管理用户', 'error')
             return redirect(url_for('admin_dashboard'))
 

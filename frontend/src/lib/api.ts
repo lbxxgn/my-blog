@@ -43,6 +43,22 @@ export function getDeviceLabel(): string {
   return `${browser} on ${os}`;
 }
 
+/** 每个标签页一个稳定 token，用于区分同设备多标签的草稿。 */
+export function getDeviceToken(): string {
+  try {
+    let token = sessionStorage.getItem('kb_draft_device_token');
+    if (!token) {
+      token = (crypto && typeof crypto.randomUUID === 'function')
+        ? crypto.randomUUID()
+        : `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      sessionStorage.setItem('kb_draft_device_token', token);
+    }
+    return token;
+  } catch {
+    return `tab-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
 export interface AutoSaveResult {
   success: boolean;
   saved_at?: string;
@@ -62,7 +78,7 @@ export interface ConflictDraft {
 export async function autoSaveDoc(
   url: string,
   csrfToken: string,
-  payload: { title?: string; content: string; device_info?: string; content_format?: string }
+  payload: { title?: string; content: string; device_info?: string; device_token?: string; content_format?: string }
 ): Promise<AutoSaveResult> {
   return postJson(url, payload, csrfToken);
 }
@@ -124,5 +140,5 @@ export async function continueWriting(
   payload: { title?: string; content: string }
 ): Promise<string> {
   const data = await postJson(url, payload, csrfToken);
-  return data.content || '';
+  return data.continuation || '';
 }

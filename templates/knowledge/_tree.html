@@ -1,25 +1,41 @@
 {# 递归渲染知识库目录树。用法：{% from 'knowledge/_tree.html' import render_tree %} #}
-{% macro render_tree(nodes, active_category_id=None, can_manage=False) %}
-<ul class="kb-tree" {% if can_manage %}data-csrf="{{ csrf_token() }}"{% endif %}>
+{% macro render_tree(nodes, active_category_id=None, can_manage=False, active_doc_id=None) %}
+{% set can_interact = can_manage and request.endpoint in ('knowledge.index', 'knowledge.view_category') %}
+<ul class="kb-tree" {% if session.get('user_id') %}data-csrf="{{ csrf_token() }}"{% endif %}>
     {% for node in nodes %}
     <li class="kb-tree-node" data-cat-id="{{ node.id }}">
         <div class="kb-tree-item {% if active_category_id == node.id %}active{% endif %}"
              data-cat-id="{{ node.id }}"
              data-parent-id="{{ node.parent_id or '' }}"
              data-sort-order="{{ node.sort_order or 0 }}">
-            {% if can_manage %}<span class="kb-tree-drag-handle" draggable="true" title="拖动排序">⋮⋮</span>{% endif %}
-            <span class="kb-tree-toggle">{% if node.children %}▾{% else %}•{% endif %}</span>
+            {% if can_interact %}<span class="kb-tree-drag-handle" draggable="true" title="拖动排序">⋮⋮</span>{% endif %}
+            {% set has_docs = tree_docs and tree_docs.get(node.id) %}
+            <span class="kb-tree-toggle">{% if node.children or has_docs %}▸{% else %}•{% endif %}</span>
             {% if node.icon %}<span class="kb-tree-icon">{{ node.icon }}</span>{% endif %}
             <a href="{{ url_for('knowledge.view_category', category_id=node.id) }}">{{ node.name }}</a>
-            {% if can_manage %}
+            {% if can_interact %}
             <span class="kb-tree-actions">
                 <button class="kb-mini-btn kb-add-sub" data-parent-id="{{ node.id }}" data-parent-name="{{ node.name }}" title="新建子目录">+</button>
+                <button class="kb-mini-btn kb-rename-cat" data-cat-id="{{ node.id }}" data-cat-name="{{ node.name }}" title="重命名目录">✎</button>
             </span>
             {% endif %}
         </div>
+        {% if tree_docs and tree_docs.get(node.id) %}
+        <ul class="kb-tree-docs collapsed{% if can_interact %} with-handle{% endif %}">
+            {% for doc in tree_docs.get(node.id) %}
+            <li class="kb-tree-doc {% if active_doc_id == doc.id %}active{% endif %}" data-doc-id="{{ doc.id }}">
+                {% if can_manage or doc.author_id == session.get('user_id') %}
+                <span class="kb-tree-drag-handle kb-doc-drag" draggable="true" data-doc-id="{{ doc.id }}" title="拖动移动到其他目录">⋮⋮</span>
+                {% endif %}
+                <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" title="{{ doc.title }}">{{ doc.title }}</a>
+                {% if not doc.is_published %}<span class="kb-draft-badge">草稿</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
         {% if node.children %}
-        <ul class="kb-tree-children">
-            {{ render_tree(node.children, active_category_id, can_manage) }}
+        <ul class="kb-tree-children collapsed">
+            {{ render_tree(node.children, active_category_id, can_manage, active_doc_id) }}
         </ul>
         {% endif %}
     </li>

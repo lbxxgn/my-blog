@@ -27,10 +27,33 @@
     });
 
     try {
-        if (localStorage.getItem('kb-sidebar-collapsed') === '1') {
+        var stored = localStorage.getItem('kb-sidebar-collapsed');
+        if (stored === '1' || (stored === null && window.innerWidth <= 768)) {
             setCollapsed(true);
         }
     } catch (e) {}
+})();
+
+// 目录重命名
+(function() {
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.kb-rename-cat');
+        if (!btn) return;
+        var tree = document.querySelector('.kb-tree');
+        var csrf = tree && tree.dataset.csrf;
+        if (!csrf) return;
+        var name = window.prompt('重命名目录', btn.dataset.catName || '');
+        if (!name || !name.trim() || name.trim() === btn.dataset.catName) return;
+        var fd = new FormData();
+        fd.append('name', name.trim());
+        fd.append('csrf_token', csrf);
+        fetch('/knowledge/category/' + btn.dataset.catId + '/rename', {
+            method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then(function(r){ return r.json(); }).then(function(data) {
+            if (!data.success) throw new Error(data.error || '重命名失败');
+            location.reload();
+        }).catch(function(err) { alert(err.message || '重命名失败'); });
+    });
 })();
 
 (function() {
@@ -38,6 +61,7 @@
     if (!tree || !tree.dataset.csrf) return;
     var csrf = tree.dataset.csrf;
     var draggedEl = null;
+    var draggedType = 'category';
 
     function closestItem(el) {
         return el && el.closest('.kb-tree-item');
@@ -105,20 +129,30 @@
     }
 
     tree.addEventListener('dragstart', function(e) {
-        if (!e.target.closest('.kb-tree-drag-handle')) {
+        var handle = e.target.closest('.kb-tree-drag-handle');
+        if (!handle) {
             e.preventDefault();
             return;
         }
-        draggedEl = closestItem(e.target);
-        if (!draggedEl) { e.preventDefault(); return; }
+        if (handle.classList.contains('kb-doc-drag')) {
+            draggedType = 'doc';
+            draggedEl = handle.closest('.kb-tree-doc');
+            if (!draggedEl) { e.preventDefault(); return; }
+            try { e.dataTransfer.setData('text/plain', handle.dataset.docId || ''); } catch (err) {}
+        } else {
+            draggedType = 'category';
+            draggedEl = closestItem(e.target);
+            if (!draggedEl) { e.preventDefault(); return; }
+            try { e.dataTransfer.setData('text/plain', draggedEl.dataset.catId); } catch (err) {}
+        }
         e.dataTransfer.effectAllowed = 'move';
-        try { e.dataTransfer.setData('text/plain', draggedEl.dataset.catId); } catch (err) {}
         draggedEl.classList.add('dragging');
     });
 
     tree.addEventListener('dragend', function() {
         if (draggedEl) draggedEl.classList.remove('dragging');
         draggedEl = null;
+        draggedType = 'category';
         clearIndicators();
     });
 
@@ -127,7 +161,7 @@
         var target = closestItem(e.target);
         if (!target || target === draggedEl) { clearIndicators(); return; }
         if (draggedEl && draggedEl.contains(target)) { clearIndicators(); return; }
-        var pos = getDropPosition(e, target);
+        var pos = draggedType === 'doc' ? 'inside' : getDropPosition(e, target);
         clearIndicators();
         target.classList.add('drop-' + pos);
     });
@@ -141,11 +175,14 @@
         var draggedId;
         try { draggedId = e.dataTransfer.getData('text/plain'); } catch (err) { return; }
         if (!draggedId) return;
-        var pos = getDropPosition(e, target);
-        var info = computeMove(target, pos, draggedId);
+        var moveType = draggedType;
+        var pos = moveType === 'doc' ? 'inside' : getDropPosition(e, target);
+        var info = moveType === 'doc'
+            ? { parentId: target.dataset.catId, sortOrder: Date.now() % 1000000000 }
+            : computeMove(target, pos, draggedId);
         var fd = new FormData();
         fd.append('csrf_token', csrf);
-        fd.append('type', 'category');
+        fd.append('type', moveType);
         fd.append('id', draggedId);
         fd.append('parent_id', info.parentId || '');
         fd.append('sort_order', String(info.sortOrder));
@@ -164,11 +201,28 @@
     tree.addEventListener('click', function(e) {
         var toggle = e.target.closest('.kb-tree-toggle');
         if (!toggle) return;
+        e.preventDefault();
         var li = toggle.closest('.kb-tree-node');
-        var children = li && li.querySelector(':scope > .kb-tree-children');
-        if (children) {
-            children.classList.toggle('collapsed');
-            toggle.textContent = children.classList.contains('collapsed') ? '▸' : '▾';
-        }
+        if (!li) return;
+        var groups = Array.from(li.querySelectorAll(':scope > .kb-tree-children, :scope > .kb-tree-docs'));
+        if (!groups.length) return;
+        var shouldExpand = groups.some(function(group) { return group.classList.contains('collapsed'); });
+        groups.forEach(function(group) { group.classList.toggle('collapsed', !shouldExpand); });
+        toggle.textContent = shouldExpand ? '▾' : '▸';
     });
+
+    // 默认折叠所有分支，但自动展开当前浏览文档/目录所在的父级路径
+    function expandActivePath() {
+        var active = tree.querySelector('.kb-tree-doc.active, .kb-tree-item.active');
+        if (!active) return;
+        var parentUl = active.closest('.kb-tree-docs, .kb-tree-children');
+        while (parentUl) {
+            parentUl.classList.remove('collapsed');
+            var parentNode = parentUl.closest('.kb-tree-node');
+            var parentToggle = parentNode && parentNode.querySelector(':scope > .kb-tree-item .kb-tree-toggle');
+            if (parentToggle) parentToggle.textContent = '▾';
+            parentUl = parentNode ? parentNode.parentElement.closest('.kb-tree-docs, .kb-tree-children') : null;
+        }
+    }
+    expandActivePath();
 })();

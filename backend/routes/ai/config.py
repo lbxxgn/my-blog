@@ -19,6 +19,7 @@ from models import (
     resolve_model_selection,
 )
 from auth_decorators import login_required, admin_required
+from backend.utils.secret_box import mask_secret
 from logger import log_operation, log_error
 
 
@@ -47,9 +48,15 @@ def ai_settings():
         # 获取使用统计
         stats = get_ai_usage_stats(user_id)
 
+        ai_config_public = dict(ai_config or {})
+        ai_config_public.pop('ai_api_key', None)
+
         return render_template('admin/ai_settings.html',
                              ai_config=ai_config,
+                             ai_config_public=ai_config_public,
                              embedding_config=embedding_config,
+                             ai_api_key_masked=mask_secret((ai_config or {}).get('ai_api_key')),
+                             embedding_api_key_masked=mask_secret((embedding_config or {}).get('api_key')),
                              embedding_default_base_url=EMBEDDING_DEFAULT_BASE_URL,
                              embedding_default_model=EMBEDDING_DEFAULT_MODEL,
                              supported_providers=supported_providers,
@@ -369,10 +376,10 @@ def ai_status():
     user_id = session.get('user_id')
     ai_config = get_user_ai_config(user_id)
 
-    ai_enabled = False
-    if ai_config:
-        ai_enabled = ai_config.get('ai_tag_generation_enabled', False)
+    ai_enabled = bool(ai_config and ai_config.get('ai_tag_generation_enabled', False))
+    ai_configured = bool(ai_config and ai_config.get('ai_api_key'))
 
     return jsonify({
-        'ai_enabled': ai_enabled
+        'ai_enabled': ai_enabled,
+        'ai_configured': ai_configured
     })

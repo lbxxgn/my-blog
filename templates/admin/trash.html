@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}回收站 - {{ site_name }}{% endblock %}
+{% block content %}
+<div class="container admin-categories">
+    <div class="dashboard-header">
+        <h2>回收站</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+    </div>
+    <p style="color: var(--text-secondary); margin-bottom: 12px;">删除的文章会先进入这里，可恢复或永久删除。</p>
+    {% if posts %}
+    <table class="categories-table">
+        <thead>
+            <tr><th>标题</th><th>类型</th><th>作者</th><th>删除时间</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+            {% for post in posts %}
+            <tr>
+                <td><strong>{{ post.title }}</strong></td>
+                <td>{{ '知识库' if post.post_type == 'knowledge' else '博客' }}</td>
+                <td>{{ post.author_display_name or post.author_username or '-' }}</td>
+                <td>{{ (post.deleted_at|localtime)[:16] if post.deleted_at else '-' }}</td>
+                <td class="actions">
+                    <form method="POST" action="{{ url_for('admin.restore_from_trash', post_id=post.id) }}" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button class="btn btn-sm" type="submit">恢复</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.purge_from_trash', post_id=post.id) }}" class="delete-form"
+                          data-confirm="永久删除后无法恢复，确定继续？" data-confirm-destructive="true" data-confirm-text="永久删除" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <button class="btn btn-sm btn-danger" type="submit">永久删除</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><p>回收站是空的。</p></div>
+    {% endif %}
+</div>
+{% endblock %}
