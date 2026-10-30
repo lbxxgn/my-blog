@@ -100,12 +100,17 @@ def _search_semantic(query, source):
     user_id = session.get('user_id')
     embedding_configured = is_embedding_configured(user_id) if user_id else False
     semantic_items = None
+    semantic_error = None
 
     if query and embedding_configured:
         try:
             groups = semantic_search(user_id, query, limit=20)
-        except (EmbeddingNotConfigured, EmbeddingApiError):
+        except EmbeddingNotConfigured:
             groups = None
+            semantic_error = 'not_configured'
+        except EmbeddingApiError as exc:
+            groups = None
+            semantic_error = str(exc) or '语义检索服务暂时不可用'
         if groups is not None:
             semantic_items = []
             label_map = {'post': '博客', 'doc': '知识库'}
@@ -126,4 +131,5 @@ def _search_semantic(query, source):
                            pagination=None,
                            source=source,
                            embedding_configured=embedding_configured,
-                           semantic_items=semantic_items)
+                           semantic_items=semantic_items,
+                           semantic_error=semantic_error)

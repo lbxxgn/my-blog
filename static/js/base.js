@@ -29,13 +29,31 @@
                 document.querySelectorAll('.dropdown').forEach(d => {
                     if (d !== dropdown) {
                         const m = d.querySelector('.dropdown-menu');
+                        const t = d.querySelector('.dropdown-toggle');
                         if (m) m.classList.remove('show');
+                        if (t) t.setAttribute('aria-expanded', 'false');
                     }
                 });
 
                 // Toggle current dropdown
-                menu.classList.toggle('show');
+                const opened = menu.classList.toggle('show');
+                toggle.setAttribute('aria-expanded', opened ? 'true' : 'false');
             });
+
+            toggle.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const menu = this.closest('.dropdown')?.querySelector('.dropdown-menu');
+                    if (menu) menu.classList.remove('show');
+                    this.setAttribute('aria-expanded', 'false');
+                    this.focus();
+                }
+            });
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key !== 'Escape') return;
+            document.querySelectorAll('.dropdown-menu.show').forEach(menu => menu.classList.remove('show'));
+            document.querySelectorAll('.dropdown-toggle').forEach(toggle => toggle.setAttribute('aria-expanded', 'false'));
         });
 
         // Close dropdowns when clicking outside (not on navigation)
@@ -165,6 +183,8 @@ window.showAppConfirm = function(message, options = {}) {
         overlay.style.alignItems = 'center';
         overlay.style.justifyContent = 'center';
         overlay.style.padding = '20px';
+        dialog.setAttribute('role', 'alertdialog');
+        dialog.setAttribute('aria-modal', 'true');
 
         dialog.style.width = 'min(92vw, 420px)';
         dialog.style.borderRadius = '18px';
@@ -205,8 +225,20 @@ window.showAppConfirm = function(message, options = {}) {
         confirmBtn.style.cursor = 'pointer';
 
         const cleanup = (result) => {
+            document.removeEventListener('keydown', onKeyDown);
             overlay.remove();
             resolve(result);
+        };
+        const onKeyDown = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                cleanup(false);
+            } else if (event.key === 'Tab') {
+                const focusables = [cancelBtn, confirmBtn];
+                const index = focusables.indexOf(document.activeElement);
+                event.preventDefault();
+                focusables[(index + (event.shiftKey ? -1 : 1) + focusables.length) % focusables.length].focus();
+            }
         };
 
         overlay.addEventListener('click', (event) => {
@@ -216,6 +248,7 @@ window.showAppConfirm = function(message, options = {}) {
         });
         cancelBtn.addEventListener('click', () => cleanup(false));
         confirmBtn.addEventListener('click', () => cleanup(true));
+        document.addEventListener('keydown', onKeyDown);
 
         actions.appendChild(cancelBtn);
         actions.appendChild(confirmBtn);

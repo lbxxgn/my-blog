@@ -1,7 +1,7 @@
 {# 递归渲染知识库目录树。用法：{% from 'knowledge/_tree.html' import render_tree %} #}
 {% macro render_tree(nodes, active_category_id=None, can_manage=False, active_doc_id=None) %}
 {% set can_interact = can_manage and request.endpoint in ('knowledge.index', 'knowledge.view_category') %}
-<ul class="kb-tree" {% if can_manage %}data-csrf="{{ csrf_token() }}"{% endif %}>
+<ul class="kb-tree" {% if session.get('user_id') %}data-csrf="{{ csrf_token() }}"{% endif %}>
     {% for node in nodes %}
     <li class="kb-tree-node" data-cat-id="{{ node.id }}">
         <div class="kb-tree-item {% if active_category_id == node.id %}active{% endif %}"
@@ -23,7 +23,10 @@
         {% if tree_docs and tree_docs.get(node.id) %}
         <ul class="kb-tree-docs collapsed{% if can_interact %} with-handle{% endif %}">
             {% for doc in tree_docs.get(node.id) %}
-            <li class="kb-tree-doc {% if active_doc_id == doc.id %}active{% endif %}">
+            <li class="kb-tree-doc {% if active_doc_id == doc.id %}active{% endif %}" data-doc-id="{{ doc.id }}">
+                {% if can_manage or doc.author_id == session.get('user_id') %}
+                <span class="kb-tree-drag-handle kb-doc-drag" draggable="true" data-doc-id="{{ doc.id }}" title="拖动移动到其他目录">⋮⋮</span>
+                {% endif %}
                 <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" title="{{ doc.title }}">{{ doc.title }}</a>
                 {% if not doc.is_published %}<span class="kb-draft-badge">草稿</span>{% endif %}
             </li>

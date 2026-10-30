@@ -109,6 +109,22 @@ def export_full():
         return redirect(url_for('admin.export_page'))
 
 
+@admin_bp.route('/export/knowledge')
+@admin_required
+def export_knowledge():
+    """单独导出知识库空间（JSON + 图片 ZIP）。"""
+    try:
+        from export import export_full_archive
+        count, path = export_full_archive(post_type='knowledge')
+        log_operation(session.get('user_id'), session.get('username'), f'导出知识库 {count} 篇')
+        return send_file(path, mimetype='application/zip', as_attachment=True,
+                         download_name=os.path.basename(path))
+    except Exception as e:
+        flash(f'导出失败: {str(e)}', 'error')
+        log_error(e, context='Export knowledge archive')
+        return redirect(url_for('admin.export_page'))
+
+
 @admin_bp.route('/import')
 @role_required('admin', 'editor')
 def import_page():

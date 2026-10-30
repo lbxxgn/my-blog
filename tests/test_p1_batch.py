@@ -170,8 +170,43 @@ class TestExportImport:
 
 
 @pytest.mark.usefixtures('client')
+class TestKnowledgeTreeCompletion:
+    def test_category_delete_requires_target_when_docs_exist(self, client, temp_db, test_admin_user):
+        from models import create_kb_category, create_knowledge_doc, get_category_by_id, get_knowledge_doc
+        source = create_kb_category('Move source', space='knowledge')
+        target = create_kb_category('Move target', space='knowledge')
+        doc_id = create_knowledge_doc('Movable doc', 'body', source, author_id=test_admin_user['id'])
+        _login(client, test_admin_user)
+
+        response = client.post(f'/knowledge/category/{source}/delete')
+        assert response.status_code == 302
+        assert get_category_by_id(source) is not None
+
+        response = client.post(f'/knowledge/category/{source}/delete', data={'target_category_id': target})
+        assert response.status_code == 302
+        assert get_category_by_id(source) is None
+        assert get_knowledge_doc(doc_id)['category_id'] == target
+
+    def test_tree_renders_document_drag_handle(self, client, temp_db, test_admin_user):
+        from models import create_kb_category, create_knowledge_doc
+        cat_id = create_kb_category('Drag cat', space='knowledge')
+        create_knowledge_doc('Drag doc', 'body', cat_id, author_id=test_admin_user['id'])
+        _login(client, test_admin_user)
+        page = client.get('/knowledge/').get_data(as_text=True)
+        assert 'kb-doc-drag' in page
+
+
+@pytest.mark.usefixtures('client')
 class TestMobileAdminNav:
     def test_admin_pages_have_mobile_nav(self, client, temp_db, test_admin_user):
         _login(client, test_admin_user)
         page = client.get('/admin/comments').get_data(as_text=True)
         assert 'mobile-admin-nav' in page
+
+
+@pytest.mark.usefixtures('client')
+class TestLoginNoRateLimit:
+    def test_repeated_failed_logins_are_not_rate_limited(self, client, temp_db, test_user):
+        for _ in range(8):
+            response = client.post('/login', data={'username': 'nobody', 'password': 'wrong'})
+        assert response.status_code != 429

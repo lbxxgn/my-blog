@@ -139,22 +139,15 @@ class TestXSSProtection:
 class TestRateLimiting:
     """请求频率限制测试"""
 
-    def test_login_rate_limiting(self, limited_client):
-        """测试登录接口的请求频率限制"""
-        # 快速发送多个登录请求
-        for _ in range(6):
-            limited_client.post('/login', data={
+    def test_login_has_no_rate_limiting(self, limited_client):
+        """登录接口按产品要求不启用请求频率限制"""
+        for _ in range(8):
+            response = limited_client.post('/login', data={
                 'username': 'nonexistent',
                 'password': 'wrongpassword'
             })
 
-        # 第7次请求应该被限制（登录限制为 5 per minute）
-        response = limited_client.post('/login', data={
-            'username': 'nonexistent',
-            'password': 'wrongpassword'
-        })
-
-        assert response.status_code == 429
+        assert response.status_code != 429
 
     def test_api_rate_limiting(self, limited_client):
         """测试API接口的请求频率限制"""

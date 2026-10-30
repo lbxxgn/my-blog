@@ -436,10 +436,10 @@ header {
             <form class="comment-form" action="{{ url_for('add_comment', post_id=post.id) }}" method="post">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="comment-form-row">
-                    <input type="text" name="author_name" placeholder="姓名 *" required maxlength="50">
-                    <input type="email" name="author_email" placeholder="邮箱（选填）" maxlength="100">
+                    <input type="text" name="author_name" placeholder="姓名 *" required maxlength="50" aria-label="评论姓名">
+                    <input type="email" name="author_email" placeholder="邮箱（选填）" maxlength="100" aria-label="评论邮箱">
                 </div>
-                <textarea name="content" placeholder="写点什么..." rows="3" required maxlength="1000"></textarea>
+                <textarea name="content" placeholder="写点什么..." rows="3" required maxlength="1000" aria-label="评论内容"></textarea>
                 <button type="submit" class="btn btn-primary btn-sm">发送</button>
             </form>
         </div>

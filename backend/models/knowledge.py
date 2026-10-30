@@ -142,8 +142,8 @@ def move_kb_category(category_id, new_parent_id, sort_order=0):
         return cursor.rowcount > 0
 
 
-def delete_kb_category(category_id):
-    """删除分类：子分类上移到被删分类的父级，文档解绑分类"""
+def delete_kb_category(category_id, move_to=None):
+    """删除分类：子分类上移，文档迁移到 move_to 或变为未分类。"""
     with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute('SELECT parent_id FROM categories WHERE id = ?', (category_id,))
@@ -152,7 +152,10 @@ def delete_kb_category(category_id):
             return False
         old_parent = row['parent_id']
         cursor.execute('UPDATE categories SET parent_id = ? WHERE parent_id = ?', (old_parent, category_id))
-        cursor.execute('UPDATE posts SET category_id = NULL WHERE category_id = ?', (category_id,))
+        if move_to and move_to != category_id:
+            cursor.execute('UPDATE posts SET category_id = ? WHERE category_id = ?', (move_to, category_id))
+        else:
+            cursor.execute('UPDATE posts SET category_id = NULL WHERE category_id = ?', (category_id,))
         cursor.execute('DELETE FROM categories WHERE id = ?', (category_id,))
         return True
 

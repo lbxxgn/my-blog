@@ -223,13 +223,28 @@ def new_category():
 @knowledge_bp.route('/category/<int:category_id>/delete', methods=['POST'])
 @login_required
 def delete_category(category_id):
-    """删除目录"""
+    """删除目录；有文档时必须先选择迁移目标或明确移入未分类。"""
     if not _is_manager():
         abort(403)
-    delete_kb_category(category_id)
+    doc_count = get_doc_count_by_category(category_id)
+    target_raw = (request.form.get('target_category_id') or '').strip()
+    move_to = None
+    if doc_count:
+        if target_raw == '__orphan__':
+            move_to = None
+        elif target_raw.isdigit():
+            target = get_category_by_id(int(target_raw))
+            if not target or target.get('space') != 'knowledge' or int(target_raw) == category_id:
+                flash('请选择有效的文档迁移目录', 'error')
+                return redirect(url_for('knowledge.view_category', category_id=category_id))
+            move_to = int(target_raw)
+        else:
+            flash('该目录下还有文档，请选择迁移目录或移入未分类', 'error')
+            return redirect(url_for('knowledge.view_category', category_id=category_id))
+    delete_kb_category(category_id, move_to=move_to)
     if _wants_json():
         return jsonify({'success': True})
-    flash('目录已删除，原目录下的文档已移入未分类', 'success')
+    flash('目录已删除', 'success')
     return redirect(url_for('knowledge.index'))
 
 

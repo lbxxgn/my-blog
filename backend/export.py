@@ -30,10 +30,15 @@ POST_SELECT = '''
 '''
 
 
-def _load_posts():
+def _load_posts(post_type=None):
     conn = get_db_connection()
     try:
-        rows = conn.execute(POST_SELECT).fetchall()
+        sql = POST_SELECT
+        params = []
+        if post_type:
+            sql = sql.replace('WHERE p.deleted_at IS NULL', 'WHERE p.deleted_at IS NULL AND p.post_type = ?')
+            params.append(post_type)
+        rows = conn.execute(sql, params).fetchall()
         return [dict(row) for row in rows]
     finally:
         conn.close()
@@ -51,7 +56,7 @@ def _copy_upload_images(destination):
     return copied
 
 
-def export_all_posts_to_markdown(output_dir='exports'):
+def export_all_posts_to_markdown(output_dir='exports', post_type=None):
     """Export all posts to individual markdown files, including uploaded images."""
     export_path = Path(output_dir)
     export_path.mkdir(exist_ok=True)
@@ -59,7 +64,7 @@ def export_all_posts_to_markdown(output_dir='exports'):
     posts_dir.mkdir(exist_ok=True)
     images_dir = export_path / 'images'
 
-    posts = _load_posts()
+    posts = _load_posts(post_type)
     exported_count = 0
     for post in posts:
         markdown = f"""---
@@ -97,11 +102,11 @@ Images: {image_count}
     return exported_count, str(export_path.absolute())
 
 
-def export_to_json(output_dir='exports'):
+def export_to_json(output_dir='exports', post_type=None):
     """Export all posts (full fields) to a single JSON file."""
     export_path = Path(output_dir)
     export_path.mkdir(exist_ok=True)
-    posts = _load_posts()
+    posts = _load_posts(post_type)
     export_data = {
         'export_date': datetime.now().isoformat(),
         'total_posts': len(posts),
@@ -112,13 +117,13 @@ def export_to_json(output_dir='exports'):
     return len(posts), str(output_file.absolute())
 
 
-def export_full_archive(output_dir='exports'):
+def export_full_archive(output_dir='exports', post_type=None):
     """Create a ZIP containing full JSON metadata and uploaded images."""
     export_path = Path(output_dir)
     export_path.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='blog_export_') as tmp:
         tmp_path = Path(tmp)
-        count, json_path = export_to_json(str(tmp_path))
+        count, json_path = export_to_json(str(tmp_path), post_type=post_type)
         _copy_upload_images(tmp_path / 'images')
         archive = export_path / f'blog_full_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
         with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as zf:

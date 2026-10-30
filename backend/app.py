@@ -49,7 +49,8 @@ for _p in (str(PROJECT_ROOT), str(CURRENT_DIR)):
 from backend.config import (SECRET_KEY, ALLOWED_EXTENSIONS,
                             MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION,
                             SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT,
-                            PERMANENT_SESSION_LIFETIME, REMEMBER_DEVICE_DAYS)
+                            PERMANENT_SESSION_LIFETIME, REMEMBER_DEVICE_DAYS,
+                            IS_PRODUCTION, FORCE_HTTPS)
 
 # =============================================================================
 # 安全相关导入
@@ -294,7 +295,7 @@ def add_security_headers(response):
     response.headers.setdefault('Content-Security-Policy',
         "default-src 'self'; "
         # Quill 已自托管，不再需要外部 CDN
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: https:; "
         "font-src 'self'; "
@@ -306,7 +307,7 @@ def add_security_headers(response):
     )
 
     # 严格传输安全（仅在生产环境且启用HTTPS时）
-    if app.config.get('IS_PRODUCTION') and app.config.get('FORCE_HTTPS'):
+    if IS_PRODUCTION and FORCE_HTTPS:
         response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
 
     # 防止浏览器猜测Referer
@@ -600,7 +601,6 @@ def _apply_route_limit(endpoint: str, limit: str) -> None:
 
 
 # 对登录路由应用速率限制
-_apply_route_limit('auth.login', '5 per minute')
 
 # 为关键API端点添加速率限制
 # 文章相关API

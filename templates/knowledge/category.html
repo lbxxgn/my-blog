@@ -27,9 +27,18 @@
             <div class="kb-sidebar-cat-btns">
                 <button class="kb-mini-btn kb-add-sub" data-parent-id="{{ category.id }}" data-parent-name="{{ category.name }}" title="新建子目录">＋ 子目录</button>
                 <form method="POST" action="{{ url_for('knowledge.delete_category', category_id=category.id) }}"
-                      data-confirm="确定删除此目录？（子目录上移，文档解绑）" data-confirm-destructive="true" data-confirm-text="删除"
-                      style="display:inline">
+                      data-confirm="确定删除此目录？文档会按所选方式处理。" data-confirm-destructive="true" data-confirm-text="删除"
+                      style="display:inline-flex;gap:4px;align-items:center;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <select name="target_category_id" style="padding:3px 5px;border:1px solid var(--border-color);border-radius:4px;font-size:0.78rem;">
+                        <option value="">迁移目录…</option>
+                        <option value="__orphan__">移入未分类</option>
+                        {% for item in tree_flattened or [] %}
+                        {% if item.id != category.id %}
+                        <option value="{{ item.id }}">{{ item.indent }}{{ item.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
                     <button type="submit" class="kb-mini-btn kb-delete-cat" title="删除目录">删除目录</button>
                 </form>
             </div>

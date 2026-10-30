@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}搜索：{{ query }} - {{ config['BLOG_NAME'] }}{% endblock %}
+{% block title %}搜索：{{ query }} - {{ site_name }}{% endblock %}
 
 {% block content %}
 <main class="container">
@@ -36,6 +36,13 @@
         <p>语义搜索需要先在 AI 设置中启用 Embedding</p>
         <div class="empty-actions">
             <a href="{{ url_for('ai.ai_settings') }}" class="btn">前往 AI 设置</a>
+        </div>
+    </div>
+    {% elif semantic_error %}
+    <div class="empty-state semantic-guide">
+        <p>语义搜索失败：{{ semantic_error }}</p>
+        <div class="empty-actions">
+            <a href="{{ url_for('search', q=query, source='blog') }}" class="btn">改用关键词搜索</a>
         </div>
     </div>
     {% elif not query %}

@@ -529,7 +529,6 @@ limiter = Limiter(
 )
 
 # 登录端点严格限制
-limiter.limit("5 per minute")(app.view_functions['auth.login'])
 ```
 
 ### 4. XSS 防护

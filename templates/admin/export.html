@@ -60,6 +60,19 @@
                 </div>
             </div>
 
+            <!-- Knowledge Export -->
+            <div class="export-option-card">
+                <div class="export-icon">📚</div>
+                <div class="export-info">
+                    <h4>知识库单独导出</h4>
+                    <p>只导出知识库文档及其图片，不影响博客文章。</p>
+                </div>
+                <div class="export-action">
+                    <a href="{{ url_for('admin.export_knowledge') }}" class="btn btn-primary"
+                       data-confirm="确定导出全部知识库文档吗？" data-confirm-text="导出">导出知识库</a>
+                </div>
+            </div>
+
             <!-- Full Export -->
             <div class="export-option-card">
                 <div class="export-icon">🗄️</div>

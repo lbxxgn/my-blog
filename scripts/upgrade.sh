@@ -238,14 +238,27 @@ start_application() {
     export ADMIN_PASSWORD
     export DATABASE_URL="${DATABASE_URL:-sqlite:///db/simple_blog.db}"
 
-    nohup python3 backend/app.py > /tmp/flask.log 2>&1 &
-    APP_PID=$!
+    SERVICE_NAME="${SERVICE_NAME:-simple-blog}"
+    if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet "$SERVICE_NAME"; then
+        systemctl restart "$SERVICE_NAME"
+        APP_PID="systemd:$SERVICE_NAME"
+    else
+        nohup python3 backend/app.py > /tmp/flask.log 2>&1 &
+        APP_PID=$!
+    fi
 
     # 等待应用启动
     sleep 5
 
     # 检查应用是否运行
-    if ps -p $APP_PID > /dev/null 2>&1; then
+    if [[ "$APP_PID" == systemd:* ]]; then
+        if systemctl is-active --quiet "$SERVICE_NAME"; then
+            log "systemd 服务已重启 ($SERVICE_NAME) ✓"
+        else
+            log_error "systemd 服务启动失败: $SERVICE_NAME"
+            return 1
+        fi
+    elif ps -p $APP_PID > /dev/null 2>&1; then
         log "应用启动成功 (PID: $APP_PID) ✓"
         echo $APP_PID > "$BACKUP_DIR/app.pid"
     else
@@ -320,7 +333,6 @@ print(count)
     local key_files=(
         "static/js/shortcuts.js"
         "static/js/draft-sync.js"
-        "templates/components/breadcrumb.html"
         "backend/models/draft.py"
         "backend/routes/drafts.py"
         "backend/tasks/image_optimization_task.py"

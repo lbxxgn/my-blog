@@ -61,6 +61,7 @@
     if (!tree || !tree.dataset.csrf) return;
     var csrf = tree.dataset.csrf;
     var draggedEl = null;
+    var draggedType = 'category';
 
     function closestItem(el) {
         return el && el.closest('.kb-tree-item');
@@ -128,20 +129,30 @@
     }
 
     tree.addEventListener('dragstart', function(e) {
-        if (!e.target.closest('.kb-tree-drag-handle')) {
+        var handle = e.target.closest('.kb-tree-drag-handle');
+        if (!handle) {
             e.preventDefault();
             return;
         }
-        draggedEl = closestItem(e.target);
-        if (!draggedEl) { e.preventDefault(); return; }
+        if (handle.classList.contains('kb-doc-drag')) {
+            draggedType = 'doc';
+            draggedEl = handle.closest('.kb-tree-doc');
+            if (!draggedEl) { e.preventDefault(); return; }
+            try { e.dataTransfer.setData('text/plain', handle.dataset.docId || ''); } catch (err) {}
+        } else {
+            draggedType = 'category';
+            draggedEl = closestItem(e.target);
+            if (!draggedEl) { e.preventDefault(); return; }
+            try { e.dataTransfer.setData('text/plain', draggedEl.dataset.catId); } catch (err) {}
+        }
         e.dataTransfer.effectAllowed = 'move';
-        try { e.dataTransfer.setData('text/plain', draggedEl.dataset.catId); } catch (err) {}
         draggedEl.classList.add('dragging');
     });
 
     tree.addEventListener('dragend', function() {
         if (draggedEl) draggedEl.classList.remove('dragging');
         draggedEl = null;
+        draggedType = 'category';
         clearIndicators();
     });
 
@@ -150,7 +161,7 @@
         var target = closestItem(e.target);
         if (!target || target === draggedEl) { clearIndicators(); return; }
         if (draggedEl && draggedEl.contains(target)) { clearIndicators(); return; }
-        var pos = getDropPosition(e, target);
+        var pos = draggedType === 'doc' ? 'inside' : getDropPosition(e, target);
         clearIndicators();
         target.classList.add('drop-' + pos);
     });
@@ -164,11 +175,14 @@
         var draggedId;
         try { draggedId = e.dataTransfer.getData('text/plain'); } catch (err) { return; }
         if (!draggedId) return;
-        var pos = getDropPosition(e, target);
-        var info = computeMove(target, pos, draggedId);
+        var moveType = draggedType;
+        var pos = moveType === 'doc' ? 'inside' : getDropPosition(e, target);
+        var info = moveType === 'doc'
+            ? { parentId: target.dataset.catId, sortOrder: Date.now() % 1000000000 }
+            : computeMove(target, pos, draggedId);
         var fd = new FormData();
         fd.append('csrf_token', csrf);
-        fd.append('type', 'category');
+        fd.append('type', moveType);
         fd.append('id', draggedId);
         fd.append('parent_id', info.parentId || '');
         fd.append('sort_order', String(info.sortOrder));

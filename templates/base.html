@@ -69,7 +69,7 @@
             <ul class="nav-links" id="navLinks">
                 <li>
                     <form action="{{ url_for('search') }}" method="get" class="search-form-nav">
-                        <input type="text" name="q" placeholder="搜索内容..." class="search-input-nav" value="{{ request.args.get('q', '') }}">
+                        <input type="text" name="q" placeholder="搜索内容..." class="search-input-nav" aria-label="搜索内容" value="{{ request.args.get('q', '') }}">
                         <button type="submit" class="search-btn">🔍</button>
                     </form>
                 </li>
@@ -79,9 +79,9 @@
                     <li><a href="{{ url_for('review.review_page') }}">回顾</a></li>
                     {% if session.get('role') == 'admin' %}
                     <li class="dropdown">
-                        <span class="dropdown-toggle" style="cursor: pointer;">
+                        <button type="button" class="dropdown-toggle" aria-expanded="false">
                             管理 <span class="dropdown-arrow">▼</span>
-                        </span>
+                        </button>
                         <ul class="dropdown-menu">
                             <li><a href="{{ url_for('user_list') }}">用户管理</a></li>
                             <li><a href="{{ url_for('ai.ai_settings') }}">AI设置</a></li>
@@ -96,9 +96,9 @@
                         </button>
                     </li>
                     <li class="dropdown">
-                        <span class="dropdown-toggle">
+                        <button type="button" class="dropdown-toggle" aria-expanded="false">
                             <span class="user-icon">👤</span> <span class="dropdown-arrow">▼</span>
-                        </span>
+                        </button>
                         <ul class="dropdown-menu">
                             <li><a href="{{ url_for('change_password') }}">修改密码</a></li>
                             <li><a href="{{ url_for('logout') }}">退出</a></li>
@@ -451,21 +451,23 @@
         <p>&copy; {{ current_year }} {{ site_name }}. All rights reserved.</p>
     </footer>
 
-    <script src="{{ static_file('js/utils.js') }}"></script>
-    <script src="{{ static_file('js/main.js') }}"></script>
+    <script defer src="{{ static_file('js/utils.js') }}"></script>
+    <script defer src="{{ static_file('js/main.js') }}"></script>
     <!-- 移动端底部导航切换逻辑 -->
-    <script src="{{ static_file('js/mobile-layout.js') }}"></script>
+    <script defer src="{{ static_file('js/mobile-layout.js') }}"></script>
     <!-- 首页无限滚动（pull-refresh 依赖 window.InfiniteScroll） -->
-    <script src="{{ static_file('js/infinite-scroll.js') }}"></script>
-    <script src="{{ static_file('js/pull-refresh.js') }}"></script>
+    {% if current_page_type == 'home' %}
+    <script defer src="{{ static_file('js/infinite-scroll.js') }}"></script>
+    <script defer src="{{ static_file('js/pull-refresh.js') }}"></script>
+    {% endif %}
     <!-- 全局键盘快捷键 -->
-    <script src="{{ static_file('js/shortcuts.js') }}"></script>
+    <script defer src="{{ static_file('js/shortcuts.js') }}"></script>
     <!-- 全局命令面板（Ctrl/Cmd+K） -->
-    <script src="{{ static_file('js/command-palette.js') }}"></script>
+    <script defer src="{{ static_file('js/command-palette.js') }}"></script>
     <!-- Frontend enhancements: scroll animations, reading progress -->
-    <script src="{{ static_file('js/enhancements.js') }}"></script>
+    <script defer src="{{ static_file('js/enhancements.js') }}"></script>
 
-    <script src="{{ static_file('js/base.js') }}"></script>
+    <script defer src="{{ static_file('js/base.js') }}"></script>
 
     <!-- PWA：注册最小 Service Worker（仅满足安装条件，无离线缓存） -->
     <script>
