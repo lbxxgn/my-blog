@@ -167,9 +167,17 @@
   .kb-sidebar-toggle{display:none}
 }
 
-/* 侧栏树中的文档节点 */
-.kb-tree-docs{list-style:none;margin:2px 0 4px 18px;padding:0}
-.kb-tree-doc{display:flex;align-items:center;gap:4px;font-size:0.82rem;line-height:1.6}
+/* 侧栏树中的文档节点：与子目录使用同一套缩进和连接线，形成层级树 */
+.kb-tree-docs{
+  list-style:none;
+  margin:2px 0 4px 0.5rem;
+  padding:0 0 0 1.1rem;
+  border-left:1px dashed var(--border-color);
+}
+.kb-tree-docs.with-handle{padding-left:1.8rem}
+.kb-tree-doc{display:flex;align-items:center;gap:4px;font-size:0.82rem;line-height:1.6;padding-left:0.5rem;position:relative}
+.kb-tree-doc::before{content:"·";position:absolute;left:0.1rem;color:var(--text-secondary);opacity:.55}
+.kb-tree-doc.active a{color:var(--primary-color);font-weight:600}
 .kb-tree-doc a{color:var(--text-secondary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
 .kb-tree-doc a:hover{color:var(--primary-color);text-decoration:underline}
 

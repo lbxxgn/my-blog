@@ -21,7 +21,7 @@
             {% endif %}
         </div>
         {% if tree_docs and tree_docs.get(node.id) %}
-        <ul class="kb-tree-docs collapsed">
+        <ul class="kb-tree-docs collapsed{% if can_interact %} with-handle{% endif %}">
             {% for doc in tree_docs.get(node.id) %}
             <li class="kb-tree-doc {% if active_doc_id == doc.id %}active{% endif %}">
                 <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" title="{{ doc.title }}">{{ doc.title }}</a>
