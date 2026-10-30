@@ -3,7 +3,7 @@
 from flask import render_template, request, redirect, url_for, session, flash, jsonify
 
 from models import (
-    get_all_posts, get_post_by_id, create_post, update_post, delete_post,
+    get_all_posts, get_all_post_ids, get_post_by_id, create_post, update_post, delete_post,
     get_all_categories, set_post_tags, get_db_connection, get_posts_by_author, get_all_users, get_all_tags,
     get_post_revisions, get_post_revision, restore_post_revision,
     soft_delete_post, get_deleted_posts, restore_deleted_post, purge_deleted_post,
@@ -132,6 +132,8 @@ def admin_dashboard():
     except Exception:
         pass
     page = request.args.get('page', 1, type=int)
+    if page < 1:
+        page = 1
     per_page = request.args.get('per_page', 20, type=int)
     # 表单中未选择的筛选项会以空字符串提交，必须归一为 None，
     # 否则会被当作 category_id='' / type='' 去查询，导致列表恒为空。
@@ -150,12 +152,20 @@ def admin_dashboard():
     if not is_manager:
         author_filter = session.get('user_id')
 
-    posts_data = get_all_posts(
-        include_drafts=True, page=page, per_page=per_page,
-        category_id=category_id, type=type_filter, post_type='blog',
-        q=query or None, status=status_filter or None,
-        access_level=access_filter or None, author_id=author_filter,
-    )
+    def _load_posts(target_page):
+        return get_all_posts(
+            include_drafts=True, page=target_page, per_page=per_page,
+            category_id=category_id, type=type_filter, post_type='blog',
+            q=query or None, status=status_filter or None,
+            access_level=access_filter or None, author_id=author_filter,
+        )
+
+    posts_data = _load_posts(page)
+    # 翻页越界（如手动改 URL）时回到最后一页，避免看到“假空列表”
+    if posts_data['total'] > 0 and page > posts_data['total_pages']:
+        page = posts_data['total_pages']
+        posts_data = _load_posts(page)
+
     categories = get_all_categories(post_type='blog', space='blog')
     authors = get_all_users() if is_manager else []
 
@@ -184,6 +194,28 @@ def admin_dashboard():
                          current_access=access_filter,
                          current_author_id=author_filter,
                          authors=authors)
+
+@admin_bp.route('/post-ids')
+@login_required
+def dashboard_post_ids():
+    """返回当前筛选条件下的全部文章 ID，供后台“全选筛选结果”。"""
+    category_id = request.args.get('category_id') or None
+    type_filter = request.args.get('type') or None
+    query = (request.args.get('q') or '').strip()
+    status_filter = request.args.get('status') or ''
+    access_filter = request.args.get('access_level') or ''
+    author_filter = request.args.get('author_id', type=int)
+
+    if session.get('role') not in ('admin', 'editor'):
+        author_filter = session.get('user_id')
+
+    ids = get_all_post_ids(
+        include_drafts=True, category_id=category_id, type=type_filter, post_type='blog',
+        q=query or None, status=status_filter or None,
+        access_level=access_filter or None, author_id=author_filter,
+    )
+    return jsonify({'success': True, 'ids': ids, 'total': len(ids)})
+
 
 @admin_bp.route('/new', methods=['GET', 'POST'])
 @login_required

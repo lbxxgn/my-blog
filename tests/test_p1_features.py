@@ -87,6 +87,36 @@ class TestAdminFiltersAndTaxonomy:
         assert 'Unique Draft Target' in page
         assert 'Published Other' not in page
 
+    def test_dashboard_post_ids_respects_filters(self, client, temp_db, test_admin_user):
+        from models import create_post
+        published_id = create_post('Ids published', 'body', True, None, test_admin_user['id'])
+        draft_id = create_post('Ids draft', 'body', False, None, test_admin_user['id'])
+        _login(client, test_admin_user)
+
+        data = client.get('/admin/post-ids?status=draft').get_json()
+        assert data['success'] is True
+        assert data['ids'] == [draft_id]
+        assert published_id not in data['ids']
+
+    def test_admin_dashboard_like_wildcards_are_literal(self, client, temp_db, test_admin_user):
+        from models import create_post
+        create_post('Percent post', 'discount 50% today', True, None, test_admin_user['id'])
+        create_post('Plain post', 'no special characters', True, None, test_admin_user['id'])
+        _login(client, test_admin_user)
+
+        page = client.get('/admin?q=%25').get_data(as_text=True)
+        assert 'Percent post' in page
+        assert 'Plain post' not in page
+
+    def test_admin_dashboard_out_of_range_page_clamps_to_last(self, client, temp_db, test_admin_user):
+        from models import create_post
+        for i in range(12):
+            create_post(f'Page post {i}', 'body', True, None, test_admin_user['id'])
+        _login(client, test_admin_user)
+
+        page = client.get('/admin?page=99&per_page=10').get_data(as_text=True)
+        assert 'Page post' in page
+
     def test_admin_dashboard_empty_filter_values_do_not_hide_posts(self, client, temp_db, test_admin_user):
         from models import create_post
         create_post('Visible With Empty Filters', 'body', True, None, test_admin_user['id'])
@@ -94,6 +124,16 @@ class TestAdminFiltersAndTaxonomy:
 
         page = client.get('/admin?q=&status=&access_level=&category_id=&type=&author_id=&per_page=20').get_data(as_text=True)
         assert 'Visible With Empty Filters' in page
+
+    def test_admin_dashboard_empty_result_keeps_filter_controls(self, client, temp_db, test_admin_user):
+        from models import create_post
+        create_post('Some post', 'body', True, None, test_admin_user['id'])
+        _login(client, test_admin_user)
+
+        page = client.get('/admin?q=definitely-no-match').get_data(as_text=True)
+        assert '没有符合筛选条件的文章' in page
+        assert 'name="status"' in page
+        assert 'name="q"' in page
 
     def test_category_rename_and_merge(self, client, temp_db, test_admin_user):
         from models import create_category, create_post, get_category_by_id

@@ -35,6 +35,7 @@ __all__ = [
     'update_post',
     'delete_post',
     'get_all_posts',
+    'get_all_post_ids',
     'get_all_posts_cursor',
     'get_post_by_id',
     'get_posts_by_author',

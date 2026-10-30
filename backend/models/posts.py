@@ -17,6 +17,7 @@ __all__ = [
     'update_post',
     'delete_post',
     'get_all_posts',
+    'get_all_post_ids',
     'get_all_posts_cursor',
     'get_post_by_id',
     'get_posts_by_author',
@@ -213,8 +214,10 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None, t
         params.append(post_type)
 
     if q:
-        where_conditions.append('(posts.title LIKE ? OR posts.content LIKE ?)')
-        like = f'%{q}%'
+        # 转义 LIKE 通配符，避免用户输入 % 或 _ 时匹配到全部内容
+        escaped_q = str(q).replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        where_conditions.append("(posts.title LIKE ? ESCAPE '\\' OR posts.content LIKE ? ESCAPE '\\')")
+        like = f'%{escaped_q}%'
         params.extend([like, like])
 
     if status == 'published':
@@ -279,6 +282,50 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None, t
         'per_page': per_page,
         'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
     }
+
+def get_all_post_ids(include_drafts=False, category_id=None, type=None, post_type='blog',
+                     q=None, status=None, access_level=None, author_id=None):
+    """返回当前筛选条件下的全部文章 ID（用于后台“全选筛选结果”）。"""
+    where_conditions = ['posts.deleted_at IS NULL']
+    params = []
+    if not include_drafts:
+        where_conditions.append('posts.is_published = 1')
+    if category_id == 'none':
+        where_conditions.append('posts.category_id IS NULL')
+    elif category_id is not None:
+        where_conditions.append('posts.category_id = ?')
+        params.append(category_id)
+    if type is not None:
+        where_conditions.append('posts.type = ?')
+        params.append(type)
+    if post_type is not None:
+        where_conditions.append('posts.post_type = ?')
+        params.append(post_type)
+    if q:
+        escaped_q = str(q).replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        where_conditions.append("(posts.title LIKE ? ESCAPE '\\' OR posts.content LIKE ? ESCAPE '\\')")
+        like = f'%{escaped_q}%'
+        params.extend([like, like])
+    if status == 'published':
+        where_conditions.append('posts.is_published = 1')
+    elif status == 'draft':
+        where_conditions.append('posts.is_published = 0 AND posts.publish_at IS NULL')
+    elif status == 'scheduled':
+        where_conditions.append('posts.is_published = 0 AND posts.publish_at IS NOT NULL')
+    if access_level:
+        where_conditions.append('posts.access_level = ?')
+        params.append(access_level)
+    if author_id:
+        where_conditions.append('posts.author_id = ?')
+        params.append(author_id)
+    where_clause = ' AND '.join(where_conditions)
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(f'SELECT posts.id FROM posts WHERE {where_clause} ORDER BY posts.created_at DESC', params).fetchall()
+        return [row['id'] for row in rows]
+    finally:
+        conn.close()
+
 
 def get_all_posts_cursor(cursor_time=None, per_page=20, include_drafts=False, category_id=None, post_type='blog'):
     """
