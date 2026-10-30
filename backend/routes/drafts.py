@@ -38,7 +38,8 @@ def api_save_draft():
             tags=data.get('tags', []),
             device_info=data.get('device_info', ''),
             content_format=data.get('content_format', 'html'),
-            access_level=data.get('access_level', 'public')
+            access_level=data.get('access_level', 'public'),
+            device_token=data.get('device_token', '')
         )
 
         if result['success']:

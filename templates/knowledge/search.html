@@ -20,6 +20,17 @@
     <div class="kb-main">
         <form action="{{ url_for('knowledge.search') }}" method="get" class="kb-search-bar">
             <input type="text" name="q" placeholder="搜索知识库..." value="{{ query }}" autofocus>
+            <select name="category_id" style="padding:8px;border:1px solid var(--border-color);border-radius:6px;">
+                <option value="">全部目录</option>
+                {% for item in tree_flattened or [] %}
+                <option value="{{ item.id }}" {% if category_id == item.id %}selected{% endif %}>{{ item.indent }}{{ item.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="status" style="padding:8px;border:1px solid var(--border-color);border-radius:6px;">
+                <option value="">全部状态</option>
+                <option value="published" {% if status == 'published' %}selected{% endif %}>已发布</option>
+                <option value="draft" {% if status == 'draft' %}selected{% endif %}>草稿</option>
+            </select>
             <button type="submit">搜索</button>
         </form>
 
@@ -32,13 +43,21 @@
             <a href="{{ url_for('knowledge.view_doc', doc_id=post.id) }}" class="kb-doc-card">
                 <h3>{{ post.title }}</h3>
                 <div class="kb-doc-meta">
-                    {% if post.category_name %}<span class="kb-doc-cat">📁 {{ post.category_name }}</span>{% endif %}
-                    <time>{{ (post.created_at|localtime)[:10] }}</time>
+                    {% if post.category_name %}<span class="kb-doc-cat">📁 {{ post.category_name }}</span>{% else %}<span class="kb-doc-cat">未分类</span>{% endif %}
+                    <time>{{ (post.updated_at|localtime)[:10] if post.updated_at else (post.created_at|localtime)[:10] }}</time>
+                    {% if not post.is_published %}<span class="kb-draft-badge">草稿</span>{% endif %}
                 </div>
-                <p class="kb-doc-excerpt">{{ post.content|striptags|truncate(120) }}</p>
+                <p class="kb-doc-excerpt">{{ post.excerpt_html|safe }}</p>
             </a>
             {% endfor %}
         </div>
+        {% if total_pages > 1 %}
+        <div class="pagination-bar" style="margin-top:16px;display:flex;gap:8px;align-items:center;">
+            {% if page > 1 %}<a class="btn btn-sm" href="{{ url_for('knowledge.search', q=query, category_id=category_id, status=status, page=page-1) }}">上一页</a>{% endif %}
+            <span>第 {{ page }} / {{ total_pages }} 页</span>
+            {% if page < total_pages %}<a class="btn btn-sm" href="{{ url_for('knowledge.search', q=query, category_id=category_id, status=status, page=page+1) }}">下一页</a>{% endif %}
+        </div>
+        {% endif %}
         {% else %}
         <p class="kb-empty-hint">没有找到匹配的文档。</p>
         {% endif %}

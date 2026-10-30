@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from .db import get_db_connection, _safe_replace_post_fts, _safe_delete_post_fts
 from .utils import truncate_text
+from .revisions import create_post_revision
 
 __all__ = [
     'create_post',
@@ -123,6 +124,12 @@ def update_post(post_id, title, content, is_published, category_id=None, access_
         type (str, optional): 文章类型
         content_format (str, optional): 内容格式。'html' 或 'markdown'，None 表示不修改
     """
+    # 更新前保存历史快照，便于误覆盖后回滚
+    try:
+        create_post_revision(post_id)
+    except Exception:
+        pass
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -176,7 +183,8 @@ def delete_post(post_id):
     conn.close()
     _remove_post_embedding(post_id)
 
-def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None, type=None, post_type='blog'):
+def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None, type=None, post_type='blog',
+                   q=None, status=None, access_level=None, author_id=None):
     """Get all posts with pagination, optionally including drafts and filtering by category and type"""
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -184,6 +192,8 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None, t
     # Build WHERE clause
     where_conditions = []
     params = []
+
+    where_conditions.append('posts.deleted_at IS NULL')
 
     if not include_drafts:
         where_conditions.append('posts.is_published = 1')
@@ -202,11 +212,31 @@ def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None, t
         where_conditions.append('posts.post_type = ?')
         params.append(post_type)
 
+    if q:
+        where_conditions.append('(posts.title LIKE ? OR posts.content LIKE ?)')
+        like = f'%{q}%'
+        params.extend([like, like])
+
+    if status == 'published':
+        where_conditions.append('posts.is_published = 1')
+    elif status == 'draft':
+        where_conditions.append('posts.is_published = 0 AND posts.publish_at IS NULL')
+    elif status == 'scheduled':
+        where_conditions.append('posts.is_published = 0 AND posts.publish_at IS NOT NULL')
+
+    if access_level:
+        where_conditions.append('posts.access_level = ?')
+        params.append(access_level)
+
+    if author_id:
+        where_conditions.append('posts.author_id = ?')
+        params.append(author_id)
+
     # 构建安全的WHERE子句 - 仅使用硬编码的条件
     where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
 
     # 验证where_clause只包含安全的条件（防止代码注入）
-    allowed_patterns = ['posts.is_published = ', 'posts.category_id IS NULL', 'posts.category_id = ', 'posts.type = ', 'posts.post_type = ', '1=1']
+    allowed_patterns = ['posts.deleted_at IS NULL', 'posts.is_published = ', 'posts.category_id IS NULL', 'posts.category_id = ', 'posts.type = ', 'posts.post_type = ', 'posts.title LIKE ', 'posts.publish_at IS ', 'posts.access_level = ', 'posts.author_id = ', '1=1']
     if not any(allowed in where_clause for allowed in allowed_patterns):
         raise ValueError(f"Invalid WHERE clause: {where_clause}")
 
@@ -271,6 +301,8 @@ def get_all_posts_cursor(cursor_time=None, per_page=20, include_drafts=False, ca
     where_conditions = []
     params = []
 
+    where_conditions.append('posts.deleted_at IS NULL')
+
     if not include_drafts:
         where_conditions.append('posts.is_published = 1')
 
@@ -326,10 +358,11 @@ def get_all_posts_cursor(cursor_time=None, per_page=20, include_drafts=False, ca
         'per_page': per_page
     }
 
-def get_post_by_id(post_id):
+def get_post_by_id(post_id, include_deleted=False):
     """Get a single post by ID with category and author information"""
     conn = get_db_connection()
     cursor = conn.cursor()
+    deleted_clause = '' if include_deleted else ' AND posts.deleted_at IS NULL'
     cursor.execute('''
         SELECT posts.*,
                categories.name as category_name,
@@ -342,7 +375,7 @@ def get_post_by_id(post_id):
         FROM posts
         LEFT JOIN categories ON posts.category_id = categories.id
         LEFT JOIN users ON posts.author_id = users.id
-        WHERE posts.id = ?
+        WHERE posts.id = ?''' + deleted_clause + '''
     ''', (post_id,))
     post = cursor.fetchone()
     conn.close()
@@ -358,7 +391,7 @@ def get_adjacent_posts(post_id):
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    base_where = "is_published = 1 AND post_type = 'blog' AND access_level = 'public'"
+    base_where = "is_published = 1 AND post_type = 'blog' AND access_level = 'public' AND deleted_at IS NULL"
     cursor.execute(f'''
         SELECT id, title FROM posts
         WHERE id < ? AND {base_where}
@@ -406,7 +439,7 @@ def search_posts(query, include_drafts=False, page=1, per_page=20, post_type_fil
 
     # 构建LIKE搜索模式（对中文支持更好）
     search_pattern = f'%{query}%'
-    where_conditions = ['(posts.title LIKE ? OR posts.content LIKE ?)']
+    where_conditions = ['posts.deleted_at IS NULL', '(posts.title LIKE ? OR posts.content LIKE ?)']
     params = [search_pattern, search_pattern]
 
     if not include_drafts:
@@ -460,7 +493,7 @@ def get_posts_by_author(author_id, include_drafts=False, page=1, per_page=20, po
     cursor = conn.cursor()
 
     # 构建WHERE条件
-    where_conditions = ['posts.author_id = ?']
+    where_conditions = ['posts.deleted_at IS NULL', 'posts.author_id = ?']
     params = [author_id]
 
     if not include_drafts:
@@ -586,7 +619,7 @@ def check_post_access(post_id, user_id=None, session_passwords=None):
     cursor.execute('''
         SELECT access_level, access_password, author_id
         FROM posts
-        WHERE id = ?
+        WHERE id = ? AND deleted_at IS NULL
     ''', (post_id,))
 
     post = cursor.fetchone()
@@ -660,7 +693,7 @@ def verify_post_password(post_id, password):
 
     cursor.execute('''
         SELECT access_password FROM posts
-        WHERE id = ? AND access_level = 'password'
+        WHERE id = ? AND access_level = 'password' AND deleted_at IS NULL
     ''', (post_id,))
 
     post = cursor.fetchone()

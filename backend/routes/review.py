@@ -64,7 +64,7 @@ def api_review_today():
     cursor.execute(f'''
         SELECT id, title, content, post_type, type, {local_year} AS year
         FROM posts
-        WHERE author_id = ? AND {local_mmdd} = ? AND {local_year} < ?
+        WHERE author_id = ? AND deleted_at IS NULL AND {local_mmdd} = ? AND {local_year} < ?
     ''', (user_id, month_day, current_year))
     for row in cursor.fetchall():
         row = dict(row)
@@ -109,7 +109,7 @@ def api_review_activity():
     cursor.execute(f'''
         SELECT {local_day} AS day, COUNT(*) AS cnt
         FROM posts
-        WHERE author_id = ? AND created_at >= ?
+        WHERE author_id = ? AND deleted_at IS NULL AND created_at >= ?
         GROUP BY day
     ''', (user_id, start_utc_str))
     for row in cursor.fetchall():

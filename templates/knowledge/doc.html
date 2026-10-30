@@ -24,9 +24,10 @@
         <article class="kb-article">
             <div class="kb-article-header">
                 <h1 class="kb-article-title">{{ doc.title }}</h1>
-                {% if can_manage %}
+                {% if can_edit %}
                 <div class="kb-article-actions">
                     <a href="{{ url_for('knowledge.edit_doc', doc_id=doc.id) }}" class="btn btn-sm">✏️ 编辑</a>
+                    <a href="{{ url_for('admin.revision_list', post_id=doc.id) }}" class="btn btn-sm">历史版本</a>
                     <form method="POST" action="{{ url_for('knowledge.delete_doc', doc_id=doc.id) }}"
                           data-confirm="确定删除此文档？" data-confirm-destructive="true" data-confirm-text="删除"
                           style="display:inline">

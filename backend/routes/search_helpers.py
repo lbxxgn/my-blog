@@ -65,7 +65,7 @@ def unified_search(user_id, query, limit=6):
         cursor.execute('''
             SELECT id, type, title, content, created_at
             FROM posts
-            WHERE is_published = 1 AND post_type = 'blog'
+            WHERE is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
               AND (title LIKE ? OR content LIKE ?)
             ORDER BY created_at DESC LIMIT ?
         ''', (pattern, pattern, limit))
@@ -83,7 +83,7 @@ def unified_search(user_id, query, limit=6):
         cursor.execute('''
             SELECT id, title, content
             FROM posts
-            WHERE post_type = 'knowledge' AND author_id = ?
+            WHERE post_type = 'knowledge' AND deleted_at IS NULL AND author_id = ?
               AND (title LIKE ? OR content LIKE ?)
             ORDER BY created_at DESC LIMIT ?
         ''', (user_id, pattern, pattern, limit))
@@ -123,7 +123,7 @@ def _load_semantic_entities(matches):
             if source_type == 'post':
                 cursor.execute('''
                     SELECT id, type, title, content, created_at
-                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog'
+                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
                 if not row:
@@ -140,7 +140,7 @@ def _load_semantic_entities(matches):
             elif source_type == 'doc':
                 cursor.execute('''
                     SELECT id, title, content
-                    FROM posts WHERE id = ? AND post_type = 'knowledge'
+                    FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
                 if not row:
@@ -211,14 +211,14 @@ def find_related(user_id, text, exclude_type=None, exclude_id=None, limit=8):
             if source_type == 'post':
                 cursor.execute('''
                     SELECT id, title, content
-                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog'
+                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
                 url = post_url(source_id) if row else None
             elif source_type == 'doc':
                 cursor.execute('''
                     SELECT id, title, content
-                    FROM posts WHERE id = ? AND post_type = 'knowledge'
+                    FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
                 url = doc_url(source_id) if row else None

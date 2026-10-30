@@ -179,7 +179,7 @@ def get_all_users():
     cursor = conn.cursor()
     cursor.execute('''
         SELECT users.*,
-               (SELECT COUNT(*) FROM posts WHERE posts.author_id = users.id) as post_count
+               (SELECT COUNT(*) FROM posts WHERE posts.author_id = users.id AND posts.deleted_at IS NULL) as post_count
         FROM users
         ORDER BY users.created_at DESC
     ''')

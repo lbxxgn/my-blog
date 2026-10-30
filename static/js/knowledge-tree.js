@@ -27,10 +27,33 @@
     });
 
     try {
-        if (localStorage.getItem('kb-sidebar-collapsed') === '1') {
+        var stored = localStorage.getItem('kb-sidebar-collapsed');
+        if (stored === '1' || (stored === null && window.innerWidth <= 768)) {
             setCollapsed(true);
         }
     } catch (e) {}
+})();
+
+// 目录重命名
+(function() {
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.kb-rename-cat');
+        if (!btn) return;
+        var tree = document.querySelector('.kb-tree');
+        var csrf = tree && tree.dataset.csrf;
+        if (!csrf) return;
+        var name = window.prompt('重命名目录', btn.dataset.catName || '');
+        if (!name || !name.trim() || name.trim() === btn.dataset.catName) return;
+        var fd = new FormData();
+        fd.append('name', name.trim());
+        fd.append('csrf_token', csrf);
+        fetch('/knowledge/category/' + btn.dataset.catId + '/rename', {
+            method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then(function(r){ return r.json(); }).then(function(data) {
+            if (!data.success) throw new Error(data.error || '重命名失败');
+            location.reload();
+        }).catch(function(err) { alert(err.message || '重命名失败'); });
+    });
 })();
 
 (function() {

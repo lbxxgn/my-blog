@@ -34,7 +34,7 @@
         <span class="indicator-text">已保存</span>
     </div>
 
-    <form method="POST" class="editor-form" id="editorForm" data-post-id="{{ post.id if post else '' }}">
+    <form method="POST" class="editor-form" id="editorForm" data-post-id="{{ post.id if post else '' }}" data-post-updated="{{ post.updated_at if post else '' }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <div class="form-group">
             <label for="title">标题</label>
@@ -63,20 +63,26 @@
         <div class="form-row">
             <div class="form-group" style="flex: 1;">
                 <label for="category_id">分类</label>
-                <select id="category_id" name="category_id" style="width: 100%; padding: 0.625rem 0.875rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.95rem; background: var(--card-bg, #fff); color: var(--text-color, #1f2937); cursor: pointer; transition: all 0.2s;">
-                    <option value="">无分类</option>
-                    {% for category in categories %}
-                    <option value="{{ category.id }}"
-                        {% if post and post.category_id == category.id %}selected{% endif %}>
-                        {{ category.name }}
-                    </option>
-                    {% endfor %}
-                </select>
+                <div style="display:flex;gap:6px;">
+                    <select id="category_id" name="category_id" style="flex:1; padding: 0.625rem 0.875rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.95rem; background: var(--card-bg, #fff); color: var(--text-color, #1f2937); cursor: pointer; transition: all 0.2s;">
+                        <option value="">无分类</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}"
+                            {% if post and post.category_id == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" id="newCategoryInline" class="btn btn-sm btn-secondary" title="新建分类">+ 新建</button>
+                </div>
             </div>
 
             <div class="form-group" style="flex: 2;">
                 <label for="tags">标签（用逗号分隔）</label>
-                <input type="text" name="tags" id="tags" value="{% if post and post.tags %}{{ post.tags|map(attribute='name')|join(', ') }}{% endif %}" placeholder="例如: Python, Flask, Web" style="width: 100%; padding: 0.625rem 0.875rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.95rem; transition: all 0.2s;">
+                <input type="text" name="tags" id="tags" list="tagSuggestions" value="{% if post and post.tags %}{{ post.tags|map(attribute='name')|join(', ') }}{% endif %}" placeholder="例如: Python, Flask, Web（支持中文逗号）" style="width: 100%; padding: 0.625rem 0.875rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.95rem; transition: all 0.2s;">
+                <datalist id="tagSuggestions">
+                    {% for tag in all_tags or [] %}<option value="{{ tag.name }}">{% endfor %}
+                </datalist>
                 <small style="color: #666;">多个标签用逗号分隔。AI 标签建议已移到下方写作助手。</small>
             </div>
         </div>
@@ -97,13 +103,25 @@
                     </select>
                     <input type="password" id="access_password" name="access_password" value="" autocomplete="new-password" placeholder="{% if post and post.get('access_password') %}留空则不修改{% else %}设置密码{% endif %}" style="display: none; margin-left: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.9rem; width: 160px;">
                 </div>
+                <div class="access-setting" style="margin-top:0.35rem;">
+                    <label for="publish_at" style="font-size:0.875rem;color:var(--text-secondary,#666);margin-bottom:0.25rem;">定时发布（可选）</label>
+                    <input type="datetime-local" id="publish_at" name="publish_at"
+                           value="{{ post.publish_at|replace(' ', 'T')|truncate(16, true, '') if post and post.publish_at else '' }}"
+                           style="padding:0.5rem 0.75rem;border:1px solid var(--border-color,#d1d5db);border-radius:6px;font-size:0.9rem;">
+                </div>
             </div>
 
             <!-- 右侧：操作按钮 -->
             <div class="footer-right">
+                {% if post and post.id %}
+                <a href="{{ url_for('admin.revision_list', post_id=post.id) }}" class="btn btn-secondary">历史版本</a>
+                {% endif %}
                 <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">取消</a>
                 {% if not post or not post.is_published %}
                 <button type="button" id="publishToggle" class="btn btn-primary" onclick="togglePublish()">立即发布</button>
+                {% else %}
+                <button type="submit" formaction="{{ url_for('admin.unpublish_post', post_id=post.id) }}" formmethod="post" class="btn btn-secondary"
+                        onclick="return confirm('确定取消发布？文章会回到草稿状态。')">取消发布</button>
                 {% endif %}
                 <button type="submit" class="btn btn-primary">保存</button>
             </div>
@@ -1079,4 +1097,29 @@
 <script src="{{ static_file('js/editor-workbench.js') }}"></script>
 
 <script src="{{ static_file('js/editor-page.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var btn = document.getElementById('newCategoryInline');
+    var select = document.getElementById('category_id');
+    if (!btn || !select) return;
+    btn.addEventListener('click', function () {
+        var name = window.prompt('新分类名称');
+        if (!name || !name.trim()) return;
+        var fd = new FormData();
+        fd.append('name', name.trim());
+        fd.append('csrf_token', document.querySelector('meta[name="csrf_token"]').content);
+        fetch('{{ url_for("admin.new_category") }}', {
+            method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then(function (r) { return r.json(); }).then(function (data) {
+            if (!data.success) throw new Error(data.error || '创建失败');
+            var option = document.createElement('option');
+            option.value = data.id;
+            option.textContent = data.name;
+            select.appendChild(option);
+            select.value = String(data.id);
+            select.dispatchEvent(new Event('change'));
+        }).catch(function (e) { alert(e.message || '创建分类失败'); });
+    });
+});
+</script>
 {% endblock %}

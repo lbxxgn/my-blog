@@ -267,3 +267,30 @@ def mobile_upload_image():
             'error': f'上传失败: {str(e)}',
             'message': '图片处理过程中发生错误'
         }), 500
+
+
+@admin_bp.route('/media/library', methods=['GET'])
+@login_required
+def media_library():
+    """最近上传图片列表，供编辑器媒体库复用。"""
+    images_dir = os.path.join(UPLOAD_FOLDER, 'images')
+    items = []
+    if os.path.isdir(images_dir):
+        allowed = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'}
+        for name in os.listdir(images_dir):
+            ext = os.path.splitext(name)[1].lower()
+            if ext not in allowed:
+                continue
+            path = os.path.join(images_dir, name)
+            try:
+                stat = os.stat(path)
+            except OSError:
+                continue
+            items.append({
+                'name': name,
+                'url': f'/static/uploads/images/{name}',
+                'mtime': stat.st_mtime,
+                'size': stat.st_size,
+            })
+    items.sort(key=lambda item: item['mtime'], reverse=True)
+    return jsonify({'success': True, 'items': items[:100]})

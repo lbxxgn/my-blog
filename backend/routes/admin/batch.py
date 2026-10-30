@@ -6,6 +6,7 @@ import sqlite3
 from models import (
     get_db_connection,
     hash_access_password,
+    soft_delete_post,
 )
 from auth_decorators import login_required, get_current_user
 from logger import log_operation, log_error, log_sql, api_internal_error
@@ -138,17 +139,9 @@ def batch_delete():
 
         for post_id in post_ids:
             try:
-                # 删除标签关联
-                cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (post_id,))
-
-                # 删除评论
-                cursor.execute('DELETE FROM comments WHERE post_id = ?', (post_id,))
-
-                # 删除文章
-                cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
-                cursor.execute('DELETE FROM posts WHERE id = ?', (post_id,))
-
-                deleted_count += 1
+                # 统一软删除，保留评论/标签，便于回收站恢复
+                if soft_delete_post(post_id):
+                    deleted_count += 1
             except Exception as e:
                 error_msg = f"文章 {post_id} 删除失败: {str(e)}"
                 errors.append(error_msg)

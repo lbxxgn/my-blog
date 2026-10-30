@@ -145,9 +145,9 @@ class TestCommentsAndKnowledge:
         assert response.status_code == 302
         assert get_drafts(test_user['id'], doc_id) == []
 
-    def test_delete_category_form_redirects_instead_of_json(self, client, temp_db, test_user):
+    def test_delete_category_form_redirects_instead_of_json(self, client, temp_db, test_admin_user):
         from models import create_kb_category
-        _login(client, test_user)
+        _login(client, test_admin_user)
         cat_id = create_kb_category('To delete', space='knowledge')
 
         response = client.post(f'/knowledge/category/{cat_id}/delete')

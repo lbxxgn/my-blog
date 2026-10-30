@@ -10,6 +10,7 @@ from .db import get_db_context, _safe_delete_post_fts
 from .posts import create_post, get_post_by_id
 from .tags import set_post_tags, get_post_tags
 from .cards import get_card_by_id, delete_card
+from .revisions import create_post_revision
 
 __all__ = [
     'get_kb_categories',
@@ -27,6 +28,9 @@ __all__ = [
     'get_knowledge_doc',
     'get_knowledge_docs_by_category',
     'get_recent_knowledge_docs',
+    'get_knowledge_docs_for_tree',
+    'get_all_knowledge_docs',
+    'search_knowledge_docs',
     'update_knowledge_doc',
     'reorder_knowledge_doc',
     'delete_knowledge_doc',
@@ -184,7 +188,7 @@ def get_doc_count_by_category(category_id):
         cursor = conn.cursor()
         cursor.execute('''
             SELECT COUNT(*) as cnt FROM posts
-            WHERE category_id = ? AND post_type = 'knowledge'
+            WHERE category_id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
         ''', (category_id,))
         return cursor.fetchone()['cnt']
 
@@ -225,14 +229,15 @@ def get_knowledge_doc(doc_id):
             SELECT posts.*, categories.name as category_name
             FROM posts
             LEFT JOIN categories ON posts.category_id = categories.id
-            WHERE posts.id = ? AND posts.post_type = 'knowledge'
+            WHERE posts.id = ? AND posts.post_type = 'knowledge' AND posts.deleted_at IS NULL
         ''', (doc_id,))
         row = cursor.fetchone()
         return dict(row) if row else None
 
 
-def get_knowledge_docs_by_category(category_id, include_subcategories=False, include_drafts=False):
-    """获取分类下的知识库文档"""
+def get_knowledge_docs_by_category(category_id, include_subcategories=False, include_drafts=False,
+                                   viewer_id=None, viewer_role=None):
+    """获取分类下的知识库文档，并按查看者过滤他人草稿。"""
     if include_subcategories:
         cat_ids = get_descendant_category_ids(category_id)
         placeholders = ','.join('?' for _ in cat_ids)
@@ -241,40 +246,155 @@ def get_knowledge_docs_by_category(category_id, include_subcategories=False, inc
     else:
         where_cat = 'posts.category_id = ?'
         params = [category_id]
+    visibility_sql = ''
+    visibility_params = []
+    if viewer_role not in ('admin', 'editor'):
+        if not include_drafts:
+            visibility_sql += ' AND posts.is_published = 1'
+        elif viewer_id is not None:
+            visibility_sql += ' AND (posts.is_published = 1 OR posts.author_id = ?)'
+            visibility_params.append(viewer_id)
+        else:
+            visibility_sql += ' AND posts.is_published = 1'
+    elif not include_drafts:
+        visibility_sql += ' AND posts.is_published = 1'
     with get_db_context() as conn:
         cursor = conn.cursor()
-        draft_filter = '' if include_drafts else 'AND posts.is_published = 1'
         sql = f'''
             SELECT posts.*, categories.name as category_name
             FROM posts
             LEFT JOIN categories ON posts.category_id = categories.id
-            WHERE posts.post_type = 'knowledge' AND {where_cat}
-            {draft_filter}
+            WHERE posts.post_type = 'knowledge' AND posts.deleted_at IS NULL AND {where_cat}
+            {visibility_sql}
             ORDER BY posts.sort_order, posts.created_at DESC
         '''
-        cursor.execute(sql, params)
+        cursor.execute(sql, params + visibility_params)
         return [dict(row) for row in cursor.fetchall()]
 
 
-def get_recent_knowledge_docs(limit=10, include_drafts=False):
-    """获取最近的知识库文档"""
+def get_recent_knowledge_docs(limit=10, include_drafts=False, viewer_id=None, viewer_role=None):
+    """获取最近的知识库文档，并按查看者过滤他人草稿。"""
+    visibility_sql = ''
+    visibility_params = []
+    if viewer_role not in ('admin', 'editor'):
+        if not include_drafts:
+            visibility_sql += ' AND posts.is_published = 1'
+        elif viewer_id is not None:
+            visibility_sql += ' AND (posts.is_published = 1 OR posts.author_id = ?)'
+            visibility_params.append(viewer_id)
+        else:
+            visibility_sql += ' AND posts.is_published = 1'
+    elif not include_drafts:
+        visibility_sql += ' AND posts.is_published = 1'
     with get_db_context() as conn:
         cursor = conn.cursor()
-        draft_filter = '' if include_drafts else 'AND is_published = 1'
         cursor.execute(f'''
             SELECT posts.*, categories.name as category_name
             FROM posts
             LEFT JOIN categories ON posts.category_id = categories.id
-            WHERE posts.post_type = 'knowledge'
-            {draft_filter}
-            ORDER BY posts.created_at DESC
+            WHERE posts.post_type = 'knowledge' AND posts.deleted_at IS NULL
+            {visibility_sql}
+            ORDER BY COALESCE(posts.updated_at, posts.created_at) DESC
             LIMIT ?
-        ''', (limit,))
+        ''', visibility_params + [limit])
         return [dict(row) for row in cursor.fetchall()]
+
+
+def _knowledge_visibility_sql(viewer_id, viewer_role, include_drafts=True):
+    if viewer_role in ('admin', 'editor'):
+        return '', []
+    if not include_drafts:
+        return ' AND posts.is_published = 1', []
+    if viewer_id is not None:
+        return ' AND (posts.is_published = 1 OR posts.author_id = ?)', [viewer_id]
+    return ' AND posts.is_published = 1', []
+
+
+def get_knowledge_docs_for_tree(viewer_id=None, viewer_role=None):
+    """按目录分组返回文档，用于侧栏树展示。"""
+    visibility_sql, visibility_params = _knowledge_visibility_sql(viewer_id, viewer_role, include_drafts=True)
+    with get_db_context() as conn:
+        rows = conn.execute(f'''
+            SELECT id, title, category_id, is_published, author_id
+            FROM posts
+            WHERE post_type = 'knowledge' AND deleted_at IS NULL AND category_id IS NOT NULL
+            {visibility_sql}
+            ORDER BY sort_order, COALESCE(updated_at, created_at) DESC
+        ''', visibility_params).fetchall()
+    result = {}
+    for row in rows:
+        result.setdefault(row['category_id'], []).append(dict(row))
+    return result
+
+
+def get_all_knowledge_docs(viewer_id=None, viewer_role=None, scope='all', page=1, per_page=50):
+    """全部文档/未分类文档分页列表。"""
+    visibility_sql, visibility_params = _knowledge_visibility_sql(viewer_id, viewer_role, include_drafts=True)
+    where = ["posts.post_type = 'knowledge'", 'posts.deleted_at IS NULL']
+    params = list(visibility_params)
+    if scope == 'uncategorized':
+        where.append('posts.category_id IS NULL')
+    where_clause = ' AND '.join(where) + visibility_sql
+    offset = max(0, (page - 1) * per_page)
+    with get_db_context() as conn:
+        total = conn.execute(f'SELECT COUNT(*) AS cnt FROM posts WHERE {where_clause}', params).fetchone()['cnt']
+        rows = conn.execute(f'''
+            SELECT posts.*, categories.name AS category_name
+            FROM posts LEFT JOIN categories ON posts.category_id = categories.id
+            WHERE {where_clause}
+            ORDER BY COALESCE(posts.updated_at, posts.created_at) DESC
+            LIMIT ? OFFSET ?
+        ''', params + [per_page, offset]).fetchall()
+    return {
+        'posts': [dict(row) for row in rows],
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page if total else 1,
+    }
+
+
+def search_knowledge_docs(query, viewer_id=None, viewer_role=None, page=1, per_page=20,
+                          category_id=None, status=None):
+    """知识库搜索：权限过滤、目录/状态筛选、分页。"""
+    visibility_sql, visibility_params = _knowledge_visibility_sql(viewer_id, viewer_role, include_drafts=True)
+    where = ["posts.post_type = 'knowledge'", 'posts.deleted_at IS NULL',
+             '(posts.title LIKE ? OR posts.content LIKE ?)']
+    like = f'%{query}%'
+    params = [like, like] + visibility_params
+    if category_id:
+        where.append('posts.category_id = ?')
+        params.append(category_id)
+    if status == 'published':
+        where.append('posts.is_published = 1')
+    elif status == 'draft':
+        where.append('posts.is_published = 0')
+    where_clause = ' AND '.join(where) + visibility_sql
+    offset = max(0, (page - 1) * per_page)
+    with get_db_context() as conn:
+        total = conn.execute(f'SELECT COUNT(*) AS cnt FROM posts WHERE {where_clause}', params).fetchone()['cnt']
+        rows = conn.execute(f'''
+            SELECT posts.*, categories.name AS category_name
+            FROM posts LEFT JOIN categories ON posts.category_id = categories.id
+            WHERE {where_clause}
+            ORDER BY COALESCE(posts.updated_at, posts.created_at) DESC
+            LIMIT ? OFFSET ?
+        ''', params + [per_page, offset]).fetchall()
+    return {
+        'posts': [dict(row) for row in rows],
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page if total else 1,
+    }
 
 
 def update_knowledge_doc(doc_id, title, content, category_id, is_published, tag_names=None, sort_order=None):
     """更新知识库文档"""
+    try:
+        create_post_revision(doc_id)
+    except Exception:
+        pass
     with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute('''
@@ -282,7 +402,7 @@ def update_knowledge_doc(doc_id, title, content, category_id, is_published, tag_
                              content_format = 'markdown',
                              sort_order = COALESCE(?, sort_order),
                              updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND post_type = 'knowledge'
+            WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
         ''', (title, content, category_id, is_published, sort_order, doc_id))
         success = cursor.rowcount > 0
     if success and tag_names is not None:

@@ -166,3 +166,19 @@
   .kb-article{max-width:100%}
   .kb-sidebar-toggle{display:none}
 }
+
+/* 侧栏树中的文档节点 */
+.kb-tree-docs{list-style:none;margin:2px 0 4px 18px;padding:0}
+.kb-tree-doc{display:flex;align-items:center;gap:4px;font-size:0.82rem;line-height:1.6}
+.kb-tree-doc a{color:var(--text-secondary);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:170px}
+.kb-tree-doc a:hover{color:var(--primary-color);text-decoration:underline}
+
+/* 移动端：目录树可折叠，不再长期占据正文上方 */
+@media(max-width:768px){
+  .kb-sidebar-toggle{display:inline-flex !important;align-items:center;justify-content:center}
+  .kb-sidebar.collapsed{max-height:auto;margin-bottom:0.5rem}
+  .kb-sidebar.collapsed .kb-tree{display:none}
+  .kb-sidebar.collapsed .kb-sidebar-cat-actions{display:none}
+  .kb-sidebar.collapsed .kb-empty-hint{display:none}
+  .kb-tree-doc a{max-width:220px}
+}

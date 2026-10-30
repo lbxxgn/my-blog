@@ -122,14 +122,14 @@ def get_all_comments(include_hidden=False):
         cursor.execute('''
             SELECT comments.*, posts.title as post_title, posts.id as post_id
             FROM comments
-            JOIN posts ON comments.post_id = posts.id
+            JOIN posts ON comments.post_id = posts.id AND posts.deleted_at IS NULL
             ORDER BY comments.created_at DESC
         ''')
     else:
         cursor.execute('''
             SELECT comments.*, posts.title as post_title, posts.id as post_id
             FROM comments
-            JOIN posts ON comments.post_id = posts.id
+            JOIN posts ON comments.post_id = posts.id AND posts.deleted_at IS NULL
             WHERE comments.is_visible = 1
             ORDER BY comments.created_at DESC
         ''')

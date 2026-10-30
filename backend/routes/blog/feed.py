@@ -22,6 +22,12 @@ def index():
     支持混合显示 post 和 note 类型的内容，通过 posts.type 字段区分。
     模板可通过 post.type 判断内容类型并选择不同的渲染方式。
     """
+    try:
+        from models import publish_due_posts
+        publish_due_posts()
+    except Exception:
+        pass
+
     format = request.args.get('format', 'html')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
@@ -143,7 +149,7 @@ def archive():
     cursor = conn.cursor()
 
     # 构建查询条件
-    where_conditions = ["is_published = 1", "post_type = 'blog'"]
+    where_conditions = ["is_published = 1", "post_type = 'blog'", "deleted_at IS NULL"]
     params = []
 
     if days:

@@ -73,9 +73,6 @@
                 {% if session.get('user_id') %}
                     <li><a href="{{ url_for('admin_dashboard') }}">内容</a></li>
                     <li><a href="{{ url_for('knowledge.index') }}">知识库</a></li>
-                    {% if session.get('role') in ['admin', 'editor'] %}
-                    <li><a href="{{ url_for('admin.comment_list') }}">评论</a></li>
-                    {% endif %}
                     <li><a href="{{ url_for('review.review_page') }}">回顾</a></li>
                     {% if session.get('role') == 'admin' %}
                     <li class="dropdown">
@@ -483,6 +480,7 @@
             <span class="mobile-editor-title">发布内容</span>
             <span class="mobile-editor-subtitle">{{ session.get('display_name') or session.get('username') or site_author }}</span>
         </div>
+        <button type="button" class="mobile-editor-save-draft" id="mobileEditorSaveDraft" style="background:transparent;border:0;color:var(--text-secondary);font-size:0.9rem;">存草稿</button>
         <button type="button" class="mobile-editor-publish" id="mobileEditorPublish" disabled>发布</button>
     </div>
     <div class="mobile-editor-content">

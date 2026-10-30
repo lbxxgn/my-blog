@@ -14,6 +14,11 @@ from . import blog_bp, logger, get_optimized_image_url, get_optimized_image_url_
 @blog_bp.route('/post/<int:post_id>')
 def view_post(post_id):
     """查看单篇文章"""
+    try:
+        from models import publish_due_posts
+        publish_due_posts()
+    except Exception:
+        pass
     post = get_post_by_id(post_id)
     if post is None:
         flash('文章不存在', 'error')

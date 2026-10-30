@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { autoSaveDoc, getDeviceLabel, loadDraft, ConflictDraft } from '../lib/api';
+import { autoSaveDoc, getDeviceLabel, getDeviceToken, loadDraft, ConflictDraft } from '../lib/api';
 
 export interface DraftData {
   title?: string;
@@ -24,6 +24,7 @@ interface UseAutoSaveOptions {
   draftUrl?: string;
   csrfToken: string;
   isNew?: boolean;
+  docUpdatedAt?: string | null;
   getContent: () => Promise<{ title: string; content: string }>;
   debounceMs?: number;
 }
@@ -34,6 +35,7 @@ export function useAutoSave({
   draftUrl,
   csrfToken,
   isNew = false,
+  docUpdatedAt = null,
   getContent,
   debounceMs = 3000,
 }: UseAutoSaveOptions) {
@@ -43,6 +45,7 @@ export function useAutoSave({
   const dirtyRef = useRef(false);
   const timerRef = useRef<number | null>(null);
   const deviceLabelRef = useRef<string>(getDeviceLabel());
+  const deviceTokenRef = useRef<string>(getDeviceToken());
 
   const writeBackup = useCallback((data: { title?: string; content: string }) => {
     try {
@@ -71,6 +74,7 @@ export function useAutoSave({
               title,
               content,
               device_info: deviceLabelRef.current,
+              device_token: deviceTokenRef.current,
               content_format: 'markdown',
             })
               .then((data) => {
@@ -109,12 +113,24 @@ export function useAutoSave({
     if (docId && draftUrl) {
       loadDraft(draftUrl)
         .then((data) => {
-          if (data.draft) {
+          const isNewerThanDoc = (savedAt?: string) => {
+            if (!docUpdatedAt || !savedAt) return true;
+            const parseTime = (value: string) => {
+              const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(value)
+                ? value
+                : value.replace(' ', 'T') + 'Z';
+              return new Date(normalized).getTime();
+            };
+            const draftTime = parseTime(savedAt);
+            const docTime = parseTime(docUpdatedAt);
+            return isNaN(draftTime) || isNaN(docTime) || draftTime > docTime;
+          };
+          if (data.draft && isNewerThanDoc(data.draft.saved_at)) {
             setDraft({ ...data.draft, source: 'server' });
             return;
           }
           const local = readLocalBackup(docId);
-          if (local && (local.content || local.title)) {
+          if (local && (local.content || local.title) && isNewerThanDoc(local.saved_at)) {
             setDraft({ ...local, source: 'local' });
           }
         })
@@ -139,7 +155,7 @@ export function useAutoSave({
         console.warn('读取本地草稿失败:', e);
       }
     }
-  }, [docId, draftUrl, isNew]);
+  }, [docId, draftUrl, isNew, docUpdatedAt]);
 
   useEffect(() => {
     return () => {

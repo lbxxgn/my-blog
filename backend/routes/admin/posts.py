@@ -4,13 +4,17 @@ from flask import render_template, request, redirect, url_for, session, flash, j
 
 from models import (
     get_all_posts, get_post_by_id, create_post, update_post, delete_post,
-    get_all_categories, set_post_tags, get_db_connection, get_posts_by_author,
+    get_all_categories, set_post_tags, get_db_connection, get_posts_by_author, get_all_users, get_all_tags,
+    get_post_revisions, get_post_revision, restore_post_revision,
+    soft_delete_post, get_deleted_posts, restore_deleted_post, purge_deleted_post,
 )
-from auth_decorators import login_required, can_edit_post, can_delete_post
+from auth_decorators import login_required, can_edit_post, can_delete_post, role_required, get_current_user
 from logger import log_operation, api_internal_error
 from backend.config import UPLOAD_FOLDER
 from utils.markdown_renderer import render_content, render_markdown
+import re
 import threading
+from datetime import datetime
 from flask import current_app
 
 
@@ -20,6 +24,29 @@ from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_req
 def _normalize_content_format(value):
     """把表单/接口传入的内容格式归一为 'html' 或 'markdown'。"""
     return 'markdown' if str(value or '').strip().lower() == 'markdown' else 'html'
+
+
+def _parse_tag_names(raw):
+    """标签支持中英文逗号，并去重。"""
+    names = []
+    for name in re.split(r'[,，]', raw or ''):
+        name = name.strip()
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _normalize_publish_at(value):
+    """把 datetime-local 值转为 SQLite 时间；无效值返回 None。"""
+    raw = str(value or '').strip()
+    if not raw:
+        return None
+    for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(raw, fmt).strftime('%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            continue
+    return None
 
 
 @admin_bp.route('/preview', methods=['POST'])
@@ -99,21 +126,36 @@ def image_optimization_status(optimization_id):
 @login_required
 def admin_dashboard():
     """管理仪表板 - 列出所有文章包括草稿"""
+    try:
+        from models import publish_due_posts
+        publish_due_posts()
+    except Exception:
+        pass
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     category_id = request.args.get('category_id')
     type_filter = request.args.get('type')
+    query = (request.args.get('q') or '').strip()
+    status_filter = request.args.get('status') or ''
+    access_filter = request.args.get('access_level') or ''
+    author_filter = request.args.get('author_id', type=int)
 
     # 验证 per_page
     if per_page not in [10, 20, 40, 80]:
         per_page = 20
 
-    # admin/editor 可查看全部文章；author 只能看到自己的文章（含草稿）
-    if session.get('role') in ('admin', 'editor'):
-        posts_data = get_all_posts(include_drafts=True, page=page, per_page=per_page, category_id=category_id, type=type_filter)
-    else:
-        posts_data = get_posts_by_author(session.get('user_id'), include_drafts=True, page=page, per_page=per_page)
-    categories = get_all_categories()
+    is_manager = session.get('role') in ('admin', 'editor')
+    if not is_manager:
+        author_filter = session.get('user_id')
+
+    posts_data = get_all_posts(
+        include_drafts=True, page=page, per_page=per_page,
+        category_id=category_id, type=type_filter, post_type='blog',
+        q=query or None, status=status_filter or None,
+        access_level=access_filter or None, author_id=author_filter,
+    )
+    categories = get_all_categories(post_type='blog', space='blog')
+    authors = get_all_users() if is_manager else []
 
     # 计算分页信息
     start_item = (posts_data['page'] - 1) * posts_data['per_page'] + 1
@@ -134,7 +176,12 @@ def admin_dashboard():
                          page_range=page_range,
                          show_ellipsis=show_ellipsis,
                          current_category_id=category_id,
-                         current_type=type_filter)
+                         current_type=type_filter,
+                         current_query=query,
+                         current_status=status_filter,
+                         current_access=access_filter,
+                         current_author_id=author_filter,
+                         authors=authors)
 
 @admin_bp.route('/new', methods=['GET', 'POST'])
 @login_required
@@ -156,12 +203,17 @@ def new_post():
         access_level = request.form.get('access_level', 'public')
         access_password = (request.form.get('access_password') or '').strip() if access_level == 'password' else None
 
+        publish_at = _normalize_publish_at(request.form.get('publish_at'))
+        if publish_at:
+            is_published = False
+
         if access_level == 'password' and not access_password:
             message = '密码保护文章必须设置非空密码'
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'success': False, 'message': message}), 400
             flash(message, 'error')
-            categories = get_all_categories()
+            categories = get_all_categories(post_type='blog', space='blog')
+            all_tags = get_all_tags(post_type='blog')
             return render_template('admin/editor.html',
                 post={
                     'title': title or '',
@@ -172,13 +224,14 @@ def new_post():
                     'access_level': access_level,
                     'access_password': '',
                 },
-                categories=categories)
+                categories=categories, all_tags=all_tags)
 
         if not content:
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({'success': False, 'message': '内容不能为空'}), 400
             flash('内容不能为空', 'error')
-            categories = get_all_categories()
+            categories = get_all_categories(post_type='blog', space='blog')
+            all_tags = get_all_tags(post_type='blog')
             return render_template('admin/editor.html',
                 post={
                     'title': title or '',
@@ -189,7 +242,7 @@ def new_post():
                     'access_level': access_level,
                     'access_password': access_password,
                 },
-                categories=categories)
+                categories=categories, all_tags=all_tags)
 
         if not title:
             title = _auto_title(content)
@@ -199,6 +252,11 @@ def new_post():
 
         # 创建文章
         post_id = create_post(title, content, is_published, category_id, author_id, access_level, access_password, content_format=content_format)
+        if post_id and publish_at:
+            conn = get_db_connection()
+            conn.execute('UPDATE posts SET publish_at = ? WHERE id = ?', (publish_at, post_id))
+            conn.commit()
+            conn.close()
 
         # 如果原标题为空，后台异步调用AI生成更好的标题
         if not raw_title and post_id:
@@ -233,7 +291,7 @@ def new_post():
             print(f"[AI History] Failed to update history: {e}")
 
         # 处理标签
-        tag_names = request.form.get('tags', '').split(',')
+        tag_names = _parse_tag_names(request.form.get('tags', ''))
         if tag_names and tag_names[0]:
             set_post_tags(post_id, tag_names)
 
@@ -250,8 +308,9 @@ def new_post():
             })
         return redirect(url_for('blog.view_post', post_id=post_id))
 
-    categories = get_all_categories()
-    return render_template('admin/editor.html', post=None, categories=categories)
+    categories = get_all_categories(post_type='blog', space='blog')
+    all_tags = get_all_tags(post_type='blog')
+    return render_template('admin/editor.html', post=None, categories=categories, all_tags=all_tags)
 
 @admin_bp.route('/edit/<int:post_id>', methods=['GET', 'POST'])
 @can_edit_post
@@ -281,19 +340,25 @@ def edit_post(post_id):
         # 访问权限设置：留空表示沿用原密码；首次切换为密码保护必须填写
         access_level = request.form.get('access_level', 'public')
         submitted_password = (request.form.get('access_password') or '').strip()
+        publish_at = _normalize_publish_at(request.form.get('publish_at'))
+        if publish_at:
+            is_published = False
+
         if access_level == 'password':
             access_password = submitted_password or post.get('access_password')
             if not access_password:
                 flash('密码保护文章必须设置非空密码', 'error')
-                categories = get_all_categories()
+                categories = get_all_categories(post_type='blog', space='blog')
+                all_tags = get_all_tags(post_type='blog')
                 post['access_password'] = ''
-                return render_template('admin/editor.html', post=post, categories=categories)
+                return render_template('admin/editor.html', post=post, categories=categories, all_tags=all_tags)
         else:
             access_password = None
 
         if not content:
             flash('内容不能为空', 'error')
-            categories = get_all_categories()
+            categories = get_all_categories(post_type='blog', space='blog')
+            all_tags = get_all_tags(post_type='blog')
             # 保留用户已输入的数据，避免清空
             post['title'] = title or ''
             post['content'] = content or ''
@@ -301,16 +366,20 @@ def edit_post(post_id):
             post['category_id'] = category_id
             post['access_level'] = access_level
             post['access_password'] = access_password
-            return render_template('admin/editor.html', post=post, categories=categories)
+            return render_template('admin/editor.html', post=post, categories=categories, all_tags=all_tags)
 
         if not title:
             title = _auto_title(content)
 
         # 处理标签
-        tag_names = request.form.get('tags', '').split(',')
+        tag_names = _parse_tag_names(request.form.get('tags', ''))
 
         # 更新文章
         update_post(post_id, title, content, is_published, category_id, access_level, access_password, content_format=content_format)
+        conn = get_db_connection()
+        conn.execute('UPDATE posts SET publish_at = ? WHERE id = ?', (publish_at, post_id))
+        conn.commit()
+        conn.close()
 
         # 如果原标题为空，后台异步调用AI生成更好的标题
         if not raw_title:
@@ -334,8 +403,21 @@ def edit_post(post_id):
         flash('文章更新成功', 'success')
         return redirect(url_for('blog.view_post', post_id=post_id))
 
-    categories = get_all_categories()
-    return render_template('admin/editor.html', post=post, categories=categories)
+    categories = get_all_categories(post_type='blog', space='blog')
+    all_tags = get_all_tags(post_type='blog')
+    return render_template('admin/editor.html', post=post, categories=categories, all_tags=all_tags)
+
+@admin_bp.route('/unpublish/<int:post_id>', methods=['POST'])
+@can_edit_post
+def unpublish_post(post_id):
+    """取消发布，回到草稿状态。"""
+    conn = get_db_connection()
+    conn.execute('UPDATE posts SET is_published = 0, publish_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?', (post_id,))
+    conn.commit()
+    conn.close()
+    flash('已取消发布，文章回到草稿状态', 'success')
+    return redirect(url_for('admin.edit_post', post_id=post_id))
+
 
 @admin_bp.route('/delete/<int:post_id>', methods=['POST'])
 @can_delete_post
@@ -348,14 +430,14 @@ def delete_post_route(post_id):
         flash('文章不存在', 'error')
         return redirect(url_for('admin.admin_dashboard'))
 
-    delete_post(post_id)
+    soft_delete_post(post_id)
 
     # 如果是 AJAX 请求，返回 JSON
     if request.headers.get('Content-Type') == 'application/json' or \
        request.headers.get('Accept') == 'application/json':
-        return jsonify({'success': True, 'message': '文章已删除'})
+        return jsonify({'success': True, 'message': '文章已移入回收站'})
 
-    flash('文章已删除', 'success')
+    flash('文章已移入回收站', 'success')
     return redirect(url_for('admin.admin_dashboard'))
 
 @admin_bp.route('/convert-note/<int:post_id>', methods=['POST'])
@@ -379,3 +461,64 @@ def convert_note_to_post(post_id):
 
     flash('笔记已成功转换为文章', 'success')
     return redirect(url_for('admin.admin_dashboard'))
+
+
+@admin_bp.route('/trash')
+@role_required('admin')
+def trash_list():
+    """回收站"""
+    posts = get_deleted_posts()
+    return render_template('admin/trash.html', posts=posts)
+
+
+@admin_bp.route('/trash/<int:post_id>/restore', methods=['POST'])
+@role_required('admin')
+def restore_from_trash(post_id):
+    if restore_deleted_post(post_id):
+        flash('文章已恢复', 'success')
+    else:
+        flash('文章不存在或未删除', 'error')
+    return redirect(url_for('admin.trash_list'))
+
+
+@admin_bp.route('/trash/<int:post_id>/purge', methods=['POST'])
+@role_required('admin')
+def purge_from_trash(post_id):
+    if purge_deleted_post(post_id):
+        flash('文章已永久删除', 'success')
+    else:
+        flash('文章不存在或未删除', 'error')
+    return redirect(url_for('admin.trash_list'))
+
+
+@admin_bp.route('/revisions/<int:post_id>')
+@can_edit_post
+def revision_list(post_id):
+    post = get_post_by_id(post_id)
+    if not post:
+        flash('文章不存在', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
+    revisions = get_post_revisions(post_id)
+    return render_template('admin/revisions.html', post=post, revisions=revisions)
+
+
+@admin_bp.route('/revisions/<int:revision_id>/restore', methods=['POST'])
+@role_required('admin', 'editor', 'author')
+def restore_revision_route(revision_id):
+    revision = get_post_revision(revision_id)
+    if not revision:
+        flash('版本不存在', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
+    post = get_post_by_id(revision['post_id'])
+    if not post:
+        flash('文章不存在', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
+    user = get_current_user()
+    if user.get('role') == 'author' and post.get('author_id') != user.get('id'):
+        flash('无权恢复此版本', 'error')
+        return redirect(url_for('admin.admin_dashboard'))
+    if restore_post_revision(revision_id):
+        flash('已恢复到该历史版本', 'success')
+    else:
+        flash('恢复失败', 'error')
+    return redirect(url_for('admin.revision_list', post_id=post['id']))
