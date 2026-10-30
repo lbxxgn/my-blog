@@ -4,6 +4,10 @@ Post Model Functions
 文章 CRUD、搜索、分页与访问控制。
 """
 
+import hmac
+
+from werkzeug.security import generate_password_hash, check_password_hash
+
 from .db import get_db_connection, _safe_replace_post_fts, _safe_delete_post_fts
 from .utils import truncate_text
 
@@ -18,11 +22,35 @@ __all__ = [
     'get_post_excerpt',
     'check_post_access',
     'verify_post_password',
+    'hash_access_password',
+    'verify_access_password',
     'search_posts',
     'get_adjacent_posts',
     'post_listing_visibility',
     'sanitize_posts_for_viewer',
 ]
+
+
+_PASSWORD_HASH_PREFIXES = ('scrypt:', 'pbkdf2:')
+
+
+def hash_access_password(password):
+    """访问密码只存哈希；已哈希值保持幂等，兼容历史明文数据。"""
+    if not password:
+        return password
+    if str(password).startswith(_PASSWORD_HASH_PREFIXES):
+        return password
+    return generate_password_hash(password)
+
+
+def verify_access_password(stored, provided):
+    """校验访问密码，兼容历史明文存量。"""
+    if not stored or provided is None:
+        return False
+    stored = str(stored)
+    if stored.startswith(_PASSWORD_HASH_PREFIXES):
+        return check_password_hash(stored, str(provided))
+    return hmac.compare_digest(stored, str(provided))
 
 
 def create_post(title, content, is_published=False, category_id=None, author_id=None, access_level='public', access_password=None, type='post', post_type='blog', content_format='html'):
@@ -68,7 +96,7 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
 
     cursor.execute(
         'INSERT INTO posts (title, content, is_published, category_id, author_id, access_level, access_password, type, post_type, content_format) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        (title, content, is_published, category_id, author_id, access_level, access_password, type, post_type, content_format or 'html')
+        (title, content, is_published, category_id, author_id, access_level, hash_access_password(access_password), type, post_type, content_format or 'html')
     )
     post_id = cursor.lastrowid
 
@@ -102,12 +130,12 @@ def update_post(post_id, title, content, is_published, category_id=None, access_
     if access_level is not None and type is not None:
         cursor.execute(
             'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, access_level = ?, access_password = ?, type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (title, content, is_published, category_id, access_level, access_password, type, post_id)
+            (title, content, is_published, category_id, access_level, hash_access_password(access_password), type, post_id)
         )
     elif access_level is not None:
         cursor.execute(
             'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, access_level = ?, access_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (title, content, is_published, category_id, access_level, access_password, post_id)
+            (title, content, is_published, category_id, access_level, hash_access_password(access_password), post_id)
         )
     elif type is not None:
         cursor.execute(
@@ -426,8 +454,8 @@ def search_posts(query, include_drafts=False, page=1, per_page=20, post_type_fil
         'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
     }
 
-def get_posts_by_author(author_id, include_drafts=False, page=1, per_page=20):
-    """获取指定作者的文章"""
+def get_posts_by_author(author_id, include_drafts=False, page=1, per_page=20, post_type='blog'):
+    """获取指定作者的文章（默认仅博客空间）"""
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -437,6 +465,10 @@ def get_posts_by_author(author_id, include_drafts=False, page=1, per_page=20):
 
     if not include_drafts:
         where_conditions.append('posts.is_published = 1')
+
+    if post_type is not None:
+        where_conditions.append('posts.post_type = ?')
+        params.append(post_type)
 
     where_clause = ' AND '.join(where_conditions)
 
@@ -643,7 +675,7 @@ def verify_post_password(post_id, password):
         return False
 
     logger.info(f"[Password Verify] Post {post_id} checking password")
-    result = password == post['access_password']
+    result = verify_access_password(post['access_password'], password)
     logger.info(f"[Password Verify] Password match: {result}")
 
     return result

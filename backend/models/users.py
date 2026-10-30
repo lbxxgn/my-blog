@@ -9,6 +9,7 @@ import logging
 import json
 
 from .db import get_db_connection, get_db_context
+from backend.utils.secret_box import decrypt_secret, encrypt_secret, is_encrypted
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -201,7 +202,7 @@ def create_user(username, password_hash, role='author', display_name=None, bio=N
             return None
 
 
-def update_user(user_id, username=None, display_name=None, bio=None, role=None, is_active=None):
+def update_user(user_id, username=None, display_name=None, bio=None, role=None, is_active=None, password_hash=None):
     """更新用户信息"""
     with get_db_context() as conn:
         cursor = conn.cursor()
@@ -224,6 +225,9 @@ def update_user(user_id, username=None, display_name=None, bio=None, role=None, 
         if is_active is not None:
             updates.append('is_active = ?')
             params.append(is_active)
+        if password_hash is not None:
+            updates.append('password_hash = ?')
+            params.append(password_hash)
 
         if updates:
             updates.append('updated_at = CURRENT_TIMESTAMP')
@@ -285,10 +289,21 @@ def get_user_ai_config(user_id):
     conn.close()
 
     if row:
+        raw_key = row['ai_api_key']
+        # 历史明文密钥在首次读取时自动升级为密文
+        if raw_key and not is_encrypted(raw_key):
+            try:
+                with get_db_context() as upgrade_conn:
+                    upgrade_conn.execute(
+                        'UPDATE users SET ai_api_key = ? WHERE id = ?',
+                        (encrypt_secret(raw_key), user_id),
+                    )
+            except Exception:
+                pass
         return {
             'ai_tag_generation_enabled': bool(row['ai_tag_generation_enabled']) if row['ai_tag_generation_enabled'] is not None else True,
             'ai_provider': row['ai_provider'] or 'dashscope',
-            'ai_api_key': row['ai_api_key'],
+            'ai_api_key': decrypt_secret(raw_key),
             'ai_model': row['ai_model'] or 'qwen-turbo',
             'ai_base_url': row['ai_base_url']
         }
@@ -331,9 +346,13 @@ def update_user_ai_config(user_id, ai_config):
             logger.info(f"Update AI config: ai_provider = {ai_config['ai_provider']}")
 
         if 'ai_api_key' in ai_config:
-            updates.append('ai_api_key = ?')
-            params.append(ai_config['ai_api_key'])
-            logger.info(f"Update AI config: ai_api_key = ***{ai_config['ai_api_key'][-4:] if ai_config['ai_api_key'] else '(empty)'}")
+            api_key = ai_config['ai_api_key']
+            # 留空表示保留旧密钥；非空值加密后落库
+            if api_key:
+                encrypted_key = encrypt_secret(api_key)
+                updates.append('ai_api_key = ?')
+                params.append(encrypted_key)
+                logger.info(f"Update AI config: ai_api_key = ***{api_key[-4:]}")
 
         if 'ai_model' in ai_config:
             updates.append('ai_model = ?')

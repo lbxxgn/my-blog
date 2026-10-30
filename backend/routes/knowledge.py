@@ -17,7 +17,7 @@
 - GET  /knowledge/doc/<id>/draft        草稿
 """
 
-from flask import Blueprint, request, redirect, url_for, render_template, abort, session, jsonify
+from flask import Blueprint, request, redirect, url_for, render_template, abort, session, jsonify, flash
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from pathlib import Path
@@ -33,7 +33,7 @@ from models import (
     create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
 )
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
-from models.draft import save_draft, get_drafts
+from models.draft import save_draft, get_drafts, delete_drafts_for_post
 from utils.markdown_renderer import render_content
 
 knowledge_bp = Blueprint('knowledge', __name__)
@@ -165,7 +165,10 @@ def new_category():
 def delete_category(category_id):
     """删除目录"""
     delete_kb_category(category_id)
-    return jsonify({'success': True})
+    if _wants_json():
+        return jsonify({'success': True})
+    flash('目录已删除，原目录下的文档已移入未分类', 'success')
+    return redirect(url_for('knowledge.index'))
 
 
 @knowledge_bp.route('/reorder', methods=['POST'])
@@ -253,8 +256,14 @@ def edit_doc(doc_id):
             return render_template('knowledge/editor.html', tree=tree,
                                    tree_flattened=_flatten_tree(tree), doc=get_knowledge_doc(doc_id),
                                    error='标题和目录不能为空')
-        update_knowledge_doc(doc_id, title, content, category_id, is_published,
-                             tag_names=tag_names, sort_order=sort_order)
+        updated = update_knowledge_doc(doc_id, title, content, category_id, is_published,
+                                       tag_names=tag_names, sort_order=sort_order)
+        if not updated:
+            if _wants_json():
+                return jsonify({'success': False, 'error': '文档不存在或保存失败'}), 404
+            abort(404)
+        # 正文已落库，清理自动保存草稿，避免下次打开时旧草稿覆盖新内容
+        delete_drafts_for_post(session['user_id'], doc_id)
         if _wants_json():
             return jsonify({
                 'success': True,

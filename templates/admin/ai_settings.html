@@ -86,10 +86,9 @@
             <div class="ai-setting-item">
                 <label for="apiKey">API密钥</label>
                 <input type="password" id="apiKey" class="form-control"
-                       placeholder="sk-..."
-                       {% if ai_config and ai_config.ai_api_key %}value="{{ ai_config.ai_api_key }}"{% endif %}>
+                       placeholder="{% if ai_api_key_masked %}已保存 {{ ai_api_key_masked }}，留空保持不变{% else %}sk-...{% endif %}">
                 <p class="setting-description">
-                    您的API密钥将加密存储在数据库中。建议使用环境变量配置。
+                    密钥加密存储且不在页面回显；留空表示保持现有密钥不变。
                 </p>
             </div>
 
@@ -141,8 +140,7 @@
             <div class="ai-setting-item">
                 <label for="aiEmbeddingApiKey">API密钥</label>
                 <input type="password" id="aiEmbeddingApiKey" class="form-control"
-                       placeholder="sk-..."
-                       {% if embedding_config and embedding_config.api_key %}value="{{ embedding_config.api_key }}"{% endif %}>
+                       placeholder="{% if embedding_api_key_masked %}已保存 {{ embedding_api_key_masked }}，留空保持不变{% else %}sk-...{% endif %}">
             </div>
 
             <div class="ai-setting-item">
@@ -528,7 +526,7 @@ function updateModelOptions() {
     const modelSelect = document.getElementById('aiModel');
     const customModelInput = document.getElementById('aiModelCustom');
     const baseUrlItem = document.getElementById('baseUrlItem');
-    const currentConfig = {{ ai_config|tojson }} || {};
+    const currentConfig = {{ ai_config_public|tojson }} || {};
 
     modelSelect.innerHTML = '';
 

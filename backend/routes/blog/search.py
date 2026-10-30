@@ -17,6 +17,10 @@ def search():
     per_page = request.args.get('per_page', 20, type=int)
     source = request.args.get('source', 'blog')  # blog / knowledge / all / semantic
 
+    # 知识库是登录空间：匿名搜索只能命中博客，避免通过搜索页泄露知识库标题/摘要
+    if source in ('knowledge', 'all') and not session.get('user_id'):
+        source = 'blog'
+
     # 验证 per_page
     if per_page not in [10, 20, 40, 80]:
         per_page = 20

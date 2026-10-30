@@ -9,6 +9,8 @@ Embedding 服务 - 语义搜索向量生成
 import logging
 import sqlite3
 
+from backend.utils.secret_box import decrypt_secret, encrypt_secret, is_encrypted
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = 'https://api.siliconflow.cn/v1'
@@ -56,10 +58,22 @@ def get_embedding_config(user_id):
     if not row:
         return None
 
+    raw_key = row['ai_embedding_api_key']
+    if raw_key and not is_encrypted(raw_key):
+        try:
+            from models import get_db_context
+            with get_db_context() as upgrade_conn:
+                upgrade_conn.execute(
+                    'UPDATE users SET ai_embedding_api_key = ? WHERE id = ?',
+                    (encrypt_secret(raw_key), user_id),
+                )
+        except Exception:
+            pass
+
     return {
         'enabled': bool(row['ai_embedding_enabled']),
         'base_url': row['ai_embedding_base_url'] or DEFAULT_BASE_URL,
-        'api_key': row['ai_embedding_api_key'],
+        'api_key': decrypt_secret(raw_key),
         'model': row['ai_embedding_model'] or DEFAULT_MODEL,
     }
 
@@ -87,8 +101,13 @@ def update_embedding_config(user_id, data):
 
     for key in ('ai_embedding_base_url', 'ai_embedding_api_key', 'ai_embedding_model'):
         if key in data:
-            updates.append(f'{key} = ?')
             value = (data[key] or '').strip()
+            if key == 'ai_embedding_api_key':
+                # 留空表示保留旧密钥，避免设置页不回显后误清空
+                if not value:
+                    continue
+                value = encrypt_secret(value)
+            updates.append(f'{key} = ?')
             params.append(value or None)
 
     if not updates:

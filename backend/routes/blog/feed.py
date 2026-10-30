@@ -143,7 +143,7 @@ def archive():
     cursor = conn.cursor()
 
     # 构建查询条件
-    where_conditions = ["is_published = 1"]
+    where_conditions = ["is_published = 1", "post_type = 'blog'"]
     params = []
 
     if days:

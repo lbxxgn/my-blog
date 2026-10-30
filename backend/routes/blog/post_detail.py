@@ -1,6 +1,6 @@
 """文章详情、密码校验、评论、沉淀（blog 蓝图子模块）。"""
 
-from flask import render_template, request, redirect, url_for, session, flash, jsonify
+from flask import render_template, request, redirect, url_for, session, flash, jsonify, abort
 from utils.markdown_renderer import render_content
 from models import (
     get_post_by_id,
@@ -18,6 +18,20 @@ def view_post(post_id):
     if post is None:
         flash('文章不存在', 'error')
         return redirect(url_for('blog.index'))
+
+    viewer_id = session.get('user_id')
+    viewer_role = session.get('role')
+    is_owner = viewer_id is not None and viewer_id == post.get('author_id')
+    can_manage = viewer_role in ('admin', 'editor')
+
+    # 知识库是登录空间：匿名用户不得通过 /post/<id> 绕过 /knowledge 的登录门槛
+    if post.get('post_type') == 'knowledge' and viewer_id is None:
+        flash('此内容需要登录后才能查看', 'warning')
+        return redirect(url_for('auth.login', next=request.url))
+
+    # 未发布内容只对作者/管理员/编辑可见，其他人一律 404，避免泄露草稿存在性
+    if not post.get('is_published') and not (is_owner or can_manage):
+        abort(404)
 
     # 检查访问权限
     session_passwords = session.get('unlocked_posts', {})
@@ -153,6 +167,16 @@ def add_comment(post_id):
         flash('文章不存在', 'error')
         return redirect(url_for('blog.index'))
 
+    # 禁止向未发布/无权访问的文章写入评论
+    if not post.get('is_published'):
+        return jsonify({'success': False, 'error': '文章不存在'}), 404
+    access_check = check_post_access(post_id, session.get('user_id'), session.get('unlocked_posts', {}))
+    if not access_check.get('allowed'):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': '无权评论此文章'}), 403
+        flash('无权评论此文章', 'error')
+        return redirect(url_for('blog.view_post', post_id=post_id))
+
     author_name = request.form.get('author_name', '').strip()
     author_email = request.form.get('author_email', '').strip()
     content = request.form.get('content', '').strip()
@@ -175,6 +199,7 @@ def add_comment(post_id):
     if len(content) > 1000:
         return comment_error('评论内容过长')
 
+    # 评论提交后直接展示；管理员仍可在后台隐藏/删除
     create_comment(post_id, author_name, author_email, content)
     if is_xhr:
         return jsonify({'success': True, 'message': '评论提交成功'})

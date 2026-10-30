@@ -95,7 +95,7 @@
                         <option value="password" {% if post and post.get('access_level') == 'password' %}selected{% endif %}>🔑 密码保护</option>
                         <option value="private" {% if post and post.get('access_level') == 'private' %}selected{% endif %}>👁️ 私密</option>
                     </select>
-                    <input type="text" id="access_password" name="access_password" value="{% if post and post.get('access_password') %}{{ post.access_password }}{% endif %}" placeholder="设置密码" style="display: none; margin-left: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.9rem; width: 150px;">
+                    <input type="password" id="access_password" name="access_password" value="" autocomplete="new-password" placeholder="{% if post and post.get('access_password') %}留空则不修改{% else %}设置密码{% endif %}" style="display: none; margin-left: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border-color, #d1d5db); border-radius: 6px; font-size: 0.9rem; width: 160px;">
                 </div>
             </div>
 

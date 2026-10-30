@@ -1,5 +1,6 @@
 {# 递归渲染知识库目录树。用法：{% from 'knowledge/_tree.html' import render_tree %} #}
 {% macro render_tree(nodes, active_category_id=None, can_manage=False) %}
+{% set can_interact = can_manage and request.endpoint in ('knowledge.index', 'knowledge.view_category') %}
 <ul class="kb-tree" {% if can_manage %}data-csrf="{{ csrf_token() }}"{% endif %}>
     {% for node in nodes %}
     <li class="kb-tree-node" data-cat-id="{{ node.id }}">
@@ -7,11 +8,11 @@
              data-cat-id="{{ node.id }}"
              data-parent-id="{{ node.parent_id or '' }}"
              data-sort-order="{{ node.sort_order or 0 }}">
-            {% if can_manage %}<span class="kb-tree-drag-handle" draggable="true" title="拖动排序">⋮⋮</span>{% endif %}
+            {% if can_interact %}<span class="kb-tree-drag-handle" draggable="true" title="拖动排序">⋮⋮</span>{% endif %}
             <span class="kb-tree-toggle">{% if node.children %}▾{% else %}•{% endif %}</span>
             {% if node.icon %}<span class="kb-tree-icon">{{ node.icon }}</span>{% endif %}
             <a href="{{ url_for('knowledge.view_category', category_id=node.id) }}">{{ node.name }}</a>
-            {% if can_manage %}
+            {% if can_interact %}
             <span class="kb-tree-actions">
                 <button class="kb-mini-btn kb-add-sub" data-parent-id="{{ node.id }}" data-parent-name="{{ node.name }}" title="新建子目录">+</button>
             </span>

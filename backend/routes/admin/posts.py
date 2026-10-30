@@ -152,9 +152,27 @@ def new_post():
         elif category_id is not None:
             category_id = int(category_id)
 
-        # 访问权限设置
+        # 访问权限设置：密码保护必须提供非空密码，避免创建后永久锁死
         access_level = request.form.get('access_level', 'public')
-        access_password = request.form.get('access_password', '') if access_level == 'password' else None
+        access_password = (request.form.get('access_password') or '').strip() if access_level == 'password' else None
+
+        if access_level == 'password' and not access_password:
+            message = '密码保护文章必须设置非空密码'
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'message': message}), 400
+            flash(message, 'error')
+            categories = get_all_categories()
+            return render_template('admin/editor.html',
+                post={
+                    'title': title or '',
+                    'content': content or '',
+                    'content_format': content_format,
+                    'is_published': is_published,
+                    'category_id': category_id,
+                    'access_level': access_level,
+                    'access_password': '',
+                },
+                categories=categories)
 
         if not content:
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -260,9 +278,18 @@ def edit_post(post_id):
         elif category_id is not None:
             category_id = int(category_id)
 
-        # 访问权限设置
+        # 访问权限设置：留空表示沿用原密码；首次切换为密码保护必须填写
         access_level = request.form.get('access_level', 'public')
-        access_password = request.form.get('access_password', '') if access_level == 'password' else None
+        submitted_password = (request.form.get('access_password') or '').strip()
+        if access_level == 'password':
+            access_password = submitted_password or post.get('access_password')
+            if not access_password:
+                flash('密码保护文章必须设置非空密码', 'error')
+                categories = get_all_categories()
+                post['access_password'] = ''
+                return render_template('admin/editor.html', post=post, categories=categories)
+        else:
+            access_password = None
 
         if not content:
             flash('内容不能为空', 'error')

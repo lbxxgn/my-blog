@@ -124,5 +124,5 @@ export async function continueWriting(
   payload: { title?: string; content: string }
 ): Promise<string> {
   const data = await postJson(url, payload, csrfToken);
-  return data.content || '';
+  return data.continuation || '';
 }

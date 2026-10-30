@@ -5,6 +5,7 @@ import sqlite3
 
 from models import (
     get_db_connection,
+    hash_access_password,
 )
 from auth_decorators import login_required, get_current_user
 from logger import log_operation, log_error, log_sql, api_internal_error
@@ -381,6 +382,10 @@ def batch_update_access():
 
         if access_level not in ['public', 'password', 'private']:
             return jsonify({'success': False, 'message': '无效的访问权限类型'}), 400
+        if access_level == 'password' and not str(access_password).strip():
+            return jsonify({'success': False, 'message': '密码保护必须设置非空密码'}), 400
+        if access_level == 'password':
+            access_password = hash_access_password(str(access_password).strip())
 
         post_ids, skipped = filter_operable_post_ids(post_ids)
         if not post_ids:
