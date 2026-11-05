@@ -25,6 +25,7 @@ import stat
 import tempfile
 import threading
 import time
+import uuid
 import zipfile
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -328,6 +329,70 @@ def create_backup_archive(prefix: str = BACKUP_PREFIX) -> tuple[Path, dict[str, 
         raise
     finally:
         shutil.rmtree(working_dir, ignore_errors=True)
+
+
+_BACKUP_JOBS_LOCK = threading.Lock()
+
+
+def _job_path(job_id: str) -> Path:
+    return get_backup_dir() / f'.job_{job_id}.json'
+
+
+def _write_job(job: dict[str, Any]) -> None:
+    path = _job_path(job['id'])
+    tmp = path.with_suffix('.tmp')
+    tmp.write_text(json.dumps(job, ensure_ascii=False), encoding='utf-8')
+    os.replace(tmp, path)
+
+
+def _update_job(job_id: str, **values):
+    with _BACKUP_JOBS_LOCK:
+        path = _job_path(job_id)
+        try:
+            job = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            return
+        job.update(values)
+        job['updated_at'] = datetime.now().isoformat(timespec='seconds')
+        _write_job(job)
+
+
+def start_backup_job() -> str:
+    """后台创建备份，立即返回任务 ID；状态写入备份目录，支持多 worker 轮询。"""
+    job_id = uuid.uuid4().hex
+    with _BACKUP_JOBS_LOCK:
+        _write_job({
+            'id': job_id,
+            'state': 'running',
+            'message': '正在创建备份...',
+            'started_at': datetime.now().isoformat(timespec='seconds'),
+            'updated_at': datetime.now().isoformat(timespec='seconds'),
+        })
+
+    def worker():
+        try:
+            archive_path, manifest = create_backup_archive()
+            _update_job(
+                job_id,
+                state='success',
+                message='备份创建完成',
+                archive_name=archive_path.name,
+                size_mb=round(archive_path.stat().st_size / 1024 / 1024, 2),
+                file_count=manifest['uploads']['file_count'],
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception('后台备份失败')
+            _update_job(job_id, state='error', message=str(exc))
+
+    threading.Thread(target=worker, name=f'backup-{job_id[:8]}', daemon=True).start()
+    return job_id
+
+
+def get_backup_job(job_id: str) -> dict[str, Any] | None:
+    try:
+        return json.loads(_job_path(job_id).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
 
 
 def list_backups() -> list[dict[str, Any]]:

@@ -120,6 +120,8 @@ def temp_db():
                 author_id INTEGER DEFAULT 1,
                 access_level TEXT DEFAULT 'public',
                 access_password TEXT,
+                publish_at TIMESTAMP,
+                deleted_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (category_id) REFERENCES categories(id),

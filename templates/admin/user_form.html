@@ -24,6 +24,12 @@
                 <input type="password" name="password" id="password" required minlength="10">
                 <small style="color: var(--text-secondary, #666);">密码至少10位，包含大小写字母和数字</small>
             </div>
+            {% else %}
+            <div class="form-group">
+                <label for="new_password">重置密码</label>
+                <input type="password" name="new_password" id="new_password" minlength="10" autocomplete="new-password">
+                <small style="color: var(--text-secondary, #666);">留空表示不修改；设置后建议通知用户重新登录。</small>
+            </div>
             {% endif %}
 
             <div class="form-group">

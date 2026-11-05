@@ -32,7 +32,9 @@
                     <input type="text" name="q" placeholder="搜索知识库..." value="{{ request.args.get('q', '') }}">
                     <button type="submit">🔍</button>
                 </form>
-                {% if can_manage %}
+                <a href="{{ url_for('knowledge.all_documents') }}" class="btn btn-sm">全部文档</a>
+                <a href="{{ url_for('knowledge.all_documents', scope='uncategorized') }}" class="btn btn-sm">未分类</a>
+                {% if session.get('user_id') %}
                 <a href="{{ url_for('knowledge.new_doc') }}" class="btn btn-sm btn-primary">+ 新建文档</a>
                 {% endif %}
             </div>
@@ -55,7 +57,7 @@
         {% else %}
         <div class="kb-empty-state">
             <p>知识库还是空的。</p>
-            {% if can_manage %}<p>点击「+ 新建文档」开始，或在左侧目录树点 ＋ 创建目录。</p>{% endif %}
+            {% if session.get('user_id') %}<p>点击「+ 新建文档」开始，或在左侧目录树点 ＋ 创建目录。</p>{% endif %}
         </div>
         {% endif %}
     </div>

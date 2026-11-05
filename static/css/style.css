@@ -159,3 +159,27 @@
     color: #818cf8;
     background: rgba(129, 140, 248, 0.15);
 }
+
+/* 移动端后台底部导航（仅小屏显示） */
+.mobile-admin-nav{display:none}
+@media(max-width:768px){
+  .mobile-admin-nav{
+    display:flex;
+    position:fixed;
+    left:0;right:0;bottom:0;
+    z-index:1200;
+    background:var(--card-bg,#fff);
+    border-top:1px solid var(--border-color,#e5e7eb);
+    padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    box-shadow:0 -4px 16px rgba(0,0,0,.06);
+  }
+  .mobile-admin-nav .nav-item{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+    text-decoration:none;color:var(--text-secondary);font-size:11px;
+  }
+  .mobile-admin-nav .nav-item.active{color:var(--primary-color)}
+  .mobile-admin-nav .nav-item-icon{font-size:18px;line-height:1}
+  body[data-page="admin"]{padding-bottom:72px}
+}
+
+.dropdown-toggle{border:0;background:transparent;color:inherit;font:inherit;padding:0;cursor:pointer;display:flex;align-items:center;gap:4px}

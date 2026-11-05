@@ -22,6 +22,12 @@ def index():
     支持混合显示 post 和 note 类型的内容，通过 posts.type 字段区分。
     模板可通过 post.type 判断内容类型并选择不同的渲染方式。
     """
+    try:
+        from models import publish_due_posts
+        publish_due_posts()
+    except Exception:
+        pass
+
     format = request.args.get('format', 'html')
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
@@ -138,12 +144,16 @@ def archive():
     days = request.args.get('days', type=int)
     year = request.args.get('year', type=int)
     month = request.args.get('month', type=int)
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = request.args.get('per_page', 20, type=int)
+    if per_page not in (20, 40, 80):
+        per_page = 20
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
     # 构建查询条件
-    where_conditions = ["is_published = 1"]
+    where_conditions = ["is_published = 1", "post_type = 'blog'", "deleted_at IS NULL"]
     params = []
 
     if days:
@@ -159,13 +169,21 @@ def archive():
 
     where_clause = " AND ".join(where_conditions)
 
+    cursor.execute(f'SELECT COUNT(*) AS cnt FROM posts WHERE {where_clause}', params)
+    total = cursor.fetchone()['cnt']
+    total_pages = (total + per_page - 1) // per_page if total else 1
+    if page > total_pages:
+        page = total_pages
+    offset = (page - 1) * per_page
+
     query = f'''
         SELECT * FROM posts
         WHERE {where_clause}
         ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
     '''
 
-    cursor.execute(query, params)
+    cursor.execute(query, params + [per_page, offset])
     posts = cursor.fetchall()
     conn.close()
     posts = _sanitize_for_viewer(posts)
@@ -181,7 +199,9 @@ def archive():
     else:
         title = "全部归档"
 
-    return render_template('archive.html', posts=posts, title=title)
+    return render_template('archive.html', posts=posts, title=title,
+                           pagination={'page': page, 'per_page': per_page, 'total': total, 'total_pages': total_pages},
+                           days=days, year=year, month=month)
 
 @blog_bp.route('/category/<int:category_id>')
 def view_category(category_id):

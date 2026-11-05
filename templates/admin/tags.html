@@ -6,6 +6,7 @@
 <div class="admin-categories">
     <div class="dashboard-header">
         <h2>标签管理</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
     </div>
 
     <div class="category-form">
@@ -35,16 +36,29 @@
             {% for tag in tags %}
             <tr>
                 <td>{{ tag.id }}</td>
-                <td>{{ tag.name }}</td>
                 <td>
-                    <span class="badge">{{ tag.post_count or 0 }} 篇</span>
+                    <form method="POST" action="{{ url_for('admin.rename_tag_route', tag_id=tag.id) }}" style="display:flex;gap:4px;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="text" name="name" value="{{ tag.name }}" style="padding:4px 6px;border:1px solid var(--border-color);border-radius:4px;">
+                        <button type="submit" class="btn btn-sm">重命名</button>
+                    </form>
                 </td>
+                <td><span class="badge">{{ tag.post_count or 0 }} 篇</span></td>
                 <td>{{ tag.created_at|localtime }}</td>
                 <td>
+                    <form method="POST" action="{{ url_for('admin.merge_tag_route', tag_id=tag.id) }}" style="display:inline-flex;gap:4px;align-items:center;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <select name="target_id" style="padding:4px 6px;border:1px solid var(--border-color);border-radius:4px;">
+                            <option value="">合并到…</option>
+                            {% for target in tags if target.id != tag.id %}
+                            <option value="{{ target.id }}">{{ target.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-sm">合并</button>
+                    </form>
                     <form action="{{ url_for('delete_tag_route', tag_id=tag.id) }}" method="post" class="delete-form"
-                          data-confirm="确定删除此标签吗？"
-                          data-confirm-destructive="true"
-                          data-confirm-text="删除">
+                          data-confirm="确定删除此标签吗？将从 {{ tag.post_count or 0 }} 篇文章移除。"
+                          data-confirm-destructive="true" data-confirm-text="删除">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button type="submit" class="btn btn-sm btn-danger">删除</button>
                     </form>

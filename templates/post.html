@@ -303,6 +303,9 @@ header {
 
                 <div class="meta-right">
                     <time datetime="{{ post.created_at }}">{{ post.created_at|localtime }}</time>
+                    {% if session.get('user_id') and (session.get('user_id') == post.author_id or session.get('role') in ['admin', 'editor']) %}
+                    <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-sm" style="margin-left:8px;">编辑</a>
+                    {% endif %}
                 </div>
             </div>
         </header>
@@ -339,6 +342,16 @@ header {
         </button>
     </div>
 
+    {% if source_kb_doc or linked_kb_doc %}
+    <div class="precipitate-section" style="font-size:0.9rem;">
+        {% if source_kb_doc %}
+        <span>来源知识库：<a href="{{ url_for('knowledge.view_doc', doc_id=source_kb_doc.id) }}">{{ source_kb_doc.title }}</a></span>
+        {% endif %}
+        {% if linked_kb_doc %}
+        <span style="margin-left:1rem;">已沉淀到知识库：<a href="{{ url_for('knowledge.view_doc', doc_id=linked_kb_doc.id) }}">{{ linked_kb_doc.title }}</a></span>
+        {% endif %}
+    </div>
+    {% endif %}
     {% if kb_tree %}
     <!-- 沉淀到知识库（仅登录用户） -->
     <div class="precipitate-section">
@@ -423,10 +436,10 @@ header {
             <form class="comment-form" action="{{ url_for('add_comment', post_id=post.id) }}" method="post">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="comment-form-row">
-                    <input type="text" name="author_name" placeholder="姓名 *" required maxlength="50">
-                    <input type="email" name="author_email" placeholder="邮箱（选填）" maxlength="100">
+                    <input type="text" name="author_name" placeholder="姓名 *" required maxlength="50" aria-label="评论姓名">
+                    <input type="email" name="author_email" placeholder="邮箱（选填）" maxlength="100" aria-label="评论邮箱">
                 </div>
-                <textarea name="content" placeholder="写点什么..." rows="3" required maxlength="1000"></textarea>
+                <textarea name="content" placeholder="写点什么..." rows="3" required maxlength="1000" aria-label="评论内容"></textarea>
                 <button type="submit" class="btn btn-primary btn-sm">发送</button>
             </form>
         </div>

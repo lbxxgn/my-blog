@@ -65,7 +65,7 @@ def unified_search(user_id, query, limit=6):
         cursor.execute('''
             SELECT id, type, title, content, created_at
             FROM posts
-            WHERE is_published = 1 AND post_type = 'blog'
+            WHERE is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
               AND (title LIKE ? OR content LIKE ?)
             ORDER BY created_at DESC LIMIT ?
         ''', (pattern, pattern, limit))
@@ -83,7 +83,7 @@ def unified_search(user_id, query, limit=6):
         cursor.execute('''
             SELECT id, title, content
             FROM posts
-            WHERE post_type = 'knowledge' AND author_id = ?
+            WHERE post_type = 'knowledge' AND deleted_at IS NULL AND author_id = ?
               AND (title LIKE ? OR content LIKE ?)
             ORDER BY created_at DESC LIMIT ?
         ''', (user_id, pattern, pattern, limit))
@@ -94,9 +94,52 @@ def unified_search(user_id, query, limit=6):
                 'url': doc_url(row['id']),
                 'excerpt': _make_excerpt(row['content']),
             })
+
     finally:
         conn.close()
 
+    return result
+
+
+def search_cards_and_annotations(user_id, query, limit=20):
+    """关键词搜索当前用户的卡片和网页标注。"""
+    result = {'cards': [], 'annotations': []}
+    if not user_id or not query:
+        return result
+    pattern = f'%{query}%'
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, title, content, status, created_at
+            FROM cards
+            WHERE user_id = ? AND (title LIKE ? OR content LIKE ?)
+            ORDER BY created_at DESC LIMIT ?
+        ''', (user_id, pattern, pattern, limit))
+        for row in cursor.fetchall():
+            result['cards'].append({
+                'id': row['id'],
+                'title': row['title'] or '未命名卡片',
+                'excerpt': _make_excerpt(row['content']),
+                'status': row['status'],
+                'date': row['created_at'],
+            })
+        cursor.execute('''
+            SELECT id, source_url, annotation_text, note, created_at
+            FROM card_annotations
+            WHERE user_id = ? AND (annotation_text LIKE ? OR note LIKE ? OR source_url LIKE ?)
+            ORDER BY created_at DESC LIMIT ?
+        ''', (user_id, pattern, pattern, pattern, limit))
+        for row in cursor.fetchall():
+            result['annotations'].append({
+                'id': row['id'],
+                'url': row['source_url'],
+                'title': _make_excerpt(row['annotation_text'] or row['note'] or row['source_url'], 80),
+                'excerpt': _make_excerpt(row['note'] or row['annotation_text'] or ''),
+                'date': row['created_at'],
+            })
+    finally:
+        conn.close()
     return result
 
 
@@ -123,7 +166,7 @@ def _load_semantic_entities(matches):
             if source_type == 'post':
                 cursor.execute('''
                     SELECT id, type, title, content, created_at
-                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog'
+                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
                 if not row:
@@ -140,7 +183,7 @@ def _load_semantic_entities(matches):
             elif source_type == 'doc':
                 cursor.execute('''
                     SELECT id, title, content
-                    FROM posts WHERE id = ? AND post_type = 'knowledge'
+                    FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
                 if not row:
@@ -211,14 +254,14 @@ def find_related(user_id, text, exclude_type=None, exclude_id=None, limit=8):
             if source_type == 'post':
                 cursor.execute('''
                     SELECT id, title, content
-                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog'
+                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
                 url = post_url(source_id) if row else None
             elif source_type == 'doc':
                 cursor.execute('''
                     SELECT id, title, content
-                    FROM posts WHERE id = ? AND post_type = 'knowledge'
+                    FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
                 url = doc_url(source_id) if row else None

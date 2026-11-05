@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}历史版本 - {{ post.title }} - {{ site_name }}{% endblock %}
+{% block content %}
+<div class="container admin-categories">
+    <div class="dashboard-header">
+        <h2>历史版本：{{ post.title }}</h2>
+        <div class="header-actions">
+            <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn">返回编辑</a>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn">管理后台</a>
+        </div>
+    </div>
+    <p style="color: var(--text-secondary); margin-bottom: 12px;">保存或覆盖正文前会自动生成快照，最多保留最近 100 个版本。</p>
+    {% if revisions %}
+    <div class="categories-list">
+        {% for rev in revisions %}
+        <details class="kb-doc-card" style="margin-bottom:10px;padding:12px;">
+            <summary style="cursor:pointer;">
+                <strong>{{ rev.title }}</strong>
+                <span style="color:var(--text-secondary);margin-left:8px;">{{ (rev.created_at|localtime)[:19] }}</span>
+            </summary>
+            <div style="margin-top:10px;">
+                <p style="white-space:pre-wrap;max-height:180px;overflow:auto;background:var(--code-bg,#f9fafb);padding:10px;border-radius:8px;">{{ rev.content|striptags|truncate(500) }}</p>
+                <form method="POST" action="{{ url_for('admin.restore_revision_route', revision_id=rev.id) }}"
+                      data-confirm="恢复到该版本会覆盖当前正文，当前内容会先保存为新快照。确定继续？" data-confirm-text="恢复">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <button type="submit" class="btn btn-sm btn-primary">恢复此版本</button>
+                </form>
+            </div>
+        </details>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state"><p>还没有历史版本。</p></div>
+    {% endif %}
+</div>
+{% endblock %}

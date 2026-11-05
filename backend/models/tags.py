@@ -19,6 +19,7 @@ __all__ = [
     'set_post_tags',
     'get_post_tags',
     'get_posts_by_tag',
+    'merge_tag',
 ]
 
 
@@ -43,7 +44,7 @@ def get_all_tags(post_type=None, published_only=False, only_with_posts=False):
         published_only (bool): 仅统计已发布文章
         only_with_posts (bool): 仅返回至少有一篇符合条件文章的标签（过滤空标签）
     """
-    conditions = []
+    conditions = ['p.deleted_at IS NULL']
     params = []
     if post_type:
         conditions.append('p.post_type = ?')
@@ -83,7 +84,7 @@ def get_popular_tags(limit=10, post_type='blog', published_only=True):
 
     默认只统计已发布的博客文章，因此不会出现「只在知识库使用」的空标签。
     """
-    conditions = []
+    conditions = ['p.deleted_at IS NULL']
     params = []
     if post_type:
         conditions.append('p.post_type = ?')
@@ -136,6 +137,18 @@ def delete_tag(tag_id):
     with get_db_context() as conn:
         cursor = conn.cursor()
         cursor.execute('DELETE FROM tags WHERE id = ?', (tag_id,))
+
+def merge_tag(source_id, target_id):
+    """把源标签的文章关联迁移到目标标签，然后删除源标签。"""
+    if source_id == target_id:
+        return False
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('INSERT OR IGNORE INTO post_tags (post_id, tag_id) SELECT post_id, ? FROM post_tags WHERE tag_id = ?', (target_id, source_id))
+        cursor.execute('DELETE FROM post_tags WHERE tag_id = ?', (source_id,))
+        cursor.execute('DELETE FROM tags WHERE id = ?', (source_id,))
+        return cursor.rowcount > 0
+
 
 def set_post_tags(post_id, tag_names):
     """Set tags for a post (replace existing) - refactored to use context manager"""
@@ -198,7 +211,7 @@ def get_posts_by_tag(tag_id, include_drafts=False, page=1, per_page=20, post_typ
     cursor = conn.cursor()
 
     # Build WHERE clause
-    where_conditions = ['post_tags.tag_id = ?']
+    where_conditions = ['posts.deleted_at IS NULL', 'post_tags.tag_id = ?']
     params = [tag_id]
 
     if not include_drafts:

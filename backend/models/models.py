@@ -25,4 +25,5 @@ from .cards import *
 from .posts import *
 from .comments import *
 from .knowledge import *
+from .revisions import *
 from .site_settings import *

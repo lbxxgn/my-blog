@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from 'knowledge/_tree.html' import render_tree with context %}
+
+{% block title %}{{ '未分类文档' if scope == 'uncategorized' else '全部文档' }} - 知识库 - {{ site_name }}{% endblock %}
+{% block page_type %}knowledge{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/knowledge.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="container kb-layout">
+    <div class="kb-sidebar">
+        <div class="kb-sidebar-header">
+            <h2><a href="{{ url_for('knowledge.index') }}">📚 知识库</a></h2>
+        </div>
+        {{ render_tree(tree, can_manage=can_manage) }}
+    </div>
+
+    <div class="kb-main">
+        <div class="kb-main-header">
+            <h1>{{ '未分类文档' if scope == 'uncategorized' else '全部文档' }}</h1>
+            <div class="kb-main-actions">
+                <a href="{{ url_for('knowledge.all_documents') }}" class="btn btn-sm">全部</a>
+                <a href="{{ url_for('knowledge.all_documents', scope='uncategorized') }}" class="btn btn-sm">未分类</a>
+                <a href="{{ url_for('knowledge.index') }}" class="btn btn-sm">返回知识库</a>
+            </div>
+        </div>
+        <p class="kb-search-count">共 <strong>{{ total }}</strong> 篇</p>
+
+        {% if posts %}
+        <div class="kb-doc-list">
+            {% for doc in posts %}
+            <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" class="kb-doc-card">
+                <h3>{{ doc.title }}</h3>
+                <div class="kb-doc-meta">
+                    {% if doc.category_name %}<span class="kb-doc-cat">📁 {{ doc.category_name }}</span>{% else %}<span class="kb-doc-cat">未分类</span>{% endif %}
+                    <time>{{ (doc.updated_at|localtime)[:10] if doc.updated_at else (doc.created_at|localtime)[:10] }}</time>
+                    {% if not doc.is_published %}<span class="kb-draft-badge">草稿</span>{% endif %}
+                </div>
+                <p class="kb-doc-excerpt">{{ doc.content|striptags|truncate(120) }}</p>
+            </a>
+            {% endfor %}
+        </div>
+        {% if total_pages > 1 %}
+        <div class="pagination-bar" style="margin-top:16px;display:flex;gap:8px;align-items:center;">
+            {% if page > 1 %}<a class="btn btn-sm" href="{{ url_for('knowledge.all_documents', scope=scope, page=page-1) }}">上一页</a>{% endif %}
+            <span>第 {{ page }} / {{ total_pages }} 页</span>
+            {% if page < total_pages %}<a class="btn btn-sm" href="{{ url_for('knowledge.all_documents', scope=scope, page=page+1) }}">下一页</a>{% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="kb-empty-state"><p>{{ '没有未分类文档。' if scope == 'uncategorized' else '还没有文档。' }}</p></div>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

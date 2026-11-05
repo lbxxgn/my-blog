@@ -6,7 +6,11 @@
 <div class="admin-categories">
     <div class="dashboard-header">
         <h2>评论管理</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
     </div>
+    <p style="color: var(--text-secondary); margin-bottom: 12px;">
+        评论提交后会直接展示；如有不当内容可在这里隐藏或删除。
+    </p>
 
     {% if comments %}
     <table class="categories-table">
@@ -35,7 +39,7 @@
                     {% if comment.is_visible %}
                     <span class="status published">可见</span>
                     {% else %}
-                    <span class="status draft">隐藏</span>
+                    <span class="status draft">已隐藏</span>
                     {% endif %}
                 </td>
                 <td>

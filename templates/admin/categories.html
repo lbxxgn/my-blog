@@ -36,15 +36,30 @@
             <tbody>
                 {% for category in categories %}
                 <tr>
-                    <td><strong>{{ category.name }}</strong></td>
-                    <td>-</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin.rename_category_route', category_id=category.id) }}" style="display:flex;gap:4px;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="text" name="name" value="{{ category.name }}" style="padding:4px 6px;border:1px solid var(--border-color);border-radius:4px;">
+                            <button type="submit" class="btn btn-sm">重命名</button>
+                        </form>
+                    </td>
+                    <td><span class="badge">{{ category.total_count or 0 }} 篇</span></td>
                     <td>{{ category.created_at|localtime }}</td>
                     <td class="actions">
+                        <form method="POST" action="{{ url_for('admin.merge_category_route', category_id=category.id) }}" style="display:inline-flex;gap:4px;align-items:center;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <select name="target_id" style="padding:4px 6px;border:1px solid var(--border-color);border-radius:4px;">
+                                <option value="">合并到…</option>
+                                {% for target in categories if target.id != category.id %}
+                                <option value="{{ target.id }}">{{ target.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-sm">合并</button>
+                        </form>
                         <form method="POST" action="{{ url_for('delete_category_route', category_id=category.id) }}"
                               class="delete-form"
-                              data-confirm="确定删除这个分类？删除后文章将不再属于该分类。"
-                              data-confirm-destructive="true"
-                              data-confirm-text="删除">
+                              data-confirm="确定删除「{{ category.name }}」？将影响 {{ category.total_count or 0 }} 篇文章，它们会变为未分类。"
+                              data-confirm-destructive="true" data-confirm-text="删除">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <button type="submit" class="btn btn-sm btn-danger">删除</button>
                         </form>

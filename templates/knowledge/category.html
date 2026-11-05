@@ -27,9 +27,18 @@
             <div class="kb-sidebar-cat-btns">
                 <button class="kb-mini-btn kb-add-sub" data-parent-id="{{ category.id }}" data-parent-name="{{ category.name }}" title="新建子目录">＋ 子目录</button>
                 <form method="POST" action="{{ url_for('knowledge.delete_category', category_id=category.id) }}"
-                      data-confirm="确定删除此目录？（子目录上移，文档解绑）" data-confirm-destructive="true" data-confirm-text="删除"
-                      style="display:inline">
+                      data-confirm="确定删除此目录？文档会按所选方式处理。" data-confirm-destructive="true" data-confirm-text="删除"
+                      style="display:inline-flex;gap:4px;align-items:center;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <select name="target_category_id" style="padding:3px 5px;border:1px solid var(--border-color);border-radius:4px;font-size:0.78rem;">
+                        <option value="">迁移目录…</option>
+                        <option value="__orphan__">移入未分类</option>
+                        {% for item in tree_flattened or [] %}
+                        {% if item.id != category.id %}
+                        <option value="{{ item.id }}">{{ item.indent }}{{ item.name }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
                     <button type="submit" class="kb-mini-btn kb-delete-cat" title="删除目录">删除目录</button>
                 </form>
             </div>
@@ -45,7 +54,7 @@
             <h1 class="kb-category-title">
                 {% if category.icon %}{{ category.icon }} {% endif %}{{ category.name }}
             </h1>
-            {% if can_manage %}
+            {% if session.get('user_id') %}
             <div class="kb-cat-actions">
                 <a href="{{ url_for('knowledge.new_doc') }}?cat={{ category.id }}" class="btn btn-sm btn-primary">+ 新建文档</a>
             </div>
@@ -71,9 +80,20 @@
         <section class="kb-doc-section">
             <h3>文档</h3>
             {% if docs %}
+            <div class="kb-batch-bar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px;background:var(--card-bg,#f9fafb);border:1px solid var(--border-color,#e5e7eb);border-radius:8px;">
+                <label><input type="checkbox" id="kbSelectAllDocs"> 全选</label>
+                <select id="kbMoveTarget" style="padding:4px 6px;border:1px solid var(--border-color);border-radius:4px;">
+                    <option value="">移动到目录…</option>
+                    {% for item in tree_flattened or [] %}
+                    <option value="{{ item.id }}">{{ item.indent }}{{ item.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="button" class="btn btn-sm" id="kbBatchMove">移动所选</button>
+            </div>
             <div class="kb-doc-list">
                 {% for doc in docs %}
                 <div class="kb-doc-card-wrap">
+                    <input type="checkbox" class="kb-doc-select" value="{{ doc.id }}" style="margin:6px 8px 0 0;float:left;">
                     <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" class="kb-doc-card">
                         <h4>{{ doc.title }}</h4>
                         <div class="kb-doc-meta">
@@ -82,7 +102,7 @@
                         </div>
                         <p class="kb-doc-excerpt">{{ doc.content|striptags|truncate(120) }}</p>
                     </a>
-                    {% if can_manage %}
+                    {% if can_manage or doc.author_id == session.get('user_id') %}
                     <div class="kb-doc-card-actions">
                         <a href="{{ url_for('knowledge.edit_doc', doc_id=doc.id) }}" class="kb-mini-btn">✏️ 编辑</a>
                     </div>
@@ -161,4 +181,30 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var all = document.getElementById('kbSelectAllDocs');
+    if (all) all.addEventListener('change', function () {
+        document.querySelectorAll('.kb-doc-select').forEach(function (cb) { cb.checked = all.checked; });
+    });
+    var moveBtn = document.getElementById('kbBatchMove');
+    if (moveBtn) moveBtn.addEventListener('click', function () {
+        var target = document.getElementById('kbMoveTarget').value;
+        var ids = Array.from(document.querySelectorAll('.kb-doc-select:checked')).map(function (cb) { return cb.value; });
+        if (!target) return alert('请选择目标目录');
+        if (!ids.length) return alert('请选择要移动的文档');
+        var fd = new FormData();
+        fd.append('category_id', target);
+        fd.append('doc_ids', ids.join(','));
+        fd.append('csrf_token', document.querySelector('meta[name="csrf_token"]').content);
+        fetch('{{ url_for("knowledge.batch_move_docs") }}', {method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}})
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data.success) throw new Error(data.error || '移动失败');
+                location.reload();
+            })
+            .catch(function (e) { alert(e.message || '移动失败'); });
+    });
+});
+</script>
 {% endblock %}

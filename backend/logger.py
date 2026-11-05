@@ -73,6 +73,21 @@ def setup_logging(app):
     app.logger.info('=' * 60)
 
 
+def _rotating_log(path, entry, backup_count=90):
+    """按天轮转写入审计日志，避免长期运行占满磁盘。"""
+    logger_name = f'audit:{path}'
+    logger = logging.getLogger(logger_name)
+    if not logger.handlers:
+        handler = logging.handlers.TimedRotatingFileHandler(
+            path, when='midnight', interval=1, backupCount=backup_count, encoding='utf-8'
+        )
+        handler.setFormatter(logging.Formatter('%(message)s'))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+    logger.info(entry.rstrip('\n'))
+
+
 def log_login(username, success=True, error_msg=None):
     """记录登录日志（追加模式）"""
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -83,8 +98,7 @@ def log_login(username, success=True, error_msg=None):
         log_entry = f"[{timestamp}] FAILED - 用户: {username} - 原因: {error_msg}\n"
 
     try:
-        with open(LOGIN_LOG, 'a', encoding='utf-8') as f:
-            f.write(log_entry)
+        _rotating_log(LOGIN_LOG, log_entry, backup_count=180)
     except Exception as e:
         print(f"Failed to write login log: {e}")
 
@@ -99,8 +113,7 @@ def log_operation(user_id, username, action, details=None):
     log_entry += "\n"
 
     try:
-        with open(OPERATION_LOG, 'a', encoding='utf-8') as f:
-            f.write(log_entry)
+        _rotating_log(OPERATION_LOG, log_entry, backup_count=180)
     except Exception as e:
         print(f"Failed to write operation log: {e}")
 
@@ -117,8 +130,7 @@ def log_error(error, context=None, user_id=None):
     error_info += f"堆栈跟踪:\n{traceback.format_exc()}\n"
 
     try:
-        with open(ERROR_LOG, 'a', encoding='utf-8') as f:
-            f.write(error_info)
+        _rotating_log(ERROR_LOG, error_info, backup_count=90)
     except Exception as e:
         print(f"Failed to write error log: {e}")
 

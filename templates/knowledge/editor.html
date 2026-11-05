@@ -25,6 +25,7 @@
     "category_id": {{ doc.category_id|default('null', true) }},
     "is_published": {{ 'true' if doc.is_published else 'false' }},
     "sort_order": {{ doc.sort_order|default(0, true) }},
+    "updated_at": {{ doc.updated_at|default('')|tojson }},
     "excerpt": {{ doc.excerpt|default('')|tojson }}
   }{% else %}null{% endif %},
   "tags": {% if tags %}[{% for t in tags %}{"name": {{ t.name|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]{% else %}[]{% endif %},

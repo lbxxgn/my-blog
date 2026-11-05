@@ -202,6 +202,11 @@ def login():
             return render_template('login.html', passkey_context=_passkey_context())
 
         user = get_user_by_username(username)
+        if user and not user.get('is_active', 1):
+            flash('该账户已被停用，请联系管理员', 'error')
+            log_login(username, success=False, error_msg='账户已停用')
+            return render_template('login.html', passkey_context=_passkey_context())
+
         if user and check_password_hash(user['password_hash'], password):
             _complete_login(user, remember_device=remember_device)
             flash(f'欢迎回来，{user["username"]}！', 'success')

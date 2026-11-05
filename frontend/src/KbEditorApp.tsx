@@ -31,6 +31,8 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
   const editorRef = useRef<BlockNoteEditor | null>(null);
   const [activePanel, setActivePanel] = useState<'ai' | 'toc' | 'meta' | 'related' | null>('toc');
   const [isSaving, setIsSaving] = useState(false);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiConfigured, setAiConfigured] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('未修改');
   // 新建文档首次保存后切换为"编辑已有文档"，避免重复创建
@@ -48,6 +50,7 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
     draftUrl: init.draftUrl,
     csrfToken: init.csrfToken,
     isNew: isNewDoc,
+    docUpdatedAt: (init.doc as { updated_at?: string } | null)?.updated_at || null,
     getContent: async () => {
       if (!editorInstance) return { title, content: '' };
       const md = await editorInstance.blocksToMarkdownLossy(editorInstance.document);
@@ -59,6 +62,19 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
     markDirty();
     setDirty(true);
   }, [markDirty]);
+
+  useEffect(() => {
+    fetch('/admin/ai/status', { headers: { Accept: 'application/json' } })
+      .then((res) => res.json())
+      .then((data) => {
+        setAiEnabled(Boolean(data.ai_enabled));
+        setAiConfigured(Boolean(data.ai_configured));
+      })
+      .catch(() => {
+        setAiEnabled(false);
+        setAiConfigured(false);
+      });
+  }, []);
 
   const handleEditorChange = useCallback(() => {
     handleDirty();
@@ -221,6 +237,8 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
               检测到其他设备
               {conflict.device_info ? `（${conflict.device_info}）` : ''}
               的草稿，本次自动保存可能已覆盖它。
+              {conflict.title ? <div><strong>{conflict.title}</strong></div> : null}
+              {conflict.content ? <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{conflict.content.slice(0, 160)}</div> : null}
             </span>
             <button type="button" className="btn btn-primary" onClick={handleRestoreConflict}>
               恢复对方内容
@@ -235,6 +253,8 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
             <span>
               检测到{draft.saved_at ? ` ${new Date(draft.saved_at).toLocaleString()} ` : ''}的
               {draft.source === 'local' ? '本地' : ''}草稿
+              {draft.title ? <div><strong>{draft.title}</strong></div> : null}
+              {draft.content ? <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{draft.content.slice(0, 160)}</div> : null}
             </span>
             <button type="button" className="btn btn-primary" onClick={handleRestoreDraft}>
               恢复草稿
@@ -420,6 +440,9 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
                 onTitleChange={setTitle}
                 onTagsChange={setTags}
                 onCategoryChange={setCategoryId}
+                onDirty={handleDirty}
+                aiEnabled={aiEnabled}
+                aiConfigured={aiConfigured}
               />
             )}
             {activePanel === 'meta' && (

@@ -49,7 +49,8 @@ for _p in (str(PROJECT_ROOT), str(CURRENT_DIR)):
 from backend.config import (SECRET_KEY, ALLOWED_EXTENSIONS,
                             MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION,
                             SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT,
-                            PERMANENT_SESSION_LIFETIME, REMEMBER_DEVICE_DAYS)
+                            PERMANENT_SESSION_LIFETIME, REMEMBER_DEVICE_DAYS,
+                            IS_PRODUCTION, FORCE_HTTPS)
 
 # =============================================================================
 # 安全相关导入
@@ -95,7 +96,7 @@ except ImportError:
 # =============================================================================
 from models import (
     get_db_connection, init_db, get_user_by_username, create_user,
-    get_site_icon_version
+    get_site_icon_version, get_site_identity
 )
 
 # =============================================================================
@@ -249,9 +250,15 @@ def site_icon_versioned(size, version):
 def site_webmanifest():
     """动态 manifest：图标 URL 带版本号，自定义图标后 PWA 能及时拿到新图标。"""
     version = get_site_icon_version()
+    identity = get_site_identity({
+        'site_name': SITE_NAME,
+        'site_description': SITE_DESCRIPTION,
+        'site_author': SITE_AUTHOR,
+    })
+    manifest_name = identity.get('site_name') or SITE_NAME
     manifest = {
-        'name': SITE_NAME,
-        'short_name': SITE_NAME,
+        'name': manifest_name,
+        'short_name': manifest_name,
         'start_url': '/',
         'display': 'standalone',
         'background_color': '#ffffff',
@@ -288,7 +295,7 @@ def add_security_headers(response):
     response.headers.setdefault('Content-Security-Policy',
         "default-src 'self'; "
         # Quill 已自托管，不再需要外部 CDN
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+        "script-src 'self' 'unsafe-inline'; "
         "style-src 'self' 'unsafe-inline'; "
         "img-src 'self' data: https:; "
         "font-src 'self'; "
@@ -300,7 +307,7 @@ def add_security_headers(response):
     )
 
     # 严格传输安全（仅在生产环境且启用HTTPS时）
-    if app.config.get('IS_PRODUCTION') and app.config.get('FORCE_HTTPS'):
+    if IS_PRODUCTION and FORCE_HTTPS:
         response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
 
     # 防止浏览器猜测Referer
@@ -413,11 +420,16 @@ def vite_asset(entry: str = 'src/main.tsx'):
 # =============================================================================
 @app.context_processor
 def inject_site_settings():
-    """将网站设置注入到所有模板中"""
+    """将网站设置注入到所有模板中（优先使用后台保存的配置）"""
+    identity = get_site_identity({
+        'site_name': SITE_NAME,
+        'site_description': SITE_DESCRIPTION,
+        'site_author': SITE_AUTHOR,
+    })
     return dict(
-        site_name=SITE_NAME,
-        site_description=SITE_DESCRIPTION,
-        site_author=SITE_AUTHOR,
+        site_name=identity.get('site_name') or SITE_NAME,
+        site_description=identity.get('site_description') or SITE_DESCRIPTION,
+        site_author=identity.get('site_author') or SITE_AUTHOR,
         remember_device_days=REMEMBER_DEVICE_DAYS,
         site_icon_version=get_site_icon_version(),
         vite_asset=vite_asset,
@@ -589,7 +601,6 @@ def _apply_route_limit(endpoint: str, limit: str) -> None:
 
 
 # 对登录路由应用速率限制
-_apply_route_limit('auth.login', '5 per minute')
 
 # 为关键API端点添加速率限制
 # 文章相关API

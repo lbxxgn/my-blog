@@ -24,10 +24,6 @@
             <div class="stat-value">{{ stats.total_tokens }}</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">总成本</div>
-            <div class="stat-value">${{ "%.4f"|format(stats.total_cost) }}</div>
-        </div>
-        <div class="stat-card">
             <div class="stat-label">平均Token</div>
             <div class="stat-value">{{ "%.0f"|format(stats.avg_tokens) }}</div>
         </div>
@@ -45,8 +41,7 @@
                     <th width="20%">文章</th>
                     <th width="15%">AI模型</th>
                     <th width="20%">结果</th>
-                    <th width="10%" style="text-align: right;">Token</th>
-                    <th width="10%" style="text-align: right;">成本</th>
+                    <th width="12%" style="text-align: right;">Token</th>
                 </tr>
             </thead>
             <tbody>
@@ -132,17 +127,6 @@
                         {% endif %}
                     </td>
                     <td class="number-cell" style="text-align: right;">{{ record.tokens_used or 0 }}</td>
-                    <td class="number-cell" style="text-align: right;">
-                        {% if record.cost %}
-                            {% if record.currency == 'CNY' %}
-                                ¥{{ "%.6f"|format(record.cost) }}
-                            {% else %}
-                                ${{ "%.6f"|format(record.cost) }}
-                            {% endif %}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

@@ -518,3 +518,40 @@ body[data-page="kb-editor"] main {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* 移动端：操作栏固定、面板不横向溢出 */
+@media (max-width: 768px) {
+  .kb-editor-layout {
+    padding: 0 12px 88px;
+    display: block;
+  }
+  .kb-editor-right,
+  .kb-editor-sidebar {
+    width: 100%;
+    max-width: 100%;
+    position: static;
+  }
+  .kb-form-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .kb-form-row-3 {
+    grid-template-columns: 1fr;
+  }
+  .kb-editor-footer-actions {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 900;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--bg-color, #fff);
+    border-top: 1px solid var(--border-color, #e5e7eb);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+    flex-wrap: nowrap;
+  }
+  .kb-editor-footer-actions .btn {
+    flex: 1;
+    white-space: nowrap;
+  }
+}

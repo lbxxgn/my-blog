@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}搜索：{{ query }} - {{ config['BLOG_NAME'] }}{% endblock %}
+{% block title %}搜索：{{ query }} - {{ site_name }}{% endblock %}
 
 {% block content %}
 <main class="container">
@@ -38,6 +38,13 @@
             <a href="{{ url_for('ai.ai_settings') }}" class="btn">前往 AI 设置</a>
         </div>
     </div>
+    {% elif semantic_error %}
+    <div class="empty-state semantic-guide">
+        <p>语义搜索失败：{{ semantic_error }}</p>
+        <div class="empty-actions">
+            <a href="{{ url_for('search', q=query, source='blog') }}" class="btn">改用关键词搜索</a>
+        </div>
+    </div>
     {% elif not query %}
     {% elif semantic_items %}
     <div class="search-info">
@@ -72,7 +79,49 @@
     </div>
     {% endif %}
     {% elif posts is none %}
-    {% elif posts %}
+    {% elif posts or (kb_results and kb_results.posts) or card_results or annotation_results %}
+    {% if source == 'all' and kb_results and kb_results.posts %}
+    <div class="search-info">知识库中找到 {{ kb_results.total }} 个结果</div>
+    <div class="posts-list">
+        {% for doc in kb_results.posts %}
+        <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" class="post-card-link">
+            <article class="post-card">
+                <h2><span class="note-badge" style="background:var(--primary-color)">知识库</span> {{ doc.title|highlight(query) }}</h2>
+                <div class="post-meta"><span>{{ (doc.created_at|localtime)[:10] }}</span>{% if doc.category_name %} · {{ doc.category_name }}{% endif %}{% if not doc.is_published %} · 草稿{% endif %}</div>
+                <p class="post-excerpt">{{ (doc.content|striptags|truncate(200))|highlight(query) }}</p>
+            </article>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if source == 'all' and card_results %}
+    <div class="search-info">找到 {{ card_results|length }} 张卡片</div>
+    <div class="posts-list">
+        {% for card in card_results %}
+        <article class="post-card">
+            <h2><span class="note-badge" style="background:#8b5cf6">卡片</span> {{ card.title|highlight(query) }}</h2>
+            <p class="post-excerpt">{{ card.excerpt|highlight(query) }}</p>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if source == 'all' and annotation_results %}
+    <div class="search-info">找到 {{ annotation_results|length }} 条网页标注</div>
+    <div class="posts-list">
+        {% for item in annotation_results %}
+        <a href="{{ item.url }}" target="_blank" rel="noopener" class="post-card-link">
+            <article class="post-card">
+                <h2><span class="note-badge" style="background:#f59e0b">标注</span> {{ item.title|highlight(query) }}</h2>
+                <p class="post-excerpt">{{ item.excerpt|highlight(query) }}</p>
+            </article>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if posts %}
     <div class="search-info">
         找到 {{ pagination.total }} 个结果
     </div>
@@ -97,6 +146,7 @@
         </a>
         {% endfor %}
     </div>
+    {% endif %}
 
     {# Pagination #}
     {% if pagination.total_pages > 1 %}

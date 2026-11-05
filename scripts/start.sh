@@ -23,6 +23,12 @@ else
 fi
 cd "$PROJECT_DIR"
 
+# 优先使用项目虚拟环境
+if [ -f .venv/bin/activate ]; then
+    # shellcheck disable=SC1091
+    . .venv/bin/activate
+fi
+
 # 加载 .env 文件（如果存在）
 if [ -f .env ]; then
     echo -e "${BLUE}加载环境变量配置...${NC}"
@@ -70,7 +76,6 @@ check_dep "flask_limiter"
 check_dep "bleach"
 check_dep "markdown2"
 check_dep "PIL"  # Pillow
-check_dep "pytz"
 
 if [ $MISSING_DEPS -eq 1 ]; then
     echo ""

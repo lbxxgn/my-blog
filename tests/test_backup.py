@@ -4,7 +4,9 @@ import io
 import os
 import re
 import sqlite3
+import time
 import zipfile
+from urllib.parse import urlparse, parse_qs
 from pathlib import Path
 
 import pytest
@@ -60,8 +62,16 @@ def test_create_download_and_delete_backup(client, test_admin_user, backup_env):
     assert response.status_code == 200
     assert '备份与恢复' in response.get_data(as_text=True)
 
-    response = client.post('/admin/backup/create', follow_redirects=True)
-    assert response.status_code == 200
+    response = client.post('/admin/backup/create', follow_redirects=False)
+    assert response.status_code == 302
+    job_id = parse_qs(urlparse(response.headers['Location']).query).get('job_id', [''])[0]
+    assert job_id
+    for _ in range(100):
+        status = client.get(f'/admin/backup/job/{job_id}').get_json()
+        if status['job']['state'] != 'running':
+            break
+        time.sleep(0.05)
+    assert status['job']['state'] == 'success', status
 
     archives = list(backup_env['backups'].glob('blog_backup_*.zip'))
     assert len(archives) == 1
