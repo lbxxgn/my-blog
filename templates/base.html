@@ -34,6 +34,9 @@
     <!-- 全局命令面板样式 -->
     <link rel="stylesheet" href="{{ static_file('css/command-palette.css') }}" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="{{ static_file('css/command-palette.css') }}"></noscript>
+    {% if request.path.startswith('/admin') %}
+    <link rel="stylesheet" href="{{ static_file('css/admin-layout.css') }}">
+    {% endif %}
     {% block head %}{% endblock %}
 </head>
 {% set current_page_type %}{% block page_type %}site{% endblock %}{% endset %}
@@ -74,6 +77,7 @@
                     </form>
                 </li>
                 {% if session.get('user_id') %}
+                    {% if current_page_type != 'admin' %}
                     <li><a href="{{ url_for('admin_dashboard') }}">内容</a></li>
                     <li><a href="{{ url_for('knowledge.index') }}">知识库</a></li>
                     <li><a href="{{ url_for('review.review_page') }}">回顾</a></li>
@@ -89,6 +93,7 @@
                             <li><a href="{{ url_for('admin.backup_page') }}">备份与恢复</a></li>
                         </ul>
                     </li>
+                    {% endif %}
                     {% endif %}
                     <li class="nav-theme-toggle">
                         <button class="theme-toggle-nav" id="themeToggleNav" aria-label="切换主题">
@@ -171,6 +176,11 @@
     pointer-events: auto;
 }
 
+.nav-links > li.dropdown:last-child > .dropdown-menu {
+    left: auto;
+    right: 0;
+}
+
 /* User Icon Style */
 .user-icon {
     font-size: 18px;
@@ -221,6 +231,41 @@
 </style>
 
     <main>
+        {% if current_page_type == 'admin' %}
+        <div class="admin-shell">
+            <aside class="admin-sidebar">
+                <div class="admin-sidebar-header">管理</div>
+                <nav class="admin-sidebar-nav" aria-label="后台管理">
+                    <div class="admin-sidebar-group">
+                        <span class="admin-sidebar-label">内容</span>
+                        <a href="{{ url_for('admin_dashboard') }}" class="{% if request.endpoint == 'admin_dashboard' %}active{% endif %}" {% if request.endpoint == 'admin_dashboard' %}aria-current="page"{% endif %}>文章</a>
+                        <a href="{{ url_for('category_list') }}" class="{% if request.path.startswith('/admin/categories') %}active{% endif %}" {% if request.path.startswith('/admin/categories') %}aria-current="page"{% endif %}>分类</a>
+                        <a href="{{ url_for('tag_list') }}" class="{% if request.path.startswith('/admin/tags') %}active{% endif %}" {% if request.path.startswith('/admin/tags') %}aria-current="page"{% endif %}>标签</a>
+                        {% if session.get('role') in ['admin', 'editor'] %}
+                        <a href="{{ url_for('admin.comment_list') }}" class="{% if request.path.startswith('/admin/comments') %}active{% endif %}" {% if request.path.startswith('/admin/comments') %}aria-current="page"{% endif %}>评论</a>
+                        {% endif %}
+                    </div>
+                    <div class="admin-sidebar-group">
+                        <span class="admin-sidebar-label">工具</span>
+                        <a href="{{ url_for('knowledge.index') }}">知识库</a>
+                        <a href="{{ url_for('review.review_page') }}">回顾</a>
+                        <a href="{{ url_for('export_page') }}" class="{% if request.path.startswith('/admin/export') %}active{% endif %}" {% if request.path.startswith('/admin/export') %}aria-current="page"{% endif %}>数据导出</a>
+                        <a href="{{ url_for('import_page') }}" class="{% if request.path.startswith('/admin/import') %}active{% endif %}" {% if request.path.startswith('/admin/import') %}aria-current="page"{% endif %}>数据导入</a>
+                    </div>
+                    {% if session.get('role') == 'admin' %}
+                    <div class="admin-sidebar-group">
+                        <span class="admin-sidebar-label">系统</span>
+                        <a href="{{ url_for('admin.user_list') }}" class="{% if request.path.startswith('/admin/users') %}active{% endif %}" {% if request.path.startswith('/admin/users') %}aria-current="page"{% endif %}>用户管理</a>
+                        <a href="{{ url_for('ai.ai_settings') }}" class="{% if request.path.startswith('/admin/ai') %}active{% endif %}" {% if request.path.startswith('/admin/ai') %}aria-current="page"{% endif %}>AI 设置</a>
+                        <a href="{{ url_for('admin.site_settings') }}" class="{% if request.path.startswith('/admin/site') %}active{% endif %}" {% if request.path.startswith('/admin/site') %}aria-current="page"{% endif %}>站点设置</a>
+                        <a href="{{ url_for('admin.trash_list') }}" class="{% if request.path.startswith('/admin/trash') %}active{% endif %}" {% if request.path.startswith('/admin/trash') %}aria-current="page"{% endif %}>回收站</a>
+                        <a href="{{ url_for('admin.backup_page') }}" class="{% if request.path.startswith('/admin/backup') %}active{% endif %}" {% if request.path.startswith('/admin/backup') %}aria-current="page"{% endif %}>备份与恢复</a>
+                    </div>
+                    {% endif %}
+                </nav>
+            </aside>
+            <div class="admin-content">
+        {% endif %}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -397,6 +442,10 @@
                     </a>
                 </div>
                 {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% if current_page_type == 'admin' %}
             </div>
         </div>
         {% endif %}

@@ -122,12 +122,13 @@
                 {% endif %}
                 <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">取消</a>
                 {% if not post or not post.is_published %}
+                <button type="submit" class="btn btn-secondary">保存草稿</button>
                 <button type="button" id="publishToggle" class="btn btn-primary" onclick="togglePublish()">立即发布</button>
                 {% else %}
                 <button type="submit" formaction="{{ url_for('admin.unpublish_post', post_id=post.id) }}" formmethod="post" class="btn btn-secondary"
                         onclick="return confirm('确定取消发布？文章会回到草稿状态。')">取消发布</button>
+                <button type="submit" class="btn btn-primary">更新</button>
                 {% endif %}
-                <button type="submit" class="btn btn-primary">保存</button>
             </div>
         </div>
     </form>

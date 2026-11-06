@@ -480,6 +480,8 @@ class TestReviewPage:
         assert '写作热力' in html
         assert '那年今日' in html
         assert '每周回顾' in html
+        assert 'admin-sidebar' not in html
+        assert 'mobile-admin-nav' not in html
 
     def test_review_page_requires_login(self, client):
         resp = client.get('/review')
