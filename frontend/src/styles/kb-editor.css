@@ -165,8 +165,42 @@ body[data-page="kb-editor"] main {
 .kb-editor-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.kb-editor-more-actions {
+  position: relative;
+}
+
+.kb-editor-more-actions > summary {
+  list-style: none;
+  user-select: none;
+}
+
+.kb-editor-more-actions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.kb-editor-more-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 30;
+  display: grid;
+  min-width: 160px;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 10px;
+  background: var(--card-bg, #fff);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+}
+
+.kb-editor-more-menu .btn {
+  width: 100%;
+  text-align: left;
 }
 
 .kb-editor-actions .btn-secondary {
@@ -522,7 +556,7 @@ body[data-page="kb-editor"] main {
 /* 移动端：操作栏固定、面板不横向溢出 */
 @media (max-width: 768px) {
   .kb-editor-layout {
-    padding: 0 12px 88px;
+    padding: 0 12px 150px;
     display: block;
   }
   .kb-editor-right,
@@ -544,11 +578,29 @@ body[data-page="kb-editor"] main {
     right: 0;
     bottom: 0;
     z-index: 900;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
     background: var(--bg-color, #fff);
     border-top: 1px solid var(--border-color, #e5e7eb);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
     flex-wrap: nowrap;
+  }
+  .kb-editor-footer-actions .kb-editor-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 0.5rem;
+  }
+  .kb-editor-footer-actions .kb-editor-more-actions {
+    flex: 1;
+  }
+  .kb-editor-footer-actions .kb-editor-more-actions > summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
   }
   .kb-editor-footer-actions .btn {
     flex: 1;

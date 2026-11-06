@@ -357,25 +357,22 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
         </div>
 
         <div className="kb-editor-footer-actions">
-          <div className="kb-save-status">
-            <span className={`kb-status-dot kb-status-${saveStatus}`} />
+          <div className={`kb-save-status kb-status-${saveStatus}`} role="status" aria-live="polite">
+            <span className="kb-status-dot" />
             <span>{statusMessage}</span>
             {draftInfo && <span className="kb-draft-hint">草稿：{draftInfo}</span>}
           </div>
           <div className="kb-editor-actions">
             {!init.isNew && init.previewUrl && (
-              <a href={init.previewUrl} className="btn" target="_blank" rel="noreferrer">
-                预览
-              </a>
+              <details className="kb-editor-more-actions">
+                <summary className="btn btn-secondary">更多</summary>
+                <div className="kb-editor-more-menu">
+                  <a href={init.previewUrl} className="btn" target="_blank" rel="noreferrer">
+                    预览文档
+                  </a>
+                </div>
+              </details>
             )}
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handlePublishToggle}
-              disabled={isSaving || !editorInstance}
-            >
-              {isPublished ? '取消发布' : '发布'}
-            </button>
             <button
               type="button"
               className="btn btn-secondary"
@@ -383,6 +380,14 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
               disabled={isSaving || !editorInstance}
             >
               保存并查看
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handlePublishToggle}
+              disabled={isSaving || !editorInstance}
+            >
+              {isPublished ? '取消发布' : '发布'}
             </button>
             <button
               type="button"

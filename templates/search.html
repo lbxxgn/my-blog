@@ -3,32 +3,48 @@
 {% block title %}搜索：{{ query }} - {{ site_name }}{% endblock %}
 
 {% block content %}
+{% set return_source = request.args.get('return_to', 'all') %}
+{% set keyword_source = source if source in ['blog', 'knowledge', 'all'] else (return_source if return_source in ['blog', 'knowledge', 'all'] else 'all') %}
 <main class="container">
     <div class="search-header">
-        <h2>搜索结果</h2>
-        {% if query %}
-        <p class="search-query">关键词：<strong>{{ query }}</strong></p>
-        {% endif %}
+        <h2>搜索</h2>
+        <p class="search-query">在博客和知识库中查找内容</p>
     </div>
 
-    {# 搜索框常驻，结果页可直接换关键词 #}
-    <div class="search-form">
-        <form action="{{ url_for('search') }}" method="get">
+    <div class="search-panel">
+        <form action="{{ url_for('search') }}" method="get" class="search-form">
             <input type="hidden" name="source" value="{{ source }}">
-            <input type="text" name="q" value="{{ query }}" placeholder="输入搜索关键词..." class="search-input">
+            {% if source == 'semantic' %}<input type="hidden" name="return_to" value="{{ keyword_source }}">{% endif %}
+            <label class="sr-only" for="searchQuery">搜索关键词</label>
+            <input type="text" id="searchQuery" name="q" value="{{ query }}" placeholder="输入标题、正文或标签关键词" class="search-input">
             <button type="submit" class="btn btn-primary">搜索</button>
         </form>
+
+        <div class="search-options">
+            <div class="search-mode-switch" aria-label="搜索方式">
+                <span class="search-option-label">搜索方式</span>
+                <a href="{{ url_for('search', q=query, source=keyword_source) }}"
+                   class="search-mode {% if source != 'semantic' %}active{% endif %}"
+                   {% if source != 'semantic' %}aria-current="page"{% endif %}>关键词</a>
+                <a href="{{ url_for('search', q=query, source='semantic', return_to=keyword_source) }}"
+                   class="search-mode {% if source == 'semantic' %}active{% endif %}"
+                   {% if source == 'semantic' %}aria-current="page"{% endif %}>语义</a>
+            </div>
+
+            {% if source != 'semantic' %}
+            <div class="search-source-tabs" aria-label="内容范围">
+                <span class="search-option-label">内容范围</span>
+                <a href="{{ url_for('search', q=query, source='blog') }}" class="source-tab {% if source == 'blog' %}active{% endif %}" {% if source == 'blog' %}aria-current="page"{% endif %}>博客</a>
+                {% if session.get('user_id') %}
+                <a href="{{ url_for('search', q=query, source='knowledge') }}" class="source-tab {% if source == 'knowledge' %}active{% endif %}" {% if source == 'knowledge' %}aria-current="page"{% endif %}>知识库</a>
+                <a href="{{ url_for('search', q=query, source='all') }}" class="source-tab {% if source == 'all' %}active{% endif %}" {% if source == 'all' %}aria-current="page"{% endif %}>全部</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
     </div>
 
-    {# 来源切换 tab #}
-    {% if query or source == 'semantic' %}
-    <div class="search-source-tabs">
-        <a href="{{ url_for('search', q=query, source='blog') }}" class="source-tab {% if source == 'blog' %}active{% endif %}">博客</a>
-        <a href="{{ url_for('search', q=query, source='knowledge') }}" class="source-tab {% if source == 'knowledge' %}active{% endif %}">知识库</a>
-        <a href="{{ url_for('search', q=query, source='all') }}" class="source-tab {% if source == 'all' %}active{% endif %}">全部</a>
-        <a href="{{ url_for('search', q=query, source='semantic') }}" class="source-tab {% if source == 'semantic' %}active{% endif %}">语义</a>
-    </div>
-    {% endif %}
+    {% if query %}<p class="search-current-query">“{{ query }}”的{% if source == 'semantic' %}语义{% else %}关键词{% endif %}搜索结果</p>{% endif %}
 
     {% if source == 'semantic' %}
     {% if not embedding_configured %}
@@ -42,7 +58,7 @@
     <div class="empty-state semantic-guide">
         <p>语义搜索失败：{{ semantic_error }}</p>
         <div class="empty-actions">
-            <a href="{{ url_for('search', q=query, source='blog') }}" class="btn">改用关键词搜索</a>
+            <a href="{{ url_for('search', q=query, source=keyword_source) }}" class="btn">改用关键词搜索</a>
         </div>
     </div>
     {% elif not query %}
@@ -178,15 +194,109 @@
 </main>
 
 <style>
-.search-source-tabs{display:flex;gap:0.5rem;margin-bottom:1.2rem}
-.source-tab{padding:0.4rem 1rem;border-radius:20px;background:var(--code-bg);color:var(--text-secondary);text-decoration:none;font-size:0.85rem;transition:all .2s}
-.source-tab.active{background:var(--primary-color);color:#fff}
-.source-tab:hover:not(.active){background:var(--border-color)}
-.search-form{margin-bottom:1.2rem}
+.search-panel {
+    max-width: 860px;
+    margin: 0 auto 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
+}
+.search-panel .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+.search-panel .search-form {
+    display: flex;
+    gap: .65rem;
+    max-width: none;
+    margin: 0;
+    text-align: left;
+}
+.search-panel .search-input {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+.search-panel .btn {
+    flex-shrink: 0;
+}
+.search-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .75rem 1.25rem;
+    margin-top: .85rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--border-color);
+}
+.search-mode-switch,
+.search-source-tabs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .35rem;
+}
+.search-option-label {
+    margin-right: .25rem;
+    color: var(--text-secondary);
+    font-size: .75rem;
+}
+.search-mode,
+.source-tab {
+    padding: .35rem .75rem;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: .8125rem;
+}
+.search-mode:hover,
+.source-tab:hover:not(.active) {
+    background: var(--code-bg);
+    color: var(--text-color);
+}
+.search-mode.active,
+.source-tab.active {
+    border-color: rgba(42, 157, 143, .2);
+    background: rgba(42, 157, 143, .1);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+.search-current-query {
+    color: var(--text-secondary);
+    font-size: .9rem;
+}
+.search-info {
+    margin: 1.75rem 0 .25rem;
+    color: var(--heading-color);
+    font-size: 1rem;
+    font-weight: 600;
+}
 .post-card mark{background:rgba(26,188,156,.25);color:inherit;border-radius:3px;padding:0 2px}
 .semantic-badge{display:inline-block;background:rgba(26,188,156,.15);color:var(--primary-color);border:1px solid var(--primary-color);border-radius:10px;padding:0 .5rem;font-size:.75rem;font-weight:600;margin-right:.4rem;vertical-align:middle}
 .semantic-guide p{margin-bottom:.5rem}
 .empty-hint{color:var(--text-secondary);font-size:.9rem;margin-top:.5rem}
 .empty-actions{display:flex;gap:.75rem;justify-content:center;margin-top:1rem;flex-wrap:wrap}
+@media (max-width: 600px) {
+    .search-options {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .search-panel .search-form .btn {
+        width: auto;
+        padding: .75rem 1rem;
+    }
+}
 </style>
 {% endblock %}
