@@ -310,9 +310,7 @@ header {
             </div>
         </header>
 
-        <div class="post-content">
-            {{ post.content_html|safe }}
-        </div>
+        <div class="post-content">{{ post.content_html|safe }}</div>
 
         {% if post.tags %}
         <div class="post-tags">
