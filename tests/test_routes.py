@@ -208,6 +208,8 @@ class TestBlogRoutes:
         html = response.get_data(as_text=True)
         assert 'mobile-bottom-nav' not in html
         assert 'data-page="discover"' not in html
+        assert 'class="post-content">\n' not in html
+        assert 'class="post-content"> ' not in html
 
     def test_view_post_renders_media_blocks_and_lazy_images(self, client, temp_db):
         from models import create_post, create_user
