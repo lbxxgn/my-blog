@@ -8,7 +8,6 @@
 <main class="container">
     <div class="search-header">
         <h2>搜索</h2>
-        <p class="search-query">在博客和知识库中查找内容</p>
     </div>
 
     <div class="search-panel">
@@ -44,8 +43,6 @@
         </div>
     </div>
 
-    {% if query %}<p class="search-current-query">“{{ query }}”的{% if source == 'semantic' %}语义{% else %}关键词{% endif %}搜索结果</p>{% endif %}
-
     {% if source == 'semantic' %}
     {% if not embedding_configured %}
     <div class="empty-state semantic-guide">
@@ -63,9 +60,7 @@
     </div>
     {% elif not query %}
     {% elif semantic_items %}
-    <div class="search-info">
-        按语义相似度找到 {{ semantic_items|length }} 个结果
-    </div>
+    <p class="search-summary">“{{ query }}” · {{ semantic_items|length }} 条语义结果</p>
 
     <div class="posts-list">
         {% for item in semantic_items %}
@@ -97,7 +92,7 @@
     {% elif posts is none %}
     {% elif posts or (kb_results and kb_results.posts) or card_results or annotation_results %}
     {% if source == 'all' and kb_results and kb_results.posts %}
-    <div class="search-info">知识库中找到 {{ kb_results.total }} 个结果</div>
+    <p class="search-section-label">知识库 · {{ kb_results.total }} 条</p>
     <div class="posts-list">
         {% for doc in kb_results.posts %}
         <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" class="post-card-link">
@@ -112,7 +107,7 @@
     {% endif %}
 
     {% if source == 'all' and card_results %}
-    <div class="search-info">找到 {{ card_results|length }} 张卡片</div>
+    <p class="search-section-label">卡片 · {{ card_results|length }} 条</p>
     <div class="posts-list">
         {% for card in card_results %}
         <article class="post-card">
@@ -124,7 +119,7 @@
     {% endif %}
 
     {% if source == 'all' and annotation_results %}
-    <div class="search-info">找到 {{ annotation_results|length }} 条网页标注</div>
+    <p class="search-section-label">网页标注 · {{ annotation_results|length }} 条</p>
     <div class="posts-list">
         {% for item in annotation_results %}
         <a href="{{ item.url }}" target="_blank" rel="noopener" class="post-card-link">
@@ -138,9 +133,11 @@
     {% endif %}
 
     {% if posts %}
-    <div class="search-info">
-        找到 {{ pagination.total }} 个结果
-    </div>
+    {% if source == 'all' %}
+    <p class="search-section-label">博客 · {{ pagination.total }} 条</p>
+    {% else %}
+    <p class="search-summary">“{{ query }}” · {{ pagination.total }} 条结果</p>
+    {% endif %}
 
     <div class="posts-list">
         {% for post in posts %}
@@ -185,8 +182,8 @@
         <p>未找到与「{{ query }}」相关的内容</p>
         <p class="empty-hint">换个关键词试试，或者：</p>
         <div class="empty-actions">
-            <a href="{{ url_for('blog.list_all_tags') }}" class="btn">🏷 浏览全部标签</a>
-            <a href="{{ url_for('blog.archive') }}" class="btn">📅 按时间归档</a>
+            <a href="{{ url_for('blog.list_all_tags') }}" class="btn">浏览全部标签</a>
+            <a href="{{ url_for('blog.archive') }}" class="btn">按时间归档</a>
             <a href="{{ url_for('index') }}" class="btn">返回首页</a>
         </div>
     </div>
@@ -273,17 +270,26 @@
     color: var(--primary-color);
     font-weight: 600;
 }
-.search-current-query {
+.search-summary {
+    margin: 1.5rem 0 .25rem;
     color: var(--text-secondary);
-    font-size: .9rem;
+    font-size: .875rem;
 }
-.search-info {
-    margin: 1.75rem 0 .25rem;
-    color: var(--heading-color);
-    font-size: 1rem;
+.search-section-label {
+    margin: 1.5rem 0 .25rem;
+    color: var(--text-secondary);
+    font-size: .8125rem;
     font-weight: 600;
+    letter-spacing: .02em;
 }
-.post-card mark{background:rgba(26,188,156,.25);color:inherit;border-radius:3px;padding:0 2px}
+/* 高亮改成“荧光笔”效果，避免整块色块看起来像坏掉的选择区 */
+.post-card mark,
+.search-summary mark {
+    background: linear-gradient(transparent 62%, rgba(26, 188, 156, .26) 62%);
+    color: inherit;
+    padding: 0;
+    border-radius: 0;
+}
 .semantic-badge{display:inline-block;background:rgba(26,188,156,.15);color:var(--primary-color);border:1px solid var(--primary-color);border-radius:10px;padding:0 .5rem;font-size:.75rem;font-weight:600;margin-right:.4rem;vertical-align:middle}
 .semantic-guide p{margin-bottom:.5rem}
 .empty-hint{color:var(--text-secondary);font-size:.9rem;margin-top:.5rem}
