@@ -153,6 +153,8 @@
     document.addEventListener('keydown', function(e) {
         if (!readerToggle) return;
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+        // 带修饰键的组合一律放行：⌘R 刷新、⌘⇧R 硬刷新、⌥R 等不应切换阅读模式
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
         if (e.key === 'r' || e.key === 'R') {
             toggleReaderMode();
         } else if (e.key === 'Escape' && document.body.classList.contains('reader-mode')) {
