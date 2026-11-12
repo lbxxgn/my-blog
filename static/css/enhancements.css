@@ -1108,6 +1108,9 @@ footer {
 /* --- Mobile Bottom Nav Auto-Hide --- */
 @media (max-width: 768px) {
     .mobile-bottom-nav {
+        /* 背景是 0.85 透明色，必须配合同样强度的模糊，否则滚动时正文会透出来 */
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
         transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
