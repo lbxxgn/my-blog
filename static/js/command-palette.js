@@ -83,7 +83,8 @@
 
     function bindKeys() {
         document.addEventListener('keydown', function (e) {
-            if (!overlay) return;
+            // 面板关闭时不得再消费键盘事件（否则 Enter/方向键会劫持全站）
+            if (!isOpen()) return;
             if (e.key === 'Escape') {
                 e.stopImmediatePropagation();
                 close();
@@ -248,6 +249,10 @@
         }
     }
 
+    function isOpen() {
+        return !!(overlay && overlay.style.display !== 'none');
+    }
+
     function open() {
         if (!isLoggedIn()) return;
         if (!overlay) { buildDom(); bindKeys(); }
@@ -260,7 +265,10 @@
         if (overlay) overlay.style.display = 'none';
         clearTimeout(debounceTimer);
         if (abortController) abortController.abort();
+        // 清空选中态，避免关闭后列表/索引仍被残留引用
+        activeIndex = -1;
+        currentItems = [];
     }
 
-    window.CommandPalette = { open: open, close: close, isOpen: function () { return !!(overlay && overlay.style.display !== 'none'); } };
+    window.CommandPalette = { open: open, close: close, isOpen: isOpen };
 })();
