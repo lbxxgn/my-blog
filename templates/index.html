@@ -96,7 +96,7 @@
                                         <span class="post-category">{{ post.category_name }}</span>
                                         {% endif %}
                                         {% if post.author_display_name or post.author_username %}
-                                        <span>👤 {{ post.author_display_name or post.author_username }}</span>
+                                        <span>{{ post.author_display_name or post.author_username }}</span>
                                         {% endif %}
                                         <time datetime="{{ post.created_at }}">{{ (post.created_at|localtime)[:10] }}</time>
                                     </div>
@@ -156,7 +156,7 @@
         <aside class="sidebar">
             {% if session.get('user_id') %}
             <div class="sidebar-widget" id="review-sidebar-widget">
-                <h3 class="widget-title">🕰️ 那年今日</h3>
+                <h3 class="widget-title">那年今日</h3>
                 <div id="sidebar-today">
                     <p class="review-empty">加载中…</p>
                 </div>
@@ -164,7 +164,7 @@
             {% endif %}
             {% if popular_tags %}
             <div class="sidebar-widget">
-                <h3 class="widget-title">🔥 热门标签</h3>
+                <h3 class="widget-title">热门标签</h3>
                 <div class="popular-tags">
                     {% for tag in popular_tags %}
                     <a href="{{ url_for('view_tag', tag_id=tag.id) }}" class="popular-tag">

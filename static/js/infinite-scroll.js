@@ -275,7 +275,7 @@
         }
         if (post.author_display_name) {
             const author = document.createElement('span');
-            author.textContent = '👤 ' + post.author_display_name;
+            author.textContent = post.author_display_name;
             meta.appendChild(author);
         }
         const time = document.createElement('time');

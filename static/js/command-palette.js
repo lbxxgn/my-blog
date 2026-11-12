@@ -49,9 +49,7 @@
             document.body.classList.remove('dark-theme');
         }
         localStorage.setItem('theme', newTheme);
-        var icon = newTheme === 'dark' ? '☀️' : '🌙';
-        var navIcon = document.querySelector('#themeToggleNav .theme-toggle-nav-icon');
-        if (navIcon) navIcon.textContent = icon;
+        // 图标由 CSS 根据 body.dark-theme 切换
         close();
     }
 
