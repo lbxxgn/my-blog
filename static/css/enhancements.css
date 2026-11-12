@@ -635,7 +635,8 @@ footer {
 }
 
 .comments-section:not(.collapsed) .comments-body {
-    max-height: 2000px;
+    /* 展开后不再限高，避免评论较多时被 max-height 裁掉 */
+    max-height: none;
     opacity: 1;
 }
 
@@ -690,6 +691,17 @@ footer {
 
 .comment-form h4 {
     display: none;
+}
+
+.comment-form-identity {
+    margin: 0 0 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.comment-form-identity strong {
+    color: var(--text-color);
+    font-weight: 600;
 }
 
 .comment-form-row {
