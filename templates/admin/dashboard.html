@@ -93,7 +93,7 @@
 
     {% if posts %}
         <div id="batchActionsBar" class="batch-actions-bar" style="display: none;">
-            <span class="selected-info">已选择 <strong id="selectedCount">0</strong> 篇</span>
+            <span class="selected-info">已选择 <strong id="selectedCount">0</strong> 篇<span id="selectedScope" class="selected-scope"></span></span>
             <button type="button" class="btn btn-xs btn-primary" onclick="showBatchPublishModal()">批量发布</button>
             <button type="button" class="btn btn-xs" onclick="showBatchUnpublishModal()">取消发布</button>
             <button type="button" class="btn btn-xs" onclick="showBatchCategoryModal()">设置分类</button>
@@ -118,7 +118,7 @@
             <tbody>
                 {% for post in posts %}
                     <tr data-post-id="{{ post.id }}">
-                        <td><input type="checkbox" class="post-checkbox" value="{{ post.id }}" onchange="togglePostSelection(this)"></td>
+                        <td><input type="checkbox" class="post-checkbox" value="{{ post.id }}" aria-label="选择《{{ post.title }}》" onchange="togglePostSelection(this)"></td>
                         <td><a href="{{ url_for('view_post', post_id=post.id) }}">{{ post.title }}</a></td>
                         <td>
                             {% set type_label = '笔记' if post.type == 'note' else '文章' %}
@@ -509,6 +509,10 @@
 /* ===== Batch Actions Bar ===== */
 .batch-actions-bar {
     display: flex;
+    /* 长列表向下勾选时仍然可见 */
+    position: sticky;
+    top: .5rem;
+    z-index: 20;
     margin-bottom: 1rem;
     padding: .625rem 1rem;
     background: var(--code-bg);
@@ -517,12 +521,18 @@
     align-items: center;
     gap: .4rem;
     flex-wrap: wrap;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .08);
 }
 
 .batch-actions-bar .selected-info {
     font-size: .875rem;
     color: var(--text-secondary);
     margin-right: .25rem;
+}
+
+.batch-actions-bar .selected-scope {
+    color: var(--text-secondary);
+    font-size: .8125rem;
 }
 
 .batch-actions-bar .selected-info strong {
