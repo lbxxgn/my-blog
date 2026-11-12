@@ -143,18 +143,18 @@ def batch_delete():
                 if soft_delete_post(post_id):
                     deleted_count += 1
             except Exception as e:
-                error_msg = f"文章 {post_id} 删除失败: {str(e)}"
+                error_msg = f"文章 {post_id} 移入回收站失败: {str(e)}"
                 errors.append(error_msg)
                 log_error(e, context=f'批量删除 - 文章 {post_id}', user_id=user_id)
 
         conn.commit()
 
         if errors:
-            result_msg = f'部分成功: {deleted_count}/{len(post_ids)} 篇文章删除成功'
+            result_msg = f'部分成功: {deleted_count}/{len(post_ids)} 篇文章已移入回收站'
             if deleted_count == 0:
                 result_msg = f'删除失败: {errors[0]}'
         else:
-            result_msg = f'成功删除 {deleted_count} 篇文章'
+            result_msg = f'已将 {deleted_count} 篇文章移入回收站'
 
         log_operation(user_id, username, '批量删除文章', result_msg)
 

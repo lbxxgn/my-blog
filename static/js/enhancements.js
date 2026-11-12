@@ -117,17 +117,6 @@
         }
     }, true);
 
-    /* --- Comments Collapse Toggle --- */
-    var commentsSection = document.querySelector('.comments-section');
-    if (commentsSection) {
-        var trigger = commentsSection.querySelector('.comments-trigger');
-        if (trigger) {
-            trigger.addEventListener('click', function() {
-                commentsSection.classList.toggle('collapsed');
-            });
-        }
-    }
-
     /* --- Reader Mode Toggle --- */
     var readerToggle = document.getElementById('readerModeToggle');
     var readerExit = document.getElementById('readerExit');

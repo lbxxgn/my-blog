@@ -593,10 +593,11 @@ footer {
 }
 
 /* --- Comments (compact, collapsible) --- */
+/* 评论是次要操作：尽量少占视觉重量，把版面留给正文 */
 .comments-section {
     max-width: var(--content-max-width);
-    margin: 2rem auto 0;
-    padding-top: 1.25rem;
+    margin: 1.25rem auto 0;
+    padding-top: 0.75rem;
     border-top: 1px solid var(--border-color);
 }
 
@@ -606,9 +607,9 @@ footer {
     justify-content: center;
     gap: 6px;
     cursor: pointer;
-    padding: 0.5rem 0;
+    padding: 0.35rem 0;
     user-select: none;
-    color: var(--text-secondary);
+    color: var(--text-tertiary, #8a8f98);
     font-size: 0.8125rem;
     font-weight: 500;
     transition: color 0.2s ease;
@@ -635,7 +636,8 @@ footer {
 }
 
 .comments-section:not(.collapsed) .comments-body {
-    max-height: 2000px;
+    /* 展开后不再限高，避免评论较多时被 max-height 裁掉 */
+    max-height: none;
     opacity: 1;
 }
 
@@ -690,6 +692,17 @@ footer {
 
 .comment-form h4 {
     display: none;
+}
+
+.comment-form-identity {
+    margin: 0 0 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.comment-form-identity strong {
+    color: var(--text-color);
+    font-weight: 600;
 }
 
 .comment-form-row {
@@ -1096,12 +1109,120 @@ footer {
 /* --- Mobile Bottom Nav Auto-Hide --- */
 @media (max-width: 768px) {
     .mobile-bottom-nav {
+        /* 背景是 0.85 透明色，必须配合同样强度的模糊，否则滚动时正文会透出来 */
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
         transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     .mobile-bottom-nav.nav-hidden {
         transform: translateY(calc(100% + env(safe-area-inset-bottom, 0px)));
     }
+}
+
+/* 移动端悬浮返回按钮会压住页面首个标题，给正文让出空间（文章页自带 padding，排除） */
+@media (max-width: 768px) {
+    body[data-page="site"] main > .container > :first-child:not(.post-full) {
+        margin-top: 44px;
+    }
+}
+
+/* 主题切换图标：由 body.dark-theme 决定显示月亮还是太阳 */
+.theme-toggle-nav-icon svg,
+#mobileThemeIcon svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+#mobileThemeIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+/* 注意：隐藏规则必须写在尺寸规则之后，且选择器要盖过 #mobileThemeIcon svg */
+.theme-toggle-nav-icon .theme-icon-sun,
+#mobileThemeIcon .theme-icon-sun {
+    display: none;
+}
+body.dark-theme .theme-toggle-nav-icon .theme-icon-sun,
+body.dark-theme #mobileThemeIcon .theme-icon-sun {
+    display: block;
+}
+body.dark-theme .theme-toggle-nav-icon .theme-icon-moon,
+body.dark-theme #mobileThemeIcon .theme-icon-moon {
+    display: none;
+}
+
+/* 发现页分类卡图标 */
+.discover-cat-icon svg {
+    width: 26px;
+    height: 26px;
+    display: block;
+    margin: 0 auto 8px;
+    fill: none;
+    stroke: var(--text-secondary);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+}
+.discover-cat-icon + div {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* 个人中心头像 */
+.profile-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1abc9c 0%, #16a089 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.profile-avatar svg {
+    width: 30px;
+    height: 30px;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+
+/* --- 导航与工具图标统一为线性 SVG（避免彩色 emoji 与品牌色冲突） --- */
+.nav-item-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.nav-item-icon svg {
+    width: 22px;
+    height: 22px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.nav-item.publish-btn .nav-item-icon svg {
+    width: 26px;
+    height: 26px;
+    stroke-width: 2;
+}
+.search-btn svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
 }
 
 /* --- Immersive Reader Mode --- */

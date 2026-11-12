@@ -1,5 +1,51 @@
 // 管理后台仪表盘页面脚本（由模板内联 JS 外置而来）
 let selectedPosts = new Set();
+let selectionScope = 'page'; // page=当前页手工选择；filter=当前筛选结果全选
+
+// 选择集跨页保留：按筛选条件分 key 存入 sessionStorage（key 里去掉 page，翻页才能复用）
+function buildSelectionKey() {
+    const params = new URLSearchParams(window.location.search);
+    params.delete('page');
+    const query = params.toString();
+    return 'adminPostSelection:' + (query || 'all');
+}
+
+const SELECTION_KEY = buildSelectionKey();
+
+function persistSelection() {
+    try {
+        if (selectedPosts.size === 0) {
+            sessionStorage.removeItem(SELECTION_KEY);
+            return;
+        }
+        sessionStorage.setItem(SELECTION_KEY, JSON.stringify({
+            ids: Array.from(selectedPosts),
+            scope: selectionScope
+        }));
+    } catch (error) {
+        /* 隐私模式下不可写，忽略即可 */
+    }
+}
+
+function dropPersistedSelection() {
+    try {
+        sessionStorage.removeItem(SELECTION_KEY);
+    } catch (error) { /* 忽略 */ }
+}
+
+function restoreSelection() {
+    let stored = null;
+    try {
+        stored = JSON.parse(sessionStorage.getItem(SELECTION_KEY) || 'null');
+    } catch (error) {
+        stored = null;
+    }
+    if (!stored || !Array.isArray(stored.ids) || stored.ids.length === 0) {
+        return;
+    }
+    selectedPosts = new Set(stored.ids.map(id => Number(id)));
+    selectionScope = stored.scope === 'filter' ? 'filter' : 'page';
+}
 
 function notifyDashboard(message, type = 'success') {
     if (window.showAppToast) {
@@ -146,6 +192,7 @@ async function toggleSelectAll() {
     if (!selectAllCheckbox.checked) {
         checkboxes.forEach(checkbox => { checkbox.checked = false; });
         selectedPosts.clear();
+        selectionScope = 'page';
         updateBatchActions();
         return;
     }
@@ -161,10 +208,11 @@ async function toggleSelectAll() {
             throw new Error(data.error || '加载筛选结果失败');
         }
         selectedPosts = new Set(data.ids.map(id => Number(id)));
+        selectionScope = 'filter';
         checkboxes.forEach(checkbox => {
             checkbox.checked = selectedPosts.has(parseInt(checkbox.value));
         });
-        notifyDashboard(`已选择当前筛选结果 ${selectedPosts.size} 篇`);
+        notifyDashboard(`已选中当前筛选结果 ${selectedPosts.size} 篇`);
     } catch (error) {
         selectAllCheckbox.checked = false;
         notifyDashboard('全选失败：' + (error.message || error), 'error');
@@ -181,6 +229,8 @@ function togglePostSelection(checkbox) {
     } else {
         selectedPosts.delete(postId);
     }
+    // 手工勾选后不再代表"整个筛选结果"
+    selectionScope = 'page';
     updateBatchActions();
 }
 
@@ -203,8 +253,16 @@ function changePerPage() {
 function updateBatchActions() {
     const batchActionsBar = document.getElementById('batchActionsBar');
     const selectedCount = document.getElementById('selectedCount');
+    const scopeLabel = document.getElementById('selectedScope');
     const selectAllCheckbox = document.getElementById('selectAll');
     const visibleCheckboxes = Array.from(document.querySelectorAll('.post-checkbox'));
+
+    // 以集合为准同步勾选态，翻页/恢复后不会与 DOM 不一致
+    visibleCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectedPosts.has(parseInt(checkbox.value, 10));
+    });
+
+    const visibleTotal = visibleCheckboxes.length;
     const checkedVisible = visibleCheckboxes.filter(checkbox => checkbox.checked).length;
 
     if (batchActionsBar) {
@@ -213,10 +271,16 @@ function updateBatchActions() {
     if (selectedCount) {
         selectedCount.textContent = selectedPosts.size;
     }
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = selectedPosts.size > 0;
-        selectAllCheckbox.indeterminate = checkedVisible > 0 && checkedVisible < visibleCheckboxes.length;
+    if (scopeLabel) {
+        scopeLabel.textContent = selectionScope === 'filter' ? '（当前筛选结果全部）' : '';
     }
+    if (selectAllCheckbox) {
+        // 全选框只表示"本页是否全选"，不能因为别处选中了 1 篇就显示为勾选
+        selectAllCheckbox.checked = visibleTotal > 0 && checkedVisible === visibleTotal;
+        selectAllCheckbox.indeterminate = checkedVisible > 0 && checkedVisible < visibleTotal;
+    }
+
+    persistSelection();
 }
 
 function clearSelection() {
@@ -225,8 +289,14 @@ function clearSelection() {
         checkbox.checked = false;
     });
 
-    document.getElementById('selectAll').checked = false;
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
     selectedPosts.clear();
+    selectionScope = 'page';
+    dropPersistedSelection();
     updateBatchActions();
 }
 
@@ -283,6 +353,9 @@ function confirmBatchDelete() {
         if (data.success) {
             closeBatchDeleteModal();
             notifyDashboard(data.message);
+            // 文章已移出列表，清空选择记录再刷新，避免恢复出已删除的 id
+            dropPersistedSelection();
+            selectedPosts.clear();
             reloadAfterToast();
         } else {
             notifyDashboard(actionFailureMessage(result), 'error');
@@ -442,6 +515,9 @@ function togglePasswordField() {
 
 // Add event listeners for new forms
 document.addEventListener('DOMContentLoaded', function() {
+    restoreSelection();
+    updateBatchActions();
+
     // Batch tags form
     const batchTagsForm = document.getElementById('batchTagsForm');
     if (batchTagsForm) {

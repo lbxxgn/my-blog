@@ -63,11 +63,6 @@ header {
     gap: 0.5rem;
 }
 
-.post-header .author-name::before {
-    content: '👤';
-    font-size: 1rem;
-}
-
 .post-header .author-name a {
     color: inherit;
     text-decoration: none;
@@ -128,10 +123,16 @@ header {
         border-radius: 50%;
     }
 
-    /* 标题区保持隐藏，顶部空间由文章容器统一提供 */
+    /* 移动端为沉浸阅读，刻意不展示标题与元信息（历史行为，显式声明避免被误判为 bug） */
+    .post-header {
+        display: none;
+    }
+
+    /* 顶部空间由文章容器统一提供（让出返回按钮与阅读模式按钮） */
     .post-full {
         padding-top: calc(72px + env(safe-area-inset-top, 0px));
-        padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+        /* 文末已有分享/评论/上一篇，底部留白不必过大 */
+        padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
     }
 
     .post-header h1 {
@@ -159,10 +160,6 @@ header {
     .post-header .meta-left {
         flex-wrap: wrap;
         gap: 0.5rem;
-    }
-
-    .post-header .author-name::before {
-        display: none;
     }
 
     .post-header .post-category {
@@ -318,6 +315,7 @@ header {
         height: 44px;
     }
 
+    /* 移动端只保留正文与必要操作：上下篇、返回首页一律不显示 */
     .post-navigation {
         display: none;
     }
@@ -446,7 +444,7 @@ header {
     <article class="post-full">
         <!-- 阅读模式按钮 -->
         <button class="reader-mode-toggle" id="readerModeToggle" aria-label="阅读模式" title="阅读模式 (R)">
-            &#x1D4D7;
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 5.8A1.8 1.8 0 0 1 6.3 4H10a2 2 0 0 1 2 2v13.4a2 2 0 0 0-2-2H6.3a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M19.5 5.8A1.8 1.8 0 0 0 17.7 4H14a2 2 0 0 0-2 2v13.4a2 2 0 0 1 2-2h3.7a1.8 1.8 0 0 0 1.8-1.8z"/></svg>
         </button>
 
         <!-- 阅读模式退出按钮 -->
@@ -491,8 +489,8 @@ header {
         {% endif %}
     </article>
 
-    <!-- Share Buttons -->
-    <div class="share-buttons">
+    <!-- Share Buttons（次要操作，弱化呈现） -->
+    <div class="share-buttons post-share-actions">
         <a href="https://service.weibo.com/share/share.php?url={{ post_url }}&title={{ post.title }}"
            class="share-btn weibo"
            target="_blank"
@@ -578,15 +576,15 @@ header {
     <div class="copy-toast">链接已复制</div>
 
     <!-- Comments Section (collapsed by default) -->
-    <section class="comments-section collapsed">
-        <div class="comments-trigger">
-            <span class="comments-trigger-text">评论{% if comments %} ({{ comments|length }}){% endif %}</span>
+    <section class="comments-section collapsed" id="comments" data-count="{{ comments|length if comments else 0 }}">
+        <div class="comments-trigger" role="button" tabindex="0" aria-expanded="false" aria-controls="comments-body">
+            <span class="comments-trigger-text">评论<span class="comments-count">{% if comments %} ({{ comments|length }}){% endif %}</span></span>
             <span class="comments-trigger-arrow">▾</span>
         </div>
 
-        <div class="comments-body">
+        <div class="comments-body" id="comments-body">
             {% if comments %}
-            <div class="comments-list">
+            <div class="comments-list" data-empty="false">
                 {% for comment in comments %}
                 <div class="comment">
                     <div class="comment-header">
@@ -601,12 +599,17 @@ header {
             </div>
             {% endif %}
 
-            <form class="comment-form" action="{{ url_for('add_comment', post_id=post.id) }}" method="post">
+            <form class="comment-form" action="{{ url_for('add_comment', post_id=post.id) }}" method="post"
+                  data-author-name="{{ session.get('display_name') or session.get('username') or '' }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                {% if not session.get('user_id') %}
                 <div class="comment-form-row">
                     <input type="text" name="author_name" placeholder="姓名 *" required maxlength="50" aria-label="评论姓名">
                     <input type="email" name="author_email" placeholder="邮箱（选填）" maxlength="100" aria-label="评论邮箱">
                 </div>
+                {% else %}
+                <p class="comment-form-identity">以 <strong>{{ session.get('display_name') or session.get('username') }}</strong> 的身份发言</p>
+                {% endif %}
                 <textarea name="content" placeholder="写点什么..." rows="3" required maxlength="1000" aria-label="评论内容"></textarea>
                 <button type="submit" class="btn btn-primary btn-sm">发送</button>
             </form>
@@ -759,14 +762,87 @@ header {
 })();
 </script>
 <script>
-// 评论 AJAX 提交：失败时保留已输入内容并提示，避免刷新丢稿
+// 评论 AJAX 提交：成功后就地插入并展开评论区（不刷新页面），失败时保留已输入内容
 (function(){
+  var section = document.getElementById('comments');
   var form = document.querySelector('.comment-form');
   if (!form) return;
+
+  var trigger = section ? section.querySelector('.comments-trigger') : null;
+  var countEl = section ? section.querySelector('.comments-count') : null;
+  var body = document.getElementById('comments-body');
+
+  function setExpanded(expanded) {
+    if (!section) return;
+    section.classList.toggle('collapsed', !expanded);
+    if (trigger) trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  }
+
+  if (trigger && body) {
+    var toggle = function () { setExpanded(section.classList.contains('collapsed')); };
+    trigger.addEventListener('click', toggle);
+    trigger.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  }
+
+  function nowLabel() {
+    var d = new Date();
+    function p(n) { return n < 10 ? '0' + n : '' + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function ensureList() {
+    var list = body.querySelector('.comments-list');
+    if (!list) {
+      list = document.createElement('div');
+      list.className = 'comments-list';
+      body.insertBefore(list, body.firstChild);
+    }
+    return list;
+  }
+
+  function appendComment(name, content) {
+    var head = document.createElement('div');
+    head.className = 'comment-header';
+    var author = document.createElement('strong');
+    author.textContent = name;
+    var date = document.createElement('span');
+    date.className = 'comment-date';
+    date.textContent = nowLabel();
+    head.appendChild(author);
+    head.appendChild(date);
+
+    var text = document.createElement('div');
+    text.className = 'comment-content';
+    text.textContent = content;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'comment';
+    wrap.appendChild(head);
+    wrap.appendChild(text);
+    ensureList().appendChild(wrap);
+
+    var count = Number((section && section.dataset.count) || 0) + 1;
+    if (section) section.dataset.count = String(count);
+    if (countEl) countEl.textContent = ' (' + count + ')';
+    return wrap;
+  }
+
   form.addEventListener('submit', function(e){
     e.preventDefault();
     var submitBtn = form.querySelector('button[type="submit"]');
     var originalText = submitBtn ? submitBtn.textContent : '';
+    var contentField = form.querySelector('textarea[name="content"]');
+    var nameField = form.querySelector('input[name="author_name"]');
+    var content = contentField ? contentField.value.trim() : '';
+
+    if (!content) {
+      if (typeof showAppToast === 'function') showAppToast('评论内容不能为空', 'error');
+      if (contentField) contentField.focus();
+      return;
+    }
+
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '发送中...'; }
     fetch(form.action, {
       method: 'POST',
@@ -778,13 +854,18 @@ header {
       });
     }).then(function(res){
       if (res.ok && res.data.success) {
-        location.reload();
+        var name = (nameField && nameField.value.trim()) || form.dataset.authorName || '我';
+        var node = appendComment(name, content);
+        setExpanded(true);
+        if (contentField) contentField.value = '';
+        if (node.scrollIntoView) node.scrollIntoView({block: 'nearest'});
+        if (typeof showAppToast === 'function') showAppToast('评论已发布');
         return;
       }
-      showAppToast(res.data.error || '评论提交失败，请稍后重试', 'error');
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText; }
+      if (typeof showAppToast === 'function') showAppToast(res.data.error || '评论提交失败，请稍后重试', 'error');
     }).catch(function(){
-      showAppToast('网络错误，评论未发送，内容已保留', 'error');
+      if (typeof showAppToast === 'function') showAppToast('网络错误，评论未发送，内容已保留', 'error');
+    }).finally(function(){
       if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText; }
     });
   });
@@ -826,5 +907,68 @@ a.post-adjacent-card:hover{border-color:var(--primary-color)}
 }
 .mentor-modal-content{width:min(560px,92%);max-width:92%}
 .mentor-result{white-space:pre-wrap;line-height:1.7;max-height:50vh;overflow-y:auto;margin-bottom:1rem;font-size:0.95rem}
+
+/* 阅读模式按钮图标 */
+.reader-mode-toggle svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ===== 阅读优先：弱化分享与评论区 ===== */
+.post-share-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    /* 与正文同栏宽并居中，避免被 1400px 容器拉到最右边 */
+    max-width: var(--content-max-width);
+    margin: 1.5rem auto 0;
+    padding: 0;
+    border: 0;
+}
+.post-share-actions .share-btn {
+    min-width: 0;
+    height: 32px;
+    padding: 0 .7rem;
+    font-size: .8125rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    box-shadow: none;
+    transition: color .2s ease, background .2s ease, border-color .2s ease;
+}
+.post-share-actions .share-btn svg {
+    width: 15px;
+    height: 15px;
+}
+.post-share-actions .share-btn:hover {
+    transform: none;
+    box-shadow: none;
+    color: var(--text-color);
+    background: var(--code-bg);
+    border-color: var(--border-color);
+}
+.post-share-actions .share-btn.weibo:hover,
+.post-share-actions .share-btn.wechat:hover {
+    color: var(--text-color);
+    background: var(--code-bg);
+    border-color: var(--border-color);
+}
+@media (max-width: 768px) {
+    .post-share-actions {
+        justify-content: center;
+        margin-top: 1rem;
+    }
+    .post-share-actions .share-btn {
+        height: 36px;
+    }
+}
 </style>
 {% endblock %}

@@ -382,6 +382,8 @@ def edit_post(post_id):
             access_password = submitted_password or post.get('access_password')
             if not access_password:
                 flash('密码保护文章必须设置非空密码', 'error')
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return jsonify({'success': False, 'error': '密码保护文章必须设置非空密码'}), 400
                 categories = get_all_categories(post_type='blog', space='blog')
                 all_tags = get_all_tags(post_type='blog')
                 post['access_password'] = ''
@@ -391,6 +393,8 @@ def edit_post(post_id):
 
         if not content:
             flash('内容不能为空', 'error')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'success': False, 'error': '内容不能为空'}), 400
             categories = get_all_categories(post_type='blog', space='blog')
             all_tags = get_all_tags(post_type='blog')
             # 保留用户已输入的数据，避免清空
@@ -435,6 +439,13 @@ def edit_post(post_id):
             conn.close()
 
         flash('文章更新成功', 'success')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({
+                'success': True,
+                'post_id': post_id,
+                'is_published': is_published,
+                'redirect': url_for('blog.view_post', post_id=post_id)
+            })
         return redirect(url_for('blog.view_post', post_id=post_id))
 
     categories = get_all_categories(post_type='blog', space='blog')

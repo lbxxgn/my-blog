@@ -204,6 +204,10 @@ def add_comment(post_id):
     author_email = request.form.get('author_email', '').strip()
     content = request.form.get('content', '').strip()
 
+    # 登录用户不再要求手填姓名：表单已隐藏身份字段，这里回落到会话身份
+    if not author_name and session.get('user_id'):
+        author_name = (session.get('display_name') or session.get('username') or '').strip()
+
     # AJAX 提交返回 JSON，前端失败时保留已输入内容
     is_xhr = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 

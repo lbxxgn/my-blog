@@ -88,13 +88,10 @@
                 document.body.classList.remove('dark-theme');
             }
             localStorage.setItem('theme', newTheme);
-            const icon = newTheme === 'dark' ? '☀️' : '🌙';
-            if (themeToggleNav) {
-                themeToggleNav.querySelector('.theme-toggle-nav-icon').textContent = icon;
-            }
+            // 图标由 CSS 根据 body.dark-theme 切换，这里不再写 emoji
+            const icon = newTheme === 'dark' ? '日间' : '夜间';
             const mobileIcon = document.getElementById('mobileThemeIcon');
             const mobileText = document.getElementById('mobileThemeText');
-            if (mobileIcon) mobileIcon.textContent = icon;
             if (mobileText) mobileText.textContent = newTheme === 'dark' ? '亮色模式' : '暗色模式';
             // Sync dropdown toggle if visible
             const innerIcon = document.querySelector('.theme-toggle-icon');
@@ -116,12 +113,8 @@
         }
         // Set initial icon from the actual applied theme (inline script may follow system preference)
         const isDarkNow = document.body.classList.contains('dark-theme');
-        if (themeToggleNav) {
-            themeToggleNav.querySelector('.theme-toggle-nav-icon').textContent = isDarkNow ? '☀️' : '🌙';
-        }
         const mobileThemeIcon = document.getElementById('mobileThemeIcon');
         const mobileThemeText = document.getElementById('mobileThemeText');
-        if (mobileThemeIcon) mobileThemeIcon.textContent = isDarkNow ? '☀️' : '🌙';
         if (mobileThemeText) mobileThemeText.textContent = isDarkNow ? '亮色模式' : '暗色模式';
     });
 

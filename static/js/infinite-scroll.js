@@ -242,56 +242,91 @@
         debug('Appended', posts.length, 'posts');
     }
 
+    // 与 templates/index.html 保持一致：a.post-card-link > article.post-card
     function createPostCard(post) {
-        const article = document.createElement('article');
-        article.className = 'post-card';
-        const imageUrls = Array.isArray(post.image_urls) ? post.image_urls.slice(0, 9) : extractImageUrls(post.content);
-        const imageCount = imageUrls.length;
-        const imageLayout = post.mobile_image_layout || getMobileImageLayout(imageCount);
+        const link = document.createElement('a');
+        link.className = 'post-card-link';
+        link.href = '/post/' + encodeURIComponent(post.id);
 
-        try {
-            article.innerHTML = `
-                <a href="/post/${post.id}" class="post-card-link">
-                    <div class="post-card-content">
-                        <h2>${escapeHtml(post.title)}</h2>
-                        <div class="post-meta">
-                            ${post.category_name ? `<span class="post-category">${escapeHtml(post.category_name)}</span>` : ''}
-                            ${post.author_display_name ? `<span>👤 ${escapeHtml(post.author_display_name)}</span>` : ''}
-                            <time>${formatDate(post.created_at)}</time>
-                        </div>
-                        <div class="post-excerpt">${escapeHtml(post.excerpt || truncateContent(post.content, 100))}</div>
-                    </div>
-                    ${renderPostMedia(imageUrls, imageCount, imageLayout)}
-                </a>
-            `;
-        } catch (error) {
-            console.error('[InfiniteScroll] Error creating card for post:', post.id, error);
+        const article = document.createElement('article');
+        article.className = 'post-card' + (post.type === 'note' ? ' post-card--note' : '');
+
+        const content = document.createElement('div');
+        content.className = 'post-card-content';
+
+        const title = document.createElement('h2');
+        if (post.type === 'note') {
+            const badge = document.createElement('span');
+            badge.className = 'note-badge';
+            badge.textContent = '笔记';
+            title.appendChild(badge);
+            title.appendChild(document.createTextNode(' '));
+        }
+        title.appendChild(document.createTextNode(post.title || ''));
+        content.appendChild(title);
+
+        const meta = document.createElement('div');
+        meta.className = 'post-meta';
+        if (post.category_name) {
+            const category = document.createElement('span');
+            category.className = 'post-category';
+            category.textContent = post.category_name;
+            meta.appendChild(category);
+        }
+        if (post.author_display_name) {
+            const author = document.createElement('span');
+            author.textContent = post.author_display_name;
+            meta.appendChild(author);
+        }
+        const time = document.createElement('time');
+        time.textContent = formatDate(post.created_at);
+        meta.appendChild(time);
+        content.appendChild(meta);
+
+        const excerpt = document.createElement('div');
+        excerpt.className = 'post-excerpt';
+        excerpt.textContent = post.excerpt || truncateContent(post.content, post.type === 'note' ? 80 : 100);
+        content.appendChild(excerpt);
+
+        article.appendChild(content);
+
+        const imageUrls = Array.isArray(post.image_urls)
+            ? post.image_urls.slice(0, 9)
+            : extractImageUrls(post.content);
+        if (post.type !== 'note' && imageUrls.length > 0) {
+            const layout = post.mobile_image_layout || getMobileImageLayout(imageUrls.length);
+            article.appendChild(renderPostMedia(imageUrls, layout));
         }
 
-        return article;
+        link.appendChild(article);
+        return link;
     }
 
-    function renderPostMedia(imageUrls, imageCount, imageLayout) {
-        if (!imageUrls || imageUrls.length === 0) {
-            return '';
-        }
+    function renderPostMedia(imageUrls, imageLayout) {
+        const wrap = document.createElement('div');
+        wrap.className = 'post-card-media post-card-media--' + imageLayout +
+            ' post-card-media--count-' + imageUrls.length;
 
-        const items = imageUrls.map(url => `
-            <div class="post-card-media-item">
-                <img src="${escapeHtml(url)}" alt="" loading="lazy">
-            </div>
-        `).join('');
+        imageUrls.forEach(function (url) {
+            const item = document.createElement('div');
+            item.className = 'post-card-media-item';
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = '';
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            item.appendChild(img);
+            wrap.appendChild(item);
+        });
 
-        return `
-            <div class="post-card-media post-card-media--${imageLayout} post-card-media--count-${imageCount}">
-                ${items}
-            </div>
-        `;
+        return wrap;
     }
 
     function extractImageUrls(content) {
-        if (!content) return [];
-        return Array.from(content.matchAll(/<img[^>]+src="([^"]+)"/g)).map(match => match[1]).slice(0, 9);
+        if (!content || typeof content !== 'string') return [];
+        return Array.from(content.matchAll(/<img[^>]+src=["']([^"']+)["']/gi))
+            .map(function (match) { return match[1]; })
+            .slice(0, 9);
     }
 
     function getMobileImageLayout(imageCount) {
@@ -304,13 +339,9 @@
     function truncateContent(content, maxLength) {
         if (!content) return '';
         // 移除 HTML 标签
-        const text = content.replace(/<[^>]+>/g, '');
+        const text = String(content).replace(/<[^>]+>/g, '');
         if (text.length <= maxLength) return text;
         return text.substring(0, maxLength) + '...';
-    }
-
-    function escapeHtml(text) {
-        return window.SB ? SB.escapeHtml(text) : String(text == null ? '' : text);
     }
 
     function formatDate(dateStr) {

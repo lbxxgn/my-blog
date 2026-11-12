@@ -92,13 +92,117 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         const saveStatus = document.getElementById('saveStatus');
         const form = document.getElementById('editorForm');
-        if (form) {
-            form.addEventListener('submit', function () {
-                syncTextareaFromQuill();
-                if (window.draftSync) {
-                    window.draftSync.clearDraftCache();
-                    window.draftSync.cleanupServerDraft();
+
+        function setSubmitBusy(busy, submitter) {
+            form.querySelectorAll('button[type="submit"], #publishToggle').forEach(function (btn) {
+                btn.disabled = busy;
+            });
+            if (!submitter) return;
+            if (busy) {
+                submitter.dataset.originalText = submitter.textContent;
+                submitter.textContent = '保存中...';
+            } else if (submitter.dataset.originalText) {
+                submitter.textContent = submitter.dataset.originalText;
+                delete submitter.dataset.originalText;
+            }
+        }
+
+        // 保存与发布分开处理：保存留在编辑器，发布才跳转到文章页
+        let submitIntent = 'save';
+
+        function toast(message, type) {
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(message, type || 'success');
+            }
+        }
+
+        // 保存成功后留在当前页：新文章把地址切到编辑页，避免下次保存又新建一篇
+        function stayAfterSave(data) {
+            if (window.draftSync) {
+                window.draftSync.clearDraftCache();
+                window.draftSync.cleanupServerDraft();
+            }
+
+            if (data.post_id) {
+                var editUrl = '/admin/edit/' + data.post_id;
+                if (!form.dataset.postId) {
+                    form.dataset.postId = String(data.post_id);
+                    form.setAttribute('action', editUrl);
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState({ postId: data.post_id }, '', editUrl);
+                    }
+                    if (window.draftSync) {
+                        window.draftSync.postId = Number(data.post_id);
+                    }
+                    var heading = document.querySelector('.admin-editor > h2');
+                    if (heading) heading.textContent = '编辑文章';
                 }
+            }
+
+            if (window.draftSync && typeof window.draftSync.emitStatus === 'function') {
+                window.draftSync.emitStatus('saved', '已保存');
+            }
+            toast(data.is_published ? '已保存，文章保持发布状态' : '草稿已保存');
+        }
+
+        // 用 fetch 提交：只有服务端确认保存成功后才清理草稿，失败时草稿仍在
+        function submitWithFetch(submitter, intent) {
+            setSubmitBusy(true, submitter);
+            fetch(form.action, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                body: new FormData(form),
+                credentials: 'same-origin'
+            }).then(function (response) {
+                return response.text().then(function (text) {
+                    var data = null;
+                    try { data = JSON.parse(text); } catch (error) { data = null; }
+                    return { ok: response.ok, status: response.status, data: data };
+                });
+            }).then(function (result) {
+                if (result.data && result.data.success) {
+                    if (intent === 'publish') {
+                        if (window.draftSync) {
+                            window.draftSync.clearDraftCache();
+                            window.draftSync.cleanupServerDraft();
+                        }
+                        window.location.href = result.data.redirect || '/admin';
+                        return;
+                    }
+                    stayAfterSave(result.data);
+                    setSubmitBusy(false, submitter);
+                    return;
+                }
+                var message = (result.data && (result.data.error || result.data.message)) ||
+                    '保存失败，请稍后重试';
+                if (result.status === 401 || result.status === 403) {
+                    message = '登录状态已失效，请重新登录后再保存';
+                }
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast(message, 'error');
+                }
+                setSubmitBusy(false, submitter);
+            }).catch(function () {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('网络错误，文章未保存；草稿已保留', 'error');
+                }
+                setSubmitBusy(false, submitter);
+            });
+        }
+
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                syncTextareaFromQuill();
+                var submitter = e.submitter || null;
+                var action = submitter && submitter.hasAttribute('formaction')
+                    ? submitter.formAction
+                    : form.action;
+                // “取消发布”保留原生提交（带浏览器确认），这里只接管保存/更新/发布
+                if (action && action.indexOf('/unpublish') !== -1) return;
+                e.preventDefault();
+                var intent = submitIntent;
+                submitIntent = 'save';
+                submitWithFetch(submitter, intent);
             });
         }
         const imageUpload = document.getElementById('imageUpload');
@@ -213,11 +317,23 @@ document.addEventListener('DOMContentLoaded', function () {
         const isPublishedCheckbox = document.getElementById('is_published');
         window.togglePublish = function () {
             if (publishToggle && isPublishedCheckbox) {
+                // 空正文直接给出提示，而不是被浏览器静默拦在表单校验里
+                const bodyText = (quill && contentFormat === 'html' && !sourceMode)
+                    ? quill.getText().trim()
+                    : (textarea.value || '').replace(/<[^>]+>/g, ' ').trim();
+                if (!bodyText) {
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('请先写点内容再发布', 'error');
+                    }
+                    if (quill && quill.focus) { quill.focus(); } else { textarea.focus(); }
+                    return;
+                }
                 const scheduleInput = document.getElementById('publish_at');
                 const when = scheduleInput && scheduleInput.value ? `\n定时发布时间：${scheduleInput.value.replace('T', ' ')}` : '\n发布后可在编辑页取消发布。';
                 if (!window.confirm('确认发布这篇文章？' + when)) return;
                 syncTextareaFromQuill();
                 isPublishedCheckbox.checked = true;
+                submitIntent = 'publish';
                 setTimeout(function () {
                     if (form.requestSubmit) {
                         form.requestSubmit();
