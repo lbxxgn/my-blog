@@ -1,4 +1,4 @@
-/* 知识库文档 TOC 生成 + 滚动高亮 + 目录树折叠 */
+/* 知识库文档 TOC 生成 + 滚动高亮（目录树折叠统一由 knowledge-tree.js 负责） */
 (function () {
   'use strict';
 
@@ -47,18 +47,4 @@
     }
   }
 
-  // --- 目录树折叠 ---
-  document.querySelectorAll('.kb-tree-toggle').forEach(function (toggle) {
-    toggle.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      var node = toggle.closest('.kb-tree-node');
-      if (!node) return;
-      var children = node.querySelector(':scope > .kb-tree-children');
-      if (!children) return;
-      var collapsed = children.style.display === 'none';
-      children.style.display = collapsed ? '' : 'none';
-      toggle.textContent = collapsed ? (children.children.length ? '▾' : '•') : '▸';
-    });
-  });
 })();
