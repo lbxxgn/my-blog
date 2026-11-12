@@ -31,7 +31,7 @@
     <!-- 自动保存状态指示器 -->
     <div class="autosave-indicator" id="autosaveIndicator">
         <span class="indicator-dot"></span>
-        <span class="indicator-text">已保存</span>
+        <span class="indicator-text">未修改</span>
     </div>
 
     <form method="POST" class="editor-form" id="editorForm" data-post-id="{{ post.id if post else '' }}" data-post-updated="{{ post.updated_at if post else '' }}">
@@ -42,7 +42,7 @@
         </div>
 
         <div class="form-group editor-content-group">
-            <textarea id="content" name="content" rows="20" required>{% if post %}{{ post.content }}{% endif %}</textarea>
+            <textarea id="content" name="content" rows="20">{% if post %}{{ post.content }}{% endif %}</textarea>
             <div id="markdownPreview" class="markdown-preview" hidden></div>
             <!-- Hidden file input for image upload -->
             <input type="file" id="imageUpload" accept="image/*" multiple style="display: none;">
@@ -122,12 +122,12 @@
                 {% endif %}
                 <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">取消</a>
                 {% if not post or not post.is_published %}
-                <button type="submit" class="btn btn-secondary">保存草稿</button>
+                <button type="submit" id="saveBtn" class="btn btn-secondary">保存草稿</button>
                 <button type="button" id="publishToggle" class="btn btn-primary" onclick="togglePublish()">立即发布</button>
                 {% else %}
                 <button type="submit" formaction="{{ url_for('admin.unpublish_post', post_id=post.id) }}" formmethod="post" class="btn btn-secondary"
                         onclick="return confirm('确定取消发布？文章会回到草稿状态。')">取消发布</button>
-                <button type="submit" class="btn btn-primary">更新</button>
+                <button type="submit" id="saveBtn" class="btn btn-primary">更新</button>
                 {% endif %}
             </div>
         </div>
