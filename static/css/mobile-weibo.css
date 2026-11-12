@@ -2,3 +2,5 @@
 .mobile-editor-tag-suggest::-webkit-scrollbar{display:none}
 .mobile-editor-tag-suggest .selector-chip{flex:0 0 auto;padding:8px 14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mobile-editor-tag-suggest .tag-suggest-hint{flex:0 0 auto;font-size:12px;color:var(--mobile-editor-text-muted)}
+.toolbar-btn.recording{background:rgba(239,68,68,0.14);color:#ef4444;box-shadow:inset 0 0 0 1px rgba(239,68,68,0.28)}
+.toolbar-btn.disabled{opacity:0.4;cursor:not-allowed}

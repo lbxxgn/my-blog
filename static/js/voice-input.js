@@ -1,8 +1,6 @@
 /**
  * 可复用语音输入（Web Speech API）
- *
- * window.VoiceInput.attach(button, textarea) 可挂载到任何
- * 「按钮 + textarea」组合上（移动端发布面板等）。
+ * window.VoiceInput.attach(button, textarea) 挂载到「按钮 + textarea」组合。
  */
 (function () {
     'use strict';
@@ -20,78 +18,83 @@
 
         const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!Recognition) {
+            const message = '当前浏览器不支持语音输入，请用 Safari 打开，或使用 iPhone 键盘上的麦克风';
             button.classList.add('disabled');
-            button.title = '当前浏览器不支持语音输入，可换 Chrome/Edge';
+            button.title = message;
+            button.setAttribute('aria-label', message);
             button.addEventListener('click', function () {
-                toast('当前浏览器不支持语音输入，可换 Chrome/Edge', 'error');
+                toast(message, 'error');
             });
             return null;
         }
 
         let recognition = null;
         let listening = false;
-        let committedText = '';      // 已确认的文本（本会话追加到光标处）
-        let interimText = '';        // 识别中的临时文本
+        let committedText = '';
+        let interimText = '';
+        let originalValue = '';
+        let insertStart = 0;
+        let insertEnd = 0;
 
         function render() {
             button.classList.toggle('recording', listening);
+            button.setAttribute('aria-pressed', String(listening));
+            button.setAttribute('aria-label', listening ? '停止语音输入' : '开始语音输入');
+            button.title = listening ? '停止语音输入' : '语音输入：边说边写入正文';
+            textarea.dispatchEvent(new CustomEvent('voiceinputstatechange', {
+                detail: { listening: listening }
+            }));
         }
 
-        function commitInterim() {
-            if (!interimText) return;
-            const start = textarea.selectionStart != null ? textarea.selectionStart : textarea.value.length;
-            const end = textarea.selectionEnd != null ? textarea.selectionEnd : start;
-            const insert = committedText + interimText;
-            textarea.value = textarea.value.slice(0, start) + insert + textarea.value.slice(end);
-            textarea.selectionStart = textarea.selectionEnd = start + insert.length;
-            committedText = '';
-            interimText = '';
+        function updateText() {
+            const transcript = committedText + interimText;
+            textarea.value = originalValue.slice(0, insertStart) + transcript + originalValue.slice(insertEnd);
+            const caret = insertStart + transcript.length;
+            textarea.selectionStart = textarea.selectionEnd = caret;
             textarea.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         function start() {
+            originalValue = textarea.value;
+            insertStart = textarea.selectionStart != null ? textarea.selectionStart : originalValue.length;
+            insertEnd = textarea.selectionEnd != null ? textarea.selectionEnd : insertStart;
+            committedText = '';
+            interimText = '';
+
             recognition = new Recognition();
             recognition.lang = 'zh-CN';
             recognition.interimResults = true;
             recognition.continuous = true;
 
             recognition.onresult = function (event) {
+                let confirmed = '';
                 let interim = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
+                for (let i = 0; i < event.results.length; i++) {
                     const result = event.results[i];
                     if (result.isFinal) {
-                        committedText += result[0].transcript;
+                        confirmed += result[0].transcript;
                     } else {
                         interim += result[0].transcript;
                     }
                 }
+                committedText = confirmed;
                 interimText = interim;
-                // 实时上屏：确认文本在光标处累计，临时文本用透明度覆盖显示
-                const start = textarea.selectionStart != null ? textarea.selectionStart : textarea.value.length;
-                const end = textarea.selectionEnd != null ? textarea.selectionEnd : start;
-                const confirmed = committedText;
-                const preview = confirmed + interimText;
-                const before = textarea.value.slice(0, start);
-                const after = textarea.value.slice(end);
-                // 用 span 不可行（textarea），改用 overlay 预览层
-                renderPreview(before, preview, after, Boolean(interimText));
-                if (!interimText && committedText) {
-                    commitInterim();
-                }
+                updateText();
             };
 
             recognition.onerror = function (event) {
-                if (event.error === 'not-allowed') {
-                    toast('请允许使用麦克风后再试', 'error');
-                } else if (event.error !== 'aborted' && event.error !== 'no-speech') {
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    toast('请允许 Safari 使用麦克风，或改用 iPhone 键盘上的麦克风', 'error');
+                } else if (event.error === 'no-speech') {
+                    toast('没有听到声音，请靠近麦克风后再试', 'error');
+                } else if (event.error !== 'aborted') {
                     toast('语音识别出错：' + event.error, 'error');
                 }
             };
 
             recognition.onend = function () {
-                commitInterim();
-                removePreview();
                 listening = false;
+                recognition = null;
                 render();
             };
 
@@ -100,39 +103,22 @@
                 listening = true;
                 render();
             } catch (e) {
+                recognition = null;
                 listening = false;
                 render();
+                toast('语音输入启动失败，请使用 Safari 或 iPhone 键盘上的麦克风', 'error');
             }
         }
 
         function stop() {
             if (recognition && listening) {
-                try { recognition.stop(); } catch (e) { /* ignore */ }
+                try { recognition.stop(); } catch (e) { /* 已停止时无需处理 */ }
             }
         }
 
-        // ---- 临时结果预览层（textarea 上方，半透明显示识别中文字） ----
-        let previewEl = null;
-        function renderPreview(before, preview, after, isInterim) {
-            if (!isInterim) { removePreview(); return; }
-            if (!previewEl) {
-                previewEl = document.createElement('div');
-                previewEl.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;' +
-                    'background:var(--card-bg,#fff);border:1px solid var(--border-color,#e0e0e0);' +
-                    'border-radius:8px;padding:6px 10px;font-size:14px;color:var(--text-color,#333);' +
-                    'opacity:0.55;max-width:80vw;box-shadow:0 4px 12px rgba(0,0,0,0.12);';
-                document.body.appendChild(previewEl);
-            }
-            previewEl.textContent = preview || '...';
-            const rect = textarea.getBoundingClientRect();
-            previewEl.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
-            previewEl.style.top = Math.max(8, rect.top - 44) + 'px';
-            previewEl.style.display = 'block';
-        }
-        function removePreview() {
-            if (previewEl) previewEl.style.display = 'none';
-        }
-
+        button.setAttribute('aria-pressed', 'false');
+        button.setAttribute('aria-label', '开始语音输入');
+        button.title = '语音输入：边说边写入正文';
         button.addEventListener('click', function () {
             if (listening) {
                 stop();
@@ -149,5 +135,11 @@
         return api;
     }
 
-    window.VoiceInput = { attach: attach };
+    window.VoiceInput = {
+        attach: attach,
+        stop: function (textarea) {
+            const api = stateMap.get(textarea);
+            if (api) api.stop();
+        }
+    };
 })();
