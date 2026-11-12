@@ -203,6 +203,46 @@ class TestCommentsAndKnowledge:
 
 
 @pytest.mark.usefixtures('client')
+class TestEditorSaveContract:
+    """编辑器改为 fetch 提交后依赖 XHR JSON 契约：成功才清草稿，失败要能提示。"""
+
+    def test_edit_post_returns_json_on_success(self, client, temp_db, test_admin_user):
+        from models import create_post, get_post_by_id
+
+        post_id = create_post('XHR edit', 'old body', True, None, test_admin_user['id'])
+        _login(client, test_admin_user)
+
+        response = client.post(
+            f'/admin/edit/{post_id}',
+            data={'title': 'XHR edit', 'content': '<p>new body</p>', 'content_format': 'html'},
+            headers={'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload['success'] is True
+        assert payload['post_id'] == post_id
+        assert payload['redirect'].endswith(f'/post/{post_id}')
+        assert 'new body' in (get_post_by_id(post_id)['content'] or '')
+
+    def test_edit_post_rejects_empty_content_with_json(self, client, temp_db, test_admin_user):
+        from models import create_post, get_post_by_id
+
+        post_id = create_post('XHR empty', 'keep me', True, None, test_admin_user['id'])
+        _login(client, test_admin_user)
+
+        response = client.post(
+            f'/admin/edit/{post_id}',
+            data={'title': 'XHR empty', 'content': '', 'content_format': 'html'},
+            headers={'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
+        )
+
+        assert response.status_code == 400
+        assert response.get_json()['error'] == '内容不能为空'
+        assert get_post_by_id(post_id)['content'] == 'keep me'
+
+
+@pytest.mark.usefixtures('client')
 class TestAiSecretStorage:
     def test_ai_key_is_encrypted_at_rest_and_not_echoed(self, client, temp_db, test_admin_user):
         from models import update_user_ai_config, get_user_ai_config, get_db_connection
