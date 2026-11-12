@@ -127,6 +127,26 @@ class TestCommentsAndKnowledge:
         assert response.status_code == 302
         assert any(c['id'] == comment_id for c in get_comments_by_post(post_id))
 
+    def test_logged_in_comment_needs_no_author_name(self, client, temp_db, test_user):
+        """登录用户不再手填姓名：后端回落到会话身份，并且 XHR 直接返回 JSON。"""
+        from models import create_post, get_comments_by_post
+
+        post_id = create_post('Logged-in comment', 'Body', True, None, test_user['id'])
+        _login(client, test_user)
+
+        response = client.post(
+            f'/post/{post_id}/comment',
+            data={'content': '以登录身份发言'},
+            headers={'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()['success'] is True
+
+        comments = get_comments_by_post(post_id)
+        assert len(comments) == 1
+        assert comments[0]['author_name'] == 'Test User'
+
     def test_knowledge_save_clears_surviving_draft(self, client, temp_db, test_user):
         from models import create_kb_category, create_knowledge_doc
         from models.draft import save_draft, get_drafts

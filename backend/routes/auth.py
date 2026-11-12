@@ -182,6 +182,7 @@ def _complete_login(user, remember_device=False):
 
     session['user_id'] = user['id']
     session['username'] = user['username']
+    session['display_name'] = user.get('display_name') or user['username']
     session['role'] = user.get('role', 'author')
     session['remember_device'] = bool(remember_device)
     session.permanent = bool(remember_device)
