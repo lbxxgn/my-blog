@@ -63,11 +63,6 @@ header {
     gap: 0.5rem;
 }
 
-.post-header .author-name::before {
-    content: '👤';
-    font-size: 1rem;
-}
-
 .post-header .author-name a {
     color: inherit;
     text-decoration: none;
@@ -128,10 +123,16 @@ header {
         border-radius: 50%;
     }
 
-    /* 标题区保持隐藏，顶部空间由文章容器统一提供 */
+    /* 移动端为沉浸阅读，刻意不展示标题与元信息（历史行为，显式声明避免被误判为 bug） */
+    .post-header {
+        display: none;
+    }
+
+    /* 顶部空间由文章容器统一提供（让出返回按钮与阅读模式按钮） */
     .post-full {
         padding-top: calc(72px + env(safe-area-inset-top, 0px));
-        padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+        /* 文末已有分享/评论/上一篇，底部留白不必过大 */
+        padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
     }
 
     .post-header h1 {
@@ -159,10 +160,6 @@ header {
     .post-header .meta-left {
         flex-wrap: wrap;
         gap: 0.5rem;
-    }
-
-    .post-header .author-name::before {
-        display: none;
     }
 
     .post-header .post-category {
@@ -318,8 +315,24 @@ header {
         height: 44px;
     }
 
+    /* 移动端保留上一篇/下一篇：短文章末尾不再是一片空白 */
     .post-navigation {
-        display: none;
+        display: block;
+        margin-top: 1.5rem;
+        padding-top: 1.25rem;
+    }
+
+    .post-navigation .post-adjacent {
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .post-navigation .post-adjacent-card {
+        padding: 12px 14px;
+    }
+
+    .post-navigation .post-adjacent-title {
+        font-size: 0.8125rem;
     }
 
     body.reader-mode .post-full {
@@ -446,7 +459,7 @@ header {
     <article class="post-full">
         <!-- 阅读模式按钮 -->
         <button class="reader-mode-toggle" id="readerModeToggle" aria-label="阅读模式" title="阅读模式 (R)">
-            &#x1D4D7;
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 5.8A1.8 1.8 0 0 1 6.3 4H10a2 2 0 0 1 2 2v13.4a2 2 0 0 0-2-2H6.3a1.8 1.8 0 0 1-1.8-1.8z"/><path d="M19.5 5.8A1.8 1.8 0 0 0 17.7 4H14a2 2 0 0 0-2 2v13.4a2 2 0 0 1 2-2h3.7a1.8 1.8 0 0 0 1.8-1.8z"/></svg>
         </button>
 
         <!-- 阅读模式退出按钮 -->
@@ -491,8 +504,8 @@ header {
         {% endif %}
     </article>
 
-    <!-- Share Buttons -->
-    <div class="share-buttons">
+    <!-- Share Buttons（次要操作，弱化呈现） -->
+    <div class="share-buttons post-share-actions">
         <a href="https://service.weibo.com/share/share.php?url={{ post_url }}&title={{ post.title }}"
            class="share-btn weibo"
            target="_blank"
@@ -909,5 +922,67 @@ a.post-adjacent-card:hover{border-color:var(--primary-color)}
 }
 .mentor-modal-content{width:min(560px,92%);max-width:92%}
 .mentor-result{white-space:pre-wrap;line-height:1.7;max-height:50vh;overflow-y:auto;margin-bottom:1rem;font-size:0.95rem}
+
+/* 阅读模式按钮图标 */
+.reader-mode-toggle svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ===== 阅读优先：弱化分享与评论区 ===== */
+.post-share-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .5rem;
+    margin: 1.25rem 0 0;
+    padding: 0;
+    border: 0;
+    max-width: none;
+}
+.post-share-actions .share-btn {
+    min-width: 0;
+    height: 32px;
+    padding: 0 .7rem;
+    font-size: .8125rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    box-shadow: none;
+    transition: color .2s ease, background .2s ease, border-color .2s ease;
+}
+.post-share-actions .share-btn svg {
+    width: 15px;
+    height: 15px;
+}
+.post-share-actions .share-btn:hover {
+    transform: none;
+    box-shadow: none;
+    color: var(--text-color);
+    background: var(--code-bg);
+    border-color: var(--border-color);
+}
+.post-share-actions .share-btn.weibo:hover,
+.post-share-actions .share-btn.wechat:hover {
+    color: var(--text-color);
+    background: var(--code-bg);
+    border-color: var(--border-color);
+}
+@media (max-width: 768px) {
+    .post-share-actions {
+        justify-content: center;
+        margin-top: 1rem;
+    }
+    .post-share-actions .share-btn {
+        height: 36px;
+    }
+}
 </style>
 {% endblock %}
