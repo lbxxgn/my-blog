@@ -16,8 +16,10 @@
     <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('site_icon_versioned', size=192, version=site_icon_version) }}">
     <link rel="manifest" href="{{ url_for('site_webmanifest') }}">
 
-    <link rel="stylesheet" href="{{ static_file('css/style.css') }}" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="{{ static_file('css/style.css') }}"></noscript>
+    {# 主样式表必须参与首帧渲染：曾用 media="print" + onload 的懒加载技巧，
+       但脚本在 DOMContentLoaded 就会插入靠 CSS 隐藏的节点（如「代码已复制」提示、目录、
+       快捷键提示），CSS 未生效前它们会以纯文本形式闪一下，刷新页面时尤其明显。 #}
+    <link rel="stylesheet" href="{{ static_file('css/style.css') }}">
 
     <!-- Syntax highlighting (Pygments) -->
     <link rel="stylesheet" href="{{ static_file('css/pygments.css') }}">
