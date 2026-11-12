@@ -143,9 +143,9 @@
                             </form>
                             {% endif %}
                             <form method="POST" action="{{ url_for('delete_post_route', post_id=post.id) }}" class="delete-form"
-                                  data-confirm="确定删除这篇文章？"
+                                  data-confirm="文章会移入回收站，之后可恢复。确定删除这篇文章？"
                                   data-confirm-destructive="true"
-                                  data-confirm-text="删除">
+                                  data-confirm-text="移入回收站">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="btn btn-sm btn-danger">删除</button>
                             </form>
@@ -240,16 +240,16 @@
             <button type="button" class="btn-close" onclick="closeBatchDeleteModal()">✕</button>
         </div>
         <div class="modal-body">
-            <p class="delete-count-text">确定要删除 <strong id="deleteCount">0</strong> 篇文章吗？</p>
+            <p class="delete-count-text">确定要将 <strong id="deleteCount">0</strong> 篇文章移入回收站吗？</p>
             <div class="warning-box">
-                <p class="warning-box-title">此操作不可撤销</p>
+                <p class="warning-box-title">移入回收站后可以恢复</p>
                 <ul>
-                    <li>将删除文章及所有评论</li>
-                    <li>将删除文章标签关联</li>
+                    <li>文章会从列表中移除，评论与标签关联保持不变</li>
+                    <li>可在「回收站」中逐篇恢复</li>
                 </ul>
             </div>
             <div class="modal-form-actions">
-                <button type="button" class="btn btn-danger" onclick="confirmBatchDelete()">确认删除</button>
+                <button type="button" class="btn btn-danger" onclick="confirmBatchDelete()">移入回收站</button>
                 <button type="button" class="btn" onclick="closeBatchDeleteModal()">取消</button>
             </div>
         </div>
