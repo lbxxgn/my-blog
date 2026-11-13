@@ -581,7 +581,7 @@ def run_scheduler_tick() -> None:
                 logger.info('按保留策略清理旧自动备份 %s 份', len(deleted))
             return
 
-        from backend.logger import log_operation
+        from logger import log_operation
 
         archive = result['archive']
         deleted = result['deleted']

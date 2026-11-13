@@ -1018,7 +1018,7 @@ def not_found_error(error):
         f'| Referer: {request.referrer or "-"} '
         f'| UA: {request.user_agent or "-"}'
     )
-    get_log_error()(error, context=context)
+    logger.warning(context)
     return render_template('error.html', status_code=404), 404
 
 @app.errorhandler(500)

@@ -16,6 +16,31 @@ sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(BACKEND_DIR))
 
 
+@pytest.fixture(autouse=True)
+def isolate_log_files(tmp_path, monkeypatch):
+    """把日志重定向到临时目录，避免测试写入项目 logs/。"""
+    import importlib
+
+    log_dir = tmp_path / 'logs'
+    log_dir.mkdir()
+    files = {
+        'LOG_DIR': log_dir,
+        'APP_LOG': log_dir / 'app.log',
+        'LOGIN_LOG': log_dir / 'login.log',
+        'OPERATION_LOG': log_dir / 'operation.log',
+        'ERROR_LOG': log_dir / 'error.log',
+        'SQL_LOG': log_dir / 'sql.log',
+    }
+    for module_name in ('logger', 'backend.logger'):
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            continue
+        for attr, value in files.items():
+            if hasattr(module, attr):
+                monkeypatch.setattr(module, attr, value)
+
+
 @pytest.fixture(scope='function')
 def temp_db():
     """
