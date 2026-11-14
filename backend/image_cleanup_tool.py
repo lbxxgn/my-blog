@@ -293,7 +293,6 @@ def fast_clean_invalid_domains():
 
         for post in posts:
             post_id = post['id']
-            title = post['title'] or '无标题'
             content = post['content']
 
             original_length = len(content)
@@ -382,7 +381,7 @@ def check_external_images(show_progress=True):
     external_urls = list(set(external_urls))
 
     print(f'📊 找到 {len(external_urls)} 个唯一的外部图片URL')
-    print(f'🔍 开始检查可访问性...\n')
+    print('🔍 开始检查可访问性...\n')
 
     # 并发检查
     results = check_image_urls_with_progress(
@@ -395,7 +394,7 @@ def check_external_images(show_progress=True):
     invalid_count = len(results) - valid_count
 
     print(f'\n{"="*60}')
-    print(f'📊 外部图片检查报告')
+    print('📊 外部图片检查报告')
     print(f'{"="*60}')
     print(f'总URL数: {len(results)}')
     print(f'✅ 有效: {valid_count}')
@@ -405,7 +404,7 @@ def check_external_images(show_progress=True):
     # 显示无效URL
     invalid_urls = [(url, error) for url, (valid, error) in results.items() if not valid]
     if invalid_urls:
-        print(f'❌ 无效URL列表（前20个）:')
+        print('❌ 无效URL列表（前20个）:')
         for url, error in invalid_urls[:20]:
             short_url = url[:60] + '...' if len(url) > 60 else url
             print(f'   - {short_url} ({error})')
@@ -478,7 +477,7 @@ def main():
     if args.mode == 'local':
         print('🖼️  本地图片清理工具\n')
         print(f'{"="*60}')
-        print(f'模式: 只检查本地图片文件')
+        print('模式: 只检查本地图片文件')
         print(f'试运行: {"是 (使用 --force 执行实际修改)" if dry_run else "否"}')
         print(f'{"="*60}\n')
 
@@ -491,7 +490,7 @@ def main():
     elif args.mode == 'all':
         print('🖼️  完整图片清理工具\n')
         print(f'{"="*60}')
-        print(f'模式: 检查本地和外部图片')
+        print('模式: 检查本地和外部图片')
         print(f'试运行: {"是 (使用 --force 执行实际修改)" if dry_run else "否"}')
         print(f'检查外部: {"是" if args.check_external else "否"}')
         print(f'{"="*60}\n')
@@ -505,7 +504,7 @@ def main():
     elif args.mode == 'fast-clean':
         print('⚡ 快速清理失效外部图片\n')
         print(f'{"="*60}')
-        print(f'目标: 126.net, blog.163.com')
+        print('目标: 126.net, blog.163.com')
         print(f'{"="*60}\n')
 
         report = fast_clean_invalid_domains()

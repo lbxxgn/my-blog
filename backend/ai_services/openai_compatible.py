@@ -67,7 +67,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 raise ValueError("API密钥格式无效：密钥不能为空")
 
             if self.API_KEY_PREFIX and not self.api_key.startswith(self.API_KEY_PREFIX):
-                logger.warning(f"API key may be invalid (doesn't start with '{self.API_KEY_PREFIX}'): {self.api_key[:10]}...")
+                logger.warning(f"API key may be invalid (doesn't start with '{self.API_KEY_PREFIX}')")
 
             if not self.ALLOW_ANY_MODEL:
                 valid_models = list(self.COST_PER_1K_TOKENS.keys()) + list(self.EXTRA_VALID_MODELS)
@@ -77,7 +77,13 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                         f"Supported models: {valid_models}"
                     )
 
-            client_kwargs = {'api_key': self.api_key}
+            from backend.config import AI_REQUEST_MAX_RETRIES, AI_REQUEST_TIMEOUT
+
+            client_kwargs = {
+                'api_key': self.api_key,
+                'timeout': AI_REQUEST_TIMEOUT,
+                'max_retries': AI_REQUEST_MAX_RETRIES,
+            }
             if self.BASE_URL:
                 client_kwargs['base_url'] = self.BASE_URL
             self.client = OpenAI(**client_kwargs)

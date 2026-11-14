@@ -159,13 +159,12 @@ Environment="PYTHONPATH=/var/www/my-blog"
 Environment="PORT=5001"
 EnvironmentFile=-/var/www/my-blog/.env
 
-ExecStart=/var/www/my-blog/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5001 backend.app:app
+ExecStart=/var/www/my-blog/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5001 backend.app:app
 
 # 关于监听地址：
-# - 默认 --bind 0.0.0.0:5001 监听所有网卡，远程可直接访问 5001 端口
-#   （需放行防火墙/云安全组，如 sudo ufw allow 5001）。
-# - 若前面架了 nginx 反向代理，建议改绑 127.0.0.1:5001 仅接受本机转发，
-#   远程通过 nginx 的 80/443 端口访问（可配 HTTPS）。
+# - 默认 --bind 127.0.0.1:5001 只接受本机/nginx 转发，避免绕过 TLS 与安全头直连应用。
+# - 如确实需要直接暴露 5001，可改为 0.0.0.0:5001 并放行防火墙/安全组。
+# - 远程访问请通过 nginx 的 80/443 端口（可配 HTTPS）。
 # - 开发服务器（python backend/app.py）同理：默认绑 0.0.0.0，
 #   仅需本机访问时在 .env 中设置 HOST=127.0.0.1。
 
@@ -175,9 +174,9 @@ RestartSec=10
 StartLimitInterval=60
 StartLimitBurst=3
 
-# 日志配置
-StandardOutput=append:/var/www/my-blog/logs/app.log
-StandardError=append:/var/www/my-blog/logs/error.log
+# 日志配置：应用自身已写 logs/app.log 与 logs/error.log，这里交给 journald 避免重复
+StandardOutput=journal
+StandardError=journal
 
 # 资源限制
 LimitNOFILE=65536
@@ -252,6 +251,10 @@ tail -f logs/login.log
 
 # 查看操作日志
 tail -f logs/operation.log
+
+# 健康检查（存活 / 就绪）
+curl -fsS http://127.0.0.1:5001/healthz
+curl -fsS http://127.0.0.1:5001/readyz
 
 # 查看 SQL 日志
 tail -f logs/sql.log
@@ -518,6 +521,8 @@ server {
 
 > 上方为最小示例。仓库根目录的 [`nginx.conf.example`](nginx.conf.example) 是一份完整生产配置，已包含 `client_max_body_size 100m`（对齐 `MAX_CONTENT_LENGTH` 图片上传限制）、AI 接口读写超时、gzip、安全头、upstream keepalive 等，并通过 `nginx -t` 语法校验。部署时以其为基础替换 `YOUR_HOST`、`/path/to/my-blog`、证书路径即可。
 
+> **反向代理必备**：Nginx 后部署时请在 `.env` 设置 `TRUST_PROXY_HEADERS=True`，否则限流和审计日志拿到的都是 `127.0.0.1`。仅在应用端口不直接暴露公网时启用。
+
 > 无域名 / 无证书、仅用公网 IP 通过 80 端口访问？用 [`nginx-http.conf.example`](nginx-http.conf.example)（最简 HTTP 版，已去 HTTPS/证书/gzip/安全头，只保留 mime 类型、100MB 上传、AI 超时）。注意 HTTP 下 Passkey 不可用。
 
 > 大陆云服务器想用「IP + 自签证书」提供 HTTPS？用 [`nginx-ssl-selfsigned.conf.example`](nginx-ssl-selfsigned.conf.example)（`server_name _;` + 自签证书，见下方「方案 B」）。
@@ -624,14 +629,19 @@ PrivateTmp=true
 
 ### 5. 定期备份
 
-配置自动备份（项目未提供 `scripts/backup.sh`，请自行编写）：
+项目提供 `scripts/backup.sh`，使用 SQLite Online Backup API 生成一致性快照（WAL 模式安全），并执行 `PRAGMA integrity_check`：
 
 ```bash
-# 添加到 crontab
-crontab -e
+./scripts/backup.sh
+# 自定义目录/保留天数
+BACKUP_DIR=/var/backups/my-blog RETENTION_DAYS=30 ./scripts/backup.sh
+```
 
-# 每天凌晨 2 点备份数据库
-0 2 * * * /bin/bash -c 'cp /var/www/my-blog/db/simple_blog.db /var/www/my-blog/backups/simple_blog_$(date +\%Y\%m\%d_\%H\%M\%S).db && find /var/www/my-blog/backups -name "simple_blog_*.db" -mtime +30 -delete'
+添加到 crontab（每天凌晨 2 点）：
+
+```bash
+crontab -e
+0 2 * * * cd /var/www/my-blog && ./scripts/backup.sh >> logs/backup-cron.log 2>&1
 ```
 
 ---
@@ -641,15 +651,15 @@ crontab -e
 ### 手动备份
 
 ```bash
-# 备份数据库
-cp db/simple_blog.db backups/simple_blog_$(date +%Y%m%d_%H%M%S).db
+# 数据库一致性备份 + 上传文件归档（已包含完整性校验）
+./scripts/backup.sh
 
-# 备份配置
+# 单独备份配置（含密钥，注意权限）
 cp .env backups/.env.$(date +%Y%m%d)
-
-# 备份上传文件
-tar -czf backups/uploads_$(date +%Y%m%d).tar.gz static/uploads/
+chmod 600 backups/.env.*
 ```
+
+> 不要直接 `cp` 正在运行的 SQLite 数据库：WAL 模式下可能丢失已提交但尚未 checkpoint 的数据。
 
 ### 恢复数据
 

@@ -46,6 +46,7 @@ def migrate():
             draft_cols = {row[1] for row in cursor.fetchall()}
             if 'device_token' not in draft_cols:
                 cursor.execute("ALTER TABLE drafts ADD COLUMN device_token TEXT DEFAULT ''")
+            cursor.execute('DROP INDEX IF EXISTS idx_drafts_unique')
             cursor.execute('DROP INDEX IF EXISTS idx_drafts_unique_post')
             cursor.execute('''
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_drafts_unique_post

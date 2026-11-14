@@ -173,6 +173,13 @@ if (IS_PRODUCTION and not _IS_TESTING and not _SKIP_SECRET_KEY_CHECK
 # Set FORCE_HTTPS environment variable to True if you have HTTPS enabled
 FORCE_HTTPS = os.environ.get('FORCE_HTTPS', 'False').lower() in ('true', '1', 'yes')
 
+if IS_PRODUCTION and not FORCE_HTTPS and not _IS_TESTING and not _SKIP_SECRET_KEY_CHECK:
+    print(
+        'WARNING: 生产环境未启用 FORCE_HTTPS，session cookie 不会带 Secure 标记；'
+        '如已配置 HTTPS，请在 .env 中设置 FORCE_HTTPS=True。',
+        file=sys.stderr,
+    )
+
 if IS_PRODUCTION and FORCE_HTTPS:
     # Production with HTTPS
     SESSION_COOKIE_SECURE = True  # Only send cookies over HTTPS
@@ -210,4 +217,11 @@ AI_CONTENT_MAX_LENGTH = int(os.environ.get('AI_CONTENT_MAX_LENGTH', 500))
 
 # 是否启用AI历史记录（默认启用）
 AI_HISTORY_ENABLED = os.environ.get('AI_HISTORY_ENABLED', 'True').lower() in ('true', '1', 'yes')
+
+# AI 请求超时（秒）与重试次数，避免单个请求长期占用 worker
+AI_REQUEST_TIMEOUT = float(os.environ.get('AI_REQUEST_TIMEOUT', 60))
+AI_REQUEST_MAX_RETRIES = int(os.environ.get('AI_REQUEST_MAX_RETRIES', 1))
+
+# 是否信任反向代理的 X-Forwarded-* 头（Nginx 部署时开启）
+TRUST_PROXY_HEADERS = os.environ.get('TRUST_PROXY_HEADERS', 'False').lower() in ('true', '1', 'yes')
 

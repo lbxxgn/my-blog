@@ -178,7 +178,7 @@ def import_blogs_from_xml(xml_file_path, author_id=2):
 
     # 打印统计
     print("\n" + "="*60)
-    print(f"导入完成！")
+    print("导入完成！")
     print(f"  成功: {success_count} 篇")
     print(f"  跳过: {skip_count} 篇（已存在）")
     print(f"  失败: {error_count} 篇")

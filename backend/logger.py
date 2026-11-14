@@ -151,9 +151,6 @@ def setup_logging(app):
         app_handler.addFilter(_LoggerPrefixFilter(('werkzeug',)))
     if not any(isinstance(f, _BelowLevelFilter) for f in app_handler.filters):
         app_handler.addFilter(_BelowLevelFilter(logging.ERROR))
-    # SQL 日志仅供 log_sql 使用，消息已自带时间戳
-    sql_handler = _get_file_handler(SQL_LOG, logging.INFO, 7, message_only=True)
-
     # 控制台输出到 stdout，避免 INFO 日志被 systemd 归入 StandardError/error.log
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)

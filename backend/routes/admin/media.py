@@ -8,7 +8,7 @@ import os
 from models import (
     create_optimized_image_record,
 )
-from auth_decorators import login_required, api_key_required
+from auth_decorators import login_required, role_required, api_key_required
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 
 
@@ -182,7 +182,7 @@ def mobile_upload_image():
         allowed_list = ', '.join(ALLOWED_EXTENSIONS)
         return jsonify({
             'success': False,
-            'error': f'不支持的文件类型',
+            'error': '不支持的文件类型',
             'message': f'支持的文件类型: {allowed_list}'
         }), 400
 
@@ -194,7 +194,7 @@ def mobile_upload_image():
     if file_size > max_file_size:
         return jsonify({
             'success': False,
-            'error': f'文件大小超过限制',
+            'error': '文件大小超过限制',
             'message': f'最大允许{max_file_size//1024//1024}MB'
         }), 400
 
@@ -215,7 +215,7 @@ def mobile_upload_image():
 
         # 处理HEIC/HEIF格式（转换为JPEG）
         if detected_type in ['heic', 'heif']:
-            logger.info(f"Converting HEIC to JPEG")
+            logger.info("Converting HEIC to JPEG")
             if img.mode != 'RGB':
                 img = img.convert('RGB')
 
@@ -311,7 +311,7 @@ def media_library():
 
 
 @admin_bp.route('/media/library/delete', methods=['POST'])
-@login_required
+@role_required('admin', 'editor')
 def media_library_delete():
     """删除未被正文引用的图片。"""
     from models import get_db_connection

@@ -41,10 +41,17 @@ if env_path.exists():
 
 from backend.app import app  # noqa: E402
 
-PORT = 9222
-USER_DATA_DIR = Path("/tmp/kb-e2e-chrome-profile")
-CHROME_BINARY = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-BASE_URL = "http://127.0.0.1:5001"
+PORT = int(os.environ.get("E2E_CDP_PORT", "9222"))
+USER_DATA_DIR = Path(os.environ.get("E2E_CHROME_PROFILE", "/tmp/kb-e2e-chrome-profile"))
+_CHROME_CANDIDATES = [
+    os.environ.get("E2E_CHROME_BIN"),
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    shutil.which("google-chrome"),
+    shutil.which("chromium"),
+    shutil.which("chromium-browser"),
+]
+CHROME_BINARY = next((path for path in _CHROME_CANDIDATES if path and os.path.exists(path)), None)
+BASE_URL = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:5001")
 
 
 def build_session_cookie() -> str:
@@ -57,6 +64,8 @@ def build_session_cookie() -> str:
 
 
 def start_chrome() -> subprocess.Popen:
+    if not CHROME_BINARY:
+        raise SystemExit("未找到 Chrome/Chromium，请设置 E2E_CHROME_BIN 环境变量")
     if USER_DATA_DIR.exists():
         shutil.rmtree(USER_DATA_DIR)
     USER_DATA_DIR.mkdir(parents=True)

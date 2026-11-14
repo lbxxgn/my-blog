@@ -34,7 +34,7 @@ tests/
 └── e2e_kb_editor.py           # 端到端知识库编辑器测试（CDP + Chrome，手动运行）
 ```
 
-当前共有 **373** 个 pytest 测试用例（`pytest --collect-only -q | tail -1` 可查），外加一个独立的 E2E 脚本。
+当前共有 **521** 个 pytest 测试用例（`pytest --collect-only -q | tail -1` 可查），外加一个独立的 E2E 脚本。
 
 ## 运行测试
 
@@ -63,13 +63,12 @@ pytest tests/test_models.py::TestUserModels::test_create_user
 ### 生成覆盖率报告
 
 ```bash
-pytest --cov=backend --cov-report=html
+# 带 40% 覆盖率门槛，报告生成在 htmlcov/index.html
+make coverage
 
-# 或先跑项目默认快速检查
+# 日常快速检查（lint + 全部测试，不生成覆盖率）
 make check
 ```
-
-覆盖率报告将生成在 `htmlcov/index.html`。
 
 ### 运行测试并显示详细输出
 
@@ -131,10 +130,4 @@ def test_something(client, test_admin_user):
 
 测试可以集成到 CI/CD 流程中：
 
-```yaml
-# .github/workflows/test.yml 示例
-- name: Run tests
-  run: |
-    pip install -r requirements.txt
-    pytest --cov=backend --cov-report=xml
-```
+实际 CI 配置见 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)：backend job 运行 `make check`，frontend job 运行 `npm ci && npm run build`，并包含依赖审计 job。

@@ -3,8 +3,7 @@
 from flask import render_template, request, redirect, url_for, session, flash, jsonify
 
 from models import (
-    get_all_posts, get_all_post_ids, get_post_by_id, create_post, update_post, delete_post,
-    get_all_categories, set_post_tags, get_db_connection, get_posts_by_author, get_all_users, get_all_tags,
+    get_all_posts, get_all_post_ids, get_post_by_id, create_post, update_post, get_all_categories, set_post_tags, get_db_connection, get_all_users, get_all_tags,
     get_post_revisions, get_post_revision, restore_post_revision,
     soft_delete_post, get_deleted_posts, restore_deleted_post, purge_deleted_post,
 )

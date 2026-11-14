@@ -6,7 +6,7 @@
 import json
 import logging
 
-from .db import get_db_connection, get_db_context, _safe_replace_post_fts, _safe_delete_post_fts
+from .db import get_db_context, _safe_replace_post_fts, _safe_delete_post_fts
 
 logger = logging.getLogger(__name__)
 

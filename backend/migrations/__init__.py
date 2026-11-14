@@ -48,6 +48,7 @@ MIGRATIONS = [
     ('011_content_format', '存量文章 content_format 标注纠偏（检测真实格式）', 'backend.migrations.migrate_content_format', 'migrate'),
     ('012_ai_catalog', 'AI 提供商与模型目录表', 'backend.migrations.migrate_ai_catalog', 'migrate'),
     ('013_p1_features', '定时发布、软删除、修订历史与多草稿设备', 'backend.migrations.migrate_p1_features', 'migrate'),
+    ('014_draft_unique_index', '修正 drafts 唯一索引以支持多设备草稿', 'backend.migrations.migrate_draft_unique_index', 'migrate'),
 ]
 
 

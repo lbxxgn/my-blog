@@ -81,6 +81,7 @@ def ensure_drafts_table() -> None:
             CREATE INDEX IF NOT EXISTS idx_drafts_device
             ON drafts(user_id, device_info, updated_at)
         ''')
+        cursor.execute('DROP INDEX IF EXISTS idx_drafts_unique')
         cursor.execute('''
             CREATE UNIQUE INDEX IF NOT EXISTS idx_drafts_unique_post
             ON drafts(user_id, post_id, device_token)
