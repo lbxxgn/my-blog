@@ -57,7 +57,7 @@ EnvironmentFile=-/path/to/my-blog/.env
 #   --access-logfile /path/to/my-blog/logs/access.log \
 #   --error-logfile  /path/to/my-blog/logs/gunicorn-error.log
 # 全量备份/恢复可能耗时较长，--timeout 需大于 gunicorn 默认的 30s
-ExecStart=/path/to/my-blog/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5001 --timeout 300 --graceful-timeout 60 backend.app:app
+ExecStart=/path/to/my-blog/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5001 --timeout 300 --graceful-timeout 60 backend.app:app
 
 # ============================================
 # 重启策略
@@ -70,12 +70,10 @@ StartLimitBurst=3
 # ============================================
 # 日志配置
 # ============================================
-StandardOutput=append:/path/to/my-blog/logs/app.log
-StandardError=append:/path/to/my-blog/logs/error.log
-
-# 也可以使用 systemd 日志（journald）
-# StandardOutput=journal
-# StandardError=journal
+# 应用自身已写入 logs/app.log 与 logs/error.log；这里改用 journald，避免同一行日志被写入两次。
+# 查看：journalctl -u simple-blog -f
+StandardOutput=journal
+StandardError=journal
 
 # ============================================
 # 安全加固（可选）

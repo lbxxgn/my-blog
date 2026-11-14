@@ -64,7 +64,7 @@ python backend/app.py
 - **传统前端**：Vanilla JS + Quill 编辑器
 - **新版知识库编辑器**：React 19.2 + Vite 8.1 + BlockNote 0.51 + Mantine 9
 - **AI**：阿里百炼 / DeepSeek / 自定义 OpenAI 兼容（API Key 在后台「AI 设置」配置）
-- **测试**：pytest + pytest-cov（373 个测试）
+- **测试**：pytest + pytest-cov（521 个测试）
 
 ## 项目结构
 
@@ -125,6 +125,7 @@ my-blog/
 ### 更多文档
 - [完整文档索引](docs/) - 所有文档的导航中心
 - [交互与体验优化待办](docs/optimization-backlog.md) - P0 修复记录与后续 P1/P2 计划
+- [工程化优化待办](docs/engineering-backlog-2026-11.md) - 安全/架构/测试/前端后续可选项
 - [API 文档](docs/api-documentation.md) - REST API 参考
 - [测试说明](docs/testing.md) - 测试运行方式与调试方法
 - [归档报告](docs/archive/reports/) - 历史优化与验收记录
@@ -160,7 +161,7 @@ make run
 ```bash
 # 管理员账号
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=YourSecurePassword123!
+ADMIN_PASSWORD=<至少12位，含大小写字母和数字>
 
 # 应用安全
 SECRET_KEY=change-this-to-a-random-secret-key-in-production

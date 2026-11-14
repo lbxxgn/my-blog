@@ -97,7 +97,7 @@ if [ -z "$ADMIN_PASSWORD" ]; then
     echo -e "  ${RED}错误: 必须设置 ADMIN_PASSWORD 环境变量${NC}"
     echo ""
     echo "示例用法:"
-    echo "  export ADMIN_PASSWORD=\"YourSecurePassword123!\""
+    echo "  export ADMIN_PASSWORD=$(python3 -c 'import secrets; print(secrets.token_urlsafe(18))')"
     echo "  ./start.sh"
     echo ""
     exit 1

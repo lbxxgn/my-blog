@@ -32,7 +32,7 @@
 | `test_site_icon.py` | 站点图标 |
 | `e2e_kb_editor.py` | 端到端知识库编辑器测试（CDP + Chrome，手动运行） |
 
-**当前测试总数**: 373 个单元/集成测试（`pytest --collect-only -q | tail -1` 统计），外加 1 个 E2E 脚本。
+**当前测试总数**: 521 个单元/集成测试（`pytest --collect-only -q | tail -1` 统计），外加 1 个 E2E 脚本。
 
 ### 已覆盖的功能模块
 
@@ -71,9 +71,8 @@ pytest tests/test_admin_features.py -v
 # 运行关键快速检查
 make check
 
-# 查看测试覆盖率
-pytest --cov=backend --cov-report=html
-pytest --cov=backend --cov-report=term-missing
+# 查看测试覆盖率（含 40% 门槛，报告在 htmlcov/）
+make coverage
 ```
 
 ### 按类型运行
@@ -172,7 +171,7 @@ python -c "from backend.app import app; from backend.models import init_db; init
 
 ```bash
 # 重新安装测试依赖
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 
 # 检查pytest版本
 pip list | grep pytest

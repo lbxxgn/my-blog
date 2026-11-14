@@ -253,58 +253,70 @@ def merge_cards_to_post(card_ids, user_id, post_id=None):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Get all cards
-    placeholders = ','.join(['?' for _ in card_ids])
-    query = f'SELECT * FROM cards WHERE id IN ({placeholders}) AND user_id = ? ORDER BY created_at DESC'
-    cursor.execute(query, card_ids + [user_id])
-    cards = [dict(row) for row in cursor.fetchall()]
+    try:
+        # Get all cards
+        placeholders = ','.join(['?' for _ in card_ids])
+        query = f'SELECT * FROM cards WHERE id IN ({placeholders}) AND user_id = ? ORDER BY created_at DESC'
+        cursor.execute(query, card_ids + [user_id])
+        cards = [dict(row) for row in cursor.fetchall()]
 
-    if not cards:
+        if not cards:
+            raise ValueError('No valid cards found')
+
+        # Merge content
+        merged_content = ''
+        for card in cards:
+            if card['title']:
+                merged_content += f"## {card['title']}\n\n"
+            merged_content += card['content'] + '\n\n---\n\n'
+
+        # Create or update post
+        if post_id:
+            # Append to existing post
+            cursor.execute(
+                'SELECT content, author_id FROM posts WHERE id = ? AND deleted_at IS NULL',
+                (post_id,)
+            )
+            result = cursor.fetchone()
+            if not result:
+                raise ValueError('目标文章不存在')
+
+            cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+            user_row = cursor.fetchone()
+            role = user_row['role'] if user_row else None
+            if result['author_id'] != user_id and role not in ('admin', 'editor'):
+                raise PermissionError('无权修改该文章')
+
+            merged_content = result['content'] + '\n\n---\n\n' + merged_content
+            cursor.execute('''
+                UPDATE posts SET content = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (merged_content, post_id))
+        else:
+            # Create new post
+            # Use first card's title or generate one
+            title = cards[0]['title'] if cards[0]['title'] else '未命名文章'
+
+            cursor.execute('''
+                INSERT INTO posts (title, content, is_published, author_id, content_format)
+                VALUES (?, ?, 0, ?, 'markdown')
+            ''', (title, merged_content, user_id))
+            post_id = cursor.lastrowid
+
+        # Update cards status and link（只更新已校验归属的卡片）
+        for card in cards:
+            cursor.execute('''
+                UPDATE cards SET status = 'published', linked_article_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND user_id = ?
+            ''', (post_id, card['id'], user_id))
+
+        conn.commit()
+        return post_id
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
         conn.close()
-        raise ValueError('No valid cards found')
-
-    # Merge content
-    merged_content = ''
-    for card in cards:
-        if card['title']:
-            merged_content += f"## {card['title']}\n\n"
-        merged_content += card['content'] + '\n\n---\n\n'
-
-    # Create or update post
-    if post_id:
-        # Append to existing post
-        cursor.execute('SELECT content FROM posts WHERE id = ?', (post_id,))
-        result = cursor.fetchone()
-        if result:
-            existing_content = result['content']
-            merged_content = existing_content + '\n\n---\n\n' + merged_content
-
-        cursor.execute('''
-            UPDATE posts SET content = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (merged_content, post_id))
-    else:
-        # Create new post
-        # Use first card's title or generate one
-        title = cards[0]['title'] if cards[0]['title'] else '未命名文章'
-
-        cursor.execute('''
-            INSERT INTO posts (title, content, is_published, author_id, content_format)
-            VALUES (?, ?, 0, ?, 'markdown')
-        ''', (title, merged_content, user_id))
-        post_id = cursor.lastrowid
-
-    # Update cards status and link
-    for card_id in card_ids:
-        cursor.execute('''
-            UPDATE cards SET status = 'published', linked_article_id = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (post_id, card_id))
-
-    conn.commit()
-    conn.close()
-
-    return post_id
 
 
 def ai_merge_cards_to_post(card_ids, user_id, user_config, merge_style='comprehensive'):

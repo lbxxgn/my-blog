@@ -40,10 +40,10 @@ pip install -r requirements.txt
 
 ```bash
 export ADMIN_USERNAME="admin"           # 管理员用户名
-export ADMIN_PASSWORD="AdminPass123!"   # 管理员密码（至少 10 位；建议 12 位以上，包含大小写字母和数字）
+export ADMIN_PASSWORD="<至少12位，含大小写字母和数字>"   # 管理员密码（强制至少 12 位）
 ```
 
-> 当前系统强制密码最小长度为 **10 位**，文档建议配置 **12 位或更长** 的强密码。
+> 当前系统强制密码最小长度为 **12 位**，且必须包含大写字母、小写字母和数字。
 
 **可选环境变量**：
 
@@ -106,7 +106,7 @@ python3 backend/app.py
 nohup python3 backend/app.py > logs/app.log 2>&1 &
 
 # 方式三：使用环境变量启动
-ADMIN_USERNAME="admin" ADMIN_PASSWORD="AdminPass123!" python3 backend/app.py
+ADMIN_USERNAME="admin" ADMIN_PASSWORD="<强密码>" python3 backend/app.py
 
 # 方式四：使用启动脚本
 ./scripts/start.sh
@@ -177,12 +177,12 @@ python -c "from backend.app import app; from backend.models import init_db; init
 pip install gunicorn
 
 # 启动应用
-gunicorn -w 4 -b 0.0.0.0:5001 backend.app:app
+gunicorn -w 2 -b 127.0.0.1:5001 backend.app:app
 ```
 
 参数说明：
-- `-w 4`: 4 个工作进程
-- `-b 0.0.0.0:5001`: 绑定所有网络接口的 5001 端口
+- `-w 2`: 2 个工作进程（SQLite 写入场景不建议过多）
+- `-b 127.0.0.1:5001`: 仅监听本机，远程通过 Nginx 转发；需直连时再改 `0.0.0.0`
 - `backend.app:app`: 应用模块路径
 
 ### 使用 systemd（Linux）
@@ -235,8 +235,9 @@ RestartSec=10
 StartLimitInterval=60
 StartLimitBurst=3
 
-StandardOutput=append:/path/to/my-blog/logs/app.log
-StandardError=append:/path/to/my-blog/logs/error.log
+# 应用自身已写 logs/app.log 与 logs/error.log，这里交给 journald 避免重复
+StandardOutput=journal
+StandardError=journal
 
 NoNewPrivileges=true
 PrivateTmp=true
@@ -302,9 +303,9 @@ Environment="FLASK_ENV=production"
 EnvironmentFile=-/path/to/my-blog/.env
 
 ExecStart=/path/to/my-blog/.venv/bin/gunicorn \
-    -w 4 \
-    -b 0.0.0.0:5001 \
-    --error-logfile /path/to/my-blog/logs/error.log \
+    -w 2 \
+    -b 127.0.0.1:5001 \
+    --error-logfile - \
     backend.app:app
 
 Restart=always
@@ -401,18 +402,18 @@ lsof -nP -iTCP:5001 | grep LISTEN
 
 ### 密码不满足要求
 
-**错误信息**: `Password must be at least 10 characters`
+**错误信息**: `密码长度至少为10位` / `ADMIN_PASSWORD must be at least 12 characters long`
 
 **解决方法**:
 ```bash
 # 密码要求：
-# - 系统强制至少 10 位长度
-# - 文档建议至少 12 位长度
+# - 新建用户：至少 10 位
+# - 管理员 ADMIN_PASSWORD：至少 12 位
 # - 包含大小写字母
 # - 包含数字
-# - 不能是常见弱密码
+# - 不能是常见弱密码或 .env.example 历史示例值
 
-export ADMIN_PASSWORD="SecurePass123456!"
+export ADMIN_PASSWORD="<至少12位强密码>"
 ```
 
 ### 数据库错误
@@ -475,7 +476,7 @@ cat logs/sql.log
 
 1. **设置强密码**
    ```bash
-   export ADMIN_PASSWORD="VeryStrongPassword123!@#"
+   export ADMIN_PASSWORD="<至少12位强密码>"
    ```
 
 2. **关闭调试模式**

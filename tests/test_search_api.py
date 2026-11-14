@@ -368,3 +368,43 @@ class TestSearchPageSemantic:
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
         assert 'source-tab' in html
+
+
+def test_semantic_search_applies_viewer_visibility(client, search_data,
+                                                   embeddings_table, configured_embedding):
+    """他人私密文章应隐藏；密码文章只返回标题；他人未发布文档应隐藏。"""
+    from models import create_post, create_user
+    from werkzeug.security import generate_password_hash
+
+    other_id = create_user(
+        username='other_semantic_user',
+        password_hash=generate_password_hash('UserPassword123!', method='pbkdf2:sha256'),
+        role='author',
+    )
+    private_id = create_post(
+        title='他人私密文章', content='私密正文', is_published=True,
+        author_id=other_id, access_level='private',
+    )
+    password_id = create_post(
+        title='他人密码文章', content='密码保护正文', is_published=True,
+        author_id=other_id, access_level='password', access_password='secret123',
+    )
+    other_doc_id = create_post(
+        title='他人未发布文档', content='知识库草稿正文', is_published=False,
+        author_id=other_id, post_type='knowledge',
+    )
+
+    _insert_embedding(embeddings_table, 'post', private_id, [1.0, 0.0])
+    _insert_embedding(embeddings_table, 'post', password_id, [1.0, 0.0])
+    _insert_embedding(embeddings_table, 'doc', other_doc_id, [1.0, 0.0])
+
+    _login(client, search_data['user'])
+    resp = client.get('/api/search/semantic?q=flask 框架')
+    assert resp.status_code == 200
+    data = resp.get_json()
+
+    post_ids = {item['id'] for item in data['posts']}
+    assert private_id not in post_ids
+    password_item = next(item for item in data['posts'] if item['id'] == password_id)
+    assert password_item['excerpt'] == ''
+    assert other_doc_id not in {item['id'] for item in data['docs']}

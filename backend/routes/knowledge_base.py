@@ -112,7 +112,7 @@ def plugin_submit():
             )
 
             log_operation(g.user_id, 'browser_extension',
-                          f'浏览器插件提交(文章)', f'文章ID: {post_id}, 类型: {annotation_type}')
+                          '浏览器插件提交(文章)', f'文章ID: {post_id}, 类型: {annotation_type}')
 
             return jsonify({
                 'success': True,
@@ -132,7 +132,7 @@ def plugin_submit():
             )
 
             log_operation(g.user_id, 'browser_extension',
-                          f'浏览器插件提交', f'卡片ID: {card_id}, 类型: {annotation_type}')
+                          '浏览器插件提交', f'卡片ID: {card_id}, 类型: {annotation_type}')
 
             return jsonify({
                 'success': True,
@@ -181,7 +181,7 @@ def sync_annotations():
             annotation_ids.append(ann_id)
 
         log_operation(g.user_id, 'browser_extension',
-                      f'浏览器插件同步标注', f'URL: {url}, 标注数: {len(annotation_ids)}')
+                      '浏览器插件同步标注', f'URL: {url}, 标注数: {len(annotation_ids)}')
 
         return jsonify({
             'success': True,
@@ -303,7 +303,7 @@ def quick_note():
             )
 
             log_operation(session['user_id'], session.get('username', 'Unknown'),
-                          f'创建快速笔记', f'文章ID: {post_id}')
+                          '创建快速笔记', f'文章ID: {post_id}')
 
             if request.is_json:
                 return jsonify({
@@ -447,7 +447,7 @@ def card_status(card_id):
 
     update_card_status(card_id, new_status)
     log_operation(session['user_id'], session.get('username', 'Unknown'),
-                  f'更新卡片状态', f'卡片ID: {card_id}, 新状态: {new_status}')
+                  '更新卡片状态', f'卡片ID: {card_id}, 新状态: {new_status}')
 
     return jsonify({'success': True})
 
@@ -475,10 +475,14 @@ def merge_cards():
             return jsonify({'success': False, 'error': '无效的操作'}), 400
 
         log_operation(session['user_id'], session.get('username', 'Unknown'),
-                      f'合并卡片', f'卡片IDs: {card_ids} -> 文章ID: {post_id}')
+                      '合并卡片', f'卡片IDs: {card_ids} -> 文章ID: {post_id}')
 
         return jsonify({'success': True, 'post_id': post_id})
 
+    except PermissionError as e:
+        return jsonify({'success': False, 'error': str(e)}), 403
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         return api_internal_error(e)
 
@@ -523,7 +527,7 @@ def generate_card_tags():
             update_card(card_id, tags=result['tags'])
 
             log_operation(session['user_id'], session.get('username', 'Unknown'),
-                         f'AI生成卡片标签', f'卡片ID: {card_id}, 标签: {result["tags"]}')
+                         'AI生成卡片标签', f'卡片ID: {card_id}, 标签: {result["tags"]}')
 
             return jsonify({
                 'success': True,
@@ -578,7 +582,7 @@ def ai_merge_cards():
         conn.close()
 
         log_operation(session['user_id'], session.get('username', 'Unknown'),
-                     f'AI合并卡片', f'卡片IDs: {card_ids} -> 文章ID: {result["post_id"]}')
+                     'AI合并卡片', f'卡片IDs: {card_ids} -> 文章ID: {result["post_id"]}')
 
         return jsonify({
             'success': True,
@@ -633,7 +637,7 @@ def convert_card_to_post(card_id):
         delete_card(card_id)
 
         log_operation(current_user_id, 'card_convert',
-                      f'卡片转换为文章', f'卡片ID: {card_id}, 文章ID: {post_id}')
+                      '卡片转换为文章', f'卡片ID: {card_id}, 文章ID: {post_id}')
 
         return jsonify({
             'success': True,

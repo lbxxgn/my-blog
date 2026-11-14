@@ -193,7 +193,7 @@ def print_cleanup_report(report: Dict, title: str = "清理报告"):
 
     # 打印详情
     if report.get('details'):
-        print(f'\n📋 详细清理列表:')
+        print('\n📋 详细清理列表:')
         for detail in report['details'][:10]:
             post_id = detail.get('post_id', '?')
             title = detail.get('title', '无标题')
@@ -242,7 +242,7 @@ class CleanupLogger:
 
     @staticmethod
     def saved():
-        print(f'   💾 已更新数据库')
+        print('   💾 已更新数据库')
 
 
 class URLCheckCache:

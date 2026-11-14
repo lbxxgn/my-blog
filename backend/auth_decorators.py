@@ -7,13 +7,24 @@ from flask import session, flash, redirect, url_for, request
 from models import get_user_by_username, get_user_by_id, get_post_by_id
 
 
+def _load_session_user():
+    """从数据库加载当前 session 用户，并把角色等可变字段同步回 session。"""
+    if session.get('user_id') is None:
+        return None
+    user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+    if user:
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        session['display_name'] = user.get('display_name') or user['username']
+        session['role'] = user.get('role') or 'author'
+    return user
+
+
 def login_required(f):
     """要求用户登录的装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        user = None
-        if session.get('user_id') is not None:
-            user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+        user = _load_session_user()
         if session.get('user_id') is None or not user or not user.get('is_active', 1):
             if session.get('user_id') is not None:
                 session.clear()
@@ -41,7 +52,11 @@ def api_key_required(f):
         from flask import g, jsonify
 
         if 'user_id' in session:
-            g.user_id = session['user_id']
+            user = _load_session_user()
+            if not user or not user.get('is_active', 1):
+                session.clear()
+                return jsonify({'success': False, 'error': '登录已过期，请重新登录'}), 401
+            g.user_id = user['id']
             return f(*args, **kwargs)
 
         from models import validate_api_key
@@ -74,7 +89,7 @@ def role_required(*allowed_roles):
                 flash('请先登录', 'warning')
                 return redirect(url_for('auth.login', next=request.url))
 
-            user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+            user = _load_session_user()
             if not user or not user.get('is_active', 1):
                 session.clear()
                 flash('用户不存在或已被停用', 'error')
@@ -106,7 +121,7 @@ def can_edit_post(f):
             flash('请先登录', 'warning')
             return redirect(url_for('auth.login', next=request.url))
 
-        user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+        user = _load_session_user()
         if not user or not user.get('is_active', 1):
             session.clear()
             flash('用户不存在或已被停用', 'error')
@@ -146,7 +161,7 @@ def can_delete_post(f):
             flash('请先登录', 'warning')
             return redirect(url_for('auth.login', next=request.url))
 
-        user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+        user = _load_session_user()
         if not user or not user.get('is_active', 1):
             session.clear()
             flash('用户不存在或已被停用', 'error')
@@ -170,7 +185,7 @@ def can_manage_users(f):
             flash('请先登录', 'warning')
             return redirect(url_for('auth.login', next=request.url))
 
-        user = get_user_by_username(session.get('username')) or get_user_by_id(session.get('user_id'))
+        user = _load_session_user()
         if not user or not user.get('is_active', 1) or user.get('role') != 'admin':
             flash('只有管理员可以管理用户', 'error')
             return redirect(url_for('admin_dashboard'))
@@ -181,7 +196,4 @@ def can_manage_users(f):
 
 def get_current_user():
     """获取当前登录用户信息"""
-    if not session.get('user_id'):
-        return None
-
-    return get_user_by_username(session.get('username'))
+    return _load_session_user()

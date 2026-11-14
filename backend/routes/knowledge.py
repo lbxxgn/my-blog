@@ -30,11 +30,10 @@ from models import (
     get_category_tree, get_category_path, get_subcategories,
     get_doc_count_by_category, get_knowledge_doc, get_knowledge_docs_by_category, get_recent_knowledge_docs,
     get_knowledge_docs_for_tree, get_all_knowledge_docs, search_knowledge_docs,
-    get_post_tags, search_posts, get_category_by_id, create_post, set_post_tags, get_db_connection, get_post_by_id,
-    get_knowledge_doc_by_source_post_id, get_blog_post_by_source_doc_id,
+    get_post_tags, get_category_by_id, create_post, set_post_tags, get_db_connection, get_post_by_id,
+    get_blog_post_by_source_doc_id,
     create_kb_category, move_kb_category, delete_kb_category, update_kb_category,
-    create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, delete_knowledge_doc,
-    soft_delete_post,
+    create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, soft_delete_post,
 )
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 from models.draft import save_draft, get_drafts, delete_drafts_for_post

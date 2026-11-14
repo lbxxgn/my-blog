@@ -198,4 +198,4 @@ tag1, tag2, tag3
         prompt += "\n请生成清晰的章节结构，使用Markdown列表格式。"
 
         # This would call AI - simplified version
-        return f"# 文章大纲\n\n1. 第一节\n2. 第二节\n3. 第三节"
+        return "# 文章大纲\n\n1. 第一节\n2. 第二节\n3. 第三节"

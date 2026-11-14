@@ -12,7 +12,7 @@ import re
 from flask import url_for
 
 from ai_services.embeddings import embed_text, get_embedding_config
-from models import get_db_connection
+from models import get_db_connection, get_user_by_id, post_listing_visibility
 from models.embeddings import search_similar
 
 logger = logging.getLogger(__name__)
@@ -149,10 +149,23 @@ def is_embedding_configured(user_id):
     return bool(config and config.get('enabled'))
 
 
-def _load_semantic_entities(matches):
+def _get_viewer_role(user_id):
+    user = get_user_by_id(user_id) if user_id is not None else None
+    return user.get('role') if user else None
+
+
+def _doc_visible_to_viewer(row, viewer_id, viewer_role):
+    if viewer_role in ('admin', 'editor'):
+        return True
+    if row['is_published']:
+        return True
+    return viewer_id is not None and row['author_id'] == viewer_id
+
+
+def _load_semantic_entities(matches, viewer_id=None, viewer_role=None):
     """
     将 search_similar 的结果 [(source_type, source_id, score)] 加载为
-    分组实体 dict。post 只收已发布 blog，doc 收 knowledge（含未发布）。
+    分组实体 dict。结果按查看者的访问权限裁剪，与列表页规则一致。
     """
     groups = {'posts': [], 'docs': []}
     if not matches:
@@ -165,28 +178,32 @@ def _load_semantic_entities(matches):
             score = round(float(score), 3)
             if source_type == 'post':
                 cursor.execute('''
-                    SELECT id, type, title, content, created_at
+                    SELECT id, type, title, content, created_at, access_level, author_id
                     FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
                 if not row:
+                    continue
+                post = dict(row)
+                visibility = post_listing_visibility(post, user_id=viewer_id, role=viewer_role)
+                if visibility == 'hidden':
                     continue
                 groups['posts'].append({
                     'id': row['id'],
                     'type': row['type'],
                     'title': row['title'],
                     'url': post_url(row['id']),
-                    'excerpt': _make_excerpt(row['content']),
+                    'excerpt': _make_excerpt(row['content']) if visibility == 'full' else '',
                     'date': row['created_at'],
                     'score': score,
                 })
             elif source_type == 'doc':
                 cursor.execute('''
-                    SELECT id, title, content
+                    SELECT id, title, content, is_published, author_id
                     FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
-                if not row:
+                if not row or not _doc_visible_to_viewer(row, viewer_id, viewer_role):
                     continue
                 groups['docs'].append({
                     'id': row['id'],
@@ -220,7 +237,7 @@ def semantic_search(user_id, query, limit=20):
         raise EmbeddingApiError(str(e))
 
     matches = search_similar(vector, top_k=limit, source_types=['post', 'doc'])
-    return _load_semantic_entities(matches)
+    return _load_semantic_entities(matches, user_id, _get_viewer_role(user_id))
 
 
 def find_related(user_id, text, exclude_type=None, exclude_id=None, limit=8):
@@ -242,6 +259,7 @@ def find_related(user_id, text, exclude_type=None, exclude_id=None, limit=8):
         raise EmbeddingApiError(str(e))
 
     matches = search_similar(vector, top_k=limit + 5, source_types=['post', 'doc'])
+    viewer_role = _get_viewer_role(user_id)
 
     items = []
     conn = get_db_connection()
@@ -253,17 +271,22 @@ def find_related(user_id, text, exclude_type=None, exclude_id=None, limit=8):
                 continue
             if source_type == 'post':
                 cursor.execute('''
-                    SELECT id, title, content
+                    SELECT id, title, content, access_level, author_id
                     FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
+                if row and post_listing_visibility(
+                        dict(row), user_id=user_id, role=viewer_role) != 'full':
+                    row = None
                 url = post_url(source_id) if row else None
             elif source_type == 'doc':
                 cursor.execute('''
-                    SELECT id, title, content
+                    SELECT id, title, content, is_published, author_id
                     FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
                 ''', (source_id,))
                 row = cursor.fetchone()
+                if row and not _doc_visible_to_viewer(row, user_id, viewer_role):
+                    row = None
                 url = doc_url(source_id) if row else None
             else:
                 continue

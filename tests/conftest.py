@@ -41,8 +41,49 @@ def isolate_log_files(tmp_path, monkeypatch):
                 monkeypatch.setattr(module, attr, value)
 
 
+@pytest.fixture(scope='session')
+def schema_template(tmp_path_factory):
+    """用 init_db + 迁移构建一次基准 schema，避免测试与生产 schema 双份维护。"""
+    import contextlib
+    import importlib
+    import io
+    import os
+
+    import backend.config as config
+    import models
+
+    template = tmp_path_factory.mktemp('schema') / 'template.db'
+    original_testing = os.environ.get('TESTING')
+    original_url = os.environ.get('DATABASE_URL')
+
+    os.environ['TESTING'] = '1'
+    os.environ['DATABASE_URL'] = f'sqlite:///{template}'
+    importlib.reload(config)
+    importlib.reload(models)
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            models.init_db()
+            from backend.migrations import apply_migrations
+
+            _, _, failed = apply_migrations(verbose=False)
+            assert not failed, f'schema template migrations failed: {failed}'
+    finally:
+        if original_testing is None:
+            os.environ.pop('TESTING', None)
+        else:
+            os.environ['TESTING'] = original_testing
+        if original_url is None:
+            os.environ.pop('DATABASE_URL', None)
+        else:
+            os.environ['DATABASE_URL'] = original_url
+        importlib.reload(config)
+        importlib.reload(models)
+
+    return str(template)
+
+
 @pytest.fixture(scope='function')
-def temp_db():
+def temp_db(schema_template):
     """
     创建临时数据库用于测试
 
@@ -70,292 +111,31 @@ def temp_db():
         importlib.reload(config)
         importlib.reload(models)
 
-        # 初始化数据库（使用直接SQL）
+        # 基于 init_db + 迁移生成的基准 schema 复制，保证与生产一致
+        import shutil
+
+        shutil.copyfile(schema_template, db_path)
+
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
 
-        # 创建所有表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        # 知识库树形分类字段
-        for _col, _def in [
-            ('parent_id', 'INTEGER'),
-            ('slug', 'TEXT'),
-            ('sort_order', 'INTEGER DEFAULT 0'),
-            ('space', "TEXT DEFAULT 'blog'"),
-            ('icon', 'TEXT'),
-            ('description', 'TEXT'),
-        ]:
-            try:
-                conn.execute(f'ALTER TABLE categories ADD COLUMN {_col} {_def}')
-            except Exception:
-                pass
-
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                role TEXT NOT NULL DEFAULT 'author',
-                display_name TEXT,
-                bio TEXT,
-                avatar_url TEXT,
-                is_active BOOLEAN DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                ai_tag_generation_enabled BOOLEAN DEFAULT 1,
-                ai_provider TEXT DEFAULT 'dashscope',
-                ai_api_key TEXT,
-                ai_model TEXT DEFAULT 'qwen-turbo',
-                ai_base_url TEXT
-            )
-        ''')
-
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS user_passkeys (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                credential_id BLOB NOT NULL UNIQUE,
-                public_key BLOB NOT NULL,
-                sign_count INTEGER DEFAULT 0,
-                device_name TEXT,
-                transports TEXT,
-                credential_device_type TEXT,
-                backup_eligible BOOLEAN DEFAULT 0,
-                backup_state BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_used_at TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        ''')
-
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL,
-                is_published BOOLEAN DEFAULT 0,
-                category_id INTEGER,
-                author_id INTEGER DEFAULT 1,
-                access_level TEXT DEFAULT 'public',
-                access_password TEXT,
-                publish_at TIMESTAMP,
-                deleted_at TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (category_id) REFERENCES categories(id),
-                FOREIGN KEY (author_id) REFERENCES users(id)
-            )
-        ''')
-
-        # 添加新字段
-        try:
-            conn.execute('ALTER TABLE posts ADD COLUMN post_type TEXT DEFAULT \'blog\'')
-        except:
-            pass
-
-        try:
-            conn.execute('ALTER TABLE posts ADD COLUMN source_card_ids TEXT')
-        except:
-            pass
-
-        try:
-            conn.execute('ALTER TABLE posts ADD COLUMN excerpt TEXT')
-        except:
-            pass
-
-        try:
-            conn.execute('ALTER TABLE posts ADD COLUMN metadata TEXT')
-        except:
-            pass
-
-        try:
-            conn.execute('ALTER TABLE posts ADD COLUMN parent_note_id INTEGER')
-        except:
-            pass
-
-        try:
-            conn.execute('ALTER TABLE posts ADD COLUMN link_count INTEGER DEFAULT 0')
-        except:
-            pass
-
-        try:
-            conn.execute("ALTER TABLE posts ADD COLUMN type TEXT DEFAULT 'post'")
-        except:
-            pass
-
-        # 知识库文档字段
-        for _col, _def in [
-            ('content_format', "TEXT DEFAULT 'html'"),
-            ('sort_order', 'INTEGER DEFAULT 0'),
-            ('source_post_id', 'INTEGER'),
-        ]:
-            try:
-                conn.execute(f'ALTER TABLE posts ADD COLUMN {_col} {_def}')
-            except Exception:
-                pass
-
-        # 创建tags表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS tags (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        # 创建post_tags关联表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS post_tags (
-                post_id INTEGER,
-                tag_id INTEGER,
-                PRIMARY KEY (post_id, tag_id),
-                FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-            )
-        ''')
-
-        # 创建comments表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS comments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                post_id INTEGER NOT NULL,
-                author_name TEXT NOT NULL,
-                author_email TEXT,
-                content TEXT NOT NULL,
-                is_visible BOOLEAN DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
-            )
-        ''')
-
-        # 创建indexes
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_created_at ON posts(created_at DESC)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_published_created ON posts(is_published, created_at DESC)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_category_id ON posts(category_id)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_author_id ON posts(author_id)')
-
-        # 创建cards表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS cards (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                title TEXT,
-                content TEXT NOT NULL,
-                tags TEXT,
-                status TEXT DEFAULT 'idea',
-                source TEXT DEFAULT 'web',
-                linked_article_id INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (linked_article_id) REFERENCES posts(id)
-            )
-        ''')
-
-        # 创建api_keys表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS api_keys (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                api_key TEXT NOT NULL UNIQUE,
-                is_active INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            )
-        ''')
-
-        # 创建card_annotations表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS card_annotations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                card_id INTEGER,
-                source_url TEXT NOT NULL,
-                annotation_text TEXT,
-                xpath TEXT,
-                color TEXT DEFAULT 'yellow',
-                note TEXT,
-                annotation_type TEXT DEFAULT 'highlight',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (card_id) REFERENCES cards(id)
-            )
-        ''')
-
-        # 创建AI tag history表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS ai_tag_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                post_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
-                prompt TEXT,
-                generated_tags TEXT,
-                model_used TEXT,
-                tokens_used INTEGER,
-                cost DECIMAL(10, 6),
-                currency TEXT DEFAULT 'USD',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        ''')
-
-        # 创建note_links表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS note_links (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                source_post_id INTEGER NOT NULL,
-                target_post_id INTEGER NOT NULL,
-                link_text TEXT,
-                link_context TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (source_post_id) REFERENCES posts(id) ON DELETE CASCADE,
-                FOREIGN KEY (target_post_id) REFERENCES posts(id) ON DELETE CASCADE,
-                UNIQUE(source_post_id, target_post_id)
-            )
-        ''')
-
-        # 创建站点配置表
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS site_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-
-        # 创建全文搜索表
-        conn.execute('''
-            CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5(title, content, content='posts', content_rowid='id')
-        ''')
-        # 创建全文搜索触发器
+        # FTS 同步触发器（init_db 不创建，保留测试中直接 SQL 写入的索引行为）
         conn.execute('''
             CREATE TRIGGER IF NOT EXISTS posts_ai AFTER INSERT ON posts BEGIN
                 INSERT INTO posts_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
             END
         ''')
-
         conn.execute('''
             CREATE TRIGGER IF NOT EXISTS posts_ad AFTER DELETE ON posts BEGIN
                 INSERT INTO posts_fts(posts_fts, rowid, title, content) VALUES('delete', old.id, old.title, old.content);
             END
         ''')
-
         conn.execute('''
             CREATE TRIGGER IF NOT EXISTS posts_au AFTER UPDATE ON posts BEGIN
                 INSERT INTO posts_fts(posts_fts, rowid, title, content) VALUES('delete', old.id, old.title, old.content);
                 INSERT INTO posts_fts(rowid, title, content) VALUES (new.id, new.title, new.content);
             END
         ''')
-
         conn.commit()
         conn.close()
 

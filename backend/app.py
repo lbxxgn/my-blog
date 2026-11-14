@@ -50,7 +50,7 @@ from backend.config import (SECRET_KEY, ALLOWED_EXTENSIONS,
                             MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION,
                             SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT,
                             PERMANENT_SESSION_LIFETIME, REMEMBER_DEVICE_DAYS,
-                            IS_PRODUCTION, FORCE_HTTPS)
+                            IS_PRODUCTION, FORCE_HTTPS, TRUST_PROXY_HEADERS)
 
 # =============================================================================
 # 安全相关导入
@@ -119,6 +119,12 @@ app = Flask(__name__,
 # 基础配置
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+# 反向代理部署时恢复真实客户端 IP / 协议，避免限流与审计全部落在代理 IP 上
+if TRUST_PROXY_HEADERS:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # =============================================================================
 # 初始化静态资源版本管理（内容哈希 -> ?v=hash，配合长缓存头）
@@ -991,7 +997,10 @@ def create_admin_user():
         raise ValueError("ADMIN_PASSWORD must contain at least one digit")
 
     # 检查常见弱密码
-    weak_passwords = ['password', 'admin123', '123456789012', 'password123']
+    weak_passwords = [
+        'password', 'admin123', '123456789012', 'password123',
+        'yoursecretpassword123!',  # .env.example 历史示例值
+    ]
     if password.lower() in weak_passwords:
         raise ValueError("ADMIN_PASSWORD is too common. Please use a stronger password.")
 
@@ -1053,10 +1062,41 @@ def request_entity_too_large(error):
     if request.path.startswith('/admin/upload') or request.path.startswith('/api/'):
         return jsonify({
             'success': False,
-            'error': f'文件太大，最大允许上传 16MB'
+            'error': '文件太大，最大允许上传 16MB'
         }), 413
     
     return render_template('error.html', status_code=413, error='上传的文件太大，最大允许 16MB'), 413
+
+# =============================================================================
+# 健康检查
+# =============================================================================
+@app.route('/healthz')
+@limiter.exempt
+def healthz():
+    """进程存活检查（不访问数据库）。"""
+    return jsonify({'status': 'ok'}), 200
+
+
+@app.route('/readyz')
+@limiter.exempt
+def readyz():
+    """就绪检查：数据库可连接且基础表已初始化。"""
+    try:
+        conn = get_db_connection()
+        try:
+            conn.execute('SELECT 1').fetchone()
+            row = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='posts'"
+            ).fetchone()
+        finally:
+            conn.close()
+        if not row:
+            raise RuntimeError('schema not initialized')
+        return jsonify({'status': 'ready'}), 200
+    except Exception as e:
+        logger.error('readiness check failed: %s', e)
+        return jsonify({'status': 'not ready'}), 503
+
 
 # =============================================================================
 # CLI命令

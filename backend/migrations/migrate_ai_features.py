@@ -80,8 +80,8 @@ def migrate_database():
         try:
             cursor.execute(create_history_table)
             print("   ✅ 创建表: ai_tag_history")
-        except sqlite3.OperationalError as e:
-            print(f"   ⏭️  表已存在: ai_tag_history")
+        except sqlite3.OperationalError:
+            print("   ⏭️  表已存在: ai_tag_history")
 
         # 3.5. 添加currency列到ai_tag_history表（如果不存在）
         print("\n📊 添加currency列到ai_tag_history表...")
@@ -90,7 +90,7 @@ def migrate_database():
             print("   ✅ 添加字段: currency")
         except sqlite3.OperationalError as e:
             if 'duplicate column name' in str(e).lower():
-                print(f"   ⏭️  字段已存在，跳过: currency")
+                print("   ⏭️  字段已存在，跳过: currency")
             else:
                 raise
 

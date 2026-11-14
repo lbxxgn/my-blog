@@ -132,7 +132,6 @@ def batch_delete():
             return jsonify({'success': False, 'message': '只有管理员可以删除文章'}), 403
 
         conn = get_db_connection()
-        cursor = conn.cursor()
 
         deleted_count = 0
         errors = []
