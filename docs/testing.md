@@ -32,7 +32,7 @@
 | `test_site_icon.py` | 站点图标 |
 | `e2e_kb_editor.py` | 端到端知识库编辑器测试（CDP + Chrome，手动运行） |
 
-**当前测试总数**: 521 个单元/集成测试（`pytest --collect-only -q | tail -1` 统计），外加 1 个 E2E 脚本。
+**当前测试总数**: 523 个单元/集成测试（`pytest --collect-only -q | tail -1` 统计），外加 1 个 E2E 脚本。
 
 ### 已覆盖的功能模块
 
