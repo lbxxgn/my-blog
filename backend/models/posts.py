@@ -8,7 +8,7 @@ import hmac
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
-from .db import get_db_connection, _safe_replace_post_fts, _safe_delete_post_fts
+from .db import get_db_context, _safe_replace_post_fts, _safe_delete_post_fts
 from .utils import truncate_text
 from .revisions import create_post_revision
 
@@ -79,36 +79,34 @@ def create_post(title, content, is_published=False, category_id=None, author_id=
         - 触发器已禁用，手动维护索引
         - 包含60秒内重复内容防重保护
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # 防重保护：同一作者60秒内发布相同标题+内容的文章，返回已有文章ID
-    if dedupe and author_id is not None:
+        # 防重保护：同一作者60秒内发布相同标题+内容的文章，返回已有文章ID
+        if dedupe and author_id is not None:
+            cursor.execute(
+                """SELECT id FROM posts
+                   WHERE author_id = ? AND title = ? AND content = ?
+                     AND created_at > datetime('now', '-60 seconds')
+                    ORDER BY created_at DESC LIMIT 1""",
+                (author_id, title, content)
+            )
+            existing = cursor.fetchone()
+            if existing:
+                return existing['id']
+
         cursor.execute(
-            """SELECT id FROM posts
-               WHERE author_id = ? AND title = ? AND content = ?
-                 AND created_at > datetime('now', '-60 seconds')
-                ORDER BY created_at DESC LIMIT 1""",
-            (author_id, title, content)
+            'INSERT INTO posts (title, content, is_published, category_id, author_id, access_level, access_password, type, post_type, content_format) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            (title, content, is_published, category_id, author_id, access_level, hash_access_password(access_password), type, post_type, content_format or 'html')
         )
-        existing = cursor.fetchone()
-        if existing:
-            conn.close()
-            return existing['id']
+        post_id = cursor.lastrowid
 
-    cursor.execute(
-        'INSERT INTO posts (title, content, is_published, category_id, author_id, access_level, access_password, type, post_type, content_format) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        (title, content, is_published, category_id, author_id, access_level, hash_access_password(access_password), type, post_type, content_format or 'html')
-    )
-    post_id = cursor.lastrowid
+        # 手动更新FTS全文搜索索引（触发器已禁用以避免SQL逻辑错误）
+        _safe_replace_post_fts(cursor, post_id, title, content)
 
-    # 手动更新FTS全文搜索索引（触发器已禁用以避免SQL逻辑错误）
-    _safe_replace_post_fts(cursor, post_id, title, content)
-
-    conn.commit()
-    conn.close()
-    _enqueue_post_embedding(post_id, post_type)
-    return post_id
+        conn.commit()
+        _enqueue_post_embedding(post_id, post_type)
+        return post_id
 
 def update_post(post_id, title, content, is_published, category_id=None, access_level=None, access_password=None, type=None, content_format=None):
     """
@@ -131,157 +129,154 @@ def update_post(post_id, title, content, is_published, category_id=None, access_
     except Exception:
         pass
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # Build update SQL dynamically based on which optional fields are provided
-    if access_level is not None and type is not None:
-        cursor.execute(
-            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, access_level = ?, access_password = ?, type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (title, content, is_published, category_id, access_level, hash_access_password(access_password), type, post_id)
-        )
-    elif access_level is not None:
-        cursor.execute(
-            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, access_level = ?, access_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (title, content, is_published, category_id, access_level, hash_access_password(access_password), post_id)
-        )
-    elif type is not None:
-        cursor.execute(
-            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (title, content, is_published, category_id, type, post_id)
-        )
-    else:
-        cursor.execute(
-            'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            (title, content, is_published, category_id, post_id)
-        )
+        # Build update SQL dynamically based on which optional fields are provided
+        if access_level is not None and type is not None:
+            cursor.execute(
+                'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, access_level = ?, access_password = ?, type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                (title, content, is_published, category_id, access_level, hash_access_password(access_password), type, post_id)
+            )
+        elif access_level is not None:
+            cursor.execute(
+                'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, access_level = ?, access_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                (title, content, is_published, category_id, access_level, hash_access_password(access_password), post_id)
+            )
+        elif type is not None:
+            cursor.execute(
+                'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, type = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                (title, content, is_published, category_id, type, post_id)
+            )
+        else:
+            cursor.execute(
+                'UPDATE posts SET title = ?, content = ?, is_published = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                (title, content, is_published, category_id, post_id)
+            )
 
-    # 内容格式（html/markdown）单独更新，避免打乱上面的可选字段分支
-    if content_format is not None:
-        cursor.execute(
-            'UPDATE posts SET content_format = ? WHERE id = ?',
-            (content_format, post_id)
-        )
+        # 内容格式（html/markdown）单独更新，避免打乱上面的可选字段分支
+        if content_format is not None:
+            cursor.execute(
+                'UPDATE posts SET content_format = ? WHERE id = ?',
+                (content_format, post_id)
+            )
 
-    # Manually update FTS (triggers are disabled)
-    _safe_replace_post_fts(cursor, post_id, title, content)
+        # Manually update FTS (triggers are disabled)
+        _safe_replace_post_fts(cursor, post_id, title, content)
 
-    conn.commit()
-    conn.close()
-    _enqueue_post_embedding(post_id)
-    return True
+        conn.commit()
+        _enqueue_post_embedding(post_id)
+        return True
 
 def delete_post(post_id):
     """Delete a post"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM posts WHERE id = ?', (post_id,))
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM posts WHERE id = ?', (post_id,))
 
-    # Manually delete from FTS (triggers are disabled)
-    _safe_delete_post_fts(cursor, post_id)
+        # Manually delete from FTS (triggers are disabled)
+        _safe_delete_post_fts(cursor, post_id)
 
-    conn.commit()
-    conn.close()
-    _remove_post_embedding(post_id)
+        conn.commit()
+        _remove_post_embedding(post_id)
 
 def get_all_posts(include_drafts=False, page=1, per_page=20, category_id=None, type=None, post_type='blog',
                    q=None, status=None, access_level=None, author_id=None):
     """Get all posts with pagination, optionally including drafts and filtering by category and type"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # Build WHERE clause
-    where_conditions = []
-    params = []
+        # Build WHERE clause
+        where_conditions = []
+        params = []
 
-    where_conditions.append('posts.deleted_at IS NULL')
+        where_conditions.append('posts.deleted_at IS NULL')
 
-    if not include_drafts:
-        where_conditions.append('posts.is_published = 1')
+        if not include_drafts:
+            where_conditions.append('posts.is_published = 1')
 
-    if category_id == 'none':
-        where_conditions.append('posts.category_id IS NULL')
-    elif category_id is not None:
-        where_conditions.append('posts.category_id = ?')
-        params.append(category_id)
+        if category_id == 'none':
+            where_conditions.append('posts.category_id IS NULL')
+        elif category_id is not None:
+            where_conditions.append('posts.category_id = ?')
+            params.append(category_id)
 
-    if type is not None:
-        where_conditions.append('posts.type = ?')
-        params.append(type)
+        if type is not None:
+            where_conditions.append('posts.type = ?')
+            params.append(type)
 
-    if post_type is not None:
-        where_conditions.append('posts.post_type = ?')
-        params.append(post_type)
+        if post_type is not None:
+            where_conditions.append('posts.post_type = ?')
+            params.append(post_type)
 
-    if q:
-        # 转义 LIKE 通配符，避免用户输入 % 或 _ 时匹配到全部内容
-        escaped_q = str(q).replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
-        where_conditions.append("(posts.title LIKE ? ESCAPE '\\' OR posts.content LIKE ? ESCAPE '\\')")
-        like = f'%{escaped_q}%'
-        params.extend([like, like])
+        if q:
+            # 转义 LIKE 通配符，避免用户输入 % 或 _ 时匹配到全部内容
+            escaped_q = str(q).replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+            where_conditions.append("(posts.title LIKE ? ESCAPE '\\' OR posts.content LIKE ? ESCAPE '\\')")
+            like = f'%{escaped_q}%'
+            params.extend([like, like])
 
-    if status == 'published':
-        where_conditions.append('posts.is_published = 1')
-    elif status == 'draft':
-        where_conditions.append('posts.is_published = 0 AND posts.publish_at IS NULL')
-    elif status == 'scheduled':
-        where_conditions.append('posts.is_published = 0 AND posts.publish_at IS NOT NULL')
+        if status == 'published':
+            where_conditions.append('posts.is_published = 1')
+        elif status == 'draft':
+            where_conditions.append('posts.is_published = 0 AND posts.publish_at IS NULL')
+        elif status == 'scheduled':
+            where_conditions.append('posts.is_published = 0 AND posts.publish_at IS NOT NULL')
 
-    if access_level:
-        where_conditions.append('posts.access_level = ?')
-        params.append(access_level)
+        if access_level:
+            where_conditions.append('posts.access_level = ?')
+            params.append(access_level)
 
-    if author_id:
-        where_conditions.append('posts.author_id = ?')
-        params.append(author_id)
+        if author_id:
+            where_conditions.append('posts.author_id = ?')
+            params.append(author_id)
 
-    # 构建安全的WHERE子句 - 仅使用硬编码的条件
-    where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
+        # 构建安全的WHERE子句 - 仅使用硬编码的条件
+        where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
 
-    # 验证where_clause只包含安全的条件（防止代码注入）
-    allowed_patterns = ['posts.deleted_at IS NULL', 'posts.is_published = ', 'posts.category_id IS NULL', 'posts.category_id = ', 'posts.type = ', 'posts.post_type = ', 'posts.title LIKE ', 'posts.publish_at IS ', 'posts.access_level = ', 'posts.author_id = ', '1=1']
-    if not any(allowed in where_clause for allowed in allowed_patterns):
-        raise ValueError(f"Invalid WHERE clause: {where_clause}")
+        # 验证where_clause只包含安全的条件（防止代码注入）
+        allowed_patterns = ['posts.deleted_at IS NULL', 'posts.is_published = ', 'posts.category_id IS NULL', 'posts.category_id = ', 'posts.type = ', 'posts.post_type = ', 'posts.title LIKE ', 'posts.publish_at IS ', 'posts.access_level = ', 'posts.author_id = ', '1=1']
+        if not any(allowed in where_clause for allowed in allowed_patterns):
+            raise ValueError(f"Invalid WHERE clause: {where_clause}")
 
-    # Count total posts
-    count_query = '''
-        SELECT COUNT(*) as count
-        FROM posts
-        LEFT JOIN categories ON posts.category_id = categories.id
-        WHERE ''' + where_clause
-    cursor.execute(count_query, params)
-    total_count = cursor.fetchone()['count']
+        # Count total posts
+        count_query = '''
+            SELECT COUNT(*) as count
+            FROM posts
+            LEFT JOIN categories ON posts.category_id = categories.id
+            WHERE ''' + where_clause
+        cursor.execute(count_query, params)
+        total_count = cursor.fetchone()['count']
 
-    # Calculate offset
-    offset = (page - 1) * per_page
+        # Calculate offset
+        offset = (page - 1) * per_page
 
-    # Get posts for current page
-    query = '''
-        SELECT posts.*,
-               categories.name as category_name,
-               categories.id as category_id,
-               users.id as author_id,
-               users.username as author_username,
-               users.display_name as author_display_name
-        FROM posts
-        LEFT JOIN categories ON posts.category_id = categories.id
-        LEFT JOIN users ON posts.author_id = users.id
-        WHERE ''' + where_clause + '''
-        ORDER BY posts.created_at DESC
-        LIMIT ? OFFSET ?
-    '''
-    cursor.execute(query, params + [per_page, offset])
+        # Get posts for current page
+        query = '''
+            SELECT posts.*,
+                   categories.name as category_name,
+                   categories.id as category_id,
+                   users.id as author_id,
+                   users.username as author_username,
+                   users.display_name as author_display_name
+            FROM posts
+            LEFT JOIN categories ON posts.category_id = categories.id
+            LEFT JOIN users ON posts.author_id = users.id
+            WHERE ''' + where_clause + '''
+            ORDER BY posts.created_at DESC
+            LIMIT ? OFFSET ?
+        '''
+        cursor.execute(query, params + [per_page, offset])
 
-    posts = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+        posts = [dict(row) for row in cursor.fetchall()]
 
-    return {
-        'posts': posts,
-        'total': total_count,
-        'page': page,
-        'per_page': per_page,
-        'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
-    }
+        return {
+            'posts': posts,
+            'total': total_count,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        }
 
 def get_all_post_ids(include_drafts=False, category_id=None, type=None, post_type='blog',
                      q=None, status=None, access_level=None, author_id=None):
@@ -319,12 +314,12 @@ def get_all_post_ids(include_drafts=False, category_id=None, type=None, post_typ
         where_conditions.append('posts.author_id = ?')
         params.append(author_id)
     where_clause = ' AND '.join(where_conditions)
-    conn = get_db_connection()
-    try:
-        rows = conn.execute(f'SELECT posts.id FROM posts WHERE {where_clause} ORDER BY posts.created_at DESC', params).fetchall()
-        return [row['id'] for row in rows]
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            rows = conn.execute(f'SELECT posts.id FROM posts WHERE {where_clause} ORDER BY posts.created_at DESC', params).fetchall()
+            return [row['id'] for row in rows]
+        finally:
+            pass
 
 
 def get_all_posts_cursor(cursor_time=None, per_page=20, include_drafts=False, category_id=None, post_type='blog'):
@@ -341,92 +336,90 @@ def get_all_posts_cursor(cursor_time=None, per_page=20, include_drafts=False, ca
     Returns:
         dict with posts, next_cursor, has_more
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # Build WHERE clause
-    where_conditions = []
-    params = []
+        # Build WHERE clause
+        where_conditions = []
+        params = []
 
-    where_conditions.append('posts.deleted_at IS NULL')
+        where_conditions.append('posts.deleted_at IS NULL')
 
-    if not include_drafts:
-        where_conditions.append('posts.is_published = 1')
+        if not include_drafts:
+            where_conditions.append('posts.is_published = 1')
 
-    if category_id == 'none':
-        where_conditions.append('posts.category_id IS NULL')
-    elif category_id is not None:
-        where_conditions.append('posts.category_id = ?')
-        params.append(category_id)
+        if category_id == 'none':
+            where_conditions.append('posts.category_id IS NULL')
+        elif category_id is not None:
+            where_conditions.append('posts.category_id = ?')
+            params.append(category_id)
 
-    if post_type is not None:
-        where_conditions.append('posts.post_type = ?')
-        params.append(post_type)
+        if post_type is not None:
+            where_conditions.append('posts.post_type = ?')
+            params.append(post_type)
 
-    if cursor_time:
-        where_conditions.append('posts.created_at < ?')
-        params.append(cursor_time)
+        if cursor_time:
+            where_conditions.append('posts.created_at < ?')
+            params.append(cursor_time)
 
-    where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
+        where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
 
-    # Get posts
-    query = '''
-        SELECT posts.*,
-               categories.name as category_name,
-               categories.id as category_id,
-               users.id as author_id,
-               users.username as author_username,
-               users.display_name as author_display_name
-        FROM posts
-        LEFT JOIN categories ON posts.category_id = categories.id
-        LEFT JOIN users ON posts.author_id = users.id
-        WHERE ''' + where_clause + '''
-        ORDER BY posts.created_at DESC
-        LIMIT ?
-    '''
-    params.append(per_page + 1)  # Fetch one extra to check if there's more
+        # Get posts
+        query = '''
+            SELECT posts.*,
+                   categories.name as category_name,
+                   categories.id as category_id,
+                   users.id as author_id,
+                   users.username as author_username,
+                   users.display_name as author_display_name
+            FROM posts
+            LEFT JOIN categories ON posts.category_id = categories.id
+            LEFT JOIN users ON posts.author_id = users.id
+            WHERE ''' + where_clause + '''
+            ORDER BY posts.created_at DESC
+            LIMIT ?
+        '''
+        params.append(per_page + 1)  # Fetch one extra to check if there's more
 
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
-    posts = [dict(row) for row in rows[:per_page]]  # Only return requested amount
-    has_more = len(rows) > per_page
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        posts = [dict(row) for row in rows[:per_page]]  # Only return requested amount
+        has_more = len(rows) > per_page
 
-    # Get next cursor (created_at of last post)
-    next_cursor = None
-    if posts:
-        next_cursor = posts[-1]['created_at']
+        # Get next cursor (created_at of last post)
+        next_cursor = None
+        if posts:
+            next_cursor = posts[-1]['created_at']
 
-    conn.close()
 
-    return {
-        'posts': posts,
-        'next_cursor': next_cursor,
-        'has_more': has_more,
-        'per_page': per_page
-    }
+        return {
+            'posts': posts,
+            'next_cursor': next_cursor,
+            'has_more': has_more,
+            'per_page': per_page
+        }
 
 def get_post_by_id(post_id, include_deleted=False):
     """Get a single post by ID with category and author information"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    deleted_clause = '' if include_deleted else ' AND posts.deleted_at IS NULL'
-    cursor.execute('''
-        SELECT posts.*,
-               categories.name as category_name,
-               categories.id as category_id,
-               users.id as author_id,
-               users.username as author_username,
-               users.display_name as author_display_name,
-               users.avatar_url as author_avatar_url,
-               users.bio as author_bio
-        FROM posts
-        LEFT JOIN categories ON posts.category_id = categories.id
-        LEFT JOIN users ON posts.author_id = users.id
-        WHERE posts.id = ?''' + deleted_clause + '''
-    ''', (post_id,))
-    post = cursor.fetchone()
-    conn.close()
-    return dict(post) if post else None
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        deleted_clause = '' if include_deleted else ' AND posts.deleted_at IS NULL'
+        cursor.execute('''
+            SELECT posts.*,
+                   categories.name as category_name,
+                   categories.id as category_id,
+                   users.id as author_id,
+                   users.username as author_username,
+                   users.display_name as author_display_name,
+                   users.avatar_url as author_avatar_url,
+                   users.bio as author_bio
+            FROM posts
+            LEFT JOIN categories ON posts.category_id = categories.id
+            LEFT JOIN users ON posts.author_id = users.id
+            WHERE posts.id = ?''' + deleted_clause + '''
+        ''', (post_id,))
+        post = cursor.fetchone()
+        return dict(post) if post else None
 
 def get_adjacent_posts(post_id):
     """
@@ -436,26 +429,25 @@ def get_adjacent_posts(post_id):
         dict: {'prev': {'id', 'title'} | None, 'next': {'id', 'title'} | None}
         prev 为较早一篇（id 更小），next 为较新一篇（id 更大）
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    base_where = "is_published = 1 AND post_type = 'blog' AND access_level = 'public' AND deleted_at IS NULL"
-    cursor.execute(f'''
-        SELECT id, title FROM posts
-        WHERE id < ? AND {base_where}
-        ORDER BY id DESC LIMIT 1
-    ''', (post_id,))
-    prev_post = cursor.fetchone()
-    cursor.execute(f'''
-        SELECT id, title FROM posts
-        WHERE id > ? AND {base_where}
-        ORDER BY id ASC LIMIT 1
-    ''', (post_id,))
-    next_post = cursor.fetchone()
-    conn.close()
-    return {
-        'prev': dict(prev_post) if prev_post else None,
-        'next': dict(next_post) if next_post else None,
-    }
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        base_where = "is_published = 1 AND post_type = 'blog' AND access_level = 'public' AND deleted_at IS NULL"
+        cursor.execute(f'''
+            SELECT id, title FROM posts
+            WHERE id < ? AND {base_where}
+            ORDER BY id DESC LIMIT 1
+        ''', (post_id,))
+        prev_post = cursor.fetchone()
+        cursor.execute(f'''
+            SELECT id, title FROM posts
+            WHERE id > ? AND {base_where}
+            ORDER BY id ASC LIMIT 1
+        ''', (post_id,))
+        next_post = cursor.fetchone()
+        return {
+            'prev': dict(prev_post) if prev_post else None,
+            'next': dict(next_post) if next_post else None,
+        }
 
 def search_posts(query, include_drafts=False, page=1, per_page=20, post_type_filter='all'):
     """
@@ -481,110 +473,108 @@ def search_posts(query, include_drafts=False, page=1, per_page=20, post_type_fil
         - 搜索范围包括标题和内容
         - 返回按创建时间倒序排列
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # 构建LIKE搜索模式（对中文支持更好）
-    search_pattern = f'%{query}%'
-    where_conditions = ['posts.deleted_at IS NULL', '(posts.title LIKE ? OR posts.content LIKE ?)']
-    params = [search_pattern, search_pattern]
+        # 构建LIKE搜索模式（对中文支持更好）
+        search_pattern = f'%{query}%'
+        where_conditions = ['posts.deleted_at IS NULL', '(posts.title LIKE ? OR posts.content LIKE ?)']
+        params = [search_pattern, search_pattern]
 
-    if not include_drafts:
-        where_conditions.append('posts.is_published = 1')
+        if not include_drafts:
+            where_conditions.append('posts.is_published = 1')
 
-    # 内容来源过滤
-    if post_type_filter in ('blog', 'knowledge'):
-        where_conditions.append('posts.post_type = ?')
-        params.append(post_type_filter)
+        # 内容来源过滤
+        if post_type_filter in ('blog', 'knowledge'):
+            where_conditions.append('posts.post_type = ?')
+            params.append(post_type_filter)
 
-    where_clause = ' AND '.join(where_conditions)
+        where_clause = ' AND '.join(where_conditions)
 
-    # 计算总结果数
-    count_query = f'''
-        SELECT COUNT(*) as count
-        FROM posts
-        LEFT JOIN categories ON posts.category_id = categories.id
-        WHERE {where_clause}
-    '''
-    cursor.execute(count_query, params)
-    total_count = cursor.fetchone()['count']
+        # 计算总结果数
+        count_query = f'''
+            SELECT COUNT(*) as count
+            FROM posts
+            LEFT JOIN categories ON posts.category_id = categories.id
+            WHERE {where_clause}
+        '''
+        cursor.execute(count_query, params)
+        total_count = cursor.fetchone()['count']
 
-    # 计算偏移量
-    offset = (page - 1) * per_page
+        # 计算偏移量
+        offset = (page - 1) * per_page
 
-    # 获取当前页结果
-    search_query = f'''
-        SELECT posts.*, categories.name as category_name, categories.id as category_id
-        FROM posts
-        LEFT JOIN categories ON posts.category_id = categories.id
-        WHERE {where_clause}
-        ORDER BY posts.created_at DESC
-        LIMIT ? OFFSET ?
-    '''
-    cursor.execute(search_query, params + [per_page, offset])
+        # 获取当前页结果
+        search_query = f'''
+            SELECT posts.*, categories.name as category_name, categories.id as category_id
+            FROM posts
+            LEFT JOIN categories ON posts.category_id = categories.id
+            WHERE {where_clause}
+            ORDER BY posts.created_at DESC
+            LIMIT ? OFFSET ?
+        '''
+        cursor.execute(search_query, params + [per_page, offset])
 
-    posts = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+        posts = [dict(row) for row in cursor.fetchall()]
 
-    return {
-        'posts': posts,
-        'total': total_count,
-        'page': page,
-        'per_page': per_page,
-        'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
-    }
+        return {
+            'posts': posts,
+            'total': total_count,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        }
 
 def get_posts_by_author(author_id, include_drafts=False, page=1, per_page=20, post_type='blog'):
     """获取指定作者的文章（默认仅博客空间）"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # 构建WHERE条件
-    where_conditions = ['posts.deleted_at IS NULL', 'posts.author_id = ?']
-    params = [author_id]
+        # 构建WHERE条件
+        where_conditions = ['posts.deleted_at IS NULL', 'posts.author_id = ?']
+        params = [author_id]
 
-    if not include_drafts:
-        where_conditions.append('posts.is_published = 1')
+        if not include_drafts:
+            where_conditions.append('posts.is_published = 1')
 
-    if post_type is not None:
-        where_conditions.append('posts.post_type = ?')
-        params.append(post_type)
+        if post_type is not None:
+            where_conditions.append('posts.post_type = ?')
+            params.append(post_type)
 
-    where_clause = ' AND '.join(where_conditions)
+        where_clause = ' AND '.join(where_conditions)
 
-    # 统计总数
-    count_query = f'''
-        SELECT COUNT(*) as count
-        FROM posts
-        WHERE {where_clause}
-    '''
-    cursor.execute(count_query, params)
-    total_count = cursor.fetchone()['count']
+        # 统计总数
+        count_query = f'''
+            SELECT COUNT(*) as count
+            FROM posts
+            WHERE {where_clause}
+        '''
+        cursor.execute(count_query, params)
+        total_count = cursor.fetchone()['count']
 
-    # 分页查询
-    offset = (page - 1) * per_page
-    query = f'''
-        SELECT posts.*,
-               categories.name as category_name,
-               categories.id as category_id
-        FROM posts
-        LEFT JOIN categories ON posts.category_id = categories.id
-        WHERE {where_clause}
-        ORDER BY posts.created_at DESC
-        LIMIT ? OFFSET ?
-    '''
-    cursor.execute(query, params + [per_page, offset])
+        # 分页查询
+        offset = (page - 1) * per_page
+        query = f'''
+            SELECT posts.*,
+                   categories.name as category_name,
+                   categories.id as category_id
+            FROM posts
+            LEFT JOIN categories ON posts.category_id = categories.id
+            WHERE {where_clause}
+            ORDER BY posts.created_at DESC
+            LIMIT ? OFFSET ?
+        '''
+        cursor.execute(query, params + [per_page, offset])
 
-    posts = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+        posts = [dict(row) for row in cursor.fetchall()]
 
-    return {
-        'posts': posts,
-        'total': total_count,
-        'page': page,
-        'per_page': per_page,
-        'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
-    }
+        return {
+            'posts': posts,
+            'total': total_count,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        }
 
 def get_post_excerpt(post_content, max_length=200):
     """
@@ -660,17 +650,16 @@ def check_post_access(post_id, user_id=None, session_passwords=None):
     Returns:
         dict: {'allowed': bool, 'reason': str}
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT access_level, access_password, author_id
-        FROM posts
-        WHERE id = ? AND deleted_at IS NULL
-    ''', (post_id,))
+        cursor.execute('''
+            SELECT access_level, access_password, author_id
+            FROM posts
+            WHERE id = ? AND deleted_at IS NULL
+        ''', (post_id,))
 
-    post = cursor.fetchone()
-    conn.close()
+        post = cursor.fetchone()
 
     if not post:
         return {'allowed': False, 'reason': '文章不存在'}
@@ -687,15 +676,11 @@ def check_post_access(post_id, user_id=None, session_passwords=None):
     if access_level == 'private':
         if user_id:
             # 检查是否是作者或管理员
-            cursor = get_db_connection().cursor()
-            cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
-            user = cursor.fetchone()
+            with get_db_context() as conn:
+                user = conn.execute('SELECT role FROM users WHERE id = ?', (user_id,)).fetchone()
 
             if user and (user_id == author_id or user['role'] == 'admin'):
-                cursor.connection.close()
                 return {'allowed': True, 'reason': 'author_or_admin'}
-
-            cursor.connection.close()
 
         return {'allowed': False, 'reason': 'private'}
 
@@ -709,8 +694,6 @@ def check_post_access(post_id, user_id=None, session_passwords=None):
     if access_level == 'password':
         # 只有作者可以直接访问（管理员也需要输入密码）
         if user_id and user_id == author_id:
-            cursor = get_db_connection().cursor()
-            cursor.connection.close()
             return {'allowed': True, 'reason': 'author'}
 
         # 检查session中是否有正确的密码
@@ -735,30 +718,29 @@ def verify_post_password(post_id, password):
     import logging
     logger = logging.getLogger(__name__)
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT access_password FROM posts
-        WHERE id = ? AND access_level = 'password' AND deleted_at IS NULL
-    ''', (post_id,))
+        cursor.execute('''
+            SELECT access_password FROM posts
+            WHERE id = ? AND access_level = 'password' AND deleted_at IS NULL
+        ''', (post_id,))
 
-    post = cursor.fetchone()
-    conn.close()
+        post = cursor.fetchone()
 
-    if not post:
-        logger.warning(f"[Password Verify] Post {post_id} not found or not password protected")
-        return False
+        if not post:
+            logger.warning(f"[Password Verify] Post {post_id} not found or not password protected")
+            return False
 
-    if not post['access_password']:
-        logger.warning(f"[Password Verify] Post {post_id} is password protected but has no password set")
-        return False
+        if not post['access_password']:
+            logger.warning(f"[Password Verify] Post {post_id} is password protected but has no password set")
+            return False
 
-    logger.info(f"[Password Verify] Post {post_id} checking password")
-    result = verify_access_password(post['access_password'], password)
-    logger.info(f"[Password Verify] Password match: {result}")
+        logger.info(f"[Password Verify] Post {post_id} checking password")
+        result = verify_access_password(post['access_password'], password)
+        logger.info(f"[Password Verify] Password match: {result}")
 
-    return result
+        return result
 
 
 # ==================== Embedding 钩子（best-effort，绝不阻断写路径） ====================
@@ -766,7 +748,7 @@ def verify_post_password(post_id, password):
 def _enqueue_post_embedding(post_id, post_type=None):
     """保存后异步更新向量；post_type='knowledge' 的归为 'doc'"""
     try:
-        from tasks.embedding_task import enqueue_embedding
+        from backend.tasks.embedding_task import enqueue_embedding
         enqueue_embedding('doc' if post_type == 'knowledge' else 'post', post_id)
     except Exception:
         pass
@@ -774,7 +756,7 @@ def _enqueue_post_embedding(post_id, post_type=None):
 def _remove_post_embedding(post_id):
     """删除文章时清理向量（post/doc 两种类型都清，覆盖 post_type 变更过的情况）"""
     try:
-        from tasks.embedding_task import remove_embedding
+        from backend.tasks.embedding_task import remove_embedding
         remove_embedding('post', post_id)
         remove_embedding('doc', post_id)
     except Exception:

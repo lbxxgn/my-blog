@@ -38,7 +38,7 @@ class TestApiCreateCard:
         assert data['success'] is True
         assert 'id' in data
 
-        from models import get_card_by_id
+        from backend.models import get_card_by_id
         card = get_card_by_id(data['id'])
         assert card['source'] == 'share'
         assert card['status'] == 'idea'

@@ -18,14 +18,14 @@ def _login(client, user):
 @pytest.mark.usefixtures('client')
 class TestContentSpaceIsolation:
     def test_anonymous_cannot_view_unpublished_blog_draft(self, client, temp_db, test_user):
-        from models import create_post
+        from backend.models import create_post
         post_id = create_post('Draft title', 'Draft body', False, None, test_user['id'])
 
         response = client.get(f'/post/{post_id}')
         assert response.status_code == 404
 
     def test_anonymous_cannot_view_knowledge_doc_via_post_route(self, client, temp_db, test_user):
-        from models import create_kb_category, create_knowledge_doc
+        from backend.models import create_kb_category, create_knowledge_doc
         cat_id = create_kb_category('KB space', space='knowledge')
         doc_id = create_knowledge_doc('KB secret', 'KB body', cat_id, author_id=test_user['id'])
 
@@ -34,7 +34,7 @@ class TestContentSpaceIsolation:
         assert '/login' in response.headers['Location']
 
     def test_author_can_view_own_draft(self, client, temp_db, test_user):
-        from models import create_post
+        from backend.models import create_post
         post_id = create_post('My draft', 'Draft body', False, None, test_user['id'])
         _login(client, test_user)
 
@@ -42,7 +42,7 @@ class TestContentSpaceIsolation:
         assert response.status_code == 200
 
     def test_archive_and_public_search_exclude_knowledge(self, client, temp_db, test_user):
-        from models import create_kb_category, create_knowledge_doc
+        from backend.models import create_kb_category, create_knowledge_doc
         cat_id = create_kb_category('KB hidden cat', space='knowledge')
         create_knowledge_doc('KB hidden doc', 'only in knowledge', cat_id, author_id=test_user['id'])
 
@@ -56,7 +56,7 @@ class TestContentSpaceIsolation:
 @pytest.mark.usefixtures('client')
 class TestAccountSafety:
     def test_inactive_user_cannot_login(self, client, temp_db, test_user):
-        from models import update_user
+        from backend.models import update_user
         update_user(test_user['id'], is_active=0)
 
         response = client.post('/login', data={
@@ -66,7 +66,7 @@ class TestAccountSafety:
         assert '已被停用' in response.get_data(as_text=True)
 
     def test_existing_session_invalid_after_deactivation(self, client, temp_db, test_user):
-        from models import update_user
+        from backend.models import update_user
         _login(client, test_user)
         assert client.get('/').status_code == 200
 
@@ -76,7 +76,7 @@ class TestAccountSafety:
         assert '/login' in response.headers['Location']
 
     def test_admin_can_reset_user_password(self, client, temp_db, test_admin_user):
-        from models import create_user
+        from backend.models import create_user
         user_id = create_user(
             'resetme',
             generate_password_hash('OldPassword123!', method='pbkdf2:sha256'),
@@ -105,7 +105,7 @@ class TestAccountSafety:
 @pytest.mark.usefixtures('client')
 class TestCommentsAndKnowledge:
     def test_new_comment_is_public_and_admin_can_hide(self, client, temp_db, test_admin_user):
-        from models import create_post, get_comments_by_post
+        from backend.models import create_post, get_comments_by_post
         post_id = create_post('Comment post', 'Body', True, None, test_admin_user['id'])
         response = client.post(f'/post/{post_id}/comment', data={
             'author_name': 'Reader',
@@ -129,7 +129,7 @@ class TestCommentsAndKnowledge:
 
     def test_logged_in_comment_needs_no_author_name(self, client, temp_db, test_user):
         """登录用户不再手填姓名：后端回落到会话身份，并且 XHR 直接返回 JSON。"""
-        from models import create_post, get_comments_by_post
+        from backend.models import create_post, get_comments_by_post
 
         post_id = create_post('Logged-in comment', 'Body', True, None, test_user['id'])
         _login(client, test_user)
@@ -148,8 +148,8 @@ class TestCommentsAndKnowledge:
         assert comments[0]['author_name'] == 'Test User'
 
     def test_knowledge_save_clears_surviving_draft(self, client, temp_db, test_user):
-        from models import create_kb_category, create_knowledge_doc
-        from models.draft import save_draft, get_drafts
+        from backend.models import create_kb_category, create_knowledge_doc
+        from backend.models.draft import save_draft, get_drafts
 
         cat_id = create_kb_category('KB draft cat', space='knowledge')
         doc_id = create_knowledge_doc('Draft doc', 'old', cat_id, author_id=test_user['id'])
@@ -166,7 +166,7 @@ class TestCommentsAndKnowledge:
         assert get_drafts(test_user['id'], doc_id) == []
 
     def test_delete_category_form_redirects_instead_of_json(self, client, temp_db, test_admin_user):
-        from models import create_kb_category
+        from backend.models import create_kb_category
         _login(client, test_admin_user)
         cat_id = create_kb_category('To delete', space='knowledge')
 
@@ -175,7 +175,7 @@ class TestCommentsAndKnowledge:
         assert response.headers['Location'].endswith('/knowledge/')
 
     def test_access_password_is_hashed_and_verifiable(self, client, temp_db, test_user):
-        from models import create_post, get_db_connection, verify_post_password
+        from backend.models import create_post, get_db_connection, verify_post_password
 
         post_id = create_post(
             'Password post', 'Body', True, None, test_user['id'],
@@ -207,7 +207,7 @@ class TestEditorSaveContract:
     """编辑器改为 fetch 提交后依赖 XHR JSON 契约：成功才清草稿，失败要能提示。"""
 
     def test_edit_post_returns_json_on_success(self, client, temp_db, test_admin_user):
-        from models import create_post, get_post_by_id
+        from backend.models import create_post, get_post_by_id
 
         post_id = create_post('XHR edit', 'old body', True, None, test_admin_user['id'])
         _login(client, test_admin_user)
@@ -226,7 +226,7 @@ class TestEditorSaveContract:
         assert 'new body' in (get_post_by_id(post_id)['content'] or '')
 
     def test_edit_post_rejects_empty_content_with_json(self, client, temp_db, test_admin_user):
-        from models import create_post, get_post_by_id
+        from backend.models import create_post, get_post_by_id
 
         post_id = create_post('XHR empty', 'keep me', True, None, test_admin_user['id'])
         _login(client, test_admin_user)
@@ -245,7 +245,7 @@ class TestEditorSaveContract:
 @pytest.mark.usefixtures('client')
 class TestAiSecretStorage:
     def test_ai_key_is_encrypted_at_rest_and_not_echoed(self, client, temp_db, test_admin_user):
-        from models import update_user_ai_config, get_user_ai_config, get_db_connection
+        from backend.models import update_user_ai_config, get_user_ai_config, get_db_connection
 
         update_user_ai_config(test_admin_user['id'], {'ai_api_key': 'sk-test-secret-1234'})
         conn = get_db_connection()

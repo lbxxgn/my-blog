@@ -19,18 +19,17 @@ import argparse
 from pathlib import Path
 
 # 添加后端目录到路径
-backend_dir = Path(__file__).parent
-sys.path.insert(0, str(backend_dir))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.image_cleanup import (
+from backend.utils.image_cleanup import (
     extract_images_from_content,
     remove_img_tags_by_urls,
     check_image_url,
     check_image_urls_with_progress,
-    get_db_connection,
     print_cleanup_report,
     CleanupLogger
 )
+from backend.models import get_db_context
 from backend.config import get_backup_path
 
 
@@ -52,89 +51,88 @@ def clean_local_images(dry_run=True):
     }
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT id, title, content
-            FROM posts
-            WHERE content IS NOT NULL AND content != ''
-            ORDER BY id
-        ''')
+            cursor.execute('''
+                SELECT id, title, content
+                FROM posts
+                WHERE content IS NOT NULL AND content != ''
+                ORDER BY id
+            ''')
 
-        posts = cursor.fetchall()
-        report['total_posts'] = len(posts)
+            posts = cursor.fetchall()
+            report['total_posts'] = len(posts)
 
-        print(f'📊 开始扫描 {len(posts)} 篇文章...\n')
+            print(f'📊 开始扫描 {len(posts)} 篇文章...\n')
 
-        for post in posts:
-            post_id = post['id']
-            title = post['title'] or '无标题'
-            content = post['content']
+            for post in posts:
+                post_id = post['id']
+                title = post['title'] or '无标题'
+                content = post['content']
 
-            images = extract_images_from_content(content)
+                images = extract_images_from_content(content)
 
-            if not images:
-                continue
-
-            report['posts_with_images'] += 1
-            report['total_images'] += len(images)
-
-            CleanupLogger.post(post_id, title)
-            print(f'   发现 {len(images)} 张图片')
-
-            invalid_urls = []
-            post_errors = []
-
-            for img_tag, url in images:
-                # 只检查本地路径
-                if not url.startswith('/'):
-                    report['valid_images'] += 1
+                if not images:
                     continue
 
-                is_valid, error = check_image_url(url, check_external=False)
+                report['posts_with_images'] += 1
+                report['total_images'] += len(images)
 
-                if is_valid:
-                    CleanupLogger.success(url)
-                    report['valid_images'] += 1
-                else:
-                    CleanupLogger.error(f'{url} - {error}')
-                    report['invalid_images'] += 1
-                    invalid_urls.append(url)
-                    post_errors.append((url, error))
+                CleanupLogger.post(post_id, title)
+                print(f'   发现 {len(images)} 张图片')
 
-            if invalid_urls:
-                original_length = len(content)
-                cleaned_content = remove_img_tags_by_urls(content, invalid_urls)
-                cleaned_length = len(cleaned_content)
+                invalid_urls = []
+                post_errors = []
 
-                CleanupLogger.removed(len(invalid_urls), original_length, cleaned_length)
+                for img_tag, url in images:
+                    # 只检查本地路径
+                    if not url.startswith('/'):
+                        report['valid_images'] += 1
+                        continue
 
-                report['details'].append({
-                    'post_id': post_id,
-                    'title': title,
-                    'invalid_count': len(invalid_urls),
-                    'invalid_urls': invalid_urls,
-                    'errors': post_errors
-                })
+                    is_valid, error = check_image_url(url, check_external=False)
 
-                if not dry_run:
-                    try:
-                        cursor.execute(
-                            'UPDATE posts SET content = ? WHERE id = ?',
-                            (cleaned_content, post_id)
-                        )
-                        conn.commit()
-                        report['cleaned_posts'] += 1
-                        CleanupLogger.saved()
-                    except Exception as e:
-                        error_msg = f'更新失败: {str(e)}'
-                        CleanupLogger.error(error_msg)
-                        report['errors'].append({'post_id': post_id, 'error': error_msg})
+                    if is_valid:
+                        CleanupLogger.success(url)
+                        report['valid_images'] += 1
+                    else:
+                        CleanupLogger.error(f'{url} - {error}')
+                        report['invalid_images'] += 1
+                        invalid_urls.append(url)
+                        post_errors.append((url, error))
 
-            print()
+                if invalid_urls:
+                    original_length = len(content)
+                    cleaned_content = remove_img_tags_by_urls(content, invalid_urls)
+                    cleaned_length = len(cleaned_content)
 
-        conn.close()
+                    CleanupLogger.removed(len(invalid_urls), original_length, cleaned_length)
+
+                    report['details'].append({
+                        'post_id': post_id,
+                        'title': title,
+                        'invalid_count': len(invalid_urls),
+                        'invalid_urls': invalid_urls,
+                        'errors': post_errors
+                    })
+
+                    if not dry_run:
+                        try:
+                            cursor.execute(
+                                'UPDATE posts SET content = ? WHERE id = ?',
+                                (cleaned_content, post_id)
+                            )
+                            conn.commit()
+                            report['cleaned_posts'] += 1
+                            CleanupLogger.saved()
+                        except Exception as e:
+                            error_msg = f'更新失败: {str(e)}'
+                            CleanupLogger.error(error_msg)
+                            report['errors'].append({'post_id': post_id, 'error': error_msg})
+
+                print()
+
 
     except Exception as e:
         error_msg = f'数据库错误: {str(e)}'
@@ -164,91 +162,90 @@ def clean_all_images(dry_run=True, check_external=True):
     }
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT id, title, content
-            FROM posts
-            WHERE content IS NOT NULL AND content != ''
-            ORDER BY id
-        ''')
+            cursor.execute('''
+                SELECT id, title, content
+                FROM posts
+                WHERE content IS NOT NULL AND content != ''
+                ORDER BY id
+            ''')
 
-        posts = cursor.fetchall()
-        report['total_posts'] = len(posts)
+            posts = cursor.fetchall()
+            report['total_posts'] = len(posts)
 
-        print(f'📊 开始扫描 {len(posts)} 篇文章...\n')
+            print(f'📊 开始扫描 {len(posts)} 篇文章...\n')
 
-        for post in posts:
-            post_id = post['id']
-            title = post['title'] or '无标题'
-            content = post['content']
+            for post in posts:
+                post_id = post['id']
+                title = post['title'] or '无标题'
+                content = post['content']
 
-            images = extract_images_from_content(content)
+                images = extract_images_from_content(content)
 
-            if not images:
-                continue
-
-            report['posts_with_images'] += 1
-            report['total_images'] += len(images)
-
-            CleanupLogger.post(post_id, title)
-            print(f'   发现 {len(images)} 张图片')
-
-            invalid_urls = []
-            post_errors = []
-
-            for img_tag, url in images:
-                is_external = url.startswith('http') and not url.startswith(('http://localhost', 'http://127.0.0.1'))
-
-                if is_external and not check_external:
-                    print(f'   ⏭️  跳过外部链接: {url}')
-                    report['external_skipped'] += 1
+                if not images:
                     continue
 
-                is_valid, error = check_image_url(url, check_external=check_external)
+                report['posts_with_images'] += 1
+                report['total_images'] += len(images)
 
-                if is_valid:
-                    CleanupLogger.success(url)
-                    report['valid_images'] += 1
-                else:
-                    CleanupLogger.error(f'{url} - {error}')
-                    report['invalid_images'] += 1
-                    invalid_urls.append(url)
-                    post_errors.append((url, error))
+                CleanupLogger.post(post_id, title)
+                print(f'   发现 {len(images)} 张图片')
 
-            if invalid_urls:
-                original_length = len(content)
-                cleaned_content = remove_img_tags_by_urls(content, invalid_urls)
-                cleaned_length = len(cleaned_content)
+                invalid_urls = []
+                post_errors = []
 
-                CleanupLogger.removed(len(invalid_urls), original_length, cleaned_length)
+                for img_tag, url in images:
+                    is_external = url.startswith('http') and not url.startswith(('http://localhost', 'http://127.0.0.1'))
 
-                report['details'].append({
-                    'post_id': post_id,
-                    'title': title,
-                    'invalid_count': len(invalid_urls),
-                    'invalid_urls': invalid_urls,
-                    'errors': post_errors
-                })
+                    if is_external and not check_external:
+                        print(f'   ⏭️  跳过外部链接: {url}')
+                        report['external_skipped'] += 1
+                        continue
 
-                if not dry_run:
-                    try:
-                        cursor.execute(
-                            'UPDATE posts SET content = ? WHERE id = ?',
-                            (cleaned_content, post_id)
-                        )
-                        conn.commit()
-                        report['cleaned_posts'] += 1
-                        CleanupLogger.saved()
-                    except Exception as e:
-                        error_msg = f'更新失败: {str(e)}'
-                        CleanupLogger.error(error_msg)
-                        report['errors'].append({'post_id': post_id, 'error': error_msg})
+                    is_valid, error = check_image_url(url, check_external=check_external)
 
-            print()
+                    if is_valid:
+                        CleanupLogger.success(url)
+                        report['valid_images'] += 1
+                    else:
+                        CleanupLogger.error(f'{url} - {error}')
+                        report['invalid_images'] += 1
+                        invalid_urls.append(url)
+                        post_errors.append((url, error))
 
-        conn.close()
+                if invalid_urls:
+                    original_length = len(content)
+                    cleaned_content = remove_img_tags_by_urls(content, invalid_urls)
+                    cleaned_length = len(cleaned_content)
+
+                    CleanupLogger.removed(len(invalid_urls), original_length, cleaned_length)
+
+                    report['details'].append({
+                        'post_id': post_id,
+                        'title': title,
+                        'invalid_count': len(invalid_urls),
+                        'invalid_urls': invalid_urls,
+                        'errors': post_errors
+                    })
+
+                    if not dry_run:
+                        try:
+                            cursor.execute(
+                                'UPDATE posts SET content = ? WHERE id = ?',
+                                (cleaned_content, post_id)
+                            )
+                            conn.commit()
+                            report['cleaned_posts'] += 1
+                            CleanupLogger.saved()
+                        except Exception as e:
+                            error_msg = f'更新失败: {str(e)}'
+                            CleanupLogger.error(error_msg)
+                            report['errors'].append({'post_id': post_id, 'error': error_msg})
+
+                print()
+
 
     except Exception as e:
         error_msg = f'数据库错误: {str(e)}'
@@ -275,68 +272,67 @@ def fast_clean_invalid_domains():
     }
 
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT id, title, content
-            FROM posts
-            WHERE content IS NOT NULL AND content != ''
-            ORDER BY id
-        ''')
+            cursor.execute('''
+                SELECT id, title, content
+                FROM posts
+                WHERE content IS NOT NULL AND content != ''
+                ORDER BY id
+            ''')
 
-        posts = cursor.fetchall()
-        report['total_posts'] = len(posts)
+            posts = cursor.fetchall()
+            report['total_posts'] = len(posts)
 
-        print(f'📊 开始快速清理 {len(posts)} 篇文章中的失效外部图片...\n')
-        print('🎯 目标域名: 126.net, blog.163.com\n')
+            print(f'📊 开始快速清理 {len(posts)} 篇文章中的失效外部图片...\n')
+            print('🎯 目标域名: 126.net, blog.163.com\n')
 
-        for post in posts:
-            post_id = post['id']
-            content = post['content']
+            for post in posts:
+                post_id = post['id']
+                content = post['content']
 
-            original_length = len(content)
-            has_invalid_images = False
+                original_length = len(content)
+                has_invalid_images = False
 
-            # 删除 126.net 的图片
-            if '126.net' in content:
-                pattern_126 = r'<img[^>]*src=["\'][^"\']*126\.net[^"\']*["\'][^>]*>'
-                matches_126 = re.findall(pattern_126, content, re.IGNORECASE)
-                if matches_126:
-                    content = re.sub(pattern_126, '', content, flags=re.IGNORECASE)
-                    has_invalid_images = True
-                    CleanupLogger.info(f'删除了 {len(matches_126)} 个 126.net 失效图片')
+                # 删除 126.net 的图片
+                if '126.net' in content:
+                    pattern_126 = r'<img[^>]*src=["\'][^"\']*126\.net[^"\']*["\'][^>]*>'
+                    matches_126 = re.findall(pattern_126, content, re.IGNORECASE)
+                    if matches_126:
+                        content = re.sub(pattern_126, '', content, flags=re.IGNORECASE)
+                        has_invalid_images = True
+                        CleanupLogger.info(f'删除了 {len(matches_126)} 个 126.net 失效图片')
 
-            # 删除 blog.163.com 的图片
-            if 'blog.163.com' in content:
-                pattern_163 = r'<img[^>]*src=["\'][^"\']*blog\.163\.com[^"\']*["\'][^>]*>'
-                matches_163 = re.findall(pattern_163, content, flags=re.IGNORECASE)
-                if matches_163:
-                    content = re.sub(pattern_163, '', content, flags=re.IGNORECASE)
-                    if not has_invalid_images:
-                        CleanupLogger.info(f'删除了 {len(matches_163)} 个 blog.163.com 失效图片')
-                    has_invalid_images = True
+                # 删除 blog.163.com 的图片
+                if 'blog.163.com' in content:
+                    pattern_163 = r'<img[^>]*src=["\'][^"\']*blog\.163\.com[^"\']*["\'][^>]*>'
+                    matches_163 = re.findall(pattern_163, content, flags=re.IGNORECASE)
+                    if matches_163:
+                        content = re.sub(pattern_163, '', content, flags=re.IGNORECASE)
+                        if not has_invalid_images:
+                            CleanupLogger.info(f'删除了 {len(matches_163)} 个 blog.163.com 失效图片')
+                        has_invalid_images = True
 
-            if has_invalid_images:
-                cleaned_length = len(content)
-                removed_count = original_length - cleaned_length
+                if has_invalid_images:
+                    cleaned_length = len(content)
+                    removed_count = original_length - cleaned_length
 
-                if removed_count > 0:
-                    try:
-                        cursor.execute('UPDATE posts SET content = ? WHERE id = ?',
-                                     (content, post_id))
-                        conn.commit()
-                        report['cleaned_posts'] += 1
-                        report['total_removed'] += len(matches_126) if matches_126 else 0
-                        report['total_removed'] += len(matches_163) if matches_163 else 0
-                        CleanupLogger.saved()
-                        print(f'   (减少了 {removed_count} 字符)\n')
-                    except Exception as e:
-                        error_msg = f'更新失败: {str(e)}'
-                        CleanupLogger.error(error_msg)
-                        report['errors'].append({'post_id': post_id, 'error': error_msg})
+                    if removed_count > 0:
+                        try:
+                            cursor.execute('UPDATE posts SET content = ? WHERE id = ?',
+                                         (content, post_id))
+                            conn.commit()
+                            report['cleaned_posts'] += 1
+                            report['total_removed'] += len(matches_126) if matches_126 else 0
+                            report['total_removed'] += len(matches_163) if matches_163 else 0
+                            CleanupLogger.saved()
+                            print(f'   (减少了 {removed_count} 字符)\n')
+                        except Exception as e:
+                            error_msg = f'更新失败: {str(e)}'
+                            CleanupLogger.error(error_msg)
+                            report['errors'].append({'post_id': post_id, 'error': error_msg})
 
-        conn.close()
 
     except Exception as e:
         error_msg = f'数据库错误: {str(e)}'
@@ -352,65 +348,64 @@ def check_external_images(show_progress=True):
 
     使用并发检查和缓存，大幅提升性能
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT id, title, content
-        FROM posts
-        WHERE content IS NOT NULL AND content != ''
-        ORDER BY id
-    ''')
+        cursor.execute('''
+            SELECT id, title, content
+            FROM posts
+            WHERE content IS NOT NULL AND content != ''
+            ORDER BY id
+        ''')
 
-    posts = cursor.fetchall()
-    conn.close()
+        posts = cursor.fetchall()
 
-    # 收集所有外部图片URL
-    external_urls = []
-    for post in posts:
-        images = extract_images_from_content(post['content'])
-        for img_tag, url in images:
-            if url.startswith('http') and not url.startswith(('http://localhost', 'http://127.0.0.1')):
-                external_urls.append(url)
+        # 收集所有外部图片URL
+        external_urls = []
+        for post in posts:
+            images = extract_images_from_content(post['content'])
+            for img_tag, url in images:
+                if url.startswith('http') and not url.startswith(('http://localhost', 'http://127.0.0.1')):
+                    external_urls.append(url)
 
-    if not external_urls:
-        print('✅ 没有找到外部图片URL')
-        return
+        if not external_urls:
+            print('✅ 没有找到外部图片URL')
+            return
 
-    # 去重
-    external_urls = list(set(external_urls))
+        # 去重
+        external_urls = list(set(external_urls))
 
-    print(f'📊 找到 {len(external_urls)} 个唯一的外部图片URL')
-    print('🔍 开始检查可访问性...\n')
+        print(f'📊 找到 {len(external_urls)} 个唯一的外部图片URL')
+        print('🔍 开始检查可访问性...\n')
 
-    # 并发检查
-    results = check_image_urls_with_progress(
-        external_urls,
-        show_progress=show_progress
-    )
+        # 并发检查
+        results = check_image_urls_with_progress(
+            external_urls,
+            show_progress=show_progress
+        )
 
-    # 统计结果
-    valid_count = sum(1 for valid, _ in results.values() if valid)
-    invalid_count = len(results) - valid_count
+        # 统计结果
+        valid_count = sum(1 for valid, _ in results.values() if valid)
+        invalid_count = len(results) - valid_count
 
-    print(f'\n{"="*60}')
-    print('📊 外部图片检查报告')
-    print(f'{"="*60}')
-    print(f'总URL数: {len(results)}')
-    print(f'✅ 有效: {valid_count}')
-    print(f'❌ 无效: {invalid_count}')
-    print(f'{"="*60}\n')
+        print(f'\n{"="*60}')
+        print('📊 外部图片检查报告')
+        print(f'{"="*60}')
+        print(f'总URL数: {len(results)}')
+        print(f'✅ 有效: {valid_count}')
+        print(f'❌ 无效: {invalid_count}')
+        print(f'{"="*60}\n')
 
-    # 显示无效URL
-    invalid_urls = [(url, error) for url, (valid, error) in results.items() if not valid]
-    if invalid_urls:
-        print('❌ 无效URL列表（前20个）:')
-        for url, error in invalid_urls[:20]:
-            short_url = url[:60] + '...' if len(url) > 60 else url
-            print(f'   - {short_url} ({error})')
+        # 显示无效URL
+        invalid_urls = [(url, error) for url, (valid, error) in results.items() if not valid]
+        if invalid_urls:
+            print('❌ 无效URL列表（前20个）:')
+            for url, error in invalid_urls[:20]:
+                short_url = url[:60] + '...' if len(url) > 60 else url
+                print(f'   - {short_url} ({error})')
 
-        if len(invalid_urls) > 20:
-            print(f'\n   ... 还有 {len(invalid_urls) - 20} 个无效URL')
+            if len(invalid_urls) > 20:
+                print(f'\n   ... 还有 {len(invalid_urls) - 20} 个无效URL')
 
 
 def main():

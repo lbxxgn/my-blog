@@ -546,7 +546,7 @@ def archive_card_to_knowledge(card_id, category_id, tag_names=None):
 def _enqueue_doc_embedding(doc_id):
     """保存后异步更新向量"""
     try:
-        from tasks.embedding_task import enqueue_embedding
+        from backend.tasks.embedding_task import enqueue_embedding
         enqueue_embedding('doc', doc_id)
     except Exception:
         pass
@@ -554,7 +554,7 @@ def _enqueue_doc_embedding(doc_id):
 def _remove_doc_embedding(doc_id):
     """删除文档时清理向量"""
     try:
-        from tasks.embedding_task import remove_embedding
+        from backend.tasks.embedding_task import remove_embedding
         remove_embedding('doc', doc_id)
     except Exception:
         pass

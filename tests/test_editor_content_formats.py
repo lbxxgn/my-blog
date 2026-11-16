@@ -117,7 +117,7 @@ class TestUnifiedDraftContract:
         assert draft['content_format'] == 'markdown'
 
     def test_ensure_drafts_table_adds_content_format(self, temp_db):
-        from models import get_db_connection
+        from backend.models import get_db_connection
         from backend.models.draft import ensure_drafts_table
 
         conn = get_db_connection()

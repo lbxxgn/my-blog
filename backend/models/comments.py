@@ -4,7 +4,7 @@ Comment Model Functions
 评论 CRUD 与图片优化追踪记录。
 """
 
-from .db import get_db_connection, get_db_context
+from .db import get_db_context
 from .users import get_user_by_id
 
 __all__ = [
@@ -30,38 +30,36 @@ def create_comment(post_id, author_name, author_email=None, content=None, is_vis
         else:
             author_name = str(author_name)
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        'INSERT INTO comments (post_id, author_name, author_email, content, is_visible) VALUES (?, ?, ?, ?, ?)',
-        (post_id, author_name, author_email, content, 1 if is_visible else 0)
-    )
-    conn.commit()
-    comment_id = cursor.lastrowid
-    conn.close()
-    return comment_id
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT INTO comments (post_id, author_name, author_email, content, is_visible) VALUES (?, ?, ?, ?, ?)',
+            (post_id, author_name, author_email, content, 1 if is_visible else 0)
+        )
+        conn.commit()
+        comment_id = cursor.lastrowid
+        return comment_id
 
 def get_comments_by_post(post_id, include_hidden=False):
     """Get all comments for a post"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    if include_hidden:
-        cursor.execute('''
-            SELECT * FROM comments
-            WHERE post_id = ?
-            ORDER BY created_at DESC
-        ''', (post_id,))
-    else:
-        cursor.execute('''
-            SELECT * FROM comments
-            WHERE post_id = ? AND is_visible = 1
-            ORDER BY created_at DESC
-        ''', (post_id,))
+        if include_hidden:
+            cursor.execute('''
+                SELECT * FROM comments
+                WHERE post_id = ?
+                ORDER BY created_at DESC
+            ''', (post_id,))
+        else:
+            cursor.execute('''
+                SELECT * FROM comments
+                WHERE post_id = ? AND is_visible = 1
+                ORDER BY created_at DESC
+            ''', (post_id,))
 
-    comments = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return comments
+        comments = [dict(row) for row in cursor.fetchall()]
+        return comments
 
 
 def ensure_optimized_images_table():
@@ -115,44 +113,41 @@ def create_optimized_image_record(original_path, status='pending', original_hash
 
 def get_all_comments(include_hidden=False):
     """Get all comments"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    if include_hidden:
-        cursor.execute('''
-            SELECT comments.*, posts.title as post_title, posts.id as post_id
-            FROM comments
-            JOIN posts ON comments.post_id = posts.id AND posts.deleted_at IS NULL
-            ORDER BY comments.created_at DESC
-        ''')
-    else:
-        cursor.execute('''
-            SELECT comments.*, posts.title as post_title, posts.id as post_id
-            FROM comments
-            JOIN posts ON comments.post_id = posts.id AND posts.deleted_at IS NULL
-            WHERE comments.is_visible = 1
-            ORDER BY comments.created_at DESC
-        ''')
+        if include_hidden:
+            cursor.execute('''
+                SELECT comments.*, posts.title as post_title, posts.id as post_id
+                FROM comments
+                JOIN posts ON comments.post_id = posts.id AND posts.deleted_at IS NULL
+                ORDER BY comments.created_at DESC
+            ''')
+        else:
+            cursor.execute('''
+                SELECT comments.*, posts.title as post_title, posts.id as post_id
+                FROM comments
+                JOIN posts ON comments.post_id = posts.id AND posts.deleted_at IS NULL
+                WHERE comments.is_visible = 1
+                ORDER BY comments.created_at DESC
+            ''')
 
-    comments = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return comments
+        comments = [dict(row) for row in cursor.fetchall()]
+        return comments
 
 def update_comment_visibility(comment_id, is_visible):
     """Update comment visibility"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        'UPDATE comments SET is_visible = ? WHERE id = ?',
-        (is_visible, comment_id)
-    )
-    conn.commit()
-    conn.close()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            'UPDATE comments SET is_visible = ? WHERE id = ?',
+            (is_visible, comment_id)
+        )
+        conn.commit()
 
 def delete_comment(comment_id):
     """Delete a comment"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('DELETE FROM comments WHERE id = ?', (comment_id,))
-    conn.commit()
-    conn.close()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM comments WHERE id = ?', (comment_id,))
+        conn.commit()

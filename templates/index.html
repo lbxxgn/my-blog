@@ -69,9 +69,9 @@
         <div class="main-content">
             {% if categories %}
             <div class="category-filter">
-                <a href="{{ url_for('index') }}" class="category-link {% if not category %}active{% endif %}">全部</a>
+                <a href="{{ url_for('blog.index') }}" class="category-link {% if not category %}active{% endif %}">全部</a>
                 {% for cat in categories %}
-                    <a href="{{ url_for('view_category', category_id=cat.id) }}"
+                    <a href="{{ url_for('blog.view_category', category_id=cat.id) }}"
                        class="category-link {% if category and category.id == cat.id %}active{% endif %}">
                         {{ cat.name }}
                     </a>
@@ -82,7 +82,7 @@
             {% if posts %}
                 <div id="posts-container" class="posts-list feed-posts-list">
                     {% for post in posts %}
-                        <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
+                        <a href="{{ url_for('blog.view_post', post_id=post.id) }}" class="post-card-link">
                             <article class="post-card {% if post.type == 'note' %}post-card--note{% endif %}">
                                 <div class="post-card-content">
                                     <h2>
@@ -167,7 +167,7 @@
                 <h3 class="widget-title">热门标签</h3>
                 <div class="popular-tags">
                     {% for tag in popular_tags %}
-                    <a href="{{ url_for('view_tag', tag_id=tag.id) }}" class="popular-tag">
+                    <a href="{{ url_for('blog.view_tag', tag_id=tag.id) }}" class="popular-tag">
                         #{{ tag.name }}
                         <span class="tag-count">{{ tag.post_count }}</span>
                     </a>
@@ -182,7 +182,7 @@
 <!-- 内容创建入口（右下角悬浮按钮；登录用户由模板条件控制，桌面端由 CSS 媒体查询控制） -->
 {% if session.get('user_id') %}
 <div class="write-actions-fab">
-    <a href="{{ url_for('new_post') }}" class="write-fab write-fab--post" title="写文章" aria-label="写文章">
+    <a href="{{ url_for('admin.new_post') }}" class="write-fab write-fab--post" title="写文章" aria-label="写文章">
         <span class="write-fab__label">写文章</span>
         <span class="write-fab__icon" aria-hidden="true">📝</span>
     </a>

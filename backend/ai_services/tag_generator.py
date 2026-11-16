@@ -41,7 +41,7 @@ class TagGenerator:
     def _catalog_provider(cls, provider_name: str):
         """从目录解析供应商；目录不可用时返回 None 交由回退逻辑处理。"""
         try:
-            from models.ai_catalog import resolve_provider
+            from backend.models.ai_catalog import resolve_provider
 
             return resolve_provider(provider_name)
         except Exception as exc:
@@ -259,7 +259,7 @@ class TagGenerator:
             List of provider info dicts (contains models/model_details)
         """
         try:
-            from models.ai_catalog import get_catalog
+            from backend.models.ai_catalog import get_catalog
 
             return get_catalog(include_disabled=True)
         except Exception as exc:

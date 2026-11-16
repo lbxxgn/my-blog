@@ -15,11 +15,11 @@ import logging
 import re
 from datetime import datetime, timedelta
 
-from models import (
-    get_db_connection, get_user_ai_config,
+from backend.models import (
+    get_db_context, get_user_ai_config,
     create_kb_category, create_knowledge_doc, update_knowledge_doc,
 )
-from utils.timezone import LOCAL_OFFSET, local_now, utc_now
+from backend.utils.timezone import LOCAL_OFFSET, local_now, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -78,54 +78,53 @@ def collect_weekly_stats(user_id, now_local=None):
     week_start_str = week_start_utc.strftime('%Y-%m-%d %H:%M:%S')
     stale_before = (utc_now() - timedelta(days=14)).strftime('%Y-%m-%d %H:%M:%S')
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT id, title, post_type, type, created_at FROM posts
-        WHERE author_id = ? AND created_at >= ?
-        ORDER BY created_at DESC
-    ''', (user_id, week_start_str))
-    new_posts = [dict(r) for r in cursor.fetchall()]
+        cursor.execute('''
+            SELECT id, title, post_type, type, created_at FROM posts
+            WHERE author_id = ? AND created_at >= ?
+            ORDER BY created_at DESC
+        ''', (user_id, week_start_str))
+        new_posts = [dict(r) for r in cursor.fetchall()]
 
-    cursor.execute('''
-        SELECT id, title, status, created_at FROM cards
-        WHERE user_id = ? AND created_at >= ?
-        ORDER BY created_at DESC
-    ''', (user_id, week_start_str))
-    new_cards = [dict(r) for r in cursor.fetchall()]
+        cursor.execute('''
+            SELECT id, title, status, created_at FROM cards
+            WHERE user_id = ? AND created_at >= ?
+            ORDER BY created_at DESC
+        ''', (user_id, week_start_str))
+        new_cards = [dict(r) for r in cursor.fetchall()]
 
-    cursor.execute('''
-        SELECT COUNT(*) AS cnt FROM card_annotations
-        WHERE user_id = ? AND created_at >= ?
-    ''', (user_id, week_start_str))
-    new_annotations = cursor.fetchone()['cnt']
+        cursor.execute('''
+            SELECT COUNT(*) AS cnt FROM card_annotations
+            WHERE user_id = ? AND created_at >= ?
+        ''', (user_id, week_start_str))
+        new_annotations = cursor.fetchone()['cnt']
 
-    cursor.execute('''
-        SELECT COUNT(*) AS cnt FROM cards
-        WHERE user_id = ? AND status = 'idea'
-    ''', (user_id,))
-    idea_backlog = cursor.fetchone()['cnt']
+        cursor.execute('''
+            SELECT COUNT(*) AS cnt FROM cards
+            WHERE user_id = ? AND status = 'idea'
+        ''', (user_id,))
+        idea_backlog = cursor.fetchone()['cnt']
 
-    cursor.execute('''
-        SELECT id, title, updated_at FROM cards
-        WHERE user_id = ? AND status = 'incubating' AND updated_at < ?
-        ORDER BY updated_at ASC
-    ''', (user_id, stale_before))
-    stale_incubating = [dict(r) for r in cursor.fetchall()]
+        cursor.execute('''
+            SELECT id, title, updated_at FROM cards
+            WHERE user_id = ? AND status = 'incubating' AND updated_at < ?
+            ORDER BY updated_at ASC
+        ''', (user_id, stale_before))
+        stale_incubating = [dict(r) for r in cursor.fetchall()]
 
-    conn.close()
 
-    return {
-        'week_label': current_week_label(now_local),
-        'week_start': week_start_date.isoformat(),
-        'week_end': today.isoformat(),
-        'new_posts': new_posts,
-        'new_cards': new_cards,
-        'new_annotations': new_annotations,
-        'idea_backlog': idea_backlog,
-        'stale_incubating': stale_incubating,
-    }
+        return {
+            'week_label': current_week_label(now_local),
+            'week_start': week_start_date.isoformat(),
+            'week_end': today.isoformat(),
+            'new_posts': new_posts,
+            'new_cards': new_cards,
+            'new_annotations': new_annotations,
+            'idea_backlog': idea_backlog,
+            'stale_incubating': stale_incubating,
+        }
 
 
 def _stats_summary(stats):
@@ -250,7 +249,7 @@ def _create_user_provider(user_id):
         return None
     if not ai_config.get('ai_api_key'):
         return None
-    from ai_services import TagGenerator
+    from backend.ai_services import TagGenerator
     return TagGenerator.create_provider(
         ai_config.get('ai_provider', 'dashscope'),
         ai_config['ai_api_key'],
@@ -265,13 +264,12 @@ def _create_user_provider(user_id):
 
 def _get_or_create_review_category():
     """获取（不存在则创建）space='knowledge' 的「每周回顾」分类，返回分类 ID"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id FROM categories WHERE name = ? AND space = 'knowledge'",
-        (REVIEW_CATEGORY_NAME,))
-    row = cursor.fetchone()
-    conn.close()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM categories WHERE name = ? AND space = 'knowledge'",
+            (REVIEW_CATEGORY_NAME,))
+        row = cursor.fetchone()
     if row:
         return row['id']
 
@@ -280,11 +278,10 @@ def _get_or_create_review_category():
         icon='🗓️', description='自动生成的每周回顾')
     if category_id is None:
         # categories.name 全局唯一：名称被其他空间占用时复用同名分类
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT id FROM categories WHERE name = ?', (REVIEW_CATEGORY_NAME,))
-        row = cursor.fetchone()
-        conn.close()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT id FROM categories WHERE name = ?', (REVIEW_CATEGORY_NAME,))
+            row = cursor.fetchone()
         category_id = row['id'] if row else None
         logger.warning('「每周回顾」分类名被其他空间占用，复用分类 id=%s', category_id)
     return category_id
@@ -292,19 +289,18 @@ def _get_or_create_review_category():
 
 def _find_review_doc(user_id, title):
     """按作者 + 标题查找每周回顾文档（同周幂等判断）"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT posts.id, posts.title FROM posts
-        JOIN categories ON posts.category_id = categories.id
-        WHERE posts.post_type = 'knowledge' AND posts.author_id = ?
-          AND posts.title = ?
-          AND categories.name = ? AND categories.space = 'knowledge'
-        ORDER BY posts.id DESC LIMIT 1
-    ''', (user_id, title, REVIEW_CATEGORY_NAME))
-    row = cursor.fetchone()
-    conn.close()
-    return dict(row) if row else None
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT posts.id, posts.title FROM posts
+            JOIN categories ON posts.category_id = categories.id
+            WHERE posts.post_type = 'knowledge' AND posts.author_id = ?
+              AND posts.title = ?
+              AND categories.name = ? AND categories.space = 'knowledge'
+            ORDER BY posts.id DESC LIMIT 1
+        ''', (user_id, title, REVIEW_CATEGORY_NAME))
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
 
 def find_current_week_review(user_id, now_local=None):
@@ -314,28 +310,27 @@ def find_current_week_review(user_id, now_local=None):
 
 def get_weekly_reviews(user_id, limit=20):
     """当前用户的历史每周回顾文档列表（新到旧）"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT posts.id, posts.title, posts.created_at
-        FROM posts
-        JOIN categories ON posts.category_id = categories.id
-        WHERE posts.post_type = 'knowledge' AND posts.author_id = ?
-          AND categories.name = ? AND categories.space = 'knowledge'
-        ORDER BY posts.created_at DESC, posts.id DESC
-        LIMIT ?
-    ''', (user_id, REVIEW_CATEGORY_NAME, limit))
-    reviews = [dict(r) for r in cursor.fetchall()]
-    conn.close()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT posts.id, posts.title, posts.created_at
+            FROM posts
+            JOIN categories ON posts.category_id = categories.id
+            WHERE posts.post_type = 'knowledge' AND posts.author_id = ?
+              AND categories.name = ? AND categories.space = 'knowledge'
+            ORDER BY posts.created_at DESC, posts.id DESC
+            LIMIT ?
+        ''', (user_id, REVIEW_CATEGORY_NAME, limit))
+        reviews = [dict(r) for r in cursor.fetchall()]
 
-    for row in reviews:
-        row['url'] = f"/knowledge/doc/{row['id']}"
-        try:
-            dt = datetime.strptime(str(row['created_at'])[:19], '%Y-%m-%d %H:%M:%S')
-            row['created_local'] = (dt + LOCAL_OFFSET).strftime('%Y-%m-%d %H:%M')
-        except (ValueError, TypeError):
-            row['created_local'] = str(row.get('created_at') or '')[:16]
-    return reviews
+        for row in reviews:
+            row['url'] = f"/knowledge/doc/{row['id']}"
+            try:
+                dt = datetime.strptime(str(row['created_at'])[:19], '%Y-%m-%d %H:%M:%S')
+                row['created_local'] = (dt + LOCAL_OFFSET).strftime('%Y-%m-%d %H:%M')
+            except (ValueError, TypeError):
+                row['created_local'] = str(row.get('created_at') or '')[:16]
+        return reviews
 
 
 def generate_weekly_review(user_id, llm_provider=None, force=False, now_local=None):

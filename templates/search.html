@@ -11,7 +11,7 @@
     </div>
 
     <div class="search-panel">
-        <form action="{{ url_for('search') }}" method="get" class="search-form">
+        <form action="{{ url_for('blog.search') }}" method="get" class="search-form">
             <input type="hidden" name="source" value="{{ source }}">
             {% if source == 'semantic' %}<input type="hidden" name="return_to" value="{{ keyword_source }}">{% endif %}
             <label class="sr-only" for="searchQuery">搜索关键词</label>
@@ -22,10 +22,10 @@
         <div class="search-options">
             <div class="search-mode-switch" aria-label="搜索方式">
                 <span class="search-option-label">搜索方式</span>
-                <a href="{{ url_for('search', q=query, source=keyword_source) }}"
+                <a href="{{ url_for('blog.search', q=query, source=keyword_source) }}"
                    class="search-mode {% if source != 'semantic' %}active{% endif %}"
                    {% if source != 'semantic' %}aria-current="page"{% endif %}>关键词</a>
-                <a href="{{ url_for('search', q=query, source='semantic', return_to=keyword_source) }}"
+                <a href="{{ url_for('blog.search', q=query, source='semantic', return_to=keyword_source) }}"
                    class="search-mode {% if source == 'semantic' %}active{% endif %}"
                    {% if source == 'semantic' %}aria-current="page"{% endif %}>语义</a>
             </div>
@@ -33,10 +33,10 @@
             {% if source != 'semantic' %}
             <div class="search-source-tabs" aria-label="内容范围">
                 <span class="search-option-label">内容范围</span>
-                <a href="{{ url_for('search', q=query, source='blog') }}" class="source-tab {% if source == 'blog' %}active{% endif %}" {% if source == 'blog' %}aria-current="page"{% endif %}>博客</a>
+                <a href="{{ url_for('blog.search', q=query, source='blog') }}" class="source-tab {% if source == 'blog' %}active{% endif %}" {% if source == 'blog' %}aria-current="page"{% endif %}>博客</a>
                 {% if session.get('user_id') %}
-                <a href="{{ url_for('search', q=query, source='knowledge') }}" class="source-tab {% if source == 'knowledge' %}active{% endif %}" {% if source == 'knowledge' %}aria-current="page"{% endif %}>知识库</a>
-                <a href="{{ url_for('search', q=query, source='all') }}" class="source-tab {% if source == 'all' %}active{% endif %}" {% if source == 'all' %}aria-current="page"{% endif %}>全部</a>
+                <a href="{{ url_for('blog.search', q=query, source='knowledge') }}" class="source-tab {% if source == 'knowledge' %}active{% endif %}" {% if source == 'knowledge' %}aria-current="page"{% endif %}>知识库</a>
+                <a href="{{ url_for('blog.search', q=query, source='all') }}" class="source-tab {% if source == 'all' %}active{% endif %}" {% if source == 'all' %}aria-current="page"{% endif %}>全部</a>
                 {% endif %}
             </div>
             {% endif %}
@@ -55,7 +55,7 @@
     <div class="empty-state semantic-guide">
         <p>语义搜索失败：{{ semantic_error }}</p>
         <div class="empty-actions">
-            <a href="{{ url_for('search', q=query, source=keyword_source) }}" class="btn">改用关键词搜索</a>
+            <a href="{{ url_for('blog.search', q=query, source=keyword_source) }}" class="btn">改用关键词搜索</a>
         </div>
     </div>
     {% elif not query %}
@@ -142,7 +142,7 @@
     <div class="posts-list">
         {% for post in posts %}
         {% set is_kb = post.post_type == 'knowledge' %}
-        <a href="{% if is_kb %}{{ url_for('knowledge.view_doc', doc_id=post.id) }}{% else %}{{ url_for('view_post', post_id=post.id) }}{% endif %}" class="post-card-link">
+        <a href="{% if is_kb %}{{ url_for('knowledge.view_doc', doc_id=post.id) }}{% else %}{{ url_for('blog.view_post', post_id=post.id) }}{% endif %}" class="post-card-link">
             <article class="post-card">
                 <h2>
                     {% if is_kb %}<span class="note-badge" style="background:var(--primary-color)">知识库</span>{% endif %}
@@ -165,7 +165,7 @@
     {% if pagination.total_pages > 1 %}
     <div class="pagination">
         {% if pagination.page > 1 %}
-        <a href="{{ url_for('search', q=query, source=source, page=pagination.page-1, per_page=pagination.per_page) }}" class="btn">上一页</a>
+        <a href="{{ url_for('blog.search', q=query, source=source, page=pagination.page-1, per_page=pagination.per_page) }}" class="btn">上一页</a>
         {% endif %}
 
         <span class="pagination-info">
@@ -173,7 +173,7 @@
         </span>
 
         {% if pagination.page < pagination.total_pages %}
-        <a href="{{ url_for('search', q=query, source=source, page=pagination.page+1, per_page=pagination.per_page) }}" class="btn">下一页</a>
+        <a href="{{ url_for('blog.search', q=query, source=source, page=pagination.page+1, per_page=pagination.per_page) }}" class="btn">下一页</a>
         {% endif %}
     </div>
     {% endif %}
@@ -184,7 +184,7 @@
         <div class="empty-actions">
             <a href="{{ url_for('blog.list_all_tags') }}" class="btn">浏览全部标签</a>
             <a href="{{ url_for('blog.archive') }}" class="btn">按时间归档</a>
-            <a href="{{ url_for('index') }}" class="btn">返回首页</a>
+            <a href="{{ url_for('blog.index') }}" class="btn">返回首页</a>
         </div>
     </div>
     {% endif %}

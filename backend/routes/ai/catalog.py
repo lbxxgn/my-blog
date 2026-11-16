@@ -2,9 +2,9 @@
 
 from flask import abort, jsonify, render_template, request, session
 
-from auth_decorators import admin_required
-from logger import log_error, log_operation
-from models import (
+from backend.auth_decorators import admin_required
+from backend.logger import log_error, log_operation
+from backend.models import (
     CatalogError,
     create_model,
     create_provider,

@@ -10,7 +10,7 @@ import re
 from flask import Blueprint
 import logging
 
-from ai_services import TagGenerator
+from backend.ai_services import TagGenerator
 
 logger = logging.getLogger(__name__)
 

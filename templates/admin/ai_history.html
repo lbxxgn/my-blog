@@ -7,8 +7,8 @@
     <div class="dashboard-header">
         <h2>AI使用历史</h2>
         <div class="header-actions">
-            <a href="{{ url_for('ai_settings') }}" class="btn">AI设置</a>
-            <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+            <a href="{{ url_for('ai.ai_settings') }}" class="btn">AI设置</a>
+            <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">返回管理后台</a>
         </div>
     </div>
 
@@ -73,7 +73,7 @@
                     </td>
                     <td class="article-cell">
                         {% if record.post_title %}
-                            <a href="{{ url_for('view_post', post_id=record.post_id) }}" class="article-link">{{ record.post_title }}</a>
+                            <a href="{{ url_for('blog.view_post', post_id=record.post_id) }}" class="article-link">{{ record.post_title }}</a>
                         {% elif record.post_id %}
                             <span class="text-muted">文章 #{{ record.post_id }}</span>
                         {% else %}
@@ -136,7 +136,7 @@
     <div class="empty-state">
         <p>还没有AI使用记录。</p>
         <p>配置AI功能后，在编辑文章时使用AI生成标签，这里将显示使用历史。</p>
-        <a href="{{ url_for('ai_settings') }}" class="btn btn-primary">前往AI设置</a>
+        <a href="{{ url_for('ai.ai_settings') }}" class="btn btn-primary">前往AI设置</a>
     </div>
     {% endif %}
 </div>

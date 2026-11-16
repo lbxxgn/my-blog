@@ -7,7 +7,7 @@
     <div class="tag-filter">
         <strong>标签：</strong>
         {% for t in tags %}
-        <a href="{{ url_for('view_tag', tag_id=t.id) }}" class="tag-link {% if t.id == tag.id %}active{% endif %}">
+        <a href="{{ url_for('blog.view_tag', tag_id=t.id) }}" class="tag-link {% if t.id == tag.id %}active{% endif %}">
             #{{ t.name }}
         </a>
         {% endfor %}
@@ -16,7 +16,7 @@
     {% if posts %}
     <div class="posts-list">
         {% for post in posts %}
-        <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
+        <a href="{{ url_for('blog.view_post', post_id=post.id) }}" class="post-card-link">
             <article class="post-card">
                 <h2>{{ post.title }}</h2>
                 <div class="post-meta">
@@ -35,7 +35,7 @@
     {% if pagination.total_pages > 1 %}
     <div class="pagination">
         {% if pagination.page > 1 %}
-        <a href="{{ url_for('view_tag', tag_id=tag.id, page=pagination.page-1, per_page=pagination.per_page) }}" class="btn">上一页</a>
+        <a href="{{ url_for('blog.view_tag', tag_id=tag.id, page=pagination.page-1, per_page=pagination.per_page) }}" class="btn">上一页</a>
         {% endif %}
 
         <span class="pagination-info">
@@ -43,14 +43,14 @@
         </span>
 
         {% if pagination.page < pagination.total_pages %}
-        <a href="{{ url_for('view_tag', tag_id=tag.id, page=pagination.page+1, per_page=pagination.per_page) }}" class="btn">下一页</a>
+        <a href="{{ url_for('blog.view_tag', tag_id=tag.id, page=pagination.page+1, per_page=pagination.per_page) }}" class="btn">下一页</a>
         {% endif %}
     </div>
     {% endif %}
     {% else %}
     <div class="empty-state">
         <p>该标签下暂无文章</p>
-        <a href="{{ url_for('index') }}">返回首页</a>
+        <a href="{{ url_for('blog.index') }}">返回首页</a>
     </div>
     {% endif %}
 </main>

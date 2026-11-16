@@ -8,7 +8,7 @@ def _login(client, user, role=None):
 
 
 def _create_user(username, role='author'):
-    from models import create_user
+    from backend.models import create_user
     from werkzeug.security import generate_password_hash
 
     user_id = create_user(
@@ -20,7 +20,7 @@ def _create_user(username, role='author'):
 
 
 def test_merge_cards_cannot_append_to_other_users_post(client, test_user):
-    from models import create_card, create_post, get_post_by_id
+    from backend.models import create_card, create_post, get_post_by_id
 
     other = _create_user('other_author')
     post_id = create_post(
@@ -44,7 +44,7 @@ def test_merge_cards_cannot_append_to_other_users_post(client, test_user):
 
 
 def test_merge_cards_can_append_to_own_post(client, test_user):
-    from models import create_card, create_post, get_post_by_id
+    from backend.models import create_card, create_post, get_post_by_id
 
     post_id = create_post(
         title='我的文章', content='原始正文', is_published=True,
@@ -75,7 +75,7 @@ def test_stale_admin_role_in_session_is_refreshed(client, test_user):
 
 
 def test_author_cannot_delete_media_library_file(client, test_user, monkeypatch, tmp_path):
-    import routes.admin.media as media_module
+    import backend.routes.admin.media as media_module
 
     images_dir = tmp_path / 'images'
     images_dir.mkdir()

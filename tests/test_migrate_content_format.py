@@ -3,13 +3,11 @@
 import importlib
 import os
 import sqlite3
-import sys
 import tempfile
 import uuid
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 import backend.config as config
 
@@ -25,8 +23,8 @@ def migration_db():
 
     os.environ['DATABASE_URL'] = f'sqlite:///{db_path}'
     importlib.reload(config)
+    import backend.models as models
 
-    import models
     models.init_db()
 
     yield db_path

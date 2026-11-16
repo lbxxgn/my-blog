@@ -12,7 +12,7 @@ from array import array
 
 import numpy as np
 
-from .db import get_db_connection
+from .db import get_db_context
 
 logger = logging.getLogger(__name__)
 
@@ -60,22 +60,22 @@ def upsert_embedding(source_type, source_id, vector, model=None, content_hash=No
     _validate_source_type(source_type)
     blob = _serialize_vector(vector)
 
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO embeddings (source_type, source_id, model, vector, content_hash)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(source_type, source_id) DO UPDATE SET
-                model = excluded.model,
-                vector = excluded.vector,
-                content_hash = excluded.content_hash,
-                updated_at = CURRENT_TIMESTAMP
-        ''', (source_type, source_id, model, blob, content_hash))
-        conn.commit()
-        return cursor.lastrowid
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO embeddings (source_type, source_id, model, vector, content_hash)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(source_type, source_id) DO UPDATE SET
+                    model = excluded.model,
+                    vector = excluded.vector,
+                    content_hash = excluded.content_hash,
+                    updated_at = CURRENT_TIMESTAMP
+            ''', (source_type, source_id, model, blob, content_hash))
+            conn.commit()
+            return cursor.lastrowid
+        finally:
+            pass
 
 
 def get_embedding(source_type, source_id):
@@ -87,39 +87,39 @@ def get_embedding(source_type, source_id):
               vector 为 list[float]；不存在返回 None
     """
     _validate_source_type(source_type)
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT * FROM embeddings WHERE source_type = ? AND source_id = ?',
-            (source_type, source_id)
-        )
-        row = cursor.fetchone()
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT * FROM embeddings WHERE source_type = ? AND source_id = ?',
+                (source_type, source_id)
+            )
+            row = cursor.fetchone()
+        finally:
+            pass
 
-    if not row:
-        return None
+        if not row:
+            return None
 
-    record = dict(row)
-    record['vector'] = _deserialize_vector(record['vector']) if record['vector'] else []
-    return record
+        record = dict(row)
+        record['vector'] = _deserialize_vector(record['vector']) if record['vector'] else []
+        return record
 
 
 def delete_embedding(source_type, source_id):
     """删除一条向量记录，返回是否有行被删除"""
     _validate_source_type(source_type)
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            'DELETE FROM embeddings WHERE source_type = ? AND source_id = ?',
-            (source_type, source_id)
-        )
-        conn.commit()
-        return cursor.rowcount > 0
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'DELETE FROM embeddings WHERE source_type = ? AND source_id = ?',
+                (source_type, source_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            pass
 
 
 def search_similar(query_vector, top_k=10, source_types=None):
@@ -134,58 +134,58 @@ def search_similar(query_vector, top_k=10, source_types=None):
     Returns:
         list[tuple]: [(source_type, source_id, score)]，按相似度降序
     """
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        if source_types:
-            invalid = set(source_types) - set(SOURCE_TYPES)
-            if invalid:
-                raise ValueError(f"Invalid source_types: {sorted(invalid)}")
-            placeholders = ','.join('?' * len(source_types))
-            cursor.execute(
-                f'SELECT source_type, source_id, vector FROM embeddings '
-                f'WHERE vector IS NOT NULL AND source_type IN ({placeholders})',
-                list(source_types)
-            )
-        else:
-            cursor.execute('SELECT source_type, source_id, vector FROM embeddings WHERE vector IS NOT NULL')
-        rows = cursor.fetchall()
-    except sqlite3.OperationalError as e:
-        # 迁移 009 尚未执行：没有表可搜
-        logger.warning(f"embeddings table unavailable: {e}")
-        return []
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            cursor = conn.cursor()
+            if source_types:
+                invalid = set(source_types) - set(SOURCE_TYPES)
+                if invalid:
+                    raise ValueError(f"Invalid source_types: {sorted(invalid)}")
+                placeholders = ','.join('?' * len(source_types))
+                cursor.execute(
+                    f'SELECT source_type, source_id, vector FROM embeddings '
+                    f'WHERE vector IS NOT NULL AND source_type IN ({placeholders})',
+                    list(source_types)
+                )
+            else:
+                cursor.execute('SELECT source_type, source_id, vector FROM embeddings WHERE vector IS NOT NULL')
+            rows = cursor.fetchall()
+        except sqlite3.OperationalError as e:
+            # 迁移 009 尚未执行：没有表可搜
+            logger.warning(f"embeddings table unavailable: {e}")
+            return []
+        finally:
+            pass
 
-    if not rows:
-        return []
+        if not rows:
+            return []
 
-    query = np.asarray(query_vector, dtype=np.float32)
-    query_norm = np.linalg.norm(query)
-    if query_norm == 0:
-        return []
+        query = np.asarray(query_vector, dtype=np.float32)
+        query_norm = np.linalg.norm(query)
+        if query_norm == 0:
+            return []
 
-    keys = []
-    vectors = []
-    for row in rows:
-        arr = np.frombuffer(row['vector'], dtype=np.float32)
-        if arr.shape != query.shape:
-            # 维度不一致（可能换了模型），跳过
-            continue
-        keys.append((row['source_type'], row['source_id']))
-        vectors.append(arr)
+        keys = []
+        vectors = []
+        for row in rows:
+            arr = np.frombuffer(row['vector'], dtype=np.float32)
+            if arr.shape != query.shape:
+                # 维度不一致（可能换了模型），跳过
+                continue
+            keys.append((row['source_type'], row['source_id']))
+            vectors.append(arr)
 
-    if not vectors:
-        return []
+        if not vectors:
+            return []
 
-    matrix = np.stack(vectors)
-    norms = np.linalg.norm(matrix, axis=1)
-    nonzero = norms > 0
-    if not nonzero.any():
-        return []
+        matrix = np.stack(vectors)
+        norms = np.linalg.norm(matrix, axis=1)
+        nonzero = norms > 0
+        if not nonzero.any():
+            return []
 
-    scores = np.zeros(len(vectors), dtype=np.float32)
-    scores[nonzero] = (matrix[nonzero] @ query) / (norms[nonzero] * query_norm)
+        scores = np.zeros(len(vectors), dtype=np.float32)
+        scores[nonzero] = (matrix[nonzero] @ query) / (norms[nonzero] * query_norm)
 
-    order = np.argsort(-scores)[:top_k]
-    return [(keys[i][0], keys[i][1], float(scores[i])) for i in order]
+        order = np.argsort(-scores)[:top_k]
+        return [(keys[i][0], keys[i][1], float(scores[i])) for i in order]

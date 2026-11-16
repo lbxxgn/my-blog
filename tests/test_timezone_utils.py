@@ -1,7 +1,7 @@
-"""utils.timezone 单元测试（UTC 存储 -> 本地 UTC+8 展示）。"""
+"""backend.utils.timezone 单元测试（UTC 存储 -> 本地 UTC+8 展示）。"""
 from datetime import datetime, timedelta
 
-from utils.timezone import (
+from backend.utils.timezone import (
     LOCAL_OFFSET,
     local_now,
     to_local,

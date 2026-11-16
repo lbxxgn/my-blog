@@ -5,11 +5,11 @@ import re
 
 from flask import request, session, jsonify
 
-from models import (
+from backend.models import (
     get_user_ai_config, save_ai_tag_history
 )
-from auth_decorators import login_required
-from logger import api_internal_error
+from backend.auth_decorators import login_required
+from backend.logger import api_internal_error
 
 
 

@@ -9,7 +9,7 @@ import logging
 import os
 import re
 
-from models import get_db_connection
+from backend.models import get_db_context
 from backend.config import BASE_DIR
 
 logger = logging.getLogger(__name__)
@@ -118,18 +118,17 @@ def get_optimized_image_url(original_url, size='medium'):
         full_path = project_root / original_url.lstrip('/')
 
         # 查询数据库获取优化后的图片路径（SELECT * 兼容没有 feed_path 列的旧库）
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute('''
-            SELECT *
-            FROM optimized_images
-            WHERE original_path = ?
-            AND status = 'completed'
-        ''', (str(full_path),))
+            cursor.execute('''
+                SELECT *
+                FROM optimized_images
+                WHERE original_path = ?
+                AND status = 'completed'
+            ''', (str(full_path),))
 
-        result = cursor.fetchone()
-        conn.close()
+            result = cursor.fetchone()
 
         optimized_url = _pick_existing_optimized(result, project_root, resolved_size)
         if optimized_url:

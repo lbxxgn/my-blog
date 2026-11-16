@@ -96,8 +96,8 @@ class TestAuthRoutes:
         assert data['options']['challenge']
 
     def test_passkey_register_finish_stores_passkey(self, client, test_admin_user, monkeypatch):
-        from models import get_user_passkeys
-        import routes.auth as auth_module
+        from backend.models import get_user_passkeys
+        import backend.routes.auth as auth_module
 
         client.post('/login', data={
             'username': test_admin_user['username'],
@@ -132,8 +132,8 @@ class TestAuthRoutes:
         assert passkeys[0]['device_name'] == 'My Mac'
 
     def test_passkey_authenticate_finish_logs_user_in(self, client, test_admin_user, monkeypatch):
-        from models import create_user_passkey
-        import routes.auth as auth_module
+        from backend.models import create_user_passkey
+        import backend.routes.auth as auth_module
 
         create_user_passkey(
             user_id=test_admin_user['id'],
@@ -171,7 +171,7 @@ class TestAuthRoutes:
             assert sess['_permanent'] is True
 
     def test_passkey_delete_removes_bound_device(self, client, test_admin_user):
-        from models import create_user_passkey, get_user_passkeys
+        from backend.models import create_user_passkey, get_user_passkeys
 
         client.post('/login', data={
             'username': test_admin_user['username'],
@@ -212,7 +212,7 @@ class TestBlogRoutes:
         assert 'class="post-content"> ' not in html
 
     def test_view_post_renders_media_blocks_and_lazy_images(self, client, temp_db):
-        from models import create_post, create_user
+        from backend.models import create_post, create_user
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('mediauser', generate_password_hash('TestPassword123!', method='pbkdf2:sha256'), role='author')
@@ -264,7 +264,7 @@ class TestBlogRoutes:
 
     def test_index_json_respects_category_filter(self, client, temp_db):
         """测试首页 JSON 支持分类筛选"""
-        from models import create_category, create_post, create_user
+        from backend.models import create_category, create_post, create_user
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('jsonuser', generate_password_hash('TestPassword123!', method='pbkdf2:sha256'), role='author')
@@ -289,7 +289,7 @@ class TestBlogRoutes:
 
     def test_mobile_my_posts_returns_published_and_drafts(self, client, test_admin_user, temp_db):
         """测试移动端我的文章接口返回已发布和草稿数据"""
-        from models import create_post
+        from backend.models import create_post
 
         client.post('/login', data={
             'username': test_admin_user['username'],
@@ -318,7 +318,7 @@ class TestBlogRoutes:
 
     def test_index_json_includes_mobile_image_metadata(self, client, temp_db):
         """测试首页 JSON 返回移动端图片布局信息"""
-        from models import create_post, create_user
+        from backend.models import create_post, create_user
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('imageuser', generate_password_hash('TestPassword123!', method='pbkdf2:sha256'), role='author')
@@ -445,7 +445,7 @@ class TestCategoryTagRoutes:
     
     def test_view_category(self, client, temp_db):
         """测试查看分类"""
-        from models import create_category, create_post, create_user
+        from backend.models import create_category, create_post, create_user
         from werkzeug.security import generate_password_hash
 
         # 创建测试数据
@@ -459,7 +459,7 @@ class TestCategoryTagRoutes:
     
     def test_view_tag(self, client, temp_db):
         """测试查看标签"""
-        from models import create_tag, create_post, create_user, set_post_tags
+        from backend.models import create_tag, create_post, create_user, set_post_tags
         from werkzeug.security import generate_password_hash
 
         # 创建测试数据
@@ -526,7 +526,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_submit_content(self, client, test_admin_user):
         """测试插件提交内容（默认创建文章）"""
-        from models import create_user, generate_api_key
+        from backend.models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
         # Create user with API key
@@ -565,7 +565,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_sync_annotations(self, client):
         """测试插件同步标注"""
-        from models import create_user, generate_api_key
+        from backend.models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('extuser2', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
@@ -594,7 +594,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_get_annotations(self, client):
         """测试获取标注"""
-        from models import create_user, generate_api_key, create_annotation
+        from backend.models import create_user, generate_api_key, create_annotation
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('extuser3', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
@@ -654,7 +654,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_submit_missing_content(self, client):
         """测试提交时缺少必填内容"""
-        from models import create_user, generate_api_key
+        from backend.models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('extuser4', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
@@ -675,7 +675,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_sync_annotations_missing_params(self, client):
         """测试同步标注时缺少参数"""
-        from models import create_user, generate_api_key
+        from backend.models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('extuser5', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
@@ -695,7 +695,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_get_annotations_missing_url(self, client):
         """测试获取标注时缺少URL参数"""
-        from models import create_user, generate_api_key
+        from backend.models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('extuser6', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
@@ -711,7 +711,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_recent_captures(self, client):
         """测试获取最近捕获"""
-        from models import create_user, generate_api_key, create_card
+        from backend.models import create_user, generate_api_key, create_card
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('extuser7', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
@@ -733,7 +733,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_content_too_large(self, client):
         """测试内容过大"""
-        from models import create_user, generate_api_key
+        from backend.models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('extuser8', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
@@ -758,7 +758,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_invalid_annotation_color(self, client):
         """测试无效的标注颜色"""
-        from models import create_user, generate_api_key
+        from backend.models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('extuser9', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')
@@ -786,7 +786,7 @@ class TestKnowledgeBaseRoutes:
 
     def test_plugin_invalid_annotation_type(self, client):
         """测试无效的标注类型"""
-        from models import create_user, generate_api_key
+        from backend.models import create_user, generate_api_key
         from werkzeug.security import generate_password_hash
 
         user_id = create_user('extuser10', generate_password_hash('TestPass123!', method='pbkdf2:sha256'), role='author')

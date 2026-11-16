@@ -24,20 +24,20 @@ from pathlib import Path
 import os
 import re
 
-from auth_decorators import login_required
-from logger import api_internal_error
-from models import (
+from backend.auth_decorators import login_required
+from backend.logger import api_internal_error
+from backend.models import (
     get_category_tree, get_category_path, get_subcategories,
     get_doc_count_by_category, get_knowledge_doc, get_knowledge_docs_by_category, get_recent_knowledge_docs,
     get_knowledge_docs_for_tree, get_all_knowledge_docs, search_knowledge_docs,
-    get_post_tags, get_category_by_id, create_post, set_post_tags, get_db_connection, get_post_by_id,
+    get_post_tags, get_category_by_id, create_post, set_post_tags, get_db_context, get_post_by_id,
     get_blog_post_by_source_doc_id,
     create_kb_category, move_kb_category, delete_kb_category, update_kb_category,
     create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, soft_delete_post,
 )
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
-from models.draft import save_draft, get_drafts, delete_drafts_for_post
-from utils.markdown_renderer import render_content
+from backend.models.draft import save_draft, get_drafts, delete_drafts_for_post
+from backend.utils.markdown_renderer import render_content
 
 knowledge_bp = Blueprint('knowledge', __name__)
 
@@ -392,13 +392,12 @@ def doc_to_blog(doc_id):
     if not post_id:
         flash('转为博客草稿失败', 'error')
         return redirect(url_for('knowledge.view_doc', doc_id=doc_id))
-    conn = get_db_connection()
-    conn.execute('UPDATE posts SET source_post_id = ? WHERE id = ?', (doc_id, post_id))
-    conn.commit()
-    conn.close()
-    set_post_tags(post_id, [tag['name'] for tag in get_post_tags(doc_id)])
-    flash('已转为博客草稿，可继续编辑后发布', 'success')
-    return redirect(url_for('admin.edit_post', post_id=post_id))
+    with get_db_context() as conn:
+        conn.execute('UPDATE posts SET source_post_id = ? WHERE id = ?', (doc_id, post_id))
+        conn.commit()
+        set_post_tags(post_id, [tag['name'] for tag in get_post_tags(doc_id)])
+        flash('已转为博客草稿，可继续编辑后发布', 'success')
+        return redirect(url_for('admin.edit_post', post_id=post_id))
 
 
 @knowledge_bp.route('/doc/<int:doc_id>/delete', methods=['POST'])

@@ -1,7 +1,7 @@
 """首页/归档/分类/标签/作者（blog 蓝图子模块）。"""
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
-from models import (
+from backend.models import (
     get_all_posts, get_all_posts_cursor, get_all_categories, get_category_by_id, get_all_tags,
     get_tag_by_id, get_posts_by_tag, get_posts_by_author, get_user_by_id,
     get_popular_tags, sanitize_posts_for_viewer,
@@ -23,7 +23,7 @@ def index():
     模板可通过 post.type 判断内容类型并选择不同的渲染方式。
     """
     try:
-        from models import publish_due_posts
+        from backend.models import publish_due_posts
         publish_due_posts()
     except Exception:
         pass
@@ -138,7 +138,7 @@ def archive():
     - year: 指定年份
     - month: 指定月份
     """
-    from models import get_db_connection
+    from backend.models import get_db_context
     from flask import render_template
 
     days = request.args.get('days', type=int)
@@ -149,59 +149,58 @@ def archive():
     if per_page not in (20, 40, 80):
         per_page = 20
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # 构建查询条件
-    where_conditions = ["is_published = 1", "post_type = 'blog'", "deleted_at IS NULL"]
-    params = []
+        # 构建查询条件
+        where_conditions = ["is_published = 1", "post_type = 'blog'", "deleted_at IS NULL"]
+        params = []
 
-    if days:
-        where_conditions.append(f"created_at >= datetime('now', '-{days} days')")
+        if days:
+            where_conditions.append(f"created_at >= datetime('now', '-{days} days')")
 
-    if year:
-        where_conditions.append("strftime('%Y', created_at) = ?")
-        params.append(str(year))
+        if year:
+            where_conditions.append("strftime('%Y', created_at) = ?")
+            params.append(str(year))
 
-        if month:
-            where_conditions.append("strftime('%m', created_at) = ?")
-            params.append(f"{month:02d}")
+            if month:
+                where_conditions.append("strftime('%m', created_at) = ?")
+                params.append(f"{month:02d}")
 
-    where_clause = " AND ".join(where_conditions)
+        where_clause = " AND ".join(where_conditions)
 
-    cursor.execute(f'SELECT COUNT(*) AS cnt FROM posts WHERE {where_clause}', params)
-    total = cursor.fetchone()['cnt']
-    total_pages = (total + per_page - 1) // per_page if total else 1
-    if page > total_pages:
-        page = total_pages
-    offset = (page - 1) * per_page
+        cursor.execute(f'SELECT COUNT(*) AS cnt FROM posts WHERE {where_clause}', params)
+        total = cursor.fetchone()['cnt']
+        total_pages = (total + per_page - 1) // per_page if total else 1
+        if page > total_pages:
+            page = total_pages
+        offset = (page - 1) * per_page
 
-    query = f'''
-        SELECT * FROM posts
-        WHERE {where_clause}
-        ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
-    '''
+        query = f'''
+            SELECT * FROM posts
+            WHERE {where_clause}
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+        '''
 
-    cursor.execute(query, params + [per_page, offset])
-    posts = cursor.fetchall()
-    conn.close()
-    posts = _sanitize_for_viewer(posts)
+        cursor.execute(query, params + [per_page, offset])
+        posts = cursor.fetchall()
+        posts = _sanitize_for_viewer(posts)
 
-    # 生成标题
-    title = "文章归档"
-    if days:
-        title = f"最近{days}天"
-    elif year and month:
-        title = f"{year}年{month}月"
-    elif year:
-        title = f"{year}年"
-    else:
-        title = "全部归档"
+        # 生成标题
+        title = "文章归档"
+        if days:
+            title = f"最近{days}天"
+        elif year and month:
+            title = f"{year}年{month}月"
+        elif year:
+            title = f"{year}年"
+        else:
+            title = "全部归档"
 
-    return render_template('archive.html', posts=posts, title=title,
-                           pagination={'page': page, 'per_page': per_page, 'total': total, 'total_pages': total_pages},
-                           days=days, year=year, month=month)
+        return render_template('archive.html', posts=posts, title=title,
+                               pagination={'page': page, 'per_page': per_page, 'total': total, 'total_pages': total_pages},
+                               days=days, year=year, month=month)
 
 @blog_bp.route('/category/<int:category_id>')
 def view_category(category_id):

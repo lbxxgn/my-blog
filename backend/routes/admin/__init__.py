@@ -9,10 +9,10 @@ from flask import Blueprint, request, jsonify
 import logging
 import re
 
-from models import get_db_connection, get_user_ai_config, save_ai_tag_history
+from backend.models import get_db_context, get_user_ai_config, save_ai_tag_history
 from backend.routes.ai import _run_structured_prompt
-from auth_decorators import get_current_user
-from logger import log_error
+from backend.auth_decorators import get_current_user
+from backend.logger import log_error
 from backend.config import ALLOWED_EXTENSIONS
 
 def _auto_title(content: str) -> str:
@@ -59,11 +59,10 @@ def _async_ai_title(app, post_id, content, user_id):
             if ai_result:
                 ai_title = (ai_result.get('content') or '').strip().strip('"\'').strip()
                 if ai_title:
-                    conn = get_db_connection()
-                    cursor = conn.cursor()
-                    cursor.execute('UPDATE posts SET title = ? WHERE id = ?', (ai_title, post_id))
-                    conn.commit()
-                    conn.close()
+                    with get_db_context() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute('UPDATE posts SET title = ? WHERE id = ?', (ai_title, post_id))
+                        conn.commit()
 
                     save_ai_tag_history(
                         user_id=user_id,
@@ -139,18 +138,18 @@ def filter_operable_post_ids(post_ids):
     if not post_ids:
         return [], 0
     author_id = user.get('id') if user else None
-    conn = get_db_connection()
-    try:
-        placeholders = ','.join('?' * len(post_ids))
-        rows = conn.execute(
-            f'SELECT id FROM posts WHERE author_id = ? AND id IN ({placeholders})',
-            (author_id, *post_ids)
-        ).fetchall()
-        allowed = {row[0] for row in rows}
-        result = [pid for pid in post_ids if pid in allowed]
-        return result, len(post_ids) - len(result)
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            placeholders = ','.join('?' * len(post_ids))
+            rows = conn.execute(
+                f'SELECT id FROM posts WHERE author_id = ? AND id IN ({placeholders})',
+                (author_id, *post_ids)
+            ).fetchall()
+            allowed = {row[0] for row in rows}
+            result = [pid for pid in post_ids if pid in allowed]
+            return result, len(post_ids) - len(result)
+        finally:
+            pass
 
 
 def allowed_file(filename):

@@ -2,7 +2,7 @@
 数据模型测试
 """
 
-from models import (
+from backend.models import (
     get_user_by_username, get_user_by_id, create_user, update_user, delete_user, create_post, get_post_by_id, update_post, delete_post, get_all_posts,
     create_category, get_all_categories, get_category_by_id, update_category, delete_category,
     create_tag, get_all_tags, get_tag_by_id, get_popular_tags,
@@ -148,14 +148,14 @@ class TestCategoryModels:
 
     def test_get_all_categories_blog_filter(self, temp_db, test_user):
         """Blog 侧过滤：space='blog' + 有已发布博客文章；计数只算博客"""
-        from models import create_post
+        from backend.models import create_post
 
         cat_blog = create_category('博客分类')
         cat_empty = create_category('空分类')
         cat_kb = create_category('知识库分类')
 
         # 知识库空间的分类
-        with __import__('models', fromlist=['get_db_context']).get_db_context() as conn:
+        with __import__('backend.models', fromlist=['get_db_context']).get_db_context() as conn:
             conn.execute("UPDATE categories SET space = 'knowledge' WHERE id = ?", (cat_kb,))
 
         # 已发布博客文章挂在 cat_blog
@@ -240,7 +240,7 @@ class TestTagModels:
         tag3_id = create_tag('web')
 
         # 关联标签到测试文章
-        from models import set_post_tags
+        from backend.models import set_post_tags
         set_post_tags(test_post['id'], ['python', 'flask', 'web'])
 
         tags = get_popular_tags(limit=10)
@@ -248,7 +248,7 @@ class TestTagModels:
 
     def test_get_popular_tags_only_counts_published_blog_posts(self, temp_db, test_user):
         """热门标签只统计已发布博客文章；仅知识库使用的标签不出现"""
-        from models import create_post, set_post_tags
+        from backend.models import create_post, set_post_tags
 
         create_tag('博客专属')
         create_tag('知识库专属')
@@ -315,7 +315,7 @@ class TestCardModels:
 
     def test_create_card(self, temp_db):
         """测试创建卡片"""
-        from models import create_card, get_card_by_id
+        from backend.models import create_card, get_card_by_id
 
         card_id = create_card(
             user_id=1,
@@ -338,7 +338,7 @@ class TestCardModels:
 
     def test_get_cards_by_user(self, temp_db):
         """测试获取用户的所有卡片"""
-        from models import create_card, get_cards_by_user
+        from backend.models import create_card, get_cards_by_user
 
         create_card(user_id=1, title='Card 1', content='Content 1', status='idea')
         create_card(user_id=1, title='Card 2', content='Content 2', status='draft')
@@ -350,7 +350,7 @@ class TestCardModels:
 
     def test_update_card_status(self, temp_db):
         """测试更新卡片状态"""
-        from models import create_card, update_card_status, get_card_by_id
+        from backend.models import create_card, update_card_status, get_card_by_id
 
         card_id = create_card(user_id=1, title='Test', content='Content', status='idea')
         update_card_status(card_id, 'incubating')

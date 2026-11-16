@@ -37,7 +37,7 @@
     {% if posts %}
     <div class="posts-list">
         {% for post in posts %}
-        <a href="{{ url_for('view_post', post_id=post.id) }}" class="post-card-link">
+        <a href="{{ url_for('blog.view_post', post_id=post.id) }}" class="post-card-link">
             <article class="post-card">
                 <h2>{{ post.title }}</h2>
                 <div class="post-meta">
@@ -59,15 +59,15 @@
     {% if pagination.total_pages > 1 %}
     <div class="pagination">
         {% if pagination.page > 1 %}
-        <a href="{{ url_for('view_author', author_id=author.id, page=1) }}" class="btn btn-sm">首页</a>
-        <a href="{{ url_for('view_author', author_id=author.id, page=pagination.page-1) }}" class="btn btn-sm">上一页</a>
+        <a href="{{ url_for('blog.view_author', author_id=author.id, page=1) }}" class="btn btn-sm">首页</a>
+        <a href="{{ url_for('blog.view_author', author_id=author.id, page=pagination.page-1) }}" class="btn btn-sm">上一页</a>
         {% endif %}
 
         {% for page_num in page_range %}
         {% if page_num == pagination.page %}
         <span class="btn btn-sm btn-primary">{{ page_num }}</span>
         {% elif page_num > 0 and page_num <= pagination.total_pages %}
-        <a href="{{ url_for('view_author', author_id=author.id, page=page_num) }}" class="btn btn-sm">{{ page_num }}</a>
+        <a href="{{ url_for('blog.view_author', author_id=author.id, page=page_num) }}" class="btn btn-sm">{{ page_num }}</a>
         {% endif %}
         {% endfor %}
 
@@ -76,8 +76,8 @@
         {% endif %}
 
         {% if pagination.page < pagination.total_pages %}
-        <a href="{{ url_for('view_author', author_id=author.id, page=pagination.page+1) }}" class="btn btn-sm">下一页</a>
-        <a href="{{ url_for('view_author', author_id=author.id, page=pagination.total_pages) }}" class="btn btn-sm">末页</a>
+        <a href="{{ url_for('blog.view_author', author_id=author.id, page=pagination.page+1) }}" class="btn btn-sm">下一页</a>
+        <a href="{{ url_for('blog.view_author', author_id=author.id, page=pagination.total_pages) }}" class="btn btn-sm">末页</a>
         {% endif %}
 
         <span>

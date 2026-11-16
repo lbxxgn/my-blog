@@ -3,10 +3,10 @@
 from flask import render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash
 
-from models import (
+from backend.models import (
     get_user_by_username, get_user_by_id, create_user, update_user, delete_user, get_all_users,
 )
-from auth_decorators import can_manage_users
+from backend.auth_decorators import can_manage_users
 
 
 from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401

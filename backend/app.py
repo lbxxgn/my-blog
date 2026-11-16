@@ -26,7 +26,7 @@ Flask博客系统 - 主应用文件
 # =============================================================================
 # 标准库导入
 # =============================================================================
-from flask import Flask, render_template, request, jsonify, send_file, abort
+from flask import Flask, render_template, request, jsonify, send_file, abort, redirect, url_for
 from werkzeug.security import generate_password_hash
 import json
 import os
@@ -35,13 +35,10 @@ import sqlite3
 import sys
 from pathlib import Path
 
-CURRENT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = CURRENT_DIR.parent
-# 同时加入项目根目录与 backend/ 目录，
-# 保证 `python backend/app.py` 与 `gunicorn backend.app:app` 两种加载方式都可用
-for _p in (str(PROJECT_ROOT), str(CURRENT_DIR)):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# 统一使用 backend.* 绝对导入；脚本方式启动时保证项目根目录在 sys.path 中
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # =============================================================================
 # 项目配置导入
@@ -71,12 +68,12 @@ import logging
 # 延迟导入项目模块（避免循环导入问题）
 def get_setup_logging():
     """获取setup_logging函数"""
-    from logger import setup_logging
+    from backend.logger import setup_logging
     return setup_logging
 
 def get_log_error():
     """获取log_error函数"""
-    from logger import log_error
+    from backend.logger import log_error
     return log_error
 
 logger = logging.getLogger(__name__)
@@ -94,8 +91,8 @@ except ImportError:
 # =============================================================================
 # 数据模型导入
 # =============================================================================
-from models import (
-    get_db_connection, init_db, get_user_by_username, create_user,
+from backend.models import (
+    get_db_context, init_db, get_user_by_username, create_user,
     get_site_icon_version, get_site_identity
 )
 
@@ -106,8 +103,8 @@ from models import (
 # =============================================================================
 # 静态资源版本管理导入
 # =============================================================================
-from utils.asset_version import AssetVersionManager
-from utils.template_helpers import register_template_helpers
+from backend.utils.asset_version import AssetVersionManager
+from backend.utils.template_helpers import register_template_helpers
 
 # =============================================================================
 # Flask应用初始化
@@ -483,7 +480,7 @@ get_setup_logging()(app)
 # 时区处理
 # =============================================================================
 from datetime import datetime
-from utils.timezone import utc_to_local
+from backend.utils.timezone import utc_to_local
 
 app.jinja_env.globals.update(utc_to_local=utc_to_local)
 
@@ -495,7 +492,7 @@ def localtime_filter(value):
 @app.template_filter('excerpt')
 def excerpt_filter(value, max_length=200):
     """Jinja2过滤器：获取文章摘要（清理HTML并截断）"""
-    from models import get_post_excerpt
+    from backend.models import get_post_excerpt
     return get_post_excerpt(value, max_length)
 
 @app.template_filter('highlight')
@@ -547,9 +544,9 @@ def allowed_file(filename):
 # =============================================================================
 # 注册蓝图
 # =============================================================================
-from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
-from routes.drafts import drafts_bp
-from routes.review import review_bp
+from backend.routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
+from backend.routes.drafts import drafts_bp
+from backend.routes.review import review_bp
 
 # 注册认证蓝图
 app.register_blueprint(auth_bp)
@@ -579,7 +576,7 @@ app.register_blueprint(drafts_bp)
 app.register_blueprint(review_bp)
 
 # 注册移动端蓝图
-from routes.admin import mobile_bp
+from backend.routes.admin import mobile_bp
 app.register_blueprint(mobile_bp, url_prefix='/mobile')
 
 # 为浏览器扩展API端点豁免 CSRF 保护
@@ -658,19 +655,18 @@ def auto_regenerate_assets():
 
     # 恢复未完成的图片优化任务
     try:
-        from models import get_db_connection
-        from tasks.image_optimization_task import queue_image_optimization
+        from backend.models import get_db_context
+        from backend.tasks.image_optimization_task import queue_image_optimization
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT original_path FROM optimized_images
-            WHERE status IN ('pending', 'failed')
-               OR (status = 'completed' AND (medium_path IS NULL OR medium_path = ''))
-            ORDER BY created_at ASC
-        ''')
-        pending = cursor.fetchall()
-        conn.close()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT original_path FROM optimized_images
+                WHERE status IN ('pending', 'failed')
+                   OR (status = 'completed' AND (medium_path IS NULL OR medium_path = ''))
+                ORDER BY created_at ASC
+            ''')
+            pending = cursor.fetchall()
 
         requeued = 0
         for row in pending:
@@ -685,198 +681,16 @@ def auto_regenerate_assets():
         logger.warning(f'恢复待优化任务失败: {e}')
 
 # =============================================================================
-# 兼容性endpoint别名（保持旧模板的url_for调用正常工作）
+# 旧客户端路径兼容
 # =============================================================================
-# 由于blueprint重构，endpoint名称从'index'变为'blog.index'等
-# 为了保持模板兼容性，为旧endpoint名称创建路由包装器
-
-# Blog endpoints
-@app.route('/')
-def index():
-    """首页别名（兼容模板）"""
-    return app.view_functions['blog.index']()
-
-@app.route('/search')
-def search():
-    """搜索页面别名（兼容模板）"""
-    return app.view_functions['blog.search']()
-
-@app.route('/post/<int:post_id>')
-def view_post(post_id):
-    """查看文章别名（兼容模板）"""
-    return app.view_functions['blog.view_post'](post_id)
-
-@app.route('/category/<int:category_id>')
-def view_category(category_id):
-    """查看分类别名（兼容模板）"""
-    return app.view_functions['blog.view_category'](category_id)
-
-@app.route('/tag/<int:tag_id>')
-def view_tag(tag_id):
-    """查看标签别名（兼容模板）"""
-    return app.view_functions['blog.view_tag'](tag_id)
-
-@app.route('/author/<int:author_id>')
-def view_author(author_id):
-    """查看作者别名（兼容模板）"""
-    return app.view_functions['blog.view_author'](author_id)
-
-@app.route('/post/<int:post_id>/comment', methods=['POST'])
-def add_comment(post_id):
-    """添加评论别名（兼容模板）"""
-    return app.view_functions['blog.add_comment'](post_id)
-
-# Auth endpoints
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """登录别名（兼容模板）"""
-    return app.view_functions['auth.login']()
-
-@app.route('/logout')
-def logout():
-    """退出登录别名（兼容模板）"""
-    return app.view_functions['auth.logout']()
-
-@app.route('/change-password', methods=['GET', 'POST'])
-def change_password():
-    """修改密码别名（兼容模板）"""
-    return app.view_functions['auth.change_password']()
-
-# Admin endpoints
-@app.route('/admin')
-def admin_dashboard():
-    """管理后台首页别名（兼容模板）"""
-    return app.view_functions['admin.admin_dashboard']()
-
-@app.route('/admin/new', methods=['GET', 'POST'])
-def new_post():
-    """新建文章别名（兼容模板）"""
-    return app.view_functions['admin.new_post']()
+# 仅保留路径与 blueprint 不一致、浏览器插件/旧客户端仍在使用的入口；
+# 模板已统一使用 blueprint endpoint 名称，不再为旧 url_for endpoint 建包装器。
 
 @app.route('/new', methods=['GET', 'POST'])
 def legacy_new_post():
-    """历史新建文章入口别名（兼容旧链接和旧测试）"""
-    return app.view_functions['admin.new_post']()
+    """历史新建文章入口，308 重定向到后台新建页。"""
+    return redirect(url_for('admin.new_post'), code=302)
 
-@app.route('/admin/users')
-def user_list():
-    """用户列表别名（兼容模板）"""
-    return app.view_functions['admin.user_list']()
-
-@app.route('/admin/users/new')
-def new_user():
-    """新建用户别名（兼容模板）"""
-    return app.view_functions['admin.new_user']()
-
-@app.route('/admin/categories')
-def category_list():
-    """分类列表别名（兼容模板）"""
-    return app.view_functions['admin.categories']()
-
-@app.route('/admin/categories/new', methods=['POST'])
-def new_category():
-    """新建分类别名（兼容模板）"""
-    return app.view_functions['admin.new_category']()
-
-@app.route('/admin/tags')
-def tag_list():
-    """标签列表别名（兼容模板）"""
-    return app.view_functions['admin.tags']()
-
-@app.route('/admin/tags/new', methods=['POST'])
-def new_tag():
-    """新建标签别名（兼容模板）"""
-    return app.view_functions['admin.new_tag']()
-
-@app.route('/admin/export')
-def export_page():
-    """导出页面别名（兼容模板）"""
-    return app.view_functions['admin.export']()
-
-@app.route('/admin/export/json')
-def export_json():
-    """导出JSON别名（兼容模板）"""
-    return app.view_functions['admin.export_json']()
-
-@app.route('/admin/export/markdown')
-def export_markdown():
-    """导出Markdown别名（兼容模板）"""
-    return app.view_functions['admin.export_markdown']()
-
-@app.route('/admin/import')
-def import_page():
-    """导入页面别名（兼容模板）"""
-    return app.view_functions['admin.import_page']()
-
-@app.route('/admin/import/json', methods=['POST'])
-def import_json():
-    """导入JSON别名（兼容模板）"""
-    return app.view_functions['admin.import_json']()
-
-@app.route('/admin/import/markdown', methods=['POST'])
-def import_markdown():
-    """导入Markdown别名（兼容模板）"""
-    return app.view_functions['admin.import_markdown']()
-
-@app.route('/admin/edit/<int:post_id>', methods=['GET', 'POST'])
-def edit_post(post_id):
-    """编辑文章别名（兼容模板）"""
-    return app.view_functions['admin.edit_post'](post_id)
-
-@app.route('/admin/delete/<int:post_id>', methods=['POST'])
-def delete_post_route(post_id):
-    """删除文章别名（兼容模板）"""
-    return app.view_functions['admin.delete_post_route'](post_id)
-
-@app.route('/admin/batch-update-category', methods=['POST'])
-def batch_update_category():
-    """批量更新分类别名（兼容模板）"""
-    return app.view_functions['admin.batch_update_category']()
-
-@app.route('/admin/batch-delete', methods=['POST'])
-def batch_delete():
-    """批量删除别名（兼容模板）"""
-    return app.view_functions['admin.batch_delete']()
-
-@app.route('/admin/upload', methods=['POST'])
-def upload():
-    """文件上传别名（兼容模板）"""
-    return app.view_functions['admin.upload']()
-
-@app.route('/admin/categories/<int:category_id>/delete', methods=['POST'])
-def delete_category_route(category_id):
-    """删除分类别名（兼容模板）"""
-    return app.view_functions['admin.delete_category_route'](category_id)
-
-@app.route('/admin/tags/<int:tag_id>/delete', methods=['POST'])
-def delete_tag_route(tag_id):
-    """删除标签别名（兼容模板）"""
-    return app.view_functions['admin.delete_tag_route'](tag_id)
-
-@app.route('/admin/comments')
-def comments_list():
-    """评论列表别名（兼容模板）"""
-    return app.view_functions['admin.comments']()
-
-@app.route('/admin/comments/<int:comment_id>/toggle', methods=['POST'])
-def toggle_comment(comment_id):
-    """切换评论状态别名（兼容模板）"""
-    return app.view_functions['admin.toggle_comment'](comment_id)
-
-@app.route('/admin/comments/<int:comment_id>/delete', methods=['POST'])
-def delete_comment_route(comment_id):
-    """删除评论别名（兼容模板）"""
-    return app.view_functions['admin.delete_comment_route'](comment_id)
-
-@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
-def edit_user(user_id):
-    """编辑用户别名（兼容模板）"""
-    return app.view_functions['admin.edit_user'](user_id)
-
-@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
-def delete_user_route(user_id):
-    """删除用户别名（兼容模板）"""
-    return app.view_functions['admin.delete_user_route'](user_id)
 
 # Knowledge base API aliases
 @app.route('/api/plugin/submit', methods=['POST'])
@@ -944,15 +758,6 @@ csrf.exempt(app.view_functions['plugin_submit'])
 csrf.exempt(app.view_functions['plugin_sync_annotations'])
 
 # AI endpoints
-@app.route('/admin/ai/history')
-def ai_history():
-    """AI历史记录别名（兼容模板）"""
-    return app.view_functions['ai.history']()
-
-@app.route('/admin/ai/configure', methods=['GET', 'POST'])
-def ai_settings():
-    """AI设置页面别名（兼容模板）"""
-    return app.view_functions['ai.configure']()
 
 # =============================================================================
 # 创建管理员用户
@@ -1082,14 +887,11 @@ def healthz():
 def readyz():
     """就绪检查：数据库可连接且基础表已初始化。"""
     try:
-        conn = get_db_connection()
-        try:
+        with get_db_context() as conn:
             conn.execute('SELECT 1').fetchone()
             row = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='posts'"
             ).fetchone()
-        finally:
-            conn.close()
         if not row:
             raise RuntimeError('schema not initialized')
         return jsonify({'status': 'ready'}), 200
@@ -1116,39 +918,38 @@ def weekly_review_command():
     适合 crontab 定时调用，例如每周一早上：
         0 9 * * 1 cd /path/to/my-blog && .venv/bin/flask --app backend/app.py weekly-review
     """
-    from services.weekly_review import generate_weekly_review
+    from backend.services.weekly_review import generate_weekly_review
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, username FROM users
-        WHERE ai_tag_generation_enabled = 1
-          AND ai_api_key IS NOT NULL AND ai_api_key != ''
-        ORDER BY id
-    ''')
-    users = [dict(r) for r in cursor.fetchall()]
-    if not users:
-        # 没有启用 AI 的用户时，退而为第一个 admin 生成（会自动降级为纯统计版）
-        cursor.execute("SELECT id, username FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, username FROM users
+            WHERE ai_tag_generation_enabled = 1
+              AND ai_api_key IS NOT NULL AND ai_api_key != ''
+            ORDER BY id
+        ''')
         users = [dict(r) for r in cursor.fetchall()]
-    conn.close()
+        if not users:
+            # 没有启用 AI 的用户时，退而为第一个 admin 生成（会自动降级为纯统计版）
+            cursor.execute("SELECT id, username FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")
+            users = [dict(r) for r in cursor.fetchall()]
 
-    if not users:
-        print('没有可生成回顾的用户')
-        return
+        if not users:
+            print('没有可生成回顾的用户')
+            return
 
-    for user in users:
-        try:
-            result = generate_weekly_review(user['id'])
-            if result.get('exists'):
-                print(f"[{user['username']}] 本周回顾已存在: {result['title']} ({result['url']})")
-            elif result.get('success'):
-                mode = 'AI' if result.get('ai_used') else '统计'
-                print(f"[{user['username']}] 已生成（{mode}版）: {result['title']} ({result['url']})")
-            else:
-                print(f"[{user['username']}] 生成失败: {result.get('error')}")
-        except Exception as e:
-            print(f"[{user['username']}] 生成异常: {e}")
+        for user in users:
+            try:
+                result = generate_weekly_review(user['id'])
+                if result.get('exists'):
+                    print(f"[{user['username']}] 本周回顾已存在: {result['title']} ({result['url']})")
+                elif result.get('success'):
+                    mode = 'AI' if result.get('ai_used') else '统计'
+                    print(f"[{user['username']}] 已生成（{mode}版）: {result['title']} ({result['url']})")
+                else:
+                    print(f"[{user['username']}] 生成失败: {result.get('error')}")
+            except Exception as e:
+                print(f"[{user['username']}] 生成异常: {e}")
 
 # =============================================================================
 # 自动备份调度器

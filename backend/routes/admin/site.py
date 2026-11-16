@@ -2,10 +2,10 @@
 
 from flask import render_template, request, redirect, url_for, flash
 
-from models import (
+from backend.models import (
     get_site_icon_version, set_site_setting, get_site_identity,
 )
-from auth_decorators import login_required, admin_required
+from backend.auth_decorators import login_required, admin_required
 from backend.utils.site_icon import generate_site_icons, reset_site_icons, has_custom_icons
 from backend.config import SITE_NAME, SITE_DESCRIPTION, SITE_AUTHOR
 import time

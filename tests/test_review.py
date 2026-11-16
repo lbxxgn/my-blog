@@ -116,7 +116,7 @@ def _count_posts_with_title(db_path, title):
 
 
 def _create_other_user(username='other_user'):
-    from models import create_user
+    from backend.models import create_user
     from werkzeug.security import generate_password_hash
     return create_user(
         username,
@@ -281,7 +281,7 @@ class TestWeeklyReviewService:
 
     def test_collect_weekly_stats(self, temp_db, test_user):
         """近 7 天汇总：新增、批注、想法积压、超期孵化"""
-        from services import weekly_review
+        from backend.services import weekly_review
 
         uid = test_user['id']
         now = _local_now()
@@ -311,7 +311,7 @@ class TestWeeklyReviewService:
 
     def test_generate_with_mock_provider(self, temp_db, test_user):
         """mock LLM：回顾文档落库到「每周回顾」分类"""
-        from services import weekly_review
+        from backend.services import weekly_review
 
         uid = test_user['id']
         _insert_post(temp_db, uid, '本周文章', _utc_str(_local_now()))
@@ -338,7 +338,7 @@ class TestWeeklyReviewService:
 
     def test_generate_idempotent_same_week(self, temp_db, test_user):
         """同周重复生成返回已存在，不产生重复文档、不再调 LLM"""
-        from services import weekly_review
+        from backend.services import weekly_review
 
         provider = _MockProvider()
         r1 = weekly_review.generate_weekly_review(test_user['id'], llm_provider=provider)
@@ -351,7 +351,7 @@ class TestWeeklyReviewService:
 
     def test_generate_force_updates_existing(self, temp_db, test_user):
         """force=True 时更新已有文档而非新建"""
-        from services import weekly_review
+        from backend.services import weekly_review
 
         provider = _MockProvider()
         r1 = weekly_review.generate_weekly_review(test_user['id'], llm_provider=provider)
@@ -364,7 +364,7 @@ class TestWeeklyReviewService:
 
     def test_generate_fallback_without_ai(self, temp_db, test_user):
         """未配置 AI 密钥时降级为纯统计版"""
-        from services import weekly_review
+        from backend.services import weekly_review
 
         uid = test_user['id']
         _insert_card(temp_db, uid, '积压想法', _utc_str(_local_now()), status='idea')
@@ -381,7 +381,7 @@ class TestWeeklyReviewService:
 
     def test_generate_fallback_on_llm_error(self, temp_db, test_user):
         """LLM 调用抛异常时同样降级为统计版"""
-        from services import weekly_review
+        from backend.services import weekly_review
 
         class _BrokenProvider:
             def generate_text(self, *args, **kwargs):
@@ -405,7 +405,7 @@ class TestWeeklyAPI:
 
     def test_weekly_list(self, client, test_admin_user):
         """历史列表返回已生成的回顾"""
-        from services import weekly_review
+        from backend.services import weekly_review
 
         weekly_review.generate_weekly_review(
             test_admin_user['id'], llm_provider=_MockProvider())
@@ -421,7 +421,7 @@ class TestWeeklyAPI:
 
     def test_generate_async_flow(self, client, test_admin_user, monkeypatch):
         """POST 返回 202，后台线程完成后状态变为 done"""
-        import services.weekly_review as weekly_review_service
+        import backend.services.weekly_review as weekly_review_service
 
         calls = {}
 
@@ -451,7 +451,7 @@ class TestWeeklyAPI:
 
     def test_generate_returns_exists_when_already_generated(self, client, test_admin_user):
         """本周已生成时返回 200 + exists，不再触发生成"""
-        from services import weekly_review
+        from backend.services import weekly_review
 
         result = weekly_review.generate_weekly_review(
             test_admin_user['id'], llm_provider=_MockProvider())

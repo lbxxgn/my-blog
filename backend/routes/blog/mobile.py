@@ -1,7 +1,7 @@
 """移动端接口（blog 蓝图子模块）。"""
 
 from flask import request, session, jsonify
-from models import (
+from backend.models import (
     get_posts_by_author,
 )
 

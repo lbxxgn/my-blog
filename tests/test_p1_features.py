@@ -14,7 +14,7 @@ def _login(client, user, password=None):
 @pytest.mark.usefixtures('client')
 class TestDraftsAndRevisions:
     def test_multi_device_drafts_are_kept_separately(self, temp_db, test_user):
-        from models.draft import save_draft, get_drafts
+        from backend.models.draft import save_draft, get_drafts
 
         first = save_draft(test_user['id'], 10, 'A', 'content A', device_token='tab-a')
         second = save_draft(test_user['id'], 10, 'B', 'content B', device_token='tab-b')
@@ -23,7 +23,7 @@ class TestDraftsAndRevisions:
         assert second['status'] == 'conflict_detected'
 
     def test_same_token_updates_one_draft(self, temp_db, test_user):
-        from models.draft import save_draft, get_drafts
+        from backend.models.draft import save_draft, get_drafts
 
         save_draft(test_user['id'], 11, 'A', 'one', device_token='same-tab')
         save_draft(test_user['id'], 11, 'B', 'two', device_token='same-tab')
@@ -32,7 +32,7 @@ class TestDraftsAndRevisions:
         assert drafts[0]['title'] == 'B'
 
     def test_update_creates_revision_and_restore_works(self, temp_db, test_user):
-        from models import create_post, update_post, get_post_by_id, get_post_revisions, restore_post_revision
+        from backend.models import create_post, update_post, get_post_by_id, get_post_revisions, restore_post_revision
 
         post_id = create_post('Original', 'body one', True, None, test_user['id'])
         update_post(post_id, 'Changed', 'body two', True)
@@ -45,7 +45,7 @@ class TestDraftsAndRevisions:
 @pytest.mark.usefixtures('client')
 class TestSoftDeleteAndScheduling:
     def test_soft_delete_and_restore(self, temp_db, test_admin_user):
-        from models import create_post, get_post_by_id, soft_delete_post, restore_deleted_post, get_deleted_posts
+        from backend.models import create_post, get_post_by_id, soft_delete_post, restore_deleted_post, get_deleted_posts
 
         post_id = create_post('Trash me', 'body', True, None, test_admin_user['id'])
         assert soft_delete_post(post_id) is True
@@ -55,7 +55,7 @@ class TestSoftDeleteAndScheduling:
         assert get_post_by_id(post_id)['title'] == 'Trash me'
 
     def test_trash_and_revision_pages_render(self, client, temp_db, test_admin_user):
-        from models import create_post, update_post
+        from backend.models import create_post, update_post
         post_id = create_post('Revision page', 'one', True, None, test_admin_user['id'])
         update_post(post_id, 'Revision page v2', 'two', True)
         _login(client, test_admin_user)
@@ -63,7 +63,7 @@ class TestSoftDeleteAndScheduling:
         assert client.get('/admin/trash').status_code == 200
 
     def test_publish_due_posts(self, temp_db, test_admin_user):
-        from models import create_post, get_post_by_id, get_db_connection, publish_due_posts
+        from backend.models import create_post, get_post_by_id, get_db_connection, publish_due_posts
 
         post_id = create_post('Scheduled', 'body', False, None, test_admin_user['id'])
         conn = get_db_connection()
@@ -78,7 +78,7 @@ class TestSoftDeleteAndScheduling:
 @pytest.mark.usefixtures('client')
 class TestAdminFiltersAndTaxonomy:
     def test_admin_dashboard_search_and_status_filters(self, client, temp_db, test_admin_user):
-        from models import create_post
+        from backend.models import create_post
         create_post('Unique Draft Target', 'alpha body', False, None, test_admin_user['id'])
         create_post('Published Other', 'beta body', True, None, test_admin_user['id'])
         _login(client, test_admin_user)
@@ -88,7 +88,7 @@ class TestAdminFiltersAndTaxonomy:
         assert 'Published Other' not in page
 
     def test_dashboard_post_ids_respects_filters(self, client, temp_db, test_admin_user):
-        from models import create_post
+        from backend.models import create_post
         published_id = create_post('Ids published', 'body', True, None, test_admin_user['id'])
         draft_id = create_post('Ids draft', 'body', False, None, test_admin_user['id'])
         _login(client, test_admin_user)
@@ -99,7 +99,7 @@ class TestAdminFiltersAndTaxonomy:
         assert published_id not in data['ids']
 
     def test_admin_dashboard_like_wildcards_are_literal(self, client, temp_db, test_admin_user):
-        from models import create_post
+        from backend.models import create_post
         create_post('Percent post', 'discount 50% today', True, None, test_admin_user['id'])
         create_post('Plain post', 'no special characters', True, None, test_admin_user['id'])
         _login(client, test_admin_user)
@@ -109,7 +109,7 @@ class TestAdminFiltersAndTaxonomy:
         assert 'Plain post' not in page
 
     def test_admin_dashboard_out_of_range_page_clamps_to_last(self, client, temp_db, test_admin_user):
-        from models import create_post
+        from backend.models import create_post
         for i in range(12):
             create_post(f'Page post {i}', 'body', True, None, test_admin_user['id'])
         _login(client, test_admin_user)
@@ -118,7 +118,7 @@ class TestAdminFiltersAndTaxonomy:
         assert 'Page post' in page
 
     def test_admin_dashboard_empty_filter_values_do_not_hide_posts(self, client, temp_db, test_admin_user):
-        from models import create_post
+        from backend.models import create_post
         create_post('Visible With Empty Filters', 'body', True, None, test_admin_user['id'])
         _login(client, test_admin_user)
 
@@ -126,7 +126,7 @@ class TestAdminFiltersAndTaxonomy:
         assert 'Visible With Empty Filters' in page
 
     def test_admin_dashboard_empty_result_keeps_filter_controls(self, client, temp_db, test_admin_user):
-        from models import create_post
+        from backend.models import create_post
         create_post('Some post', 'body', True, None, test_admin_user['id'])
         _login(client, test_admin_user)
 
@@ -136,7 +136,7 @@ class TestAdminFiltersAndTaxonomy:
         assert 'name="q"' in page
 
     def test_category_rename_and_merge(self, client, temp_db, test_admin_user):
-        from models import create_category, create_post, get_category_by_id
+        from backend.models import create_category, create_post, get_category_by_id
         source = create_category('OldCat')
         target = create_category('NewCat')
         post_id = create_post('Categorized', 'body', True, source, test_admin_user['id'])
@@ -146,18 +146,18 @@ class TestAdminFiltersAndTaxonomy:
         assert get_category_by_id(source)['name'] == 'RenamedCat'
 
         client.post(f'/admin/categories/{source}/merge', data={'target_id': target})
-        from models import get_post_by_id
+        from backend.models import get_post_by_id
         assert get_post_by_id(post_id)['category_id'] == target
 
 
 @pytest.mark.usefixtures('client')
 class TestKnowledgePermissionsAndSearch:
     def _other_user(self):
-        from models import create_user
+        from backend.models import create_user
         return create_user('other', generate_password_hash('OtherPass123!', method='pbkdf2:sha256'), role='author')
 
     def test_other_user_cannot_view_or_edit_private_doc(self, client, temp_db, test_user):
-        from models import create_kb_category, create_knowledge_doc
+        from backend.models import create_kb_category, create_knowledge_doc
         self._other_user()
         cat_id = create_kb_category('Private KB', space='knowledge')
         doc_id = create_knowledge_doc('Private doc', 'secret body', cat_id, is_published=False, author_id=test_user['id'])
@@ -169,7 +169,7 @@ class TestKnowledgePermissionsAndSearch:
         }).status_code == 403
 
     def test_knowledge_search_filters_and_pagination(self, temp_db, test_user):
-        from models import create_kb_category, create_knowledge_doc, search_knowledge_docs
+        from backend.models import create_kb_category, create_knowledge_doc, search_knowledge_docs
         cat_id = create_kb_category('Search KB', space='knowledge')
         for i in range(3):
             create_knowledge_doc(f'Alpha {i}', 'needle body', cat_id, author_id=test_user['id'])
@@ -181,7 +181,7 @@ class TestKnowledgePermissionsAndSearch:
         assert len(result['posts']) == 1
 
     def test_category_rename_and_batch_move(self, client, temp_db, test_admin_user):
-        from models import create_kb_category, create_knowledge_doc, get_knowledge_doc
+        from backend.models import create_kb_category, create_knowledge_doc, get_knowledge_doc
         source = create_kb_category('Source', space='knowledge')
         target = create_kb_category('Target', space='knowledge')
         doc_id = create_knowledge_doc('Movable', 'body', source, author_id=test_admin_user['id'])
@@ -193,7 +193,7 @@ class TestKnowledgePermissionsAndSearch:
         assert get_knowledge_doc(doc_id)['category_id'] == target
 
     def test_knowledge_index_renders_tree_docs(self, client, temp_db, test_admin_user):
-        from models import create_kb_category, create_knowledge_doc
+        from backend.models import create_kb_category, create_knowledge_doc
         cat_id = create_kb_category('Tree cat', space='knowledge')
         create_knowledge_doc('Tree doc title', 'body', cat_id, author_id=test_admin_user['id'])
         _login(client, test_admin_user)
@@ -202,7 +202,7 @@ class TestKnowledgePermissionsAndSearch:
         assert 'kb-tree-docs collapsed' in page
 
     def test_uncategorized_documents_page(self, client, temp_db, test_admin_user):
-        from models import create_knowledge_doc
+        from backend.models import create_knowledge_doc
         create_knowledge_doc('Orphan doc', 'body', None, author_id=test_admin_user['id'])
         _login(client, test_admin_user)
         page = client.get('/knowledge/documents?scope=uncategorized').get_data(as_text=True)

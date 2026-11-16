@@ -6,7 +6,7 @@
 <div class="admin-categories">
     <div class="dashboard-header">
         <h2>评论管理</h2>
-        <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">返回管理后台</a>
     </div>
     <p style="color: var(--text-secondary); margin-bottom: 12px;">
         评论提交后会直接展示；如有不当内容可在这里隐藏或删除。
@@ -30,7 +30,7 @@
                 <td>{{ comment.author_name }}</td>
                 <td>{{ comment.content[:100] }}{% if comment.content|length > 100 %}...{% endif %}</td>
                 <td>
-                    <a href="{{ url_for('view_post', post_id=comment.post_id) }}" target="_blank">
+                    <a href="{{ url_for('blog.view_post', post_id=comment.post_id) }}" target="_blank">
                         {{ comment.post_title }}
                     </a>
                 </td>
@@ -44,13 +44,13 @@
                 </td>
                 <td>
                     <div class="actions">
-                        <form action="{{ url_for('toggle_comment', comment_id=comment.id) }}" method="post" class="delete-form">
+                        <form action="{{ url_for('admin.toggle_comment', comment_id=comment.id) }}" method="post" class="delete-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <button type="submit" class="btn btn-sm">
                                 {% if comment.is_visible %}隐藏{% else %}显示{% endif %}
                             </button>
                         </form>
-                        <form action="{{ url_for('delete_comment_route', comment_id=comment.id) }}" method="post" class="delete-form"
+                        <form action="{{ url_for('admin.delete_comment_route', comment_id=comment.id) }}" method="post" class="delete-form"
                               data-confirm="确定删除此评论吗？"
                               data-confirm-destructive="true"
                               data-confirm-text="删除">

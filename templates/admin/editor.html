@@ -120,7 +120,7 @@
                 {% if post and post.id %}
                 <a href="{{ url_for('admin.revision_list', post_id=post.id) }}" class="btn btn-secondary">历史版本</a>
                 {% endif %}
-                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">取消</a>
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-secondary">取消</a>
                 {% if not post or not post.is_published %}
                 <button type="submit" id="saveBtn" class="btn btn-secondary">保存草稿</button>
                 <button type="button" id="publishToggle" class="btn btn-primary" onclick="togglePublish()">立即发布</button>

@@ -3,24 +3,24 @@
 
 from flask import render_template, request, session, jsonify
 
-from ai_services import TagGenerator
-from ai_services.url_guard import UnsafeBaseUrlError, validate_ai_base_url
-from ai_services.embeddings import (
+from backend.ai_services import TagGenerator
+from backend.ai_services.url_guard import UnsafeBaseUrlError, validate_ai_base_url
+from backend.ai_services.embeddings import (
     DEFAULT_BASE_URL as EMBEDDING_DEFAULT_BASE_URL,
     DEFAULT_MODEL as EMBEDDING_DEFAULT_MODEL,
     get_embedding_config, update_embedding_config, test_embedding_connection,
 )
-from models import (
-    get_db_connection,
+from backend.models import (
+    get_db_context,
     get_provider,
     get_user_ai_config, update_user_ai_config,
     get_ai_tag_history,
     get_ai_usage_stats,
     resolve_model_selection,
 )
-from auth_decorators import login_required, admin_required
+from backend.auth_decorators import login_required, admin_required
 from backend.utils.secret_box import mask_secret
-from logger import log_operation, log_error
+from backend.logger import log_operation, log_error
 
 
 
@@ -292,11 +292,10 @@ def rebuild_embeddings():
     全局无用户启用时入队数为 0。
     """
     try:
-        from tasks.embedding_task import enqueue_embedding
+        from backend.tasks.embedding_task import enqueue_embedding
 
         enqueued = 0
-        conn = get_db_connection()
-        try:
+        with get_db_context() as conn:
             cursor = conn.cursor()
             cursor.execute('SELECT id, post_type FROM posts')
             for row in cursor.fetchall():
@@ -307,8 +306,6 @@ def rebuild_embeddings():
             for row in cursor.fetchall():
                 if enqueue_embedding('card', row['id']) is not None:
                     enqueued += 1
-        finally:
-            conn.close()
 
         if enqueued:
             message = f'已入队 {enqueued} 条内容，向量正在后台生成'

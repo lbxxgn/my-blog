@@ -1,6 +1,6 @@
 """AI 标题自动生成回归测试。"""
 
-from models import create_post, get_post_by_id, update_user_ai_config
+from backend.models import create_post, get_post_by_id, update_user_ai_config
 
 
 def test_async_ai_title_updates_post(temp_db, test_admin_user, monkeypatch):
@@ -28,7 +28,7 @@ def test_async_ai_title_updates_post(temp_db, test_admin_user, monkeypatch):
         },
     )
 
-    from app import app
+    from backend.app import app
     admin_pkg._async_ai_title(app, post_id, '正文内容', test_admin_user['id'])
 
     assert get_post_by_id(post_id)['title'] == 'AI 生成的标题'
@@ -36,7 +36,7 @@ def test_async_ai_title_updates_post(temp_db, test_admin_user, monkeypatch):
 
 def test_new_post_with_empty_title_starts_ai_title_task(
         client, test_admin_user, monkeypatch):
-    from routes.admin import posts as posts_module
+    from backend.routes.admin import posts as posts_module
 
     calls = []
     monkeypatch.setattr(
@@ -83,7 +83,7 @@ def _wait_for_calls(calls):
 
 def test_whitespace_title_still_triggers_ai_title(
         client, test_admin_user, monkeypatch):
-    from routes.admin import posts as posts_module
+    from backend.routes.admin import posts as posts_module
 
     calls = []
     monkeypatch.setattr(posts_module, '_async_ai_title', lambda *args: calls.append(args))
@@ -96,7 +96,7 @@ def test_whitespace_title_still_triggers_ai_title(
 
 def test_user_title_does_not_trigger_ai_title(
         client, test_admin_user, monkeypatch):
-    from routes.admin import posts as posts_module
+    from backend.routes.admin import posts as posts_module
 
     calls = []
     monkeypatch.setattr(posts_module, '_async_ai_title', lambda *args: calls.append(args))
@@ -111,8 +111,8 @@ def test_user_title_does_not_trigger_ai_title(
 def test_new_post_thread_updates_title_and_history(
         client, test_admin_user, temp_db, monkeypatch):
     import time
-    from routes import admin as admin_module
-    from models import get_ai_tag_history, get_post_by_id, update_user_ai_config
+    from backend.routes import admin as admin_module
+    from backend.models import get_ai_tag_history, get_post_by_id, update_user_ai_config
 
     update_user_ai_config(test_admin_user['id'], {
         'ai_tag_generation_enabled': True,
@@ -164,8 +164,8 @@ def test_new_post_thread_updates_title_and_history(
 
 def test_generate_title_surfaces_empty_ai_response(
         client, test_admin_user, monkeypatch):
-    from routes.ai import generation as generation_module
-    from models import update_user_ai_config
+    from backend.routes.ai import generation as generation_module
+    from backend.models import update_user_ai_config
 
     update_user_ai_config(test_admin_user['id'], {
         'ai_tag_generation_enabled': True,
@@ -200,8 +200,8 @@ def test_generate_title_surfaces_empty_ai_response(
 
 def test_generate_title_uses_more_output_tokens_for_reasoning_models(
         client, test_admin_user, monkeypatch):
-    from routes.ai import generation as generation_module
-    from models import update_user_ai_config
+    from backend.routes.ai import generation as generation_module
+    from backend.models import update_user_ai_config
 
     update_user_ai_config(test_admin_user['id'], {
         'ai_tag_generation_enabled': True,
