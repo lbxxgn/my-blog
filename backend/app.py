@@ -50,15 +50,12 @@ from backend.config import (SECRET_KEY, ALLOWED_EXTENSIONS,
                             IS_PRODUCTION, FORCE_HTTPS, TRUST_PROXY_HEADERS)
 
 # =============================================================================
-# 安全相关导入
-# =============================================================================
-from flask_wtf.csrf import CSRFProtect
-
-# =============================================================================
 # 静态资源优化和限流
 # =============================================================================
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_caching import Cache
+from flask_wtf.csrf import CSRFProtect
 
 # =============================================================================
 # 日志系统导入
@@ -77,6 +74,7 @@ def get_log_error():
     return log_error
 
 logger = logging.getLogger(__name__)
+
 
 # =============================================================================
 # 注册HEIC格式支持（iPhone图片）
@@ -109,655 +107,807 @@ from backend.utils.template_helpers import register_template_helpers
 # =============================================================================
 # Flask应用初始化
 # =============================================================================
-app = Flask(__name__,
-            template_folder=str(BASE_DIR / 'templates'),
-            static_folder=str(BASE_DIR / 'static'))
-
-# 基础配置
-app.config['SECRET_KEY'] = SECRET_KEY
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
-
-# 反向代理部署时恢复真实客户端 IP / 协议，避免限流与审计全部落在代理 IP 上
-if TRUST_PROXY_HEADERS:
-    from werkzeug.middleware.proxy_fix import ProxyFix
-
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
-
-# =============================================================================
-# 初始化静态资源版本管理（内容哈希 -> ?v=hash，配合长缓存头）
-# =============================================================================
-app.asset_manager = AssetVersionManager(app.static_folder)
-# 启动时刷新 manifest，保证与当前文件内容一致
-app.asset_manager.regenerate()
-register_template_helpers(app)
-
-# =============================================================================
-# HTTP缓存优化：为静态文件添加缓存头
-# =============================================================================
-@app.after_request
-def add_cache_headers_to_static_files(response):
-    """为静态文件响应添加缓存头，提升加载性能"""
-    # 只处理静态文件请求
-    if not request.path.startswith('/static/'):
-        return response
-
-    # 提取文件名
-    filename = request.path.split('/static/')[-1]
-
-    # 根据文件类型设置缓存策略
-    if filename.endswith(('.css', '.js')):
-        # CSS/JS文件：长期缓存（1年）
-        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-    elif filename.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg')):
-        # 图片文件：中期缓存（1周）
-        response.headers['Cache-Control'] = 'public, max-age=604800'
-    elif filename.endswith(('.woff', '.woff2', '.ttf', '.eot')):
-        # 字体文件：长期缓存
-        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
-
-    return response
-
-# Service Worker 需要以根路径 /sw.js 访问（SW 作用域限制），
-# 而静态资源挂在 /static/ 下，这里加一个显式路由。
-@app.route('/sw.js')
-def service_worker():
-    response = app.send_static_file('sw.js')
-    # SW 更新依赖网络获取，禁用缓存避免旧版本滞留
-    response.headers['Cache-Control'] = 'no-cache'
-    response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
-    return response
-
-
-# =============================================================================
-# 站点图标：优先返回后台上传的自定义图标，否则回退到仓库默认图标
-# iOS 在解析不到 <link> 时也会自动探测根路径的 /apple-touch-icon.png、/favicon.ico
-# =============================================================================
-from backend.utils.site_icon import site_icon_dir
-
-_ICON_CACHE_MAX_AGE = 604800  # 7 天；版本化文件名用于自定义图标后的即时更新
-
-# 可版本化访问的尺寸 -> 仓库默认图标（无自定义时回退）
-_VERSIONED_ICON_FALLBACKS = {
-    16: 'icons/icon-16.png',
-    32: 'icons/icon-32.png',
-    48: 'icons/icon-48.png',
-    180: 'apple-touch-icon.png',
-    192: 'icons/icon-192.png',
-    512: 'icons/icon-512.png',
-}
-
-
-def _serve_site_icon(custom_name, fallback_static, mimetype, cache_seconds=_ICON_CACHE_MAX_AGE):
-    custom = site_icon_dir() / custom_name
-    if custom.exists():
-        response = send_file(str(custom), mimetype=mimetype)
-    else:
-        response = app.send_static_file(fallback_static)
-        response.headers['Content-Type'] = mimetype
-
-    if cache_seconds:
-        response.headers['Cache-Control'] = f'public, max-age={cache_seconds}'
-    else:
-        # iOS 主屏图标缓存极顽固，探测路径保持可重新校验
-        response.headers['Cache-Control'] = 'no-cache'
-    return response
-
-
-@app.route('/favicon.ico')
-def favicon():
-    return _serve_site_icon('favicon.ico', 'icons/favicon.ico', 'image/x-icon')
-
-
-@app.route('/favicon-16.png')
-def favicon_16():
-    return _serve_site_icon('icon-16.png', 'icons/icon-16.png', 'image/png')
-
-
-@app.route('/favicon-32.png')
-def favicon_32():
-    return _serve_site_icon('icon-32.png', 'icons/icon-32.png', 'image/png')
-
-
-@app.route('/site-icon-48.png')
-def site_icon_48():
-    return _serve_site_icon('icon-48.png', 'icons/icon-48.png', 'image/png')
-
-
-# iOS 主屏图标（含旧版 precomposed 兜底）；探测路径用 no-cache
-@app.route('/apple-touch-icon-precomposed.png')
-@app.route('/apple-touch-icon.png')
-def apple_touch_icon():
-    return _serve_site_icon('icon-180.png', 'apple-touch-icon.png', 'image/png', cache_seconds=0)
-
-
-@app.route('/site-icon-192.png')
-def site_icon_192():
-    return _serve_site_icon('icon-192.png', 'icons/icon-192.png', 'image/png')
-
-
-@app.route('/site-icon-512.png')
-def site_icon_512():
-    return _serve_site_icon('icon-512.png', 'icons/icon-512.png', 'image/png')
-
-
-@app.route('/site-icon-<int:size>-<int:version>.png')
-def site_icon_versioned(size, version):
-    """版本化图标路径：文件名随版本变化，绕开 iOS 的图标缓存。"""
-    fallback = _VERSIONED_ICON_FALLBACKS.get(size)
-    if not fallback:
-        abort(404)
-    return _serve_site_icon(f'icon-{size}.png', fallback, 'image/png')
-
-
-@app.route('/site.webmanifest')
-def site_webmanifest():
-    """动态 manifest：图标 URL 带版本号，自定义图标后 PWA 能及时拿到新图标。"""
-    version = get_site_icon_version()
-    identity = get_site_identity({
-        'site_name': SITE_NAME,
-        'site_description': SITE_DESCRIPTION,
-        'site_author': SITE_AUTHOR,
-    })
-    manifest_name = identity.get('site_name') or SITE_NAME
-    manifest = {
-        'name': manifest_name,
-        'short_name': manifest_name,
-        'start_url': '/',
-        'display': 'standalone',
-        'background_color': '#ffffff',
-        'theme_color': '#ffffff',
-        'icons': [
-            {'src': f'/site-icon-192-{version}.png', 'sizes': '192x192', 'type': 'image/png'},
-            {'src': f'/site-icon-512-{version}.png', 'sizes': '512x512', 'type': 'image/png'},
-        ],
-    }
-    response = jsonify(manifest)
-    response.headers['Content-Type'] = 'application/manifest+json'
-    response.headers['Cache-Control'] = 'no-cache'
-    return response
-
-
-
-# =============================================================================
-# 安全响应头配置
-# =============================================================================
-@app.after_request
-def add_security_headers(response):
-    """添加安全响应头，增强应用安全性"""
-    # 防止MIME类型嗅探
-    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
-
-    # 防止点击劫持
-    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
-
-    # 启用XSS防护
-    response.headers.setdefault('X-XSS-Protection', '1; mode=block')
-
-    # 启用内容安全策略（CSP）
-    # 注意：这个CSP策略比较宽松，生产环境可能需要根据实际情况调整
-    response.headers.setdefault('Content-Security-Policy',
-        "default-src 'self'; "
-        # Quill 已自托管，不再需要外部 CDN
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: https:; "
-        "font-src 'self'; "
-        "connect-src 'self'; "
-        "object-src 'none'; "
-        # 允许富文本正文中的视频/外链嵌入；仅限 https，仍禁止 object/embed
-        "frame-src 'self' https:; "
-        "base-uri 'self';"
-    )
-
-    # 严格传输安全（仅在生产环境且启用HTTPS时）
-    if IS_PRODUCTION and FORCE_HTTPS:
-        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-
-    # 防止浏览器猜测Referer
-    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
-
-    # Permissions Policy
-    response.headers.setdefault('Permissions-Policy',
-        "geolocation=(), microphone=(), camera=(), payment=()"
-    )
-
-    return response
-
-# =============================================================================
-# CSRF保护配置
-# =============================================================================
-csrf = CSRFProtect(app)
-app.config['WTF_CSRF_ENABLED'] = WTF_CSRF_ENABLED
-app.config['WTF_CSRF_TIME_LIMIT'] = WTF_CSRF_TIME_LIMIT
-app.config['WTF_CSRF_SSL_STRICT'] = WTF_CSRF_SSL_STRICT
-
-# =============================================================================
-# 速率限制配置
-# =============================================================================
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=["1000 per day", "200 per hour"],
-    storage_uri="memory://",
-    strategy="fixed-window"
-)
-
-# =============================================================================
-# 缓存配置
-# =============================================================================
-from flask_caching import Cache
-
-# 配置缓存
-app.config['CACHE_TYPE'] = 'SimpleCache'  # 开发环境使用SimpleCache
-app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 默认缓存5分钟
-app.config['CACHE_THRESHOLD'] = 1000  # 最大缓存条目数
-
-# 初始化缓存
-cache = Cache(app)
-
-# 将缓存实例添加到app对象，方便其他模块使用
-app.cache = cache
-
-# =============================================================================
-# 会话安全配置
-# =============================================================================
-from backend.config import SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE
-app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
-app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
-app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
-app.config['PERMANENT_SESSION_LIFETIME'] = PERMANENT_SESSION_LIFETIME
-
-# =============================================================================
-# Vite 前端资源 manifest 读取
-# =============================================================================
 _vite_manifest_cache = None
 _vite_manifest_mtime = 0
 
 
-def get_vite_manifest():
-    """读取并缓存 Vite 构建产物 manifest"""
-    global _vite_manifest_cache, _vite_manifest_mtime
-    manifest_path = BASE_DIR / 'static' / 'frontend' / '.vite' / 'manifest.json'
-    if not manifest_path.exists():
-        return {}
-    mtime = manifest_path.stat().st_mtime
-    if _vite_manifest_cache is None or mtime != _vite_manifest_mtime:
-        try:
-            with open(manifest_path, 'r', encoding='utf-8') as f:
-                _vite_manifest_cache = json.load(f)
-            _vite_manifest_mtime = mtime
-        except Exception:
-            return {}
-    return _vite_manifest_cache
+
+def create_app(config_overrides=None):
+    """创建 Flask 应用实例；模块级 app 仍保留以兼容 gunicorn 与测试。"""
+    app = Flask(__name__,
+                template_folder=str(BASE_DIR / 'templates'),
+                static_folder=str(BASE_DIR / 'static'))
+
+    app_csrf = CSRFProtect()
+    app_limiter = Limiter(
+        key_func=get_remote_address,
+        default_limits=["1000 per day", "200 per hour"],
+        storage_uri="memory://",
+        strategy="fixed-window",
+    )
+    app_cache = Cache()
+
+    # 基础配置
+    app.config.update(
+        SECRET_KEY=SECRET_KEY,
+        MAX_CONTENT_LENGTH=MAX_CONTENT_LENGTH,
+        DEBUG=DEBUG,
+        IS_PRODUCTION=IS_PRODUCTION,
+        FORCE_HTTPS=FORCE_HTTPS,
+        TRUST_PROXY_HEADERS=TRUST_PROXY_HEADERS,
+    )
+    if config_overrides:
+        app.config.update(config_overrides)
+
+    # 反向代理部署时恢复真实客户端 IP / 协议，避免限流与审计全部落在代理 IP 上
+    if app.config.get('TRUST_PROXY_HEADERS'):
+        from werkzeug.middleware.proxy_fix import ProxyFix
+
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+    # =============================================================================
+    # 初始化静态资源版本管理（内容哈希 -> ?v=hash，配合长缓存头）
+    # =============================================================================
+    app.asset_manager = AssetVersionManager(app.static_folder)
+    # 启动时刷新 manifest，保证与当前文件内容一致
+    if app.config.get('REGENERATE_ASSETS', True):
+        app.asset_manager.regenerate()
+    register_template_helpers(app)
+
+    # =============================================================================
+    # HTTP缓存优化：为静态文件添加缓存头
+    # =============================================================================
+    @app.after_request
+    def add_cache_headers_to_static_files(response):
+        """为静态文件响应添加缓存头，提升加载性能"""
+        # 只处理静态文件请求
+        if not request.path.startswith('/static/'):
+            return response
+
+        # 提取文件名
+        filename = request.path.split('/static/')[-1]
+
+        # 根据文件类型设置缓存策略
+        if filename.endswith(('.css', '.js')):
+            # CSS/JS文件：长期缓存（1年）
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        elif filename.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg')):
+            # 图片文件：中期缓存（1周）
+            response.headers['Cache-Control'] = 'public, max-age=604800'
+        elif filename.endswith(('.woff', '.woff2', '.ttf', '.eot')):
+            # 字体文件：长期缓存
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+
+        return response
+
+    # Service Worker 需要以根路径 /sw.js 访问（SW 作用域限制），
+    # 而静态资源挂在 /static/ 下，这里加一个显式路由。
+    @app.route('/sw.js')
+    def service_worker():
+        response = app.send_static_file('sw.js')
+        # SW 更新依赖网络获取，禁用缓存避免旧版本滞留
+        response.headers['Cache-Control'] = 'no-cache'
+        response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
+        return response
 
 
-def vite_asset(entry: str = 'src/main.tsx'):
-    """根据 Vite manifest 返回前端资源文件路径
+    # =============================================================================
+    # 站点图标：优先返回后台上传的自定义图标，否则回退到仓库默认图标
+    # iOS 在解析不到 <link> 时也会自动探测根路径的 /apple-touch-icon.png、/favicon.ico
+    # =============================================================================
+    from backend.utils.site_icon import site_icon_dir
 
-    返回：{ 'js': [...], 'css': [...], 'assets': [...] }
-    """
-    manifest = get_vite_manifest()
-    item = manifest.get(entry)
-    if not item:
-        return {'js': [], 'css': [], 'assets': []}
+    _ICON_CACHE_MAX_AGE = 604800  # 7 天；版本化文件名用于自定义图标后的即时更新
 
-    js_files = [item.get('file')] if item.get('file') else []
-    css_files = item.get('css', [])
-    asset_files = item.get('assets', [])
-
-    # 处理 imports（rolldown runtime 等）
-    for imp in item.get('imports', []):
-        imp_item = manifest.get(imp)
-        if imp_item and imp_item.get('file') and imp_item.get('file') not in js_files:
-            js_files.append(imp_item.get('file'))
-
-    return {
-        'js': [f"frontend/{p}" for p in js_files],
-        'css': [f"frontend/{p}" for p in css_files],
-        'assets': [f"frontend/{p}" for p in asset_files],
+    # 可版本化访问的尺寸 -> 仓库默认图标（无自定义时回退）
+    _VERSIONED_ICON_FALLBACKS = {
+        16: 'icons/icon-16.png',
+        32: 'icons/icon-32.png',
+        48: 'icons/icon-48.png',
+        180: 'apple-touch-icon.png',
+        192: 'icons/icon-192.png',
+        512: 'icons/icon-512.png',
     }
 
 
-# =============================================================================
-# 模板上下文处理器
-# =============================================================================
-@app.context_processor
-def inject_site_settings():
-    """将网站设置注入到所有模板中（优先使用后台保存的配置）"""
-    identity = get_site_identity({
-        'site_name': SITE_NAME,
-        'site_description': SITE_DESCRIPTION,
-        'site_author': SITE_AUTHOR,
-    })
-    return dict(
-        site_name=identity.get('site_name') or SITE_NAME,
-        site_description=identity.get('site_description') or SITE_DESCRIPTION,
-        site_author=identity.get('site_author') or SITE_AUTHOR,
-        remember_device_days=REMEMBER_DEVICE_DAYS,
-        site_icon_version=get_site_icon_version(),
-        vite_asset=vite_asset,
-        current_year=datetime.now().year,
-    )
+    def _serve_site_icon(custom_name, fallback_static, mimetype, cache_seconds=_ICON_CACHE_MAX_AGE):
+        custom = site_icon_dir() / custom_name
+        if custom.exists():
+            response = send_file(str(custom), mimetype=mimetype)
+        else:
+            response = app.send_static_file(fallback_static)
+            response.headers['Content-Type'] = mimetype
 
-# =============================================================================
-# 辅助函数
-# =============================================================================
-def validate_password_strength(password):
-    """
-    验证密码强度
+        if cache_seconds:
+            response.headers['Cache-Control'] = f'public, max-age={cache_seconds}'
+        else:
+            # iOS 主屏图标缓存极顽固，探测路径保持可重新校验
+            response.headers['Cache-Control'] = 'no-cache'
+        return response
+
+
+    @app.route('/favicon.ico')
+    def favicon():
+        return _serve_site_icon('favicon.ico', 'icons/favicon.ico', 'image/x-icon')
+
+
+    @app.route('/favicon-16.png')
+    def favicon_16():
+        return _serve_site_icon('icon-16.png', 'icons/icon-16.png', 'image/png')
+
+
+    @app.route('/favicon-32.png')
+    def favicon_32():
+        return _serve_site_icon('icon-32.png', 'icons/icon-32.png', 'image/png')
+
+
+    @app.route('/site-icon-48.png')
+    def site_icon_48():
+        return _serve_site_icon('icon-48.png', 'icons/icon-48.png', 'image/png')
+
+
+    # iOS 主屏图标（含旧版 precomposed 兜底）；探测路径用 no-cache
+    @app.route('/apple-touch-icon-precomposed.png')
+    @app.route('/apple-touch-icon.png')
+    def apple_touch_icon():
+        return _serve_site_icon('icon-180.png', 'apple-touch-icon.png', 'image/png', cache_seconds=0)
+
+
+    @app.route('/site-icon-192.png')
+    def site_icon_192():
+        return _serve_site_icon('icon-192.png', 'icons/icon-192.png', 'image/png')
+
+
+    @app.route('/site-icon-512.png')
+    def site_icon_512():
+        return _serve_site_icon('icon-512.png', 'icons/icon-512.png', 'image/png')
+
+
+    @app.route('/site-icon-<int:size>-<int:version>.png')
+    def site_icon_versioned(size, version):
+        """版本化图标路径：文件名随版本变化，绕开 iOS 的图标缓存。"""
+        fallback = _VERSIONED_ICON_FALLBACKS.get(size)
+        if not fallback:
+            abort(404)
+        return _serve_site_icon(f'icon-{size}.png', fallback, 'image/png')
+
+
+    @app.route('/site.webmanifest')
+    def site_webmanifest():
+        """动态 manifest：图标 URL 带版本号，自定义图标后 PWA 能及时拿到新图标。"""
+        version = get_site_icon_version()
+        identity = get_site_identity({
+            'site_name': SITE_NAME,
+            'site_description': SITE_DESCRIPTION,
+            'site_author': SITE_AUTHOR,
+        })
+        manifest_name = identity.get('site_name') or SITE_NAME
+        manifest = {
+            'name': manifest_name,
+            'short_name': manifest_name,
+            'start_url': '/',
+            'display': 'standalone',
+            'background_color': '#ffffff',
+            'theme_color': '#ffffff',
+            'icons': [
+                {'src': f'/site-icon-192-{version}.png', 'sizes': '192x192', 'type': 'image/png'},
+                {'src': f'/site-icon-512-{version}.png', 'sizes': '512x512', 'type': 'image/png'},
+            ],
+        }
+        response = jsonify(manifest)
+        response.headers['Content-Type'] = 'application/manifest+json'
+        response.headers['Cache-Control'] = 'no-cache'
+        return response
+
+
+
+    # =============================================================================
+    # 安全响应头配置
+    # =============================================================================
+    @app.after_request
+    def add_security_headers(response):
+        """添加安全响应头，增强应用安全性"""
+        # 防止MIME类型嗅探
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+
+        # 防止点击劫持
+        response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+
+        # 启用XSS防护
+        response.headers.setdefault('X-XSS-Protection', '1; mode=block')
+
+        # 启用内容安全策略（CSP）
+        # 注意：这个CSP策略比较宽松，生产环境可能需要根据实际情况调整
+        response.headers.setdefault('Content-Security-Policy',
+            "default-src 'self'; "
+            # Quill 已自托管，不再需要外部 CDN
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data: https:; "
+            "font-src 'self'; "
+            "connect-src 'self'; "
+            "object-src 'none'; "
+            # 允许富文本正文中的视频/外链嵌入；仅限 https，仍禁止 object/embed
+            "frame-src 'self' https:; "
+            "base-uri 'self';"
+        )
+
+        # 严格传输安全（仅在生产环境且启用HTTPS时）
+        if IS_PRODUCTION and FORCE_HTTPS:
+            response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+
+        # 防止浏览器猜测Referer
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+
+        # Permissions Policy
+        response.headers.setdefault('Permissions-Policy',
+            "geolocation=(), microphone=(), camera=(), payment=()"
+        )
+
+        return response
+
+    # =============================================================================
+    # CSRF保护配置
+    # =============================================================================
+    app.config['WTF_CSRF_ENABLED'] = WTF_CSRF_ENABLED
+    app.config['WTF_CSRF_TIME_LIMIT'] = WTF_CSRF_TIME_LIMIT
+    app.config['WTF_CSRF_SSL_STRICT'] = WTF_CSRF_SSL_STRICT
+
+    # =============================================================================
+    # 速率限制配置
+    # =============================================================================
+
+    # =============================================================================
+    # 缓存配置
+    # =============================================================================
+    # 配置缓存
+    app.config['CACHE_TYPE'] = 'SimpleCache'  # 开发环境使用SimpleCache
+    app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 默认缓存5分钟
+    app.config['CACHE_THRESHOLD'] = 1000  # 最大缓存条目数
+
+    # =============================================================================
+    # 会话安全配置
+    # =============================================================================
+    from backend.config import SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE
+    app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
+    app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
+    app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
+    app.config['PERMANENT_SESSION_LIFETIME'] = PERMANENT_SESSION_LIFETIME
+
+    if config_overrides:
+        app.config.update(config_overrides)
+
+    app_csrf.init_app(app)
+    app_limiter.init_app(app)
+    app_cache.init_app(app)
+    app.cache = app_cache
+    app.csrf_protect = app_csrf
+    app.limiter = app_limiter
+
+    # =============================================================================
+    # Vite 前端资源 manifest 读取
+    # =============================================================================
+    def get_vite_manifest():
+        """读取并缓存 Vite 构建产物 manifest"""
+        global _vite_manifest_cache, _vite_manifest_mtime
+        manifest_path = BASE_DIR / 'static' / 'frontend' / '.vite' / 'manifest.json'
+        if not manifest_path.exists():
+            return {}
+        mtime = manifest_path.stat().st_mtime
+        if _vite_manifest_cache is None or mtime != _vite_manifest_mtime:
+            try:
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    _vite_manifest_cache = json.load(f)
+                _vite_manifest_mtime = mtime
+            except Exception:
+                return {}
+        return _vite_manifest_cache
+
+
+    def vite_asset(entry: str = 'src/main.tsx'):
+        """根据 Vite manifest 返回前端资源文件路径
+
+        返回：{ 'js': [...], 'css': [...], 'assets': [...] }
+        """
+        manifest = get_vite_manifest()
+        item = manifest.get(entry)
+        if not item:
+            return {'js': [], 'css': [], 'assets': []}
+
+        js_files = [item.get('file')] if item.get('file') else []
+        css_files = item.get('css', [])
+        asset_files = item.get('assets', [])
+
+        # 处理 imports（rolldown runtime 等）
+        for imp in item.get('imports', []):
+            imp_item = manifest.get(imp)
+            if imp_item and imp_item.get('file') and imp_item.get('file') not in js_files:
+                js_files.append(imp_item.get('file'))
+
+        return {
+            'js': [f"frontend/{p}" for p in js_files],
+            'css': [f"frontend/{p}" for p in css_files],
+            'assets': [f"frontend/{p}" for p in asset_files],
+        }
+
+
+    # =============================================================================
+    # 模板上下文处理器
+    # =============================================================================
+    @app.context_processor
+    def inject_site_settings():
+        """将网站设置注入到所有模板中（优先使用后台保存的配置）"""
+        identity = get_site_identity({
+            'site_name': SITE_NAME,
+            'site_description': SITE_DESCRIPTION,
+            'site_author': SITE_AUTHOR,
+        })
+        return dict(
+            site_name=identity.get('site_name') or SITE_NAME,
+            site_description=identity.get('site_description') or SITE_DESCRIPTION,
+            site_author=identity.get('site_author') or SITE_AUTHOR,
+            remember_device_days=REMEMBER_DEVICE_DAYS,
+            site_icon_version=get_site_icon_version(),
+            vite_asset=vite_asset,
+            current_year=datetime.now().year,
+        )
+
+    # =============================================================================
+    # 辅助函数
+    # =============================================================================
+    def validate_password_strength(password):
+        """
+        验证密码强度
     
-    要求:
-        - 至少10位长度
-        - 包含至少一个大写字母
-        - 包含至少一个小写字母
-        - 包含至少一个数字
-        - 不能是常见弱密码
-    """
-    if len(password) < 10:
-        return False, '密码长度至少为10位'
+        要求:
+            - 至少10位长度
+            - 包含至少一个大写字母
+            - 包含至少一个小写字母
+            - 包含至少一个数字
+            - 不能是常见弱密码
+        """
+        if len(password) < 10:
+            return False, '密码长度至少为10位'
 
-    if not re.search(r'[A-Z]', password):
-        return False, '密码必须包含至少一个大写字母'
+        if not re.search(r'[A-Z]', password):
+            return False, '密码必须包含至少一个大写字母'
 
-    if not re.search(r'[a-z]', password):
-        return False, '密码必须包含至少一个小写字母'
+        if not re.search(r'[a-z]', password):
+            return False, '密码必须包含至少一个小写字母'
 
-    if not re.search(r'\d', password):
-        return False, '密码必须包含至少一个数字'
+        if not re.search(r'\d', password):
+            return False, '密码必须包含至少一个数字'
 
-    weak_passwords = ['password123', 'Admin123', '1234567890', 'Password123']
-    if password.lower() in [wp.lower() for wp in weak_passwords]:
-        return False, '密码过于常见，请使用更复杂的密码'
+        weak_passwords = ['password123', 'Admin123', '1234567890', 'Password123']
+        if password.lower() in [wp.lower() for wp in weak_passwords]:
+            return False, '密码过于常见，请使用更复杂的密码'
 
-    return True, None
+        return True, None
 
-# =============================================================================
-# 日志系统初始化
-# =============================================================================
-get_setup_logging()(app)
+    # =============================================================================
+    # 日志系统初始化
+    # =============================================================================
+    if app.config.get('SETUP_LOGGING', True):
+        get_setup_logging()(app)
 
-# =============================================================================
-# 时区处理
-# =============================================================================
-from datetime import datetime
-from backend.utils.timezone import utc_to_local
+    # =============================================================================
+    # 时区处理
+    # =============================================================================
+    from datetime import datetime
+    from backend.utils.timezone import utc_to_local
 
-app.jinja_env.globals.update(utc_to_local=utc_to_local)
+    app.jinja_env.globals.update(utc_to_local=utc_to_local)
 
-@app.template_filter('localtime')
-def localtime_filter(value):
-    """Jinja2过滤器：将UTC时间转换为本地时间"""
-    return utc_to_local(value)
+    @app.template_filter('localtime')
+    def localtime_filter(value):
+        """Jinja2过滤器：将UTC时间转换为本地时间"""
+        return utc_to_local(value)
 
-@app.template_filter('excerpt')
-def excerpt_filter(value, max_length=200):
-    """Jinja2过滤器：获取文章摘要（清理HTML并截断）"""
-    from backend.models import get_post_excerpt
-    return get_post_excerpt(value, max_length)
+    @app.template_filter('excerpt')
+    def excerpt_filter(value, max_length=200):
+        """Jinja2过滤器：获取文章摘要（清理HTML并截断）"""
+        from backend.models import get_post_excerpt
+        return get_post_excerpt(value, max_length)
 
-@app.template_filter('highlight')
-def highlight_filter(text, query):
-    """Jinja2过滤器：转义文本后高亮搜索关键词（<mark> 包裹，大小写不敏感）"""
-    from markupsafe import Markup, escape
-    if text is None:
-        return ''
-    escaped_text = str(escape(text))
-    if not query:
-        return Markup(escaped_text)
-    escaped_query = str(escape(query))
-    if not escaped_query:
-        return Markup(escaped_text)
-    pattern = re.compile(re.escape(escaped_query), re.IGNORECASE)
-    return Markup(pattern.sub(lambda m: '<mark>' + m.group(0) + '</mark>', escaped_text))
+    @app.template_filter('highlight')
+    def highlight_filter(text, query):
+        """Jinja2过滤器：转义文本后高亮搜索关键词（<mark> 包裹，大小写不敏感）"""
+        from markupsafe import Markup, escape
+        if text is None:
+            return ''
+        escaped_text = str(escape(text))
+        if not query:
+            return Markup(escaped_text)
+        escaped_query = str(escape(query))
+        if not escaped_query:
+            return Markup(escaped_text)
+        pattern = re.compile(re.escape(escaped_query), re.IGNORECASE)
+        return Markup(pattern.sub(lambda m: '<mark>' + m.group(0) + '</mark>', escaped_text))
 
 
-def extract_first_image(content):
-    """从内容中提取第一张图片"""
-    if not content:
-        return None
-    match = re.search(r'<img[^>]+src="([^"]+)"', str(content))
-    return match.group(1) if match else None
+    def extract_first_image(content):
+        """从内容中提取第一张图片"""
+        if not content:
+            return None
+        match = re.search(r'<img[^>]+src="([^"]+)"', str(content))
+        return match.group(1) if match else None
 
-def timeago_filter(date):
-    """时间格式化为相对时间"""
-    if not date:
-        return ''
-    if isinstance(date, str):
+    def timeago_filter(date):
+        """时间格式化为相对时间"""
+        if not date:
+            return ''
+        if isinstance(date, str):
+            try:
+                if len(date) >= 10:
+                    return date[:10]
+            except:
+                return str(date)[:10] if date else ''
+        if hasattr(date, 'strftime'):
+            return date.strftime('%Y-%m-%d')
+        return str(date)[:10] if date else ''
+
+    # 注册过滤器
+    app.jinja_env.filters['extract_first_image'] = extract_first_image
+    app.jinja_env.filters['timeago'] = timeago_filter
+
+    def allowed_file(filename):
+        """检查文件扩展名是否允许"""
+        return '.' in filename and \
+               filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+    # =============================================================================
+    # 注册蓝图
+    # =============================================================================
+    from backend.routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
+    from backend.routes.drafts import drafts_bp
+    from backend.routes.review import review_bp
+
+    # 注册认证蓝图
+    app.register_blueprint(auth_bp)
+
+    # 注册博客蓝图
+    app.register_blueprint(blog_bp)
+
+    # 注册管理后台蓝图
+    app.register_blueprint(admin_bp)
+
+    # 注册API蓝图
+    app.register_blueprint(api_bp, url_prefix='/api')
+
+    # 注册AI蓝图
+    app.register_blueprint(ai_bp)
+
+    # 注册知识库蓝图（卡片收集/时间线，保留旧 API）
+    app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
+
+    # 注册知识库独立空间蓝图（目录树 + 文档）
+    app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
+
+    # 注册草稿同步蓝图
+    app.register_blueprint(drafts_bp)
+
+    # 注册回顾页蓝图（那年今日 / 写作热力 / 每周回顾）
+    app.register_blueprint(review_bp)
+
+    # 注册移动端蓝图
+    from backend.routes.admin import mobile_bp
+    app.register_blueprint(mobile_bp, url_prefix='/mobile')
+
+    # 为浏览器扩展API端点豁免 CSRF 保护
+    # 浏览器扩展无法处理 CSRF token
+    # 注意：只豁免必要的API端点，而非整个蓝图
+
+    # 为移动端上传端点豁免 CSRF 保护
+    # 移动端应用无法处理 CSRF token
+    # 注意：只豁免 /upload 端点，而非整个蓝图
+    # TODO: 优化为使用API token认证而非完全豁免CSRF
+
+    # 仅豁免真正需要跨端调用的接口
+    app_csrf.exempt(app.view_functions['knowledge_base.plugin_submit'])
+    app_csrf.exempt(app.view_functions['knowledge_base.sync_annotations'])
+    app_csrf.exempt(app.view_functions['knowledge_base.plugin_validate'])
+    app_csrf.exempt(app.view_functions['mobile.mobile_upload_image'])
+    app_csrf.exempt(app.view_functions['ai.test_ai_config'])
+    # 全量备份恢复需要接收超过全局上限的 ZIP：先豁免，视图内提高 body 上限后手动校验 CSRF
+    app_csrf.exempt(app.view_functions['admin.restore_backup'])
+
+
+    def _apply_route_limit(endpoint: str, limit: str) -> None:
+        """将速率限制应用到指定端点的视图函数并写回 view_functions。"""
+        app.view_functions[endpoint] = app_limiter.limit(limit)(app.view_functions[endpoint])
+
+
+    # 对登录路由应用速率限制
+
+    # 为关键API端点添加速率限制
+    # 文章相关API
+    _apply_route_limit('api.api_posts_cursor', '100 per hour')
+    _apply_route_limit('api.generate_qrcode', '10 per minute')
+    _apply_route_limit('api.get_original_image_url', '30 per hour')
+
+    # 认证相关端点
+    _apply_route_limit('auth.passkey_register_begin', '10 per minute')
+    _apply_route_limit('auth.passkey_authenticate_begin', '10 per minute')
+    _apply_route_limit('auth.passkey_register_finish', '10 per minute')
+    _apply_route_limit('auth.passkey_authenticate_finish', '10 per minute')
+
+    # AI相关端点
+    _apply_route_limit('ai.generate_tags', '50 per hour')
+    _apply_route_limit('ai.ai_settings', '50 per hour')
+    _apply_route_limit('ai.test_ai_config', '10 per minute')
+    _apply_route_limit('ai.ai_history', '50 per hour')
+    _apply_route_limit('ai.ai_status', '50 per hour')
+    _apply_route_limit('ai.generate_summary', '30 per hour')
+    _apply_route_limit('ai.recommend_posts', '30 per hour')
+    _apply_route_limit('ai.continue_writing', '20 per hour')
+    _apply_route_limit('ai.organize_content', '20 per hour')
+
+    # 知识库API
+    _apply_route_limit('knowledge_base.plugin_submit', '50 per hour')
+    _apply_route_limit('knowledge_base.sync_annotations', '50 per hour')
+    _apply_route_limit('knowledge_base.get_annotations', '30 per hour')
+    _apply_route_limit('knowledge_base.get_recent_captures', '50 per hour')
+    _apply_route_limit('knowledge_base.card_list', '20 per hour')
+    _apply_route_limit('knowledge_base.card_detail', '10 per minute')
+    _apply_route_limit('knowledge_base.card_status', '10 per minute')
+    _apply_route_limit('knowledge_base.merge_cards', '10 per minute')
+    _apply_route_limit('knowledge_base.generate_card_tags', '20 per hour')
+    _apply_route_limit('knowledge_base.ai_merge_cards', '10 per hour')
+    _apply_route_limit('knowledge_base.convert_card_to_post', '10 per hour')
+
+    # 回顾页 API
+    _apply_route_limit('review.api_review_weekly_generate', '10 per hour')
+
+    # =============================================================================
+    # 开发环境：启动时检查manifest
+    # =============================================================================
+    def auto_regenerate_assets():
+        """启动时检查manifest是否存在，不存在则生成"""
+        if hasattr(app, 'asset_manager') and app.asset_manager:
+            if not app.asset_manager.manifest_file.exists():
+                app.asset_manager.regenerate()
+
+        # 恢复未完成的图片优化任务
         try:
-            if len(date) >= 10:
-                return date[:10]
-        except:
-            return str(date)[:10] if date else ''
-    if hasattr(date, 'strftime'):
-        return date.strftime('%Y-%m-%d')
-    return str(date)[:10] if date else ''
+            from backend.models import get_db_context
+            from backend.tasks.image_optimization_task import queue_image_optimization
 
-# 注册过滤器
-app.jinja_env.filters['extract_first_image'] = extract_first_image
-app.jinja_env.filters['timeago'] = timeago_filter
+            with get_db_context() as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT original_path FROM optimized_images
+                    WHERE status IN ('pending', 'failed')
+                       OR (status = 'completed' AND (medium_path IS NULL OR medium_path = ''))
+                    ORDER BY created_at ASC
+                ''')
+                pending = cursor.fetchall()
 
-def allowed_file(filename):
-    """检查文件扩展名是否允许"""
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+            requeued = 0
+            for row in pending:
+                path = row['original_path']
+                # 原图已不存在时无法重新优化，跳过避免无效任务
+                if path and os.path.exists(path):
+                    queue_image_optimization(path)
+                    requeued += 1
+            if requeued:
+                logger.info(f'恢复了 {requeued} 个待优化任务')
+        except Exception as e:
+            logger.warning(f'恢复待优化任务失败: {e}')
 
-# =============================================================================
-# 注册蓝图
-# =============================================================================
-from backend.routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
-from backend.routes.drafts import drafts_bp
-from backend.routes.review import review_bp
+    # =============================================================================
+    # 旧客户端路径兼容
+    # =============================================================================
+    # 仅保留路径与 blueprint 不一致、浏览器插件/旧客户端仍在使用的入口；
+    # 模板已统一使用 blueprint endpoint 名称，不再为旧 url_for endpoint 建包装器。
 
-# 注册认证蓝图
-app.register_blueprint(auth_bp)
-
-# 注册博客蓝图
-app.register_blueprint(blog_bp)
-
-# 注册管理后台蓝图
-app.register_blueprint(admin_bp)
-
-# 注册API蓝图
-app.register_blueprint(api_bp, url_prefix='/api')
-
-# 注册AI蓝图
-app.register_blueprint(ai_bp)
-
-# 注册知识库蓝图（卡片收集/时间线，保留旧 API）
-app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
-
-# 注册知识库独立空间蓝图（目录树 + 文档）
-app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
-
-# 注册草稿同步蓝图
-app.register_blueprint(drafts_bp)
-
-# 注册回顾页蓝图（那年今日 / 写作热力 / 每周回顾）
-app.register_blueprint(review_bp)
-
-# 注册移动端蓝图
-from backend.routes.admin import mobile_bp
-app.register_blueprint(mobile_bp, url_prefix='/mobile')
-
-# 为浏览器扩展API端点豁免 CSRF 保护
-# 浏览器扩展无法处理 CSRF token
-# 注意：只豁免必要的API端点，而非整个蓝图
-
-# 为移动端上传端点豁免 CSRF 保护
-# 移动端应用无法处理 CSRF token
-# 注意：只豁免 /upload 端点，而非整个蓝图
-# TODO: 优化为使用API token认证而非完全豁免CSRF
-
-# 仅豁免真正需要跨端调用的接口
-csrf.exempt(app.view_functions['knowledge_base.plugin_submit'])
-csrf.exempt(app.view_functions['knowledge_base.sync_annotations'])
-csrf.exempt(app.view_functions['knowledge_base.plugin_validate'])
-csrf.exempt(app.view_functions['mobile.mobile_upload_image'])
-csrf.exempt(app.view_functions['ai.test_ai_config'])
-# 全量备份恢复需要接收超过全局上限的 ZIP：先豁免，视图内提高 body 上限后手动校验 CSRF
-csrf.exempt(app.view_functions['admin.restore_backup'])
+    @app.route('/new', methods=['GET', 'POST'])
+    def legacy_new_post():
+        """历史新建文章入口，308 重定向到后台新建页。"""
+        return redirect(url_for('admin.new_post'), code=302)
 
 
-def _apply_route_limit(endpoint: str, limit: str) -> None:
-    """将速率限制应用到指定端点的视图函数并写回 view_functions。"""
-    app.view_functions[endpoint] = limiter.limit(limit)(app.view_functions[endpoint])
+    # Knowledge base API aliases
+    @app.route('/api/plugin/submit', methods=['POST'])
+    def plugin_submit():
+        """浏览器插件提交别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.plugin_submit']()
+
+    @app.route('/api/plugin/sync-annotations', methods=['POST'])
+    def plugin_sync_annotations():
+        """浏览器插件标注同步别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.sync_annotations']()
+
+    @app.route('/api/plugin/annotations', methods=['GET'])
+    def plugin_annotations():
+        """浏览器插件标注查询别名（兼容旧客户端）"""
+        if not request.args.get('url'):
+            return jsonify({
+                'success': True,
+                'annotations': [],
+                'count': 0
+            })
+        return app.view_functions['knowledge_base.get_annotations']()
+
+    @app.route('/api/plugin/recent', methods=['GET'])
+    def plugin_recent():
+        """浏览器插件最近记录别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.get_recent_captures']()
+
+    @app.route('/api/cards', methods=['GET'])
+    def cards_list():
+        """卡片列表别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.card_list']()
+
+    @app.route('/api/cards/<int:card_id>', methods=['GET', 'PUT', 'DELETE'])
+    def card_detail(card_id):
+        """卡片详情别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.card_detail'](card_id)
+
+    @app.route('/api/cards/<int:card_id>/status', methods=['PUT'])
+    def card_status(card_id):
+        """卡片状态更新别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.card_status'](card_id)
+
+    @app.route('/api/cards/merge', methods=['POST'])
+    def cards_merge():
+        """卡片合并别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.merge_cards']()
+
+    @app.route('/api/cards/generate-tags', methods=['POST'])
+    def cards_generate_tags():
+        """卡片标签生成别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.generate_card_tags']()
+
+    @app.route('/api/cards/ai-merge', methods=['POST'])
+    def cards_ai_merge():
+        """AI卡片合并别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.ai_merge_cards']()
+
+    @app.route('/api/card/<int:card_id>/convert-to-post', methods=['POST'])
+    def convert_card_to_post(card_id):
+        """卡片转文章别名（兼容旧客户端）"""
+        return app.view_functions['knowledge_base.convert_card_to_post'](card_id)
+
+    app_csrf.exempt(app.view_functions['plugin_submit'])
+    app_csrf.exempt(app.view_functions['plugin_sync_annotations'])
+
+    # AI endpoints
+    # =============================================================================
+    # 错误处理器
+    # =============================================================================
+    @app.errorhandler(404)
+    def not_found_error(error):
+        """Handle 404 errors"""
+        context = (
+            f'404 Not Found | {request.method} {request.full_path} '
+            f'| IP: {request.remote_addr} '
+            f'| Referer: {request.referrer or "-"} '
+            f'| UA: {request.user_agent or "-"}'
+        )
+        logger.warning(context)
+        return render_template('error.html', status_code=404), 404
+
+    @app.errorhandler(500)
+    def internal_error(error):
+        """Handle 500 errors"""
+        get_log_error()(error, context='500 Internal Server Error')
+    
+        if app.config.get('DEBUG'):
+            error_message = str(error)
+        else:
+            error_message = "服务器内部错误，请稍后重试"
+    
+        return render_template('error.html', status_code=500, error=error_message), 500
+
+    @app.errorhandler(sqlite3.Error)
+    def database_error(error):
+        """Handle database errors"""
+        get_log_error()(error, context='Database Error')
+    
+        if app.config.get('DEBUG'):
+            error_message = f"数据库错误: {str(error)}"
+        else:
+            error_message = "数据库错误，请稍后重试"
+    
+        return render_template('error.html', status_code=500, error=error_message), 500
+
+    @app.errorhandler(413)
+    def request_entity_too_large(error):
+        """Handle file too large errors"""
+        get_log_error()(error, context='413 Payload Too Large')
+    
+        if request.path.startswith('/admin/upload') or request.path.startswith('/api/'):
+            return jsonify({
+                'success': False,
+                'error': '文件太大，最大允许上传 16MB'
+            }), 413
+    
+        return render_template('error.html', status_code=413, error='上传的文件太大，最大允许 16MB'), 413
+
+    # =============================================================================
+    # 健康检查
+    # =============================================================================
+    @app.route('/healthz')
+    @app_limiter.exempt
+    def healthz():
+        """进程存活检查（不访问数据库）。"""
+        return jsonify({'status': 'ok'}), 200
 
 
-# 对登录路由应用速率限制
+    @app.route('/readyz')
+    @app_limiter.exempt
+    def readyz():
+        """就绪检查：数据库可连接且基础表已初始化。"""
+        try:
+            with get_db_context() as conn:
+                conn.execute('SELECT 1').fetchone()
+                row = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='posts'"
+                ).fetchone()
+            if not row:
+                raise RuntimeError('schema not initialized')
+            return jsonify({'status': 'ready'}), 200
+        except Exception as e:
+            logger.error('readiness check failed: %s', e)
+            return jsonify({'status': 'not ready'}), 503
 
-# 为关键API端点添加速率限制
-# 文章相关API
-_apply_route_limit('api.api_posts_cursor', '100 per hour')
-_apply_route_limit('api.generate_qrcode', '10 per minute')
-_apply_route_limit('api.get_original_image_url', '30 per hour')
 
-# 认证相关端点
-_apply_route_limit('auth.passkey_register_begin', '10 per minute')
-_apply_route_limit('auth.passkey_authenticate_begin', '10 per minute')
-_apply_route_limit('auth.passkey_register_finish', '10 per minute')
-_apply_route_limit('auth.passkey_authenticate_finish', '10 per minute')
+    # =============================================================================
+    # CLI命令
+    # =============================================================================
+    @app.cli.command()
+    def init():
+        """Initialize the database and create admin user"""
+        init_db()
+        create_admin_user()
+        print("Database initialized successfully")
 
-# AI相关端点
-_apply_route_limit('ai.generate_tags', '50 per hour')
-_apply_route_limit('ai.ai_settings', '50 per hour')
-_apply_route_limit('ai.test_ai_config', '10 per minute')
-_apply_route_limit('ai.ai_history', '50 per hour')
-_apply_route_limit('ai.ai_status', '50 per hour')
-_apply_route_limit('ai.generate_summary', '30 per hour')
-_apply_route_limit('ai.recommend_posts', '30 per hour')
-_apply_route_limit('ai.continue_writing', '20 per hour')
-_apply_route_limit('ai.organize_content', '20 per hour')
 
-# 知识库API
-_apply_route_limit('knowledge_base.plugin_submit', '50 per hour')
-_apply_route_limit('knowledge_base.sync_annotations', '50 per hour')
-_apply_route_limit('knowledge_base.get_annotations', '30 per hour')
-_apply_route_limit('knowledge_base.get_recent_captures', '50 per hour')
-_apply_route_limit('knowledge_base.card_list', '20 per hour')
-_apply_route_limit('knowledge_base.card_detail', '10 per minute')
-_apply_route_limit('knowledge_base.card_status', '10 per minute')
-_apply_route_limit('knowledge_base.merge_cards', '10 per minute')
-_apply_route_limit('knowledge_base.generate_card_tags', '20 per hour')
-_apply_route_limit('knowledge_base.ai_merge_cards', '10 per hour')
-_apply_route_limit('knowledge_base.convert_card_to_post', '10 per hour')
+    @app.cli.command('weekly-review')
+    def weekly_review_command():
+        """为「所有开启了 AI 的用户」生成每周回顾（无则退为第一个 admin 用户）
 
-# 回顾页 API
-_apply_route_limit('review.api_review_weekly_generate', '10 per hour')
-
-# =============================================================================
-# 开发环境：启动时检查manifest
-# =============================================================================
-def auto_regenerate_assets():
-    """启动时检查manifest是否存在，不存在则生成"""
-    if hasattr(app, 'asset_manager') and app.asset_manager:
-        if not app.asset_manager.manifest_file.exists():
-            app.asset_manager.regenerate()
-
-    # 恢复未完成的图片优化任务
-    try:
-        from backend.models import get_db_context
-        from backend.tasks.image_optimization_task import queue_image_optimization
+        适合 crontab 定时调用，例如每周一早上：
+            0 9 * * 1 cd /path/to/my-blog && .venv/bin/flask --app backend/app.py weekly-review
+        """
+        from backend.services.weekly_review import generate_weekly_review
 
         with get_db_context() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT original_path FROM optimized_images
-                WHERE status IN ('pending', 'failed')
-                   OR (status = 'completed' AND (medium_path IS NULL OR medium_path = ''))
-                ORDER BY created_at ASC
+                SELECT id, username FROM users
+                WHERE ai_tag_generation_enabled = 1
+                  AND ai_api_key IS NOT NULL AND ai_api_key != ''
+                ORDER BY id
             ''')
-            pending = cursor.fetchall()
+            users = [dict(r) for r in cursor.fetchall()]
+            if not users:
+                # 没有启用 AI 的用户时，退而为第一个 admin 生成（会自动降级为纯统计版）
+                cursor.execute("SELECT id, username FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")
+                users = [dict(r) for r in cursor.fetchall()]
 
-        requeued = 0
-        for row in pending:
-            path = row['original_path']
-            # 原图已不存在时无法重新优化，跳过避免无效任务
-            if path and os.path.exists(path):
-                queue_image_optimization(path)
-                requeued += 1
-        if requeued:
-            logger.info(f'恢复了 {requeued} 个待优化任务')
-    except Exception as e:
-        logger.warning(f'恢复待优化任务失败: {e}')
+            if not users:
+                print('没有可生成回顾的用户')
+                return
 
-# =============================================================================
-# 旧客户端路径兼容
-# =============================================================================
-# 仅保留路径与 blueprint 不一致、浏览器插件/旧客户端仍在使用的入口；
-# 模板已统一使用 blueprint endpoint 名称，不再为旧 url_for endpoint 建包装器。
+            for user in users:
+                try:
+                    result = generate_weekly_review(user['id'])
+                    if result.get('exists'):
+                        print(f"[{user['username']}] 本周回顾已存在: {result['title']} ({result['url']})")
+                    elif result.get('success'):
+                        mode = 'AI' if result.get('ai_used') else '统计'
+                        print(f"[{user['username']}] 已生成（{mode}版）: {result['title']} ({result['url']})")
+                    else:
+                        print(f"[{user['username']}] 生成失败: {result.get('error')}")
+                except Exception as e:
+                    print(f"[{user['username']}] 生成异常: {e}")
 
-@app.route('/new', methods=['GET', 'POST'])
-def legacy_new_post():
-    """历史新建文章入口，308 重定向到后台新建页。"""
-    return redirect(url_for('admin.new_post'), code=302)
+    app.auto_regenerate_assets = auto_regenerate_assets
+
+    return app
 
 
-# Knowledge base API aliases
-@app.route('/api/plugin/submit', methods=['POST'])
-def plugin_submit():
-    """浏览器插件提交别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.plugin_submit']()
-
-@app.route('/api/plugin/sync-annotations', methods=['POST'])
-def plugin_sync_annotations():
-    """浏览器插件标注同步别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.sync_annotations']()
-
-@app.route('/api/plugin/annotations', methods=['GET'])
-def plugin_annotations():
-    """浏览器插件标注查询别名（兼容旧客户端）"""
-    if not request.args.get('url'):
-        return jsonify({
-            'success': True,
-            'annotations': [],
-            'count': 0
-        })
-    return app.view_functions['knowledge_base.get_annotations']()
-
-@app.route('/api/plugin/recent', methods=['GET'])
-def plugin_recent():
-    """浏览器插件最近记录别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.get_recent_captures']()
-
-@app.route('/api/cards', methods=['GET'])
-def cards_list():
-    """卡片列表别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.card_list']()
-
-@app.route('/api/cards/<int:card_id>', methods=['GET', 'PUT', 'DELETE'])
-def card_detail(card_id):
-    """卡片详情别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.card_detail'](card_id)
-
-@app.route('/api/cards/<int:card_id>/status', methods=['PUT'])
-def card_status(card_id):
-    """卡片状态更新别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.card_status'](card_id)
-
-@app.route('/api/cards/merge', methods=['POST'])
-def cards_merge():
-    """卡片合并别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.merge_cards']()
-
-@app.route('/api/cards/generate-tags', methods=['POST'])
-def cards_generate_tags():
-    """卡片标签生成别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.generate_card_tags']()
-
-@app.route('/api/cards/ai-merge', methods=['POST'])
-def cards_ai_merge():
-    """AI卡片合并别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.ai_merge_cards']()
-
-@app.route('/api/card/<int:card_id>/convert-to-post', methods=['POST'])
-def convert_card_to_post(card_id):
-    """卡片转文章别名（兼容旧客户端）"""
-    return app.view_functions['knowledge_base.convert_card_to_post'](card_id)
-
-csrf.exempt(app.view_functions['plugin_submit'])
-csrf.exempt(app.view_functions['plugin_sync_annotations'])
-
-# AI endpoints
 
 # =============================================================================
 # 创建管理员用户
@@ -820,136 +970,12 @@ def create_admin_user():
     else:
         print(f"ℹ Admin user already exists: {username}")
 
-# =============================================================================
-# 错误处理器
-# =============================================================================
-@app.errorhandler(404)
-def not_found_error(error):
-    """Handle 404 errors"""
-    context = (
-        f'404 Not Found | {request.method} {request.full_path} '
-        f'| IP: {request.remote_addr} '
-        f'| Referer: {request.referrer or "-"} '
-        f'| UA: {request.user_agent or "-"}'
-    )
-    logger.warning(context)
-    return render_template('error.html', status_code=404), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    """Handle 500 errors"""
-    get_log_error()(error, context='500 Internal Server Error')
-    
-    if app.config.get('DEBUG'):
-        error_message = str(error)
-    else:
-        error_message = "服务器内部错误，请稍后重试"
-    
-    return render_template('error.html', status_code=500, error=error_message), 500
-
-@app.errorhandler(sqlite3.Error)
-def database_error(error):
-    """Handle database errors"""
-    get_log_error()(error, context='Database Error')
-    
-    if app.config.get('DEBUG'):
-        error_message = f"数据库错误: {str(error)}"
-    else:
-        error_message = "数据库错误，请稍后重试"
-    
-    return render_template('error.html', status_code=500, error=error_message), 500
-
-@app.errorhandler(413)
-def request_entity_too_large(error):
-    """Handle file too large errors"""
-    get_log_error()(error, context='413 Payload Too Large')
-    
-    if request.path.startswith('/admin/upload') or request.path.startswith('/api/'):
-        return jsonify({
-            'success': False,
-            'error': '文件太大，最大允许上传 16MB'
-        }), 413
-    
-    return render_template('error.html', status_code=413, error='上传的文件太大，最大允许 16MB'), 413
-
-# =============================================================================
-# 健康检查
-# =============================================================================
-@app.route('/healthz')
-@limiter.exempt
-def healthz():
-    """进程存活检查（不访问数据库）。"""
-    return jsonify({'status': 'ok'}), 200
 
 
-@app.route('/readyz')
-@limiter.exempt
-def readyz():
-    """就绪检查：数据库可连接且基础表已初始化。"""
-    try:
-        with get_db_context() as conn:
-            conn.execute('SELECT 1').fetchone()
-            row = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='posts'"
-            ).fetchone()
-        if not row:
-            raise RuntimeError('schema not initialized')
-        return jsonify({'status': 'ready'}), 200
-    except Exception as e:
-        logger.error('readiness check failed: %s', e)
-        return jsonify({'status': 'not ready'}), 503
-
-
-# =============================================================================
-# CLI命令
-# =============================================================================
-@app.cli.command()
-def init():
-    """Initialize the database and create admin user"""
-    init_db()
-    create_admin_user()
-    print("Database initialized successfully")
-
-
-@app.cli.command('weekly-review')
-def weekly_review_command():
-    """为「所有开启了 AI 的用户」生成每周回顾（无则退为第一个 admin 用户）
-
-    适合 crontab 定时调用，例如每周一早上：
-        0 9 * * 1 cd /path/to/my-blog && .venv/bin/flask --app backend/app.py weekly-review
-    """
-    from backend.services.weekly_review import generate_weekly_review
-
-    with get_db_context() as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, username FROM users
-            WHERE ai_tag_generation_enabled = 1
-              AND ai_api_key IS NOT NULL AND ai_api_key != ''
-            ORDER BY id
-        ''')
-        users = [dict(r) for r in cursor.fetchall()]
-        if not users:
-            # 没有启用 AI 的用户时，退而为第一个 admin 生成（会自动降级为纯统计版）
-            cursor.execute("SELECT id, username FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")
-            users = [dict(r) for r in cursor.fetchall()]
-
-        if not users:
-            print('没有可生成回顾的用户')
-            return
-
-        for user in users:
-            try:
-                result = generate_weekly_review(user['id'])
-                if result.get('exists'):
-                    print(f"[{user['username']}] 本周回顾已存在: {result['title']} ({result['url']})")
-                elif result.get('success'):
-                    mode = 'AI' if result.get('ai_used') else '统计'
-                    print(f"[{user['username']}] 已生成（{mode}版）: {result['title']} ({result['url']})")
-                else:
-                    print(f"[{user['username']}] 生成失败: {result.get('error')}")
-            except Exception as e:
-                print(f"[{user['username']}] 生成异常: {e}")
+app = create_app()
+csrf = app.csrf_protect
+limiter = app.limiter
+cache = app.cache
 
 # =============================================================================
 # 自动备份调度器
@@ -974,6 +1000,7 @@ def _maybe_start_backup_scheduler():
 _maybe_start_backup_scheduler()
 
 
+
 # =============================================================================
 # 主程序入口
 # =============================================================================
@@ -981,7 +1008,7 @@ if __name__ == '__main__':
     init_db()
     create_admin_user()
     # 启动时初始化资源和恢复任务
-    auto_regenerate_assets()
+    app.auto_regenerate_assets()
     # macOS ControlCenter often uses port 5000, so we use 5001
     port = int(os.environ.get('PORT', 5001))
     # 默认监听所有网卡，可通过 HOST 环境变量覆盖（如仅需本机访问设 HOST=127.0.0.1）

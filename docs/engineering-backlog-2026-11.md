@@ -14,6 +14,7 @@
 - 测试库改为 `init_db + 迁移` 生成，测试不再手写 DDL。
 - 移除 40 个重复 legacy 别名路由，模板统一使用 blueprint endpoint；保留 12 个旧客户端路径入口。
 - 导入统一为 `backend.*`，移除 `backend/` 的 `sys.path` 注入，消除 `models` / `backend.models` 双模块身份。
+- 引入 `create_app(config_overrides=None)`，保留模块级 `app = create_app()` 兼容 gunicorn 与测试；扩展改为 `init_app`。
 - CI 增加前端构建、依赖缓存、依赖审计；拆分 dev 依赖；补 ruff 配置；pytest 不再强制覆盖率。
 
 ---
@@ -37,7 +38,7 @@
 
 | ID | 优先级 | 问题 | 证据 | 建议 | 验收标准 |
 |---|---|---|---|---|---|
-| BE-1 | 中 | 无 app factory；导入即启动调度器、做配置校验 | `backend/app.py:115,1133` | 引入 `create_app(config)`，副作用移到启动入口 | 测试可创建多个隔离 app |
+
 
 | BE-3 | 中 | 数据库连接/事务管理不统一，异常路径可能泄漏 | `get_db_connection` 125 处 vs `get_db_context` 77 处；`models/cards.py` 已修一处 | 全面改用 `get_db_context`，禁止裸 `commit/close` | 新增代码统一上下文管理器 |
 | BE-4 | 中 | `init_db` 与迁移双份 schema；gunicorn 启动不自动迁移 | `backend/models/db.py:110`、`backend/migrations/` | 迁移作为唯一 schema 来源；启动/升级脚本自动执行 | 空库 + 旧库均可自动升级 |
@@ -96,6 +97,6 @@
 
 1. **SEC-1 / SEC-2**：登录限流与共享存储，投入小、收益直接。
 2. **FE-1 / FE-2**：统一上传与编辑器，避免继续双轨复制。
-3. **BE-1 / BE-3 / BE-4**：app factory + 统一事务 + 迁移唯一化，为后续重构铺路。
+3. **BE-4 / BE-5 / BE-6**：迁移唯一化、后台任务外置、向量检索索引化。
 4. **QA-1 / QA-2**：E2E 与迁移测试，防止回归。
 5. **OPS-1**：清理仓库中的用户数据与构建产物。

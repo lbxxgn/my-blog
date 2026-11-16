@@ -34,7 +34,7 @@ tests/
 └── e2e_kb_editor.py           # 端到端知识库编辑器测试（CDP + Chrome，手动运行）
 ```
 
-当前共有 **521** 个 pytest 测试用例（`pytest --collect-only -q | tail -1` 可查），外加一个独立的 E2E 脚本。
+当前共有 **523** 个 pytest 测试用例（`pytest --collect-only -q | tail -1` 可查），外加一个独立的 E2E 脚本。
 
 ## 运行测试
 
