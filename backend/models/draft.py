@@ -1,5 +1,5 @@
 """草稿数据模型"""
-from models import get_db_connection
+from models import get_db_context
 from typing import Optional, List, Dict
 import logging
 import json
@@ -22,74 +22,74 @@ def _format_iso_time(time_str):
 
 def ensure_drafts_table() -> None:
     """确保草稿表和索引存在。"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    try:
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS drafts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                post_id INTEGER,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL,
-                content_format TEXT DEFAULT 'html',
-                category_id INTEGER,
-                tags TEXT,
-                is_published BOOLEAN DEFAULT 0,
-                device_info TEXT DEFAULT '',
-                device_token TEXT DEFAULT '',
-                user_agent TEXT,
-                last_sync TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (post_id) REFERENCES posts(id),
-                FOREIGN KEY (category_id) REFERENCES categories(id)
-            )
-        ''')
+        try:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS drafts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    post_id INTEGER,
+                    title TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    content_format TEXT DEFAULT 'html',
+                    category_id INTEGER,
+                    tags TEXT,
+                    is_published BOOLEAN DEFAULT 0,
+                    device_info TEXT DEFAULT '',
+                    device_token TEXT DEFAULT '',
+                    user_agent TEXT,
+                    last_sync TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id),
+                    FOREIGN KEY (post_id) REFERENCES posts(id),
+                    FOREIGN KEY (category_id) REFERENCES categories(id)
+                )
+            ''')
 
-        # 兼容旧库：drafts 表可能缺少 content_format 列
-        cursor.execute('PRAGMA table_info(drafts)')
-        existing_columns = {row[1] for row in cursor.fetchall()}
-        if 'content_format' not in existing_columns:
-            cursor.execute("ALTER TABLE drafts ADD COLUMN content_format TEXT DEFAULT 'html'")
-        if 'access_level' not in existing_columns:
-            cursor.execute("ALTER TABLE drafts ADD COLUMN access_level TEXT DEFAULT 'public'")
-        if 'device_token' not in existing_columns:
-            cursor.execute("ALTER TABLE drafts ADD COLUMN device_token TEXT DEFAULT ''")
-            cursor.execute('DROP INDEX IF EXISTS idx_drafts_unique_post')
+            # 兼容旧库：drafts 表可能缺少 content_format 列
+            cursor.execute('PRAGMA table_info(drafts)')
+            existing_columns = {row[1] for row in cursor.fetchall()}
+            if 'content_format' not in existing_columns:
+                cursor.execute("ALTER TABLE drafts ADD COLUMN content_format TEXT DEFAULT 'html'")
+            if 'access_level' not in existing_columns:
+                cursor.execute("ALTER TABLE drafts ADD COLUMN access_level TEXT DEFAULT 'public'")
+            if 'device_token' not in existing_columns:
+                cursor.execute("ALTER TABLE drafts ADD COLUMN device_token TEXT DEFAULT ''")
+                cursor.execute('DROP INDEX IF EXISTS idx_drafts_unique_post')
+                cursor.execute('''
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_drafts_unique_post
+                    ON drafts(user_id, post_id, device_token)
+                    WHERE post_id IS NOT NULL
+                ''')
+
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_drafts_user_post
+                ON drafts(user_id, post_id)
+            ''')
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_drafts_user_updated
+                ON drafts(user_id, updated_at DESC)
+            ''')
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_drafts_post
+                ON drafts(post_id)
+            ''')
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_drafts_device
+                ON drafts(user_id, device_info, updated_at)
+            ''')
+            cursor.execute('DROP INDEX IF EXISTS idx_drafts_unique')
             cursor.execute('''
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_drafts_unique_post
                 ON drafts(user_id, post_id, device_token)
                 WHERE post_id IS NOT NULL
             ''')
-
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_drafts_user_post
-            ON drafts(user_id, post_id)
-        ''')
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_drafts_user_updated
-            ON drafts(user_id, updated_at DESC)
-        ''')
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_drafts_post
-            ON drafts(post_id)
-        ''')
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_drafts_device
-            ON drafts(user_id, device_info, updated_at)
-        ''')
-        cursor.execute('DROP INDEX IF EXISTS idx_drafts_unique')
-        cursor.execute('''
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_drafts_unique_post
-            ON drafts(user_id, post_id, device_token)
-            WHERE post_id IS NOT NULL
-        ''')
-        conn.commit()
-    finally:
-        conn.close()
+            conn.commit()
+        finally:
+            pass
 
 
 def _deserialize_tags(value):
@@ -131,101 +131,101 @@ def save_draft(user_id: int, post_id: Optional[int], title: str,
     content_format = content_format if content_format in ('html', 'markdown') else 'html'
     ensure_drafts_table()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    try:
-        conn.execute('BEGIN TRANSACTION')
-        tags_json = json.dumps(tags) if tags else None
-        device_token = device_token or device_info or ''
+        try:
+            conn.execute('BEGIN TRANSACTION')
+            tags_json = json.dumps(tags) if tags else None
+            device_token = device_token or device_info or ''
 
-        # 检测冲突
-        if post_id is None:
-            conflicts = []
-        else:
-            # 取回被覆盖草稿的完整内容，便于客户端提示/恢复（否则本次写入会在下一步覆盖它）
-            cursor.execute('''
-                SELECT id, title, content, content_format, category_id, tags, access_level,
-                       updated_at, device_info, device_token
-                FROM drafts
-                WHERE user_id = ? AND post_id = ?
-                  AND device_token != ?
-                  AND updated_at > datetime('now', '-5 minutes')
-                ORDER BY updated_at DESC
-            ''', (user_id, post_id, device_token))
-            conflicts = [_row_to_draft(row) for row in cursor.fetchall()]
-
-        draft_id = None
-        if post_id is None:
-            # 同一设备的新建草稿复用同一行，避免每次自动保存都累积一条不可见草稿
-            cursor.execute('''
-                SELECT id FROM drafts
-                WHERE user_id = ? AND post_id IS NULL AND device_token = ?
-                ORDER BY updated_at DESC LIMIT 1
-            ''', (user_id, device_token))
-            existing_new = cursor.fetchone()
-            if existing_new:
-                draft_id = existing_new['id']
-                cursor.execute('''
-                    UPDATE drafts SET title = ?, content = ?, content_format = ?, category_id = ?,
-                        tags = ?, access_level = ?, device_token = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ? AND user_id = ?
-                ''', (title, content, content_format, category_id, tags_json, access_level, device_token, draft_id, user_id))
+            # 检测冲突
+            if post_id is None:
+                conflicts = []
             else:
+                # 取回被覆盖草稿的完整内容，便于客户端提示/恢复（否则本次写入会在下一步覆盖它）
                 cursor.execute('''
-                    INSERT INTO drafts (user_id, post_id, title, content, content_format, category_id, tags, device_info, device_token, access_level)
-                    VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (user_id, title, content, content_format, category_id, tags_json, device_info, device_token, access_level))
-                draft_id = cursor.lastrowid
-        else:
-            # 先检查是否存在，避免 ON CONFLICT 与部分索引冲突
-            cursor.execute('''
-                SELECT id FROM drafts WHERE user_id = ? AND post_id = ? AND device_token = ?
-            ''', (user_id, post_id, device_token))
-            existing = cursor.fetchone()
-            if existing:
-                draft_id = existing['id']
+                    SELECT id, title, content, content_format, category_id, tags, access_level,
+                           updated_at, device_info, device_token
+                    FROM drafts
+                    WHERE user_id = ? AND post_id = ?
+                      AND device_token != ?
+                      AND updated_at > datetime('now', '-5 minutes')
+                    ORDER BY updated_at DESC
+                ''', (user_id, post_id, device_token))
+                conflicts = [_row_to_draft(row) for row in cursor.fetchall()]
+
+            draft_id = None
+            if post_id is None:
+                # 同一设备的新建草稿复用同一行，避免每次自动保存都累积一条不可见草稿
                 cursor.execute('''
-                    UPDATE drafts SET
-                        title = ?, content = ?, content_format = ?, category_id = ?, tags = ?,
-                        device_info = ?, device_token = ?, access_level = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE user_id = ? AND post_id = ? AND device_token = ?
-                ''', (title, content, content_format, category_id, tags_json, device_info, device_token, access_level, user_id, post_id, device_token))
+                    SELECT id FROM drafts
+                    WHERE user_id = ? AND post_id IS NULL AND device_token = ?
+                    ORDER BY updated_at DESC LIMIT 1
+                ''', (user_id, device_token))
+                existing_new = cursor.fetchone()
+                if existing_new:
+                    draft_id = existing_new['id']
+                    cursor.execute('''
+                        UPDATE drafts SET title = ?, content = ?, content_format = ?, category_id = ?,
+                            tags = ?, access_level = ?, device_token = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ? AND user_id = ?
+                    ''', (title, content, content_format, category_id, tags_json, access_level, device_token, draft_id, user_id))
+                else:
+                    cursor.execute('''
+                        INSERT INTO drafts (user_id, post_id, title, content, content_format, category_id, tags, device_info, device_token, access_level)
+                        VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (user_id, title, content, content_format, category_id, tags_json, device_info, device_token, access_level))
+                    draft_id = cursor.lastrowid
             else:
+                # 先检查是否存在，避免 ON CONFLICT 与部分索引冲突
                 cursor.execute('''
-                    INSERT INTO drafts (user_id, post_id, title, content, content_format, category_id, tags, device_info, device_token, access_level)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (user_id, post_id, title, content, content_format, category_id, tags_json, device_info, device_token, access_level))
-                draft_id = cursor.lastrowid
-        cursor.execute('''
-            SELECT updated_at FROM drafts WHERE id = ?
-        ''', (draft_id,))
-        result = cursor.fetchone()
-        updated_at = _format_iso_time(result['updated_at']) if result else None
+                    SELECT id FROM drafts WHERE user_id = ? AND post_id = ? AND device_token = ?
+                ''', (user_id, post_id, device_token))
+                existing = cursor.fetchone()
+                if existing:
+                    draft_id = existing['id']
+                    cursor.execute('''
+                        UPDATE drafts SET
+                            title = ?, content = ?, content_format = ?, category_id = ?, tags = ?,
+                            device_info = ?, device_token = ?, access_level = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE user_id = ? AND post_id = ? AND device_token = ?
+                    ''', (title, content, content_format, category_id, tags_json, device_info, device_token, access_level, user_id, post_id, device_token))
+                else:
+                    cursor.execute('''
+                        INSERT INTO drafts (user_id, post_id, title, content, content_format, category_id, tags, device_info, device_token, access_level)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (user_id, post_id, title, content, content_format, category_id, tags_json, device_info, device_token, access_level))
+                    draft_id = cursor.lastrowid
+            cursor.execute('''
+                SELECT updated_at FROM drafts WHERE id = ?
+            ''', (draft_id,))
+            result = cursor.fetchone()
+            updated_at = _format_iso_time(result['updated_at']) if result else None
 
-        # 同样格式化冲突草稿的时间
-        for c in conflicts:
-            c['updated_at'] = _format_iso_time(c.get('updated_at'))
+            # 同样格式化冲突草稿的时间
+            for c in conflicts:
+                c['updated_at'] = _format_iso_time(c.get('updated_at'))
 
-        conn.commit()
+            conn.commit()
 
-        return {
-            'success': True,
-            'draft_id': draft_id,
-            'updated_at': updated_at,
-            'status': 'conflict_detected' if conflicts else 'saved',
-            'other_drafts': conflicts
-        }
+            return {
+                'success': True,
+                'draft_id': draft_id,
+                'updated_at': updated_at,
+                'status': 'conflict_detected' if conflicts else 'saved',
+                'other_drafts': conflicts
+            }
 
-    except Exception as e:
-        conn.rollback()
-        logger.error(f'保存草稿失败: {e}')
-        return {
-            'success': False,
-            'error': str(e)
-        }
-    finally:
-        conn.close()
+        except Exception as e:
+            conn.rollback()
+            logger.error(f'保存草稿失败: {e}')
+            return {
+                'success': False,
+                'error': str(e)
+            }
+        finally:
+            pass
 
 
 def create_draft(title: str, content: str, user_id: int,
@@ -258,98 +258,98 @@ def update_draft(draft_id: int, user_id: int, title: str,
     """按草稿ID更新内容。content_format 为 None 时保持原格式。"""
     ensure_drafts_table()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    try:
-        fields = ['title = ?', 'content = ?', 'category_id = ?', 'tags = ?']
-        params = [title, content, category_id, json.dumps(tags) if tags else None]
-        if content_format is not None:
-            fields.append('content_format = ?')
-            params.append(content_format)
-        if access_level is not None:
-            fields.append('access_level = ?')
-            params.append(access_level)
-        fields.append('updated_at = CURRENT_TIMESTAMP')
-        cursor.execute(f'''
-            UPDATE drafts SET {', '.join(fields)}
-            WHERE id = ? AND user_id = ?
-        ''', params + [draft_id, user_id])
-        cursor.execute('''
-            SELECT * FROM drafts WHERE id = ? AND user_id = ?
-        ''', (draft_id, user_id))
-        row = cursor.fetchone()
-        conn.commit()
-        if row:
-            draft = _row_to_draft(row)
-            draft['updated_at'] = _format_iso_time(draft.get('updated_at'))
-            draft['created_at'] = _format_iso_time(draft.get('created_at'))
-            return draft
-        return None
-    finally:
-        conn.close()
+        try:
+            fields = ['title = ?', 'content = ?', 'category_id = ?', 'tags = ?']
+            params = [title, content, category_id, json.dumps(tags) if tags else None]
+            if content_format is not None:
+                fields.append('content_format = ?')
+                params.append(content_format)
+            if access_level is not None:
+                fields.append('access_level = ?')
+                params.append(access_level)
+            fields.append('updated_at = CURRENT_TIMESTAMP')
+            cursor.execute(f'''
+                UPDATE drafts SET {', '.join(fields)}
+                WHERE id = ? AND user_id = ?
+            ''', params + [draft_id, user_id])
+            cursor.execute('''
+                SELECT * FROM drafts WHERE id = ? AND user_id = ?
+            ''', (draft_id, user_id))
+            row = cursor.fetchone()
+            conn.commit()
+            if row:
+                draft = _row_to_draft(row)
+                draft['updated_at'] = _format_iso_time(draft.get('updated_at'))
+                draft['created_at'] = _format_iso_time(draft.get('created_at'))
+                return draft
+            return None
+        finally:
+            pass
 
 def get_drafts(user_id: int, post_id: Optional[int] = None) -> List[Dict]:
     """获取用户的草稿列表"""
     ensure_drafts_table()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    try:
-        if post_id:
-            cursor.execute('''
-                SELECT id, post_id, title, content, content_format, category_id, tags, access_level,
-                       updated_at, device_info, device_token
-                FROM drafts
-                WHERE user_id = ? AND post_id = ?
-                ORDER BY updated_at DESC
-            ''', (user_id, post_id))
-        else:
-            cursor.execute('''
-                SELECT id, post_id, title, content, content_format, category_id, tags, access_level,
-                       updated_at, device_info, device_token
-                FROM drafts
-                WHERE user_id = ?
-                ORDER BY updated_at DESC
-                LIMIT 20
-            ''', (user_id,))
+        try:
+            if post_id:
+                cursor.execute('''
+                    SELECT id, post_id, title, content, content_format, category_id, tags, access_level,
+                           updated_at, device_info, device_token
+                    FROM drafts
+                    WHERE user_id = ? AND post_id = ?
+                    ORDER BY updated_at DESC
+                ''', (user_id, post_id))
+            else:
+                cursor.execute('''
+                    SELECT id, post_id, title, content, content_format, category_id, tags, access_level,
+                           updated_at, device_info, device_token
+                    FROM drafts
+                    WHERE user_id = ?
+                    ORDER BY updated_at DESC
+                    LIMIT 20
+                ''', (user_id,))
 
-        drafts = [_row_to_draft(row) for row in cursor.fetchall()]
-        for d in drafts:
-            d['updated_at'] = _format_iso_time(d.get('updated_at'))
-        return drafts
+            drafts = [_row_to_draft(row) for row in cursor.fetchall()]
+            for d in drafts:
+                d['updated_at'] = _format_iso_time(d.get('updated_at'))
+            return drafts
 
-    finally:
-        conn.close()
+        finally:
+            pass
 
 def get_draft(draft_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
     """获取单个草稿详情。传入 user_id 时校验归属，防止越权读取他人草稿。"""
     ensure_drafts_table()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    try:
-        if user_id is not None:
-            cursor.execute('''
-                SELECT * FROM drafts WHERE id = ? AND user_id = ?
-            ''', (draft_id, user_id))
-        else:
-            cursor.execute('''
-                SELECT * FROM drafts WHERE id = ?
-            ''', (draft_id,))
+        try:
+            if user_id is not None:
+                cursor.execute('''
+                    SELECT * FROM drafts WHERE id = ? AND user_id = ?
+                ''', (draft_id, user_id))
+            else:
+                cursor.execute('''
+                    SELECT * FROM drafts WHERE id = ?
+                ''', (draft_id,))
 
-        row = cursor.fetchone()
-        if row:
-            draft = _row_to_draft(row)
-            draft['updated_at'] = _format_iso_time(draft.get('updated_at'))
-            draft['created_at'] = _format_iso_time(draft.get('created_at'))
-            return draft
-        return None
+            row = cursor.fetchone()
+            if row:
+                draft = _row_to_draft(row)
+                draft['updated_at'] = _format_iso_time(draft.get('updated_at'))
+                draft['created_at'] = _format_iso_time(draft.get('created_at'))
+                return draft
+            return None
 
-    finally:
-        conn.close()
+        finally:
+            pass
 
 def resolve_conflict(conflict_draft_id: int, current_draft_id: int,
                      action: str, merged_data: Optional[Dict] = None,
@@ -357,86 +357,86 @@ def resolve_conflict(conflict_draft_id: int, current_draft_id: int,
     """解决草稿冲突。传入 user_id 时只允许操作本人草稿，防止越权删除/修改。"""
     ensure_drafts_table()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # 属主过滤子句：仅在传入 user_id 时启用
-    owner_clause = ' AND user_id = ?' if user_id is not None else ''
-    owner_param = (user_id,) if user_id is not None else ()
+        # 属主过滤子句：仅在传入 user_id 时启用
+        owner_clause = ' AND user_id = ?' if user_id is not None else ''
+        owner_param = (user_id,) if user_id is not None else ()
 
-    try:
-        conn.execute('BEGIN TRANSACTION')
+        try:
+            conn.execute('BEGIN TRANSACTION')
 
-        if action == 'keep_current':
-            # 删除对方草稿
-            cursor.execute(
-                f'DELETE FROM drafts WHERE id = ?{owner_clause}',
-                (conflict_draft_id,) + owner_param)
+            if action == 'keep_current':
+                # 删除对方草稿
+                cursor.execute(
+                    f'DELETE FROM drafts WHERE id = ?{owner_clause}',
+                    (conflict_draft_id,) + owner_param)
 
-        elif action == 'keep_other':
-            # 删除当前草稿
-            cursor.execute(
-                f'DELETE FROM drafts WHERE id = ?{owner_clause}',
-                (current_draft_id,) + owner_param)
+            elif action == 'keep_other':
+                # 删除当前草稿
+                cursor.execute(
+                    f'DELETE FROM drafts WHERE id = ?{owner_clause}',
+                    (current_draft_id,) + owner_param)
 
-        elif action == 'merge' and merged_data:
-            # 更新当前草稿为合并后的内容
-            cursor.execute(f'''
-                UPDATE drafts
-                SET title = ?, content = ?, category_id = ?, tags = ?
-                WHERE id = ?{owner_clause}
-            ''', (merged_data['title'], merged_data['content'],
-                  merged_data.get('category_id'),
-                  json.dumps(merged_data.get('tags', [])),
-                  current_draft_id) + owner_param)
+            elif action == 'merge' and merged_data:
+                # 更新当前草稿为合并后的内容
+                cursor.execute(f'''
+                    UPDATE drafts
+                    SET title = ?, content = ?, category_id = ?, tags = ?
+                    WHERE id = ?{owner_clause}
+                ''', (merged_data['title'], merged_data['content'],
+                      merged_data.get('category_id'),
+                      json.dumps(merged_data.get('tags', [])),
+                      current_draft_id) + owner_param)
 
-            # 删除对方草稿
-            cursor.execute(
-                f'DELETE FROM drafts WHERE id = ?{owner_clause}',
-                (conflict_draft_id,) + owner_param)
+                # 删除对方草稿
+                cursor.execute(
+                    f'DELETE FROM drafts WHERE id = ?{owner_clause}',
+                    (conflict_draft_id,) + owner_param)
 
-        conn.commit()
-        return {'success': True, 'message': '冲突已解决'}
+            conn.commit()
+            return {'success': True, 'message': '冲突已解决'}
 
-    except Exception as e:
-        conn.rollback()
-        logger.error(f'解决冲突失败: {e}')
-        return {'success': False, 'error': str(e)}
+        except Exception as e:
+            conn.rollback()
+            logger.error(f'解决冲突失败: {e}')
+            return {'success': False, 'error': str(e)}
 
-    finally:
-        conn.close()
+        finally:
+            pass
 
 def delete_drafts_for_post(user_id: int, post_id: int) -> int:
     """正文已保存到 posts 后清理该文章的所有草稿，避免旧草稿再次提示恢复。"""
     ensure_drafts_table()
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute('DELETE FROM drafts WHERE user_id = ? AND post_id = ?', (user_id, post_id))
-        conn.commit()
-        return cursor.rowcount
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute('DELETE FROM drafts WHERE user_id = ? AND post_id = ?', (user_id, post_id))
+            conn.commit()
+            return cursor.rowcount
+        finally:
+            pass
 
 
 def delete_draft(draft_id: int, user_id: int) -> Dict:
     """删除草稿"""
     ensure_drafts_table()
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    try:
-        cursor.execute('''
-            DELETE FROM drafts WHERE id = ? AND user_id = ?
-        ''', (draft_id, user_id))
+        try:
+            cursor.execute('''
+                DELETE FROM drafts WHERE id = ? AND user_id = ?
+            ''', (draft_id, user_id))
 
-        conn.commit()
-        return {'success': True, 'message': '草稿已删除'}
+            conn.commit()
+            return {'success': True, 'message': '草稿已删除'}
 
-    except Exception as e:
-        conn.rollback()
-        return {'success': False, 'error': str(e)}
+        except Exception as e:
+            conn.rollback()
+            return {'success': False, 'error': str(e)}
 
-    finally:
-        conn.close()
+        finally:
+            pass

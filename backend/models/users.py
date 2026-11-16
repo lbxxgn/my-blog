@@ -8,7 +8,7 @@ import sqlite3
 import logging
 import json
 
-from .db import get_db_connection, get_db_context
+from .db import get_db_context
 from backend.utils.secret_box import decrypt_secret, encrypt_secret, is_encrypted
 
 # Setup logger
@@ -41,11 +41,10 @@ __all__ = [
 def get_user_by_username(username):
     """Get a user by username with error handling"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
-        user = cursor.fetchone()
-        conn.close()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+            user = cursor.fetchone()
         return dict(user) if user else None
     except sqlite3.Error as e:
         logger.error(f"Database error in get_user_by_username({username}): {e}")
@@ -66,51 +65,48 @@ def update_user_password(user_id, new_password_hash):
 
 def get_user_by_id(user_id):
     """根据ID获取用户"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
-    user = cursor.fetchone()
-    conn.close()
-    return dict(user) if user else None
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM users WHERE id = ?', (user_id,))
+        user = cursor.fetchone()
+        return dict(user) if user else None
 
 
 def get_user_passkeys(user_id):
     """获取用户已绑定的 Passkey 列表"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, user_id, credential_id, sign_count, device_name, transports,
-               credential_device_type, backup_eligible, backup_state,
-               created_at, last_used_at
-        FROM user_passkeys
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-    ''', (user_id,))
-    rows = []
-    for row in cursor.fetchall():
-        item = dict(row)
-        item['transports'] = json.loads(item['transports']) if item.get('transports') else []
-        rows.append(item)
-    conn.close()
-    return rows
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, user_id, credential_id, sign_count, device_name, transports,
+                   credential_device_type, backup_eligible, backup_state,
+                   created_at, last_used_at
+            FROM user_passkeys
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        ''', (user_id,))
+        rows = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            item['transports'] = json.loads(item['transports']) if item.get('transports') else []
+            rows.append(item)
+        return rows
 
 
 def get_passkey_by_credential_id(credential_id):
     """根据 credential_id 获取 Passkey"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT *
-        FROM user_passkeys
-        WHERE credential_id = ?
-    ''', (credential_id,))
-    row = cursor.fetchone()
-    conn.close()
-    if not row:
-        return None
-    item = dict(row)
-    item['transports'] = json.loads(item['transports']) if item.get('transports') else []
-    return item
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT *
+            FROM user_passkeys
+            WHERE credential_id = ?
+        ''', (credential_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        item = dict(row)
+        item['transports'] = json.loads(item['transports']) if item.get('transports') else []
+        return item
 
 
 def create_user_passkey(user_id, credential_id, public_key, sign_count=0,
@@ -175,17 +171,16 @@ def delete_user_passkey(passkey_id, user_id):
 
 def get_all_users():
     """获取所有用户列表（包含文章数统计）"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT users.*,
-               (SELECT COUNT(*) FROM posts WHERE posts.author_id = users.id AND posts.deleted_at IS NULL) as post_count
-        FROM users
-        ORDER BY users.created_at DESC
-    ''')
-    users = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return users
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT users.*,
+                   (SELECT COUNT(*) FROM posts WHERE posts.author_id = users.id AND posts.deleted_at IS NULL) as post_count
+            FROM users
+            ORDER BY users.created_at DESC
+        ''')
+        users = [dict(row) for row in cursor.fetchall()]
+        return users
 
 
 def create_user(username, password_hash, role='author', display_name=None, bio=None):
@@ -273,41 +268,40 @@ def get_user_ai_config(user_id):
     Returns:
         dict: 包含AI配置的字典，如果用户不存在返回None
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT
-            ai_tag_generation_enabled,
-            ai_provider,
-            ai_api_key,
-            ai_model,
-            ai_base_url
-        FROM users
-        WHERE id = ?
-    ''', (user_id,))
-    row = cursor.fetchone()
-    conn.close()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT
+                ai_tag_generation_enabled,
+                ai_provider,
+                ai_api_key,
+                ai_model,
+                ai_base_url
+            FROM users
+            WHERE id = ?
+        ''', (user_id,))
+        row = cursor.fetchone()
 
-    if row:
-        raw_key = row['ai_api_key']
-        # 历史明文密钥在首次读取时自动升级为密文
-        if raw_key and not is_encrypted(raw_key):
-            try:
-                with get_db_context() as upgrade_conn:
-                    upgrade_conn.execute(
-                        'UPDATE users SET ai_api_key = ? WHERE id = ?',
-                        (encrypt_secret(raw_key), user_id),
-                    )
-            except Exception:
-                pass
-        return {
-            'ai_tag_generation_enabled': bool(row['ai_tag_generation_enabled']) if row['ai_tag_generation_enabled'] is not None else True,
-            'ai_provider': row['ai_provider'] or 'dashscope',
-            'ai_api_key': decrypt_secret(raw_key),
-            'ai_model': row['ai_model'] or 'qwen-turbo',
-            'ai_base_url': row['ai_base_url']
-        }
-    return None
+        if row:
+            raw_key = row['ai_api_key']
+            # 历史明文密钥在首次读取时自动升级为密文
+            if raw_key and not is_encrypted(raw_key):
+                try:
+                    with get_db_context() as upgrade_conn:
+                        upgrade_conn.execute(
+                            'UPDATE users SET ai_api_key = ? WHERE id = ?',
+                            (encrypt_secret(raw_key), user_id),
+                        )
+                except Exception:
+                    pass
+            return {
+                'ai_tag_generation_enabled': bool(row['ai_tag_generation_enabled']) if row['ai_tag_generation_enabled'] is not None else True,
+                'ai_provider': row['ai_provider'] or 'dashscope',
+                'ai_api_key': decrypt_secret(raw_key),
+                'ai_model': row['ai_model'] or 'qwen-turbo',
+                'ai_base_url': row['ai_base_url']
+            }
+        return None
 
 
 def update_user_ai_config(user_id, ai_config):
@@ -484,45 +478,44 @@ def get_ai_tag_history(user_id=None, post_id=None, limit=50):
     Returns:
         list: 历史记录列表
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # 构建WHERE条件
-    where_conditions = []
-    params = []
+        # 构建WHERE条件
+        where_conditions = []
+        params = []
 
-    if user_id:
-        where_conditions.append('user_id = ?')
-        params.append(user_id)
+        if user_id:
+            where_conditions.append('user_id = ?')
+            params.append(user_id)
 
-    if post_id:
-        where_conditions.append('post_id = ?')
-        params.append(post_id)
+        if post_id:
+            where_conditions.append('post_id = ?')
+            params.append(post_id)
 
-    where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
+        where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
 
-    query = f'''
-        SELECT ai_tag_history.*,
-               posts.title as post_title,
-               users.username as user_username
-        FROM ai_tag_history
-        LEFT JOIN posts ON ai_tag_history.post_id = posts.id
-        LEFT JOIN users ON ai_tag_history.user_id = users.id
-        WHERE {where_clause}
-        ORDER BY ai_tag_history.created_at DESC
-        LIMIT ?
-    '''
-    params.append(limit)
-    cursor.execute(query, params)
+        query = f'''
+            SELECT ai_tag_history.*,
+                   posts.title as post_title,
+                   users.username as user_username
+            FROM ai_tag_history
+            LEFT JOIN posts ON ai_tag_history.post_id = posts.id
+            LEFT JOIN users ON ai_tag_history.user_id = users.id
+            WHERE {where_clause}
+            ORDER BY ai_tag_history.created_at DESC
+            LIMIT ?
+        '''
+        params.append(limit)
+        cursor.execute(query, params)
 
-    history = []
-    for row in cursor.fetchall():
-        record = dict(row)
-        # 保留JSON字符串格式，由路由层负责解析
-        history.append(record)
+        history = []
+        for row in cursor.fetchall():
+            record = dict(row)
+            # 保留JSON字符串格式，由路由层负责解析
+            history.append(record)
 
-    conn.close()
-    return history
+        return history
 
 
 def get_ai_usage_stats(user_id=None):
@@ -535,85 +528,83 @@ def get_ai_usage_stats(user_id=None):
     Returns:
         dict: 统计信息
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    if user_id:
-        cursor.execute('''
-            SELECT
-                COUNT(*) as total_generations,
-                SUM(tokens_used) as total_tokens,
-                SUM(cost) as total_cost,
-                AVG(tokens_used) as avg_tokens,
-                MAX(created_at) as last_used
-            FROM ai_tag_history
-            WHERE user_id = ?
-        ''', (user_id,))
-    else:
-        cursor.execute('''
-            SELECT
-                COUNT(*) as total_generations,
-                SUM(tokens_used) as total_tokens,
-                SUM(cost) as total_cost,
-                AVG(tokens_used) as avg_tokens,
-                MAX(created_at) as last_used
-            FROM ai_tag_history
-        ''')
+        if user_id:
+            cursor.execute('''
+                SELECT
+                    COUNT(*) as total_generations,
+                    SUM(tokens_used) as total_tokens,
+                    SUM(cost) as total_cost,
+                    AVG(tokens_used) as avg_tokens,
+                    MAX(created_at) as last_used
+                FROM ai_tag_history
+                WHERE user_id = ?
+            ''', (user_id,))
+        else:
+            cursor.execute('''
+                SELECT
+                    COUNT(*) as total_generations,
+                    SUM(tokens_used) as total_tokens,
+                    SUM(cost) as total_cost,
+                    AVG(tokens_used) as avg_tokens,
+                    MAX(created_at) as last_used
+                FROM ai_tag_history
+            ''')
 
-    stats = dict(cursor.fetchone())
+        stats = dict(cursor.fetchone())
 
-    # 获取最近使用的货币单位
-    if user_id:
-        cursor.execute('''
-            SELECT currency FROM ai_tag_history
-            WHERE user_id = ? AND currency IS NOT NULL
-            ORDER BY created_at DESC LIMIT 1
-        ''', (user_id,))
-    else:
-        cursor.execute('''
-            SELECT currency FROM ai_tag_history
-            WHERE currency IS NOT NULL
-            ORDER BY created_at DESC LIMIT 1
-        ''')
+        # 获取最近使用的货币单位
+        if user_id:
+            cursor.execute('''
+                SELECT currency FROM ai_tag_history
+                WHERE user_id = ? AND currency IS NOT NULL
+                ORDER BY created_at DESC LIMIT 1
+            ''', (user_id,))
+        else:
+            cursor.execute('''
+                SELECT currency FROM ai_tag_history
+                WHERE currency IS NOT NULL
+                ORDER BY created_at DESC LIMIT 1
+            ''')
 
-    currency_row = cursor.fetchone()
-    stats['currency'] = currency_row['currency'] if currency_row else 'USD'
+        currency_row = cursor.fetchone()
+        stats['currency'] = currency_row['currency'] if currency_row else 'USD'
 
-    conn.close()
 
-    # 处理NULL值
-    stats['total_tokens'] = stats['total_tokens'] or 0
-    stats['total_cost'] = stats['total_cost'] or 0.0
-    stats['avg_tokens'] = stats['avg_tokens'] or 0
+        # 处理NULL值
+        stats['total_tokens'] = stats['total_tokens'] or 0
+        stats['total_cost'] = stats['total_cost'] or 0.0
+        stats['avg_tokens'] = stats['avg_tokens'] or 0
 
-    return stats
+        return stats
 
 
 # ==================== 浏览器插件 API 功能 ====================
 
 def init_api_keys_table():
     """初始化API密钥表"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS api_keys (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            api_key TEXT NOT NULL UNIQUE,
-            is_active INTEGER DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                api_key TEXT NOT NULL UNIQUE,
+                is_active INTEGER DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ''')
 
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_api_keys_user
-        ON api_keys(user_id)
-    ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_api_keys_user
+            ON api_keys(user_id)
+        ''')
 
-    conn.commit()
-    conn.close()
+        conn.commit()
 
 
 def generate_api_key(user_id):
@@ -621,18 +612,17 @@ def generate_api_key(user_id):
     import secrets
     api_key = secrets.token_urlsafe(32)
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        INSERT INTO api_keys (user_id, api_key, created_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
-    ''', (user_id, _hash_api_key(api_key)))
+        cursor.execute('''
+            INSERT INTO api_keys (user_id, api_key, created_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+        ''', (user_id, _hash_api_key(api_key)))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
 
-    return api_key
+        return api_key
 
 
 def _hash_api_key(api_key):
@@ -648,37 +638,34 @@ def validate_api_key(api_key):
 
     import hmac
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    # 新格式：按哈希查找
-    cursor.execute('''
-        SELECT user_id FROM api_keys
-        WHERE api_key = ? AND is_active = 1
-    ''', (_hash_api_key(api_key),))
+        # 新格式：按哈希查找
+        cursor.execute('''
+            SELECT user_id FROM api_keys
+            WHERE api_key = ? AND is_active = 1
+        ''', (_hash_api_key(api_key),))
 
-    result = cursor.fetchone()
-    if result:
-        user_id = result['user_id']
-        conn.close()
-        return user_id
-
-    # 兼容旧格式：明文比对（恒定时间），命中后升级为哈希存储
-    cursor.execute('SELECT id, user_id, api_key FROM api_keys WHERE is_active = 1')
-    for row in cursor.fetchall():
-        stored = row['api_key'] or ''
-        # 跳过已是哈希的记录（64位hex），只处理明文遗留
-        if len(stored) == 64:
-            continue
-        if hmac.compare_digest(stored, api_key):
-            cursor.execute(
-                'UPDATE api_keys SET api_key = ? WHERE id = ?',
-                (_hash_api_key(api_key), row['id'])
-            )
-            conn.commit()
-            user_id = row['user_id']
-            conn.close()
+        result = cursor.fetchone()
+        if result:
+            user_id = result['user_id']
             return user_id
 
-    conn.close()
-    return None
+        # 兼容旧格式：明文比对（恒定时间），命中后升级为哈希存储
+        cursor.execute('SELECT id, user_id, api_key FROM api_keys WHERE is_active = 1')
+        for row in cursor.fetchall():
+            stored = row['api_key'] or ''
+            # 跳过已是哈希的记录（64位hex），只处理明文遗留
+            if len(stored) == 64:
+                continue
+            if hmac.compare_digest(stored, api_key):
+                cursor.execute(
+                    'UPDATE api_keys SET api_key = ? WHERE id = ?',
+                    (_hash_api_key(api_key), row['id'])
+                )
+                conn.commit()
+                user_id = row['user_id']
+                return user_id
+
+        return None

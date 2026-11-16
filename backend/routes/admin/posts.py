@@ -3,7 +3,7 @@
 from flask import render_template, request, redirect, url_for, session, flash, jsonify
 
 from models import (
-    get_all_posts, get_all_post_ids, get_post_by_id, create_post, update_post, get_all_categories, set_post_tags, get_db_connection, get_all_users, get_all_tags,
+    get_all_posts, get_all_post_ids, get_post_by_id, create_post, update_post, get_all_categories, set_post_tags, get_db_context, get_all_users, get_all_tags,
     get_post_revisions, get_post_revision, restore_post_revision,
     soft_delete_post, get_deleted_posts, restore_deleted_post, purge_deleted_post,
 )
@@ -83,16 +83,15 @@ def convert_content_format():
 def image_optimization_status(optimization_id):
     """查询图片优化状态"""
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT status, thumbnail_path, medium_path, large_path,
-                   original_size, optimized_size
-            FROM optimized_images
-            WHERE id = ?
-        ''', (optimization_id,))
-        result = cursor.fetchone()
-        conn.close()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT status, thumbnail_path, medium_path, large_path,
+                       original_size, optimized_size
+                FROM optimized_images
+                WHERE id = ?
+            ''', (optimization_id,))
+            result = cursor.fetchone()
 
         if not result:
             return jsonify({'success': False, 'error': '未找到优化记录'}), 404
@@ -286,10 +285,9 @@ def new_post():
         # 创建文章
         post_id = create_post(title, content, is_published, category_id, author_id, access_level, access_password, content_format=content_format)
         if post_id and publish_at:
-            conn = get_db_connection()
-            conn.execute('UPDATE posts SET publish_at = ? WHERE id = ?', (publish_at, post_id))
-            conn.commit()
-            conn.close()
+            with get_db_context() as conn:
+                conn.execute('UPDATE posts SET publish_at = ? WHERE id = ?', (publish_at, post_id))
+                conn.commit()
 
         # 如果原标题为空，后台异步调用AI生成更好的标题
         if not raw_title and post_id:
@@ -300,23 +298,22 @@ def new_post():
 
         # 更新AI历史记录
         try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
+            with get_db_context() as conn:
+                cursor = conn.cursor()
 
-            cursor.execute('''
-                UPDATE ai_tag_history
-                SET post_id = ?
-                WHERE id = (
-                    SELECT id FROM ai_tag_history
-                    WHERE user_id = ? AND post_id IS NULL
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                )
-            ''', (post_id, author_id))
+                cursor.execute('''
+                    UPDATE ai_tag_history
+                    SET post_id = ?
+                    WHERE id = (
+                        SELECT id FROM ai_tag_history
+                        WHERE user_id = ? AND post_id IS NULL
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                    )
+                ''', (post_id, author_id))
 
-            updated = cursor.rowcount
-            conn.commit()
-            conn.close()
+                updated = cursor.rowcount
+                conn.commit()
 
             if updated > 0:
                 print(f"[AI History] Updated {updated} history record(s) with post_id={post_id}")
@@ -413,10 +410,9 @@ def edit_post(post_id):
 
         # 更新文章
         update_post(post_id, title, content, is_published, category_id, access_level, access_password, content_format=content_format)
-        conn = get_db_connection()
-        conn.execute('UPDATE posts SET publish_at = ? WHERE id = ?', (publish_at, post_id))
-        conn.commit()
-        conn.close()
+        with get_db_context() as conn:
+            conn.execute('UPDATE posts SET publish_at = ? WHERE id = ?', (publish_at, post_id))
+            conn.commit()
 
         # 如果原标题为空，后台异步调用AI生成更好的标题
         if not raw_title:
@@ -431,11 +427,10 @@ def edit_post(post_id):
             set_post_tags(post_id, tag_names)
         else:
             # 清空所有标签
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (post_id,))
-            conn.commit()
-            conn.close()
+            with get_db_context() as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM post_tags WHERE post_id = ?', (post_id,))
+                conn.commit()
 
         flash('文章更新成功', 'success')
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -455,12 +450,11 @@ def edit_post(post_id):
 @can_edit_post
 def unpublish_post(post_id):
     """取消发布，回到草稿状态。"""
-    conn = get_db_connection()
-    conn.execute('UPDATE posts SET is_published = 0, publish_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?', (post_id,))
-    conn.commit()
-    conn.close()
-    flash('已取消发布，文章回到草稿状态', 'success')
-    return redirect(url_for('admin.edit_post', post_id=post_id))
+    with get_db_context() as conn:
+        conn.execute('UPDATE posts SET is_published = 0, publish_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?', (post_id,))
+        conn.commit()
+        flash('已取消发布，文章回到草稿状态', 'success')
+        return redirect(url_for('admin.edit_post', post_id=post_id))
 
 
 @admin_bp.route('/delete/<int:post_id>', methods=['POST'])

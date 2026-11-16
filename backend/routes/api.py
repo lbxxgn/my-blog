@@ -133,43 +133,44 @@ def get_original_image_url():
 
     try:
         # 使用数据库查询替代目录遍历，提高性能
-        from models import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        import os
+        from models import get_db_context
 
-        # 查询优化图片记录
-        # 1) 优先按内容哈希精确匹配（优化文件名使用内容哈希的情况）
-        cursor.execute('''
-            SELECT original_path
-            FROM optimized_images
-            WHERE original_hash = ?
-            LIMIT 1
-        ''', (hash,))
+        with get_db_context() as conn:
+            cursor = conn.cursor()
 
-        result = cursor.fetchone()
-
-        # 2) 回退：优化文件名通常取原图文件名末尾的短哈希（时间戳_随机串.ext），
-        #    与内容哈希 original_hash 不一致，改为按优化文件路径反查原图
-        if not result:
+            # 查询优化图片记录
+            # 1) 优先按内容哈希精确匹配（优化文件名使用内容哈希的情况）
             cursor.execute('''
                 SELECT original_path
                 FROM optimized_images
-                WHERE thumbnail_path LIKE ?
-                   OR medium_path LIKE ?
-                   OR large_path LIKE ?
+                WHERE original_hash = ?
                 LIMIT 1
-            ''', (
-                f'%/{hash}_thumbnail.webp',
-                f'%/{hash}_medium.webp',
-                f'%/{hash}_large.webp',
-            ))
+            ''', (hash,))
+
             result = cursor.fetchone()
+
+            # 2) 回退：优化文件名通常取原图文件名末尾的短哈希（时间戳_随机串.ext），
+            #    与内容哈希 original_hash 不一致，改为按优化文件路径反查原图
+            if not result:
+                cursor.execute('''
+                    SELECT original_path
+                    FROM optimized_images
+                    WHERE thumbnail_path LIKE ?
+                       OR medium_path LIKE ?
+                       OR large_path LIKE ?
+                    LIMIT 1
+                ''', (
+                    f'%/{hash}_thumbnail.webp',
+                    f'%/{hash}_medium.webp',
+                    f'%/{hash}_large.webp',
+                ))
+                result = cursor.fetchone()
 
         if result:
             # 转换为URL格式
             original_path = result['original_path']
             # 去除可能的前缀，确保返回正确的URL
-            import os
             if original_path.startswith('static/uploads/images/'):
                 original_url = f"/{original_path}"
             elif original_path.startswith('uploads/images/'):
@@ -179,7 +180,6 @@ def get_original_image_url():
             else:
                 original_url = f"/static/uploads/images/{os.path.basename(original_path)}"
 
-            conn.close()
             response = {
                 'success': True,
                 'original_url': original_url,
@@ -187,7 +187,6 @@ def get_original_image_url():
                 'filename': os.path.basename(original_path)
             }
         else:
-            conn.close()
             response = {
                 'success': True,
                 'original_url': None,

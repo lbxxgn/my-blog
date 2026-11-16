@@ -6,7 +6,7 @@ Site Settings Model Functions
 
 import sqlite3
 
-from .db import get_db_connection
+from .db import get_db_context
 
 __all__ = [
     'ensure_site_settings_table',
@@ -20,63 +20,63 @@ __all__ = [
 
 def ensure_site_settings_table():
     """确保站点配置表存在（幂等）。"""
-    conn = get_db_connection()
-    try:
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS site_settings (
-                key TEXT PRIMARY KEY,
-                value TEXT,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        conn.commit()
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS site_settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.commit()
+        finally:
+            pass
 
 
 def get_site_setting(key, default=None):
     """读取站点配置；表不存在时安全降级为默认值。"""
-    conn = get_db_connection()
-    try:
+    with get_db_context() as conn:
         try:
-            row = conn.execute(
-                'SELECT value FROM site_settings WHERE key = ?', (key,)
-            ).fetchone()
-        except sqlite3.OperationalError:
-            return default
-        return row['value'] if row else default
-    finally:
-        conn.close()
+            try:
+                row = conn.execute(
+                    'SELECT value FROM site_settings WHERE key = ?', (key,)
+                ).fetchone()
+            except sqlite3.OperationalError:
+                return default
+            return row['value'] if row else default
+        finally:
+            pass
 
 
 def set_site_setting(key, value):
     """写入（或覆盖）站点配置。"""
     ensure_site_settings_table()
-    conn = get_db_connection()
-    try:
-        conn.execute('''
-            INSERT INTO site_settings (key, value, updated_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(key) DO UPDATE SET
-                value = excluded.value,
-                updated_at = CURRENT_TIMESTAMP
-        ''', (key, str(value)))
-        conn.commit()
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            conn.execute('''
+                INSERT INTO site_settings (key, value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = CURRENT_TIMESTAMP
+            ''', (key, str(value)))
+            conn.commit()
+        finally:
+            pass
 
 
 def delete_site_setting(key):
     """删除一条站点配置。"""
-    conn = get_db_connection()
-    try:
+    with get_db_context() as conn:
         try:
-            conn.execute('DELETE FROM site_settings WHERE key = ?', (key,))
-            conn.commit()
-        except sqlite3.OperationalError:
+            try:
+                conn.execute('DELETE FROM site_settings WHERE key = ?', (key,))
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass
+        finally:
             pass
-    finally:
-        conn.close()
 
 
 def get_site_identity(defaults=None):
@@ -84,22 +84,22 @@ def get_site_identity(defaults=None):
     defaults = defaults or {}
     keys = ('site_name', 'site_description', 'site_author')
     values = dict(defaults)
-    conn = get_db_connection()
-    try:
+    with get_db_context() as conn:
         try:
-            placeholders = ','.join('?' for _ in keys)
-            rows = conn.execute(
-                f'SELECT key, value FROM site_settings WHERE key IN ({placeholders})',
-                keys,
-            ).fetchall()
-        except sqlite3.OperationalError:
-            rows = []
-        for row in rows:
-            if row['value'] is not None and str(row['value']).strip():
-                values[row['key']] = row['value']
-    finally:
-        conn.close()
-    return values
+            try:
+                placeholders = ','.join('?' for _ in keys)
+                rows = conn.execute(
+                    f'SELECT key, value FROM site_settings WHERE key IN ({placeholders})',
+                    keys,
+                ).fetchall()
+            except sqlite3.OperationalError:
+                rows = []
+            for row in rows:
+                if row['value'] is not None and str(row['value']).strip():
+                    values[row['key']] = row['value']
+        finally:
+            pass
+        return values
 
 
 def get_site_icon_version():

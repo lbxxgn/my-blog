@@ -4,9 +4,8 @@ from flask import session, jsonify
 import sqlite3
 
 from models import (
-    get_db_connection,
     hash_access_password,
-    soft_delete_post,
+    soft_delete_post, get_db_context,
 )
 from auth_decorators import login_required, get_current_user
 from logger import log_operation, log_error, log_sql, api_internal_error
@@ -22,7 +21,6 @@ def batch_update_category():
     user_id = session.get('user_id')
     username = session.get('username', 'Unknown')
 
-    conn = None
     try:
         data = get_request_data()
         post_ids = normalize_post_ids(data.get('post_ids'))
@@ -47,39 +45,39 @@ def batch_update_category():
         log_sql('batch_update_category', f'UPDATE posts SET category_id = {category_id}',
                  f'post_ids={post_ids}')
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
 
-        updated_count = 0
-        errors = []
+            updated_count = 0
+            errors = []
 
-        for post_id in post_ids:
-            try:
-                cursor.execute('SELECT title, content FROM posts WHERE id = ?', (post_id,))
-                post_data = cursor.fetchone()
+            for post_id in post_ids:
+                try:
+                    cursor.execute('SELECT title, content FROM posts WHERE id = ?', (post_id,))
+                    post_data = cursor.fetchone()
 
-                if post_data:
-                    log_sql('update_post', f'UPDATE posts SET category_id = {category_id} WHERE id = {post_id}')
+                    if post_data:
+                        log_sql('update_post', f'UPDATE posts SET category_id = {category_id} WHERE id = {post_id}')
 
-                    cursor.execute(
-                        'UPDATE posts SET category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                        (category_id, post_id)
-                    )
+                        cursor.execute(
+                            'UPDATE posts SET category_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                            (category_id, post_id)
+                        )
 
-                    log_sql('update_fts', f'DELETE FROM posts_fts WHERE rowid = {post_id}')
-                    cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
+                        log_sql('update_fts', f'DELETE FROM posts_fts WHERE rowid = {post_id}')
+                        cursor.execute('DELETE FROM posts_fts WHERE rowid = ?', (post_id,))
 
-                    log_sql('insert_fts', f'INSERT INTO posts_fts(rowid, title, content) VALUES ({post_id}, ...)')
-                    cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
-                                  (post_id, post_data[0], post_data[1]))
+                        log_sql('insert_fts', f'INSERT INTO posts_fts(rowid, title, content) VALUES ({post_id}, ...)')
+                        cursor.execute('INSERT INTO posts_fts(rowid, title, content) VALUES (?, ?, ?)',
+                                      (post_id, post_data[0], post_data[1]))
 
-                    updated_count += 1
-            except Exception as e:
-                error_msg = f"文章 {post_id} 更新失败: {str(e)}"
-                errors.append(error_msg)
-                log_error(e, context=f'批量更新分类 - 文章 {post_id}', user_id=user_id)
+                        updated_count += 1
+                except Exception as e:
+                    error_msg = f"文章 {post_id} 更新失败: {str(e)}"
+                    errors.append(error_msg)
+                    log_error(e, context=f'批量更新分类 - 文章 {post_id}', user_id=user_id)
 
-        conn.commit()
+            conn.commit()
 
         if errors:
             result_msg = f'部分成功: {updated_count}/{len(post_ids)} 篇文章更新成功'
@@ -96,17 +94,14 @@ def batch_update_category():
         })
 
     except sqlite3.Error as e:
-        if conn:
-            conn.rollback()
+        pass
         log_error(e, context='批量操作数据库错误')
         return jsonify({'success': False, 'message': '数据库操作失败，请稍后重试'}), 500
     except Exception as e:
-        if conn:
-            conn.rollback()
+        pass
         return api_internal_error(e)
     finally:
-        if conn:
-            conn.close()
+        pass
 
 @admin_bp.route('/batch-delete', methods=['POST'])
 @login_required
@@ -115,7 +110,6 @@ def batch_delete():
     user_id = session.get('user_id')
     username = session.get('username', 'Unknown')
 
-    conn = None
     try:
         data = get_request_data()
         post_ids = normalize_post_ids(data.get('post_ids'))
@@ -131,22 +125,22 @@ def batch_delete():
         if not user or user.get('role') != 'admin':
             return jsonify({'success': False, 'message': '只有管理员可以删除文章'}), 403
 
-        conn = get_db_connection()
+        with get_db_context() as conn:
 
-        deleted_count = 0
-        errors = []
+            deleted_count = 0
+            errors = []
 
-        for post_id in post_ids:
-            try:
-                # 统一软删除，保留评论/标签，便于回收站恢复
-                if soft_delete_post(post_id):
-                    deleted_count += 1
-            except Exception as e:
-                error_msg = f"文章 {post_id} 移入回收站失败: {str(e)}"
-                errors.append(error_msg)
-                log_error(e, context=f'批量删除 - 文章 {post_id}', user_id=user_id)
+            for post_id in post_ids:
+                try:
+                    # 统一软删除，保留评论/标签，便于回收站恢复
+                    if soft_delete_post(post_id):
+                        deleted_count += 1
+                except Exception as e:
+                    error_msg = f"文章 {post_id} 移入回收站失败: {str(e)}"
+                    errors.append(error_msg)
+                    log_error(e, context=f'批量删除 - 文章 {post_id}', user_id=user_id)
 
-        conn.commit()
+            conn.commit()
 
         if errors:
             result_msg = f'部分成功: {deleted_count}/{len(post_ids)} 篇文章已移入回收站'
@@ -163,13 +157,11 @@ def batch_delete():
         })
 
     except Exception as e:
-        if conn:
-            conn.rollback()
+        pass
         log_error(e, context='批量删除文章', user_id=user_id)
         return api_internal_error(e)
     finally:
-        if conn:
-            conn.close()
+        pass
 
 @admin_bp.route('/batch-publish', methods=['POST'])
 @login_required
@@ -178,7 +170,6 @@ def batch_publish():
     user_id = session.get('user_id')
     username = session.get('username', 'Unknown')
 
-    conn = None
     try:
         data = get_request_data()
         post_ids = normalize_post_ids(data.get('post_ids'))
@@ -199,28 +190,28 @@ def batch_publish():
         if not post_ids:
             return jsonify({'success': False, 'message': '没有可操作的文章（只能操作自己的文章）'}), 403
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
 
-        updated_count = 0
-        errors = []
+            updated_count = 0
+            errors = []
 
-        for post_id in post_ids:
-            try:
-                log_sql('batch_publish', f'UPDATE posts SET is_published = {publish} WHERE id = {post_id}')
+            for post_id in post_ids:
+                try:
+                    log_sql('batch_publish', f'UPDATE posts SET is_published = {publish} WHERE id = {post_id}')
 
-                cursor.execute(
-                    'UPDATE posts SET is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                    (1 if publish else 0, post_id)
-                )
+                    cursor.execute(
+                        'UPDATE posts SET is_published = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                        (1 if publish else 0, post_id)
+                    )
 
-                updated_count += 1
-            except Exception as e:
-                error_msg = f"文章 {post_id} 更新失败: {str(e)}"
-                errors.append(error_msg)
-                log_error(e, context=f'批量发布 - 文章 {post_id}', user_id=user_id)
+                    updated_count += 1
+                except Exception as e:
+                    error_msg = f"文章 {post_id} 更新失败: {str(e)}"
+                    errors.append(error_msg)
+                    log_error(e, context=f'批量发布 - 文章 {post_id}', user_id=user_id)
 
-        conn.commit()
+            conn.commit()
 
         action = '发布' if publish else '取消发布'
         if errors:
@@ -238,17 +229,14 @@ def batch_publish():
         })
 
     except sqlite3.Error as e:
-        if conn:
-            conn.rollback()
+        pass
         log_error(e, context='批量操作数据库错误')
         return jsonify({'success': False, 'message': '数据库操作失败，请稍后重试'}), 500
     except Exception as e:
-        if conn:
-            conn.rollback()
+        pass
         return api_internal_error(e)
     finally:
-        if conn:
-            conn.close()
+        pass
 
 @admin_bp.route('/batch-add-tags', methods=['POST'])
 @login_required
@@ -257,7 +245,6 @@ def batch_add_tags():
     user_id = session.get('user_id')
     username = session.get('username', 'Unknown')
 
-    conn = None
     try:
         data = get_request_data()
         post_ids = normalize_post_ids(data.get('post_ids'))
@@ -278,52 +265,52 @@ def batch_add_tags():
         if not post_ids:
             return jsonify({'success': False, 'message': '没有可操作的文章（只能操作自己的文章）'}), 403
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
 
-        if not tags and tag_ids:
-            for tag_id in tag_ids:
-                cursor.execute('SELECT name FROM tags WHERE id = ?', (int(tag_id),))
-                tag = cursor.fetchone()
-                if tag:
-                    tags.append(tag['name'] if 'name' in tag.keys() else tag[0])
-
-        if not tags:
-            return jsonify({'success': False, 'message': '未指定任何标签'}), 400
-
-        updated_count = 0
-        errors = []
-
-        for post_id in post_ids:
-            try:
-                # 获取或创建标签
-                for tag_name in tags:
-                    # 检查标签是否存在
-                    cursor.execute('SELECT id FROM tags WHERE name = ?', (tag_name,))
+            if not tags and tag_ids:
+                for tag_id in tag_ids:
+                    cursor.execute('SELECT name FROM tags WHERE id = ?', (int(tag_id),))
                     tag = cursor.fetchone()
+                    if tag:
+                        tags.append(tag['name'] if 'name' in tag.keys() else tag[0])
 
-                    if not tag:
-                        # 创建新标签
-                        cursor.execute('INSERT INTO tags (name) VALUES (?)', (tag_name,))
-                        tag_id = cursor.lastrowid
-                    else:
-                        tag_id = tag[0]
+            if not tags:
+                return jsonify({'success': False, 'message': '未指定任何标签'}), 400
 
-                    # 检查文章是否已有此标签
-                    cursor.execute('SELECT 1 FROM post_tags WHERE post_id = ? AND tag_id = ?',
-                                 (post_id, tag_id))
-                    if not cursor.fetchone():
-                        # 添加标签关联
-                        cursor.execute('INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)',
+            updated_count = 0
+            errors = []
+
+            for post_id in post_ids:
+                try:
+                    # 获取或创建标签
+                    for tag_name in tags:
+                        # 检查标签是否存在
+                        cursor.execute('SELECT id FROM tags WHERE name = ?', (tag_name,))
+                        tag = cursor.fetchone()
+
+                        if not tag:
+                            # 创建新标签
+                            cursor.execute('INSERT INTO tags (name) VALUES (?)', (tag_name,))
+                            tag_id = cursor.lastrowid
+                        else:
+                            tag_id = tag[0]
+
+                        # 检查文章是否已有此标签
+                        cursor.execute('SELECT 1 FROM post_tags WHERE post_id = ? AND tag_id = ?',
                                      (post_id, tag_id))
+                        if not cursor.fetchone():
+                            # 添加标签关联
+                            cursor.execute('INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)',
+                                         (post_id, tag_id))
 
-                updated_count += 1
-            except Exception as e:
-                error_msg = f"文章 {post_id} 添加标签失败: {str(e)}"
-                errors.append(error_msg)
-                log_error(e, context=f'批量添加标签 - 文章 {post_id}', user_id=user_id)
+                    updated_count += 1
+                except Exception as e:
+                    error_msg = f"文章 {post_id} 添加标签失败: {str(e)}"
+                    errors.append(error_msg)
+                    log_error(e, context=f'批量添加标签 - 文章 {post_id}', user_id=user_id)
 
-        conn.commit()
+            conn.commit()
 
         if errors:
             result_msg = f'部分成功: {updated_count}/{len(post_ids)} 篇文章添加标签成功'
@@ -340,17 +327,14 @@ def batch_add_tags():
         })
 
     except sqlite3.Error as e:
-        if conn:
-            conn.rollback()
+        pass
         log_error(e, context='批量操作数据库错误')
         return jsonify({'success': False, 'message': '数据库操作失败，请稍后重试'}), 500
     except Exception as e:
-        if conn:
-            conn.rollback()
+        pass
         return api_internal_error(e)
     finally:
-        if conn:
-            conn.close()
+        pass
 
 @admin_bp.route('/batch-update-access', methods=['POST'])
 @login_required
@@ -359,7 +343,6 @@ def batch_update_access():
     user_id = session.get('user_id')
     username = session.get('username', 'Unknown')
 
-    conn = None
     try:
         data = get_request_data()
         post_ids = normalize_post_ids(data.get('post_ids'))
@@ -383,28 +366,28 @@ def batch_update_access():
         if not post_ids:
             return jsonify({'success': False, 'message': '没有可操作的文章（只能操作自己的文章）'}), 403
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
 
-        updated_count = 0
-        errors = []
+            updated_count = 0
+            errors = []
 
-        for post_id in post_ids:
-            try:
-                log_sql('batch_update_access', f'UPDATE posts SET access_level = {access_level} WHERE id = {post_id}')
+            for post_id in post_ids:
+                try:
+                    log_sql('batch_update_access', f'UPDATE posts SET access_level = {access_level} WHERE id = {post_id}')
 
-                cursor.execute(
-                    'UPDATE posts SET access_level = ?, access_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-                    (access_level, access_password if access_level == 'password' else None, post_id)
-                )
+                    cursor.execute(
+                        'UPDATE posts SET access_level = ?, access_password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                        (access_level, access_password if access_level == 'password' else None, post_id)
+                    )
 
-                updated_count += 1
-            except Exception as e:
-                error_msg = f"文章 {post_id} 更新失败: {str(e)}"
-                errors.append(error_msg)
-                log_error(e, context=f'批量更新访问权限 - 文章 {post_id}', user_id=user_id)
+                    updated_count += 1
+                except Exception as e:
+                    error_msg = f"文章 {post_id} 更新失败: {str(e)}"
+                    errors.append(error_msg)
+                    log_error(e, context=f'批量更新访问权限 - 文章 {post_id}', user_id=user_id)
 
-        conn.commit()
+            conn.commit()
 
         access_level_names = {
             'public': '公开',
@@ -427,14 +410,11 @@ def batch_update_access():
         })
 
     except sqlite3.Error as e:
-        if conn:
-            conn.rollback()
+        pass
         log_error(e, context='批量操作数据库错误')
         return jsonify({'success': False, 'message': '数据库操作失败，请稍后重试'}), 500
     except Exception as e:
-        if conn:
-            conn.rollback()
+        pass
         return api_internal_error(e)
     finally:
-        if conn:
-            conn.close()
+        pass

@@ -11,8 +11,8 @@ from datetime import datetime, timezone
 sys.path.insert(0, str(Path(__file__).parent))
 
 from models import (
-    get_db_connection, init_db, create_post, create_category,
-    get_all_categories
+    init_db, create_post, create_category,
+    get_all_categories, get_db_context
 )
 
 def timestamp_to_datetime(ts_str):
@@ -64,11 +64,10 @@ def import_blogs_from_xml(xml_file_path, author_id=2):
     init_db()
 
     # 验证用户存在
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, username, display_name FROM users WHERE id = ?', (author_id,))
-    user = cursor.fetchone()
-    conn.close()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, username, display_name FROM users WHERE id = ?', (author_id,))
+        user = cursor.fetchone()
 
     if not user:
         print(f"错误: 找不到ID为 {author_id} 的用户")
@@ -135,14 +134,13 @@ def import_blogs_from_xml(xml_file_path, author_id=2):
                 category_id = category_map[category_name]
 
             # 检查是否已存在（根据标题和时间判断）
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                'SELECT id FROM posts WHERE title = ? AND created_at >= ? AND created_at <= ?',
-                (title, created_at, created_at)
-            )
-            existing = cursor.fetchone()
-            conn.close()
+            with get_db_context() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'SELECT id FROM posts WHERE title = ? AND created_at >= ? AND created_at <= ?',
+                    (title, created_at, created_at)
+                )
+                existing = cursor.fetchone()
 
             if existing:
                 print(f"⏭️  跳过（已存在）: {title} ({created_at.strftime('%Y-%m-%d')})")
@@ -159,14 +157,13 @@ def import_blogs_from_xml(xml_file_path, author_id=2):
             )
 
             # 更新创建时间为原始发布时间
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                'UPDATE posts SET created_at = ?, updated_at = ? WHERE id = ?',
-                (created_at, created_at, post_id)
-            )
-            conn.commit()
-            conn.close()
+            with get_db_context() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    'UPDATE posts SET created_at = ?, updated_at = ? WHERE id = ?',
+                    (created_at, created_at, post_id)
+                )
+                conn.commit()
 
             status = "✓ 已发布" if is_published else "○ 草稿"
             print(f"✓ 导入成功: {title} ({created_at.strftime('%Y-%m-%d')}) [{status}]")

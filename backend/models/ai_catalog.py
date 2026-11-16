@@ -16,7 +16,7 @@ import re
 import sqlite3
 from typing import Any, Dict, List, Optional
 
-from .db import get_db_connection, get_db_context
+from .db import get_db_context
 from ai_services.provider_defaults import (
     DEFAULT_CATALOG,
     currency_symbol,
@@ -146,59 +146,59 @@ def ensure_ai_catalog_tables(seed: bool = True) -> None:
     if db_path in _ensured_databases:
         return
 
-    conn = get_db_connection()
-    try:
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS ai_providers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slug TEXT NOT NULL UNIQUE,
-                name TEXT NOT NULL,
-                description TEXT,
-                driver TEXT NOT NULL,
-                base_url TEXT,
-                currency TEXT NOT NULL DEFAULT 'CNY',
-                allow_custom_model BOOLEAN DEFAULT 0,
-                requires_base_url BOOLEAN DEFAULT 0,
-                enabled BOOLEAN DEFAULT 1,
-                is_builtin BOOLEAN DEFAULT 0,
-                sort_order INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    with get_db_context() as conn:
+        try:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS ai_providers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    slug TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    driver TEXT NOT NULL,
+                    base_url TEXT,
+                    currency TEXT NOT NULL DEFAULT 'CNY',
+                    allow_custom_model BOOLEAN DEFAULT 0,
+                    requires_base_url BOOLEAN DEFAULT 0,
+                    enabled BOOLEAN DEFAULT 1,
+                    is_builtin BOOLEAN DEFAULT 0,
+                    sort_order INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS ai_models (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider_id INTEGER NOT NULL,
+                    model_id TEXT NOT NULL,
+                    display_name TEXT,
+                    description TEXT,
+                    input_price REAL,
+                    output_price REAL,
+                    enabled BOOLEAN DEFAULT 1,
+                    is_default BOOLEAN DEFAULT 0,
+                    sort_order INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(provider_id, model_id),
+                    FOREIGN KEY(provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
+                )
+            ''')
+            conn.execute(
+                'CREATE INDEX IF NOT EXISTS idx_ai_models_provider '
+                'ON ai_models(provider_id, sort_order, id)'
             )
-        ''')
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS ai_models (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                provider_id INTEGER NOT NULL,
-                model_id TEXT NOT NULL,
-                display_name TEXT,
-                description TEXT,
-                input_price REAL,
-                output_price REAL,
-                enabled BOOLEAN DEFAULT 1,
-                is_default BOOLEAN DEFAULT 0,
-                sort_order INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(provider_id, model_id),
-                FOREIGN KEY(provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
-            )
-        ''')
-        conn.execute(
-            'CREATE INDEX IF NOT EXISTS idx_ai_models_provider '
-            'ON ai_models(provider_id, sort_order, id)'
-        )
-        conn.commit()
+            conn.commit()
 
-        if seed:
-            count = conn.execute('SELECT COUNT(*) FROM ai_providers').fetchone()[0]
-            if count == 0:
-                _seed_default_catalog(conn)
-                conn.commit()
+            if seed:
+                count = conn.execute('SELECT COUNT(*) FROM ai_providers').fetchone()[0]
+                if count == 0:
+                    _seed_default_catalog(conn)
+                    conn.commit()
 
-        _ensured_databases.add(db_path)
-    finally:
-        conn.close()
+            _ensured_databases.add(db_path)
+        finally:
+            pass
 
 
 def _seed_default_catalog(conn) -> None:
@@ -360,88 +360,88 @@ def _catalog_from_defaults() -> List[Dict[str, Any]]:
 def get_catalog(include_disabled: bool = True) -> List[Dict[str, Any]]:
     """返回完整目录（供应商 + 模型 + 引用统计）。"""
     ensure_ai_catalog_tables()
-    conn = get_db_connection()
-    try:
-        provider_rows = conn.execute(
-            'SELECT * FROM ai_providers ORDER BY sort_order, id'
-        ).fetchall()
-        model_rows = conn.execute(
-            'SELECT * FROM ai_models ORDER BY provider_id, sort_order, id'
-        ).fetchall()
-        provider_usage, model_usage = _usage_counts(conn)
-    except sqlite3.DatabaseError:
-        return _catalog_from_defaults()
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            provider_rows = conn.execute(
+                'SELECT * FROM ai_providers ORDER BY sort_order, id'
+            ).fetchall()
+            model_rows = conn.execute(
+                'SELECT * FROM ai_models ORDER BY provider_id, sort_order, id'
+            ).fetchall()
+            provider_usage, model_usage = _usage_counts(conn)
+        except sqlite3.DatabaseError:
+            return _catalog_from_defaults()
+        finally:
+            pass
 
-    models_by_provider: Dict[int, List[Dict[str, Any]]] = {}
-    for row in model_rows:
-        models_by_provider.setdefault(row['provider_id'], []).append(_row_to_model(row))
+        models_by_provider: Dict[int, List[Dict[str, Any]]] = {}
+        for row in model_rows:
+            models_by_provider.setdefault(row['provider_id'], []).append(_row_to_model(row))
 
-    catalog = []
-    for row in provider_rows:
-        provider = _row_to_provider(row)
-        if not include_disabled and not provider['enabled']:
-            continue
-        models = models_by_provider.get(provider['provider_pk'], [])
-        default_model = _resolve_default_model(models)
-        provider['usage_count'] = provider_usage.get(provider['slug'], 0)
-        provider['default_model'] = default_model['model_id'] if default_model else ''
-        provider['models'] = [m['model_id'] for m in models if m['enabled']]
-        provider['model_details'] = [
-            {
-                **m,
-                'provider_slug': provider['slug'],
-                'provider_name': provider['name'],
-                'usage_count': model_usage.get((provider['slug'], m['model_id']), 0),
-            }
-            for m in models
-        ]
-        for model in provider['model_details']:
-            model['currency'] = provider['currency']
-            model['currency_symbol'] = provider['currency_symbol']
-        catalog.append(provider)
-    return catalog
+        catalog = []
+        for row in provider_rows:
+            provider = _row_to_provider(row)
+            if not include_disabled and not provider['enabled']:
+                continue
+            models = models_by_provider.get(provider['provider_pk'], [])
+            default_model = _resolve_default_model(models)
+            provider['usage_count'] = provider_usage.get(provider['slug'], 0)
+            provider['default_model'] = default_model['model_id'] if default_model else ''
+            provider['models'] = [m['model_id'] for m in models if m['enabled']]
+            provider['model_details'] = [
+                {
+                    **m,
+                    'provider_slug': provider['slug'],
+                    'provider_name': provider['name'],
+                    'usage_count': model_usage.get((provider['slug'], m['model_id']), 0),
+                }
+                for m in models
+            ]
+            for model in provider['model_details']:
+                model['currency'] = provider['currency']
+                model['currency_symbol'] = provider['currency_symbol']
+            catalog.append(provider)
+        return catalog
 
 
 def _load_provider(slug: str) -> Optional[Dict[str, Any]]:
     """按 slug 加载单个供应商（不统计引用数，适合高频运行时调用）。"""
     ensure_ai_catalog_tables()
-    conn = get_db_connection()
-    try:
-        row = conn.execute(
-            'SELECT * FROM ai_providers WHERE slug = ?', (slug,)
-        ).fetchone()
-        if not row:
+    with get_db_context() as conn:
+        try:
+            row = conn.execute(
+                'SELECT * FROM ai_providers WHERE slug = ?', (slug,)
+            ).fetchone()
+            if not row:
+                return None
+            model_rows = conn.execute(
+                'SELECT * FROM ai_models WHERE provider_id = ? '
+                'ORDER BY sort_order, id',
+                (row['id'],)
+            ).fetchall()
+        except sqlite3.DatabaseError:
             return None
-        model_rows = conn.execute(
-            'SELECT * FROM ai_models WHERE provider_id = ? '
-            'ORDER BY sort_order, id',
-            (row['id'],)
-        ).fetchall()
-    except sqlite3.DatabaseError:
-        return None
-    finally:
-        conn.close()
+        finally:
+            pass
 
-    provider = _row_to_provider(row)
-    models = [_row_to_model(model_row) for model_row in model_rows]
-    default_model = _resolve_default_model(models)
-    provider['usage_count'] = 0
-    provider['default_model'] = default_model['model_id'] if default_model else ''
-    provider['models'] = [m['model_id'] for m in models if m['enabled']]
-    provider['model_details'] = [
-        {
-            **model,
-            'provider_slug': provider['slug'],
-            'provider_name': provider['name'],
-            'usage_count': 0,
-            'currency': provider['currency'],
-            'currency_symbol': provider['currency_symbol'],
-        }
-        for model in models
-    ]
-    return provider
+        provider = _row_to_provider(row)
+        models = [_row_to_model(model_row) for model_row in model_rows]
+        default_model = _resolve_default_model(models)
+        provider['usage_count'] = 0
+        provider['default_model'] = default_model['model_id'] if default_model else ''
+        provider['models'] = [m['model_id'] for m in models if m['enabled']]
+        provider['model_details'] = [
+            {
+                **model,
+                'provider_slug': provider['slug'],
+                'provider_name': provider['name'],
+                'usage_count': 0,
+                'currency': provider['currency'],
+                'currency_symbol': provider['currency_symbol'],
+            }
+            for model in models
+        ]
+        return provider
 
 
 def get_provider(slug: str) -> Optional[Dict[str, Any]]:

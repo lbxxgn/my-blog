@@ -5,7 +5,7 @@ from flask import render_template, redirect, url_for, flash
 from models import (
     get_all_comments,
     update_comment_visibility, delete_comment,
-    get_db_connection,
+    get_db_context,
 )
 from auth_decorators import role_required
 
@@ -24,20 +24,19 @@ def comment_list():
 @role_required('admin', 'editor')
 def toggle_comment(comment_id):
     """切换评论可见性"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT is_visible FROM comments WHERE id = ?', (comment_id,))
-    result = cursor.fetchone()
-    conn.close()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT is_visible FROM comments WHERE id = ?', (comment_id,))
+        result = cursor.fetchone()
 
-    if result:
-        new_visibility = not result['is_visible']
-        update_comment_visibility(comment_id, new_visibility)
-        flash('评论状态已更新', 'success')
-    else:
-        flash('评论不存在', 'error')
+        if result:
+            new_visibility = not result['is_visible']
+            update_comment_visibility(comment_id, new_visibility)
+            flash('评论状态已更新', 'success')
+        else:
+            flash('评论不存在', 'error')
 
-    return redirect(url_for('admin.comment_list'))
+        return redirect(url_for('admin.comment_list'))
 
 @admin_bp.route('/comments/<int:comment_id>/delete', methods=['POST'])
 @role_required('admin', 'editor')

@@ -10,8 +10,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from models import get_db_connection
 from backend.config import BASE_DIR
+from models import get_db_context
 
 POST_SELECT = '''
     SELECT
@@ -31,17 +31,17 @@ POST_SELECT = '''
 
 
 def _load_posts(post_type=None):
-    conn = get_db_connection()
-    try:
-        sql = POST_SELECT
-        params = []
-        if post_type:
-            sql = sql.replace('WHERE p.deleted_at IS NULL', 'WHERE p.deleted_at IS NULL AND p.post_type = ?')
-            params.append(post_type)
-        rows = conn.execute(sql, params).fetchall()
-        return [dict(row) for row in rows]
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            sql = POST_SELECT
+            params = []
+            if post_type:
+                sql = sql.replace('WHERE p.deleted_at IS NULL', 'WHERE p.deleted_at IS NULL AND p.post_type = ?')
+                params.append(post_type)
+            rows = conn.execute(sql, params).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            pass
 
 
 def _copy_upload_images(destination):

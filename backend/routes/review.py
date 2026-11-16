@@ -17,7 +17,7 @@ from flask import Blueprint, current_app, jsonify, render_template, request, ses
 
 from auth_decorators import login_required
 from logger import log_error
-from models import get_db_connection, truncate_text
+from models import get_db_context, truncate_text
 from services import weekly_review as weekly_review_service
 from utils.timezone import LOCAL_OFFSET, local_now
 
@@ -58,31 +58,30 @@ def api_review_today():
     local_year = "strftime('%Y', datetime(created_at, '+8 hours'))"
 
     items = []
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute(f'''
-        SELECT id, title, content, post_type, type, {local_year} AS year
-        FROM posts
-        WHERE author_id = ? AND deleted_at IS NULL AND {local_mmdd} = ? AND {local_year} < ?
-    ''', (user_id, month_day, current_year))
-    for row in cursor.fetchall():
-        row = dict(row)
-        is_knowledge = row.get('post_type') == 'knowledge'
-        item_type = 'knowledge' if is_knowledge else ('note' if row.get('type') == 'note' else 'post')
-        items.append({
-            'id': row['id'],
-            'year': int(row['year']),
-            'title': row['title'],
-            'type': item_type,
-            'url': f"/knowledge/doc/{row['id']}" if is_knowledge else f"/post/{row['id']}",
-            'excerpt': _excerpt(row.get('content')),
-        })
+        cursor.execute(f'''
+            SELECT id, title, content, post_type, type, {local_year} AS year
+            FROM posts
+            WHERE author_id = ? AND deleted_at IS NULL AND {local_mmdd} = ? AND {local_year} < ?
+        ''', (user_id, month_day, current_year))
+        for row in cursor.fetchall():
+            row = dict(row)
+            is_knowledge = row.get('post_type') == 'knowledge'
+            item_type = 'knowledge' if is_knowledge else ('note' if row.get('type') == 'note' else 'post')
+            items.append({
+                'id': row['id'],
+                'year': int(row['year']),
+                'title': row['title'],
+                'type': item_type,
+                'url': f"/knowledge/doc/{row['id']}" if is_knowledge else f"/post/{row['id']}",
+                'excerpt': _excerpt(row.get('content')),
+            })
 
-    conn.close()
 
-    items.sort(key=lambda x: (-x['year'], x['id']))
-    return jsonify({'success': True, 'items': items})
+        items.sort(key=lambda x: (-x['year'], x['id']))
+        return jsonify({'success': True, 'items': items})
 
 
 # =============================================================================
@@ -104,20 +103,19 @@ def api_review_activity():
     local_day = "strftime('%Y-%m-%d', datetime(created_at, '+8 hours'))"
 
     activity = {}
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(f'''
-        SELECT {local_day} AS day, COUNT(*) AS cnt
-        FROM posts
-        WHERE author_id = ? AND deleted_at IS NULL AND created_at >= ?
-        GROUP BY day
-    ''', (user_id, start_utc_str))
-    for row in cursor.fetchall():
-        if row['day']:
-            activity[row['day']] = activity.get(row['day'], 0) + row['cnt']
-    conn.close()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute(f'''
+            SELECT {local_day} AS day, COUNT(*) AS cnt
+            FROM posts
+            WHERE author_id = ? AND deleted_at IS NULL AND created_at >= ?
+            GROUP BY day
+        ''', (user_id, start_utc_str))
+        for row in cursor.fetchall():
+            if row['day']:
+                activity[row['day']] = activity.get(row['day'], 0) + row['cnt']
 
-    return jsonify({'success': True, 'activity': activity, 'days': days})
+        return jsonify({'success': True, 'activity': activity, 'days': days})
 
 
 # =============================================================================

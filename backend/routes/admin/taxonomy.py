@@ -4,7 +4,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 
 from models import (
     get_all_categories, create_category, delete_category, update_category, merge_category,
-    create_tag, get_all_tags, delete_tag, update_tag, merge_tag, get_db_connection,
+    create_tag, get_all_tags, delete_tag, update_tag, merge_tag, get_db_context,
 )
 from auth_decorators import role_required
 
@@ -17,15 +17,14 @@ from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_req
 def category_list():
     """列出所有分类"""
     categories = get_all_categories(space='blog')
-    conn = get_db_connection()
-    for category in categories:
-        row = conn.execute(
-            'SELECT COUNT(*) AS cnt FROM posts WHERE category_id = ? AND deleted_at IS NULL',
-            (category['id'],)
-        ).fetchone()
-        category['total_count'] = row['cnt'] if row else 0
-    conn.close()
-    return render_template('admin/categories.html', categories=categories)
+    with get_db_context() as conn:
+        for category in categories:
+            row = conn.execute(
+                'SELECT COUNT(*) AS cnt FROM posts WHERE category_id = ? AND deleted_at IS NULL',
+                (category['id'],)
+            ).fetchone()
+            category['total_count'] = row['cnt'] if row else 0
+        return render_template('admin/categories.html', categories=categories)
 
 @admin_bp.route('/categories/new', methods=['POST'])
 @role_required('admin', 'editor')

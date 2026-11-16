@@ -5,7 +5,7 @@ from queue import Queue
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from image_processor import generate_image_sizes
-from models import get_db_connection
+from models import get_db_context
 
 logger = logging.getLogger(__name__)
 
@@ -92,34 +92,32 @@ class ImageOptimizationQueue:
 
     def _update_status(self, image_path, status, error=None):
         """更新优化状态"""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE optimized_images
-            SET status = ?, error_message = ?
-            WHERE original_path = ?
-        ''', (status, error, image_path))
-        conn.commit()
-        conn.close()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE optimized_images
+                SET status = ?, error_message = ?
+                WHERE original_path = ?
+            ''', (status, error, image_path))
+            conn.commit()
 
     def _update_completion(self, original_path, thumbnail, medium, large,
                           original_size, optimized_size):
         """更新优化完成信息"""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            UPDATE optimized_images
-            SET thumbnail_path = ?,
-                medium_path = ?,
-                large_path = ?,
-                original_size = ?,
-                optimized_size = ?,
-                status = 'completed',
-                completed_at = CURRENT_TIMESTAMP
-            WHERE original_path = ?
-        ''', (thumbnail, medium, large, original_size, optimized_size, original_path))
-        conn.commit()
-        conn.close()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE optimized_images
+                SET thumbnail_path = ?,
+                    medium_path = ?,
+                    large_path = ?,
+                    original_size = ?,
+                    optimized_size = ?,
+                    status = 'completed',
+                    completed_at = CURRENT_TIMESTAMP
+                WHERE original_path = ?
+            ''', (thumbnail, medium, large, original_size, optimized_size, original_path))
+            conn.commit()
 
 # 全局实例
 optimization_queue = ImageOptimizationQueue()

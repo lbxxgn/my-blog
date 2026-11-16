@@ -8,7 +8,8 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from .db import get_db_connection
+from .db import get_db_context
+
 
 __all__ = [
     'create_card',
@@ -50,21 +51,20 @@ def create_card(user_id, title, content, tags=None, status='idea', source='web',
     """
     import json
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    tags_json = json.dumps(tags) if tags else None
+        tags_json = json.dumps(tags) if tags else None
 
-    cursor.execute('''
-        INSERT INTO cards (user_id, title, content, tags, status, source, linked_article_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (user_id, title, content, tags_json, status, source, linked_article_id))
+        cursor.execute('''
+            INSERT INTO cards (user_id, title, content, tags, status, source, linked_article_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, title, content, tags_json, status, source, linked_article_id))
 
-    card_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    _enqueue_card_embedding(card_id)
-    return card_id
+        card_id = cursor.lastrowid
+        conn.commit()
+        _enqueue_card_embedding(card_id)
+        return card_id
 
 
 def get_card_by_id(card_id):
@@ -79,25 +79,24 @@ def get_card_by_id(card_id):
     """
     import json
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('SELECT * FROM cards WHERE id = ?', (card_id,))
-    row = cursor.fetchone()
-    conn.close()
+        cursor.execute('SELECT * FROM cards WHERE id = ?', (card_id,))
+        row = cursor.fetchone()
 
-    if row:
-        card = dict(row)
-        # Parse JSON tags string to list
-        if card.get('tags'):
-            try:
-                card['tags'] = json.loads(card['tags'])
-            except (json.JSONDecodeError, TypeError):
+        if row:
+            card = dict(row)
+            # Parse JSON tags string to list
+            if card.get('tags'):
+                try:
+                    card['tags'] = json.loads(card['tags'])
+                except (json.JSONDecodeError, TypeError):
+                    card['tags'] = []
+            else:
                 card['tags'] = []
-        else:
-            card['tags'] = []
-        return card
-    return None
+            return card
+        return None
 
 
 def get_cards_by_user(user_id, status=None, limit=None, offset=None):
@@ -115,43 +114,42 @@ def get_cards_by_user(user_id, status=None, limit=None, offset=None):
     """
     import json
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    query = 'SELECT * FROM cards WHERE user_id = ?'
-    params = [user_id]
+        query = 'SELECT * FROM cards WHERE user_id = ?'
+        params = [user_id]
 
-    if status:
-        query += ' AND status = ?'
-        params.append(status)
+        if status:
+            query += ' AND status = ?'
+            params.append(status)
 
-    query += ' ORDER BY created_at DESC'
+        query += ' ORDER BY created_at DESC'
 
-    if limit:
-        query += ' LIMIT ?'
-        params.append(limit)
-        if offset:
-            query += ' OFFSET ?'
-            params.append(offset)
+        if limit:
+            query += ' LIMIT ?'
+            params.append(limit)
+            if offset:
+                query += ' OFFSET ?'
+                params.append(offset)
 
-    cursor.execute(query, params)
-    rows = cursor.fetchall()
-    conn.close()
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
 
-    # Parse JSON tags for each card
-    cards = []
-    for row in rows:
-        card = dict(row)
-        if card.get('tags'):
-            try:
-                card['tags'] = json.loads(card['tags'])
-            except (json.JSONDecodeError, TypeError):
+        # Parse JSON tags for each card
+        cards = []
+        for row in rows:
+            card = dict(row)
+            if card.get('tags'):
+                try:
+                    card['tags'] = json.loads(card['tags'])
+                except (json.JSONDecodeError, TypeError):
+                    card['tags'] = []
+            else:
                 card['tags'] = []
-        else:
-            card['tags'] = []
-        cards.append(card)
+            cards.append(card)
 
-    return cards
+        return cards
 
 
 def update_card_status(card_id, status):
@@ -162,16 +160,15 @@ def update_card_status(card_id, status):
         card_id (int): 卡片ID
         status (str): 新状态
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        UPDATE cards SET status = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    ''', (status, card_id))
+        cursor.execute('''
+            UPDATE cards SET status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (status, card_id))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
 
 
 def update_card(card_id, title=None, content=None, tags=None, status=None):
@@ -187,39 +184,38 @@ def update_card(card_id, title=None, content=None, tags=None, status=None):
     """
     import json
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    updates = []
-    params = []
+        updates = []
+        params = []
 
-    if title is not None:
-        updates.append('title = ?')
-        params.append(title)
+        if title is not None:
+            updates.append('title = ?')
+            params.append(title)
 
-    if content is not None:
-        updates.append('content = ?')
-        params.append(content)
+        if content is not None:
+            updates.append('content = ?')
+            params.append(content)
 
-    if tags is not None:
-        updates.append('tags = ?')
-        params.append(json.dumps(tags))
+        if tags is not None:
+            updates.append('tags = ?')
+            params.append(json.dumps(tags))
 
-    if status is not None:
-        updates.append('status = ?')
-        params.append(status)
+        if status is not None:
+            updates.append('status = ?')
+            params.append(status)
 
-    if updates:
-        updates.append('updated_at = CURRENT_TIMESTAMP')
-        query = f"UPDATE cards SET {', '.join(updates)} WHERE id = ?"
-        params.append(card_id)
+        if updates:
+            updates.append('updated_at = CURRENT_TIMESTAMP')
+            query = f"UPDATE cards SET {', '.join(updates)} WHERE id = ?"
+            params.append(card_id)
 
-        cursor.execute(query, params)
-        conn.commit()
+            cursor.execute(query, params)
+            conn.commit()
 
-    conn.close()
-    if updates:
-        _enqueue_card_embedding(card_id)
+        if updates:
+            _enqueue_card_embedding(card_id)
 
 
 def delete_card(card_id):
@@ -229,13 +225,12 @@ def delete_card(card_id):
     Args:
         card_id (int): 卡片ID
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('DELETE FROM cards WHERE id = ?', (card_id,))
-    conn.commit()
-    conn.close()
-    _remove_card_embedding(card_id)
+        cursor.execute('DELETE FROM cards WHERE id = ?', (card_id,))
+        conn.commit()
+        _remove_card_embedding(card_id)
 
 
 def merge_cards_to_post(card_ids, user_id, post_id=None):
@@ -250,73 +245,73 @@ def merge_cards_to_post(card_ids, user_id, post_id=None):
     Returns:
         int: 文章ID
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    try:
-        # Get all cards
-        placeholders = ','.join(['?' for _ in card_ids])
-        query = f'SELECT * FROM cards WHERE id IN ({placeholders}) AND user_id = ? ORDER BY created_at DESC'
-        cursor.execute(query, card_ids + [user_id])
-        cards = [dict(row) for row in cursor.fetchall()]
+        try:
+            # Get all cards
+            placeholders = ','.join(['?' for _ in card_ids])
+            query = f'SELECT * FROM cards WHERE id IN ({placeholders}) AND user_id = ? ORDER BY created_at DESC'
+            cursor.execute(query, card_ids + [user_id])
+            cards = [dict(row) for row in cursor.fetchall()]
 
-        if not cards:
-            raise ValueError('No valid cards found')
+            if not cards:
+                raise ValueError('No valid cards found')
 
-        # Merge content
-        merged_content = ''
-        for card in cards:
-            if card['title']:
-                merged_content += f"## {card['title']}\n\n"
-            merged_content += card['content'] + '\n\n---\n\n'
+            # Merge content
+            merged_content = ''
+            for card in cards:
+                if card['title']:
+                    merged_content += f"## {card['title']}\n\n"
+                merged_content += card['content'] + '\n\n---\n\n'
 
-        # Create or update post
-        if post_id:
-            # Append to existing post
-            cursor.execute(
-                'SELECT content, author_id FROM posts WHERE id = ? AND deleted_at IS NULL',
-                (post_id,)
-            )
-            result = cursor.fetchone()
-            if not result:
-                raise ValueError('目标文章不存在')
+            # Create or update post
+            if post_id:
+                # Append to existing post
+                cursor.execute(
+                    'SELECT content, author_id FROM posts WHERE id = ? AND deleted_at IS NULL',
+                    (post_id,)
+                )
+                result = cursor.fetchone()
+                if not result:
+                    raise ValueError('目标文章不存在')
 
-            cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
-            user_row = cursor.fetchone()
-            role = user_row['role'] if user_row else None
-            if result['author_id'] != user_id and role not in ('admin', 'editor'):
-                raise PermissionError('无权修改该文章')
+                cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+                user_row = cursor.fetchone()
+                role = user_row['role'] if user_row else None
+                if result['author_id'] != user_id and role not in ('admin', 'editor'):
+                    raise PermissionError('无权修改该文章')
 
-            merged_content = result['content'] + '\n\n---\n\n' + merged_content
-            cursor.execute('''
-                UPDATE posts SET content = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (merged_content, post_id))
-        else:
-            # Create new post
-            # Use first card's title or generate one
-            title = cards[0]['title'] if cards[0]['title'] else '未命名文章'
+                merged_content = result['content'] + '\n\n---\n\n' + merged_content
+                cursor.execute('''
+                    UPDATE posts SET content = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (merged_content, post_id))
+            else:
+                # Create new post
+                # Use first card's title or generate one
+                title = cards[0]['title'] if cards[0]['title'] else '未命名文章'
 
-            cursor.execute('''
-                INSERT INTO posts (title, content, is_published, author_id, content_format)
-                VALUES (?, ?, 0, ?, 'markdown')
-            ''', (title, merged_content, user_id))
-            post_id = cursor.lastrowid
+                cursor.execute('''
+                    INSERT INTO posts (title, content, is_published, author_id, content_format)
+                    VALUES (?, ?, 0, ?, 'markdown')
+                ''', (title, merged_content, user_id))
+                post_id = cursor.lastrowid
 
-        # Update cards status and link（只更新已校验归属的卡片）
-        for card in cards:
-            cursor.execute('''
-                UPDATE cards SET status = 'published', linked_article_id = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ? AND user_id = ?
-            ''', (post_id, card['id'], user_id))
+            # Update cards status and link（只更新已校验归属的卡片）
+            for card in cards:
+                cursor.execute('''
+                    UPDATE cards SET status = 'published', linked_article_id = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ? AND user_id = ?
+                ''', (post_id, card['id'], user_id))
 
-        conn.commit()
-        return post_id
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+            conn.commit()
+            return post_id
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            pass
 
 
 def ai_merge_cards_to_post(card_ids, user_id, user_config, merge_style='comprehensive'):
@@ -343,28 +338,27 @@ def ai_merge_cards_to_post(card_ids, user_id, user_config, merge_style='comprehe
     )
 
     # Create post with AI-generated content（AI 输出为 Markdown，含少量 <img> 标签）
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        INSERT INTO posts (title, content, is_published, author_id, post_type, content_format)
-        VALUES (?, ?, 0, ?, 'knowledge', 'markdown')
-    ''', (ai_result['title'], ai_result['content'], user_id))
+        cursor.execute('''
+            INSERT INTO posts (title, content, is_published, author_id, post_type, content_format)
+            VALUES (?, ?, 0, ?, 'knowledge', 'markdown')
+        ''', (ai_result['title'], ai_result['content'], user_id))
 
-    post_id = cursor.lastrowid
+        post_id = cursor.lastrowid
 
-    # Update cards status and link
-    placeholders = ','.join(['?' for _ in card_ids])
-    cursor.execute(f'''
-        UPDATE cards SET status = 'incubating', linked_article_id = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id IN ({placeholders})
-    ''', [post_id] + card_ids)
+        # Update cards status and link
+        placeholders = ','.join(['?' for _ in card_ids])
+        cursor.execute(f'''
+            UPDATE cards SET status = 'incubating', linked_article_id = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id IN ({placeholders})
+        ''', [post_id] + card_ids)
 
-    conn.commit()
-    conn.close()
+        conn.commit()
 
-    ai_result['post_id'] = post_id
-    return ai_result
+        ai_result['post_id'] = post_id
+        return ai_result
 
 
 # ==================== 浏览器插件 API 功能 ====================
@@ -373,74 +367,70 @@ def init_cards_table():
     """初始化知识库卡片表（已在init_db中创建，此函数为兼容性保留）"""
     # Cards table is already created in init_db()
     # This function exists for backward compatibility with test fixtures
-    pass
 
 
 def init_card_annotations_table():
     """初始化卡片标注表"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS card_annotations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            card_id INTEGER,
-            source_url TEXT NOT NULL,
-            annotation_text TEXT,
-            xpath TEXT,
-            color TEXT DEFAULT 'yellow',
-            note TEXT,
-            annotation_type TEXT DEFAULT 'highlight',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (card_id) REFERENCES cards(id)
-        )
-    ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS card_annotations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                card_id INTEGER,
+                source_url TEXT NOT NULL,
+                annotation_text TEXT,
+                xpath TEXT,
+                color TEXT DEFAULT 'yellow',
+                note TEXT,
+                annotation_type TEXT DEFAULT 'highlight',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                FOREIGN KEY (card_id) REFERENCES cards(id)
+            )
+        ''')
 
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_annotations_user_url
-        ON card_annotations(user_id, source_url)
-    ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_annotations_user_url
+            ON card_annotations(user_id, source_url)
+        ''')
 
-    conn.commit()
-    conn.close()
+        conn.commit()
 
 
 def create_annotation(user_id, source_url, annotation_text, xpath, color, note, annotation_type='highlight', card_id=None):
     """创建标注"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        INSERT INTO card_annotations
-        (user_id, card_id, source_url, annotation_text, xpath, color, note, annotation_type)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (user_id, card_id, source_url, annotation_text, xpath, color, note, annotation_type))
+        cursor.execute('''
+            INSERT INTO card_annotations
+            (user_id, card_id, source_url, annotation_text, xpath, color, note, annotation_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, card_id, source_url, annotation_text, xpath, color, note, annotation_type))
 
-    annotation_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
+        annotation_id = cursor.lastrowid
+        conn.commit()
 
-    return annotation_id
+        return annotation_id
 
 
 def get_annotations_by_url(user_id, source_url):
     """获取指定URL的所有标注"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT * FROM card_annotations
-        WHERE user_id = ? AND source_url = ?
-        ORDER BY created_at DESC
-    ''', (user_id, source_url))
+        cursor.execute('''
+            SELECT * FROM card_annotations
+            WHERE user_id = ? AND source_url = ?
+            ORDER BY created_at DESC
+        ''', (user_id, source_url))
 
-    annotations = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+        annotations = [dict(row) for row in cursor.fetchall()]
 
-    return annotations
+        return annotations
 
 
 # ==================== Embedding 钩子（best-effort，绝不阻断写路径） ====================

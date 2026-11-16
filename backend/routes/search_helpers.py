@@ -12,7 +12,7 @@ import re
 from flask import url_for
 
 from ai_services.embeddings import embed_text, get_embedding_config
-from models import get_db_connection, get_user_by_id, post_listing_visibility
+from models import get_db_context, get_user_by_id, post_listing_visibility
 from models.embeddings import search_similar
 
 logger = logging.getLogger(__name__)
@@ -57,48 +57,48 @@ def unified_search(user_id, query, limit=6):
         return result
 
     pattern = f'%{query}%'
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
+    with get_db_context() as conn:
+        try:
+            cursor = conn.cursor()
 
-        # 已发布的博客文章（公开内容）
-        cursor.execute('''
-            SELECT id, type, title, content, created_at
-            FROM posts
-            WHERE is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
-              AND (title LIKE ? OR content LIKE ?)
-            ORDER BY created_at DESC LIMIT ?
-        ''', (pattern, pattern, limit))
-        for row in cursor.fetchall():
-            result['posts'].append({
-                'id': row['id'],
-                'type': row['type'],
-                'title': row['title'],
-                'url': post_url(row['id']),
-                'excerpt': _make_excerpt(row['content']),
-                'date': row['created_at'],
-            })
+            # 已发布的博客文章（公开内容）
+            cursor.execute('''
+                SELECT id, type, title, content, created_at
+                FROM posts
+                WHERE is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
+                  AND (title LIKE ? OR content LIKE ?)
+                ORDER BY created_at DESC LIMIT ?
+            ''', (pattern, pattern, limit))
+            for row in cursor.fetchall():
+                result['posts'].append({
+                    'id': row['id'],
+                    'type': row['type'],
+                    'title': row['title'],
+                    'url': post_url(row['id']),
+                    'excerpt': _make_excerpt(row['content']),
+                    'date': row['created_at'],
+                })
 
-        # 当前用户的知识库文档（含未发布）
-        cursor.execute('''
-            SELECT id, title, content
-            FROM posts
-            WHERE post_type = 'knowledge' AND deleted_at IS NULL AND author_id = ?
-              AND (title LIKE ? OR content LIKE ?)
-            ORDER BY created_at DESC LIMIT ?
-        ''', (user_id, pattern, pattern, limit))
-        for row in cursor.fetchall():
-            result['docs'].append({
-                'id': row['id'],
-                'title': row['title'],
-                'url': doc_url(row['id']),
-                'excerpt': _make_excerpt(row['content']),
-            })
+            # 当前用户的知识库文档（含未发布）
+            cursor.execute('''
+                SELECT id, title, content
+                FROM posts
+                WHERE post_type = 'knowledge' AND deleted_at IS NULL AND author_id = ?
+                  AND (title LIKE ? OR content LIKE ?)
+                ORDER BY created_at DESC LIMIT ?
+            ''', (user_id, pattern, pattern, limit))
+            for row in cursor.fetchall():
+                result['docs'].append({
+                    'id': row['id'],
+                    'title': row['title'],
+                    'url': doc_url(row['id']),
+                    'excerpt': _make_excerpt(row['content']),
+                })
 
-    finally:
-        conn.close()
+        finally:
+            pass
 
-    return result
+        return result
 
 
 def search_cards_and_annotations(user_id, query, limit=20):
@@ -107,40 +107,40 @@ def search_cards_and_annotations(user_id, query, limit=20):
     if not user_id or not query:
         return result
     pattern = f'%{query}%'
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT id, title, content, status, created_at
-            FROM cards
-            WHERE user_id = ? AND (title LIKE ? OR content LIKE ?)
-            ORDER BY created_at DESC LIMIT ?
-        ''', (user_id, pattern, pattern, limit))
-        for row in cursor.fetchall():
-            result['cards'].append({
-                'id': row['id'],
-                'title': row['title'] or '未命名卡片',
-                'excerpt': _make_excerpt(row['content']),
-                'status': row['status'],
-                'date': row['created_at'],
-            })
-        cursor.execute('''
-            SELECT id, source_url, annotation_text, note, created_at
-            FROM card_annotations
-            WHERE user_id = ? AND (annotation_text LIKE ? OR note LIKE ? OR source_url LIKE ?)
-            ORDER BY created_at DESC LIMIT ?
-        ''', (user_id, pattern, pattern, pattern, limit))
-        for row in cursor.fetchall():
-            result['annotations'].append({
-                'id': row['id'],
-                'url': row['source_url'],
-                'title': _make_excerpt(row['annotation_text'] or row['note'] or row['source_url'], 80),
-                'excerpt': _make_excerpt(row['note'] or row['annotation_text'] or ''),
-                'date': row['created_at'],
-            })
-    finally:
-        conn.close()
-    return result
+    with get_db_context() as conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, title, content, status, created_at
+                FROM cards
+                WHERE user_id = ? AND (title LIKE ? OR content LIKE ?)
+                ORDER BY created_at DESC LIMIT ?
+            ''', (user_id, pattern, pattern, limit))
+            for row in cursor.fetchall():
+                result['cards'].append({
+                    'id': row['id'],
+                    'title': row['title'] or '未命名卡片',
+                    'excerpt': _make_excerpt(row['content']),
+                    'status': row['status'],
+                    'date': row['created_at'],
+                })
+            cursor.execute('''
+                SELECT id, source_url, annotation_text, note, created_at
+                FROM card_annotations
+                WHERE user_id = ? AND (annotation_text LIKE ? OR note LIKE ? OR source_url LIKE ?)
+                ORDER BY created_at DESC LIMIT ?
+            ''', (user_id, pattern, pattern, pattern, limit))
+            for row in cursor.fetchall():
+                result['annotations'].append({
+                    'id': row['id'],
+                    'url': row['source_url'],
+                    'title': _make_excerpt(row['annotation_text'] or row['note'] or row['source_url'], 80),
+                    'excerpt': _make_excerpt(row['note'] or row['annotation_text'] or ''),
+                    'date': row['created_at'],
+                })
+        finally:
+            pass
+        return result
 
 
 def is_embedding_configured(user_id):
@@ -171,51 +171,51 @@ def _load_semantic_entities(matches, viewer_id=None, viewer_role=None):
     if not matches:
         return groups
 
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        for source_type, source_id, score in matches:
-            score = round(float(score), 3)
-            if source_type == 'post':
-                cursor.execute('''
-                    SELECT id, type, title, content, created_at, access_level, author_id
-                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
-                ''', (source_id,))
-                row = cursor.fetchone()
-                if not row:
-                    continue
-                post = dict(row)
-                visibility = post_listing_visibility(post, user_id=viewer_id, role=viewer_role)
-                if visibility == 'hidden':
-                    continue
-                groups['posts'].append({
-                    'id': row['id'],
-                    'type': row['type'],
-                    'title': row['title'],
-                    'url': post_url(row['id']),
-                    'excerpt': _make_excerpt(row['content']) if visibility == 'full' else '',
-                    'date': row['created_at'],
-                    'score': score,
-                })
-            elif source_type == 'doc':
-                cursor.execute('''
-                    SELECT id, title, content, is_published, author_id
-                    FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
-                ''', (source_id,))
-                row = cursor.fetchone()
-                if not row or not _doc_visible_to_viewer(row, viewer_id, viewer_role):
-                    continue
-                groups['docs'].append({
-                    'id': row['id'],
-                    'title': row['title'],
-                    'url': doc_url(row['id']),
-                    'excerpt': _make_excerpt(row['content']),
-                    'score': score,
-                })
-    finally:
-        conn.close()
+    with get_db_context() as conn:
+        try:
+            cursor = conn.cursor()
+            for source_type, source_id, score in matches:
+                score = round(float(score), 3)
+                if source_type == 'post':
+                    cursor.execute('''
+                        SELECT id, type, title, content, created_at, access_level, author_id
+                        FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
+                    ''', (source_id,))
+                    row = cursor.fetchone()
+                    if not row:
+                        continue
+                    post = dict(row)
+                    visibility = post_listing_visibility(post, user_id=viewer_id, role=viewer_role)
+                    if visibility == 'hidden':
+                        continue
+                    groups['posts'].append({
+                        'id': row['id'],
+                        'type': row['type'],
+                        'title': row['title'],
+                        'url': post_url(row['id']),
+                        'excerpt': _make_excerpt(row['content']) if visibility == 'full' else '',
+                        'date': row['created_at'],
+                        'score': score,
+                    })
+                elif source_type == 'doc':
+                    cursor.execute('''
+                        SELECT id, title, content, is_published, author_id
+                        FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
+                    ''', (source_id,))
+                    row = cursor.fetchone()
+                    if not row or not _doc_visible_to_viewer(row, viewer_id, viewer_role):
+                        continue
+                    groups['docs'].append({
+                        'id': row['id'],
+                        'title': row['title'],
+                        'url': doc_url(row['id']),
+                        'excerpt': _make_excerpt(row['content']),
+                        'score': score,
+                    })
+        finally:
+            pass
 
-    return groups
+        return groups
 
 
 def semantic_search(user_id, query, limit=20):
@@ -262,54 +262,54 @@ def find_related(user_id, text, exclude_type=None, exclude_id=None, limit=8):
     viewer_role = _get_viewer_role(user_id)
 
     items = []
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        for source_type, source_id, score in matches:
-            if exclude_type and exclude_id and source_type == exclude_type \
-                    and source_id == exclude_id:
-                continue
-            if source_type == 'post':
-                cursor.execute('''
-                    SELECT id, title, content, access_level, author_id
-                    FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
-                ''', (source_id,))
-                row = cursor.fetchone()
-                if row and post_listing_visibility(
-                        dict(row), user_id=user_id, role=viewer_role) != 'full':
-                    row = None
-                url = post_url(source_id) if row else None
-            elif source_type == 'doc':
-                cursor.execute('''
-                    SELECT id, title, content, is_published, author_id
-                    FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
-                ''', (source_id,))
-                row = cursor.fetchone()
-                if row and not _doc_visible_to_viewer(row, user_id, viewer_role):
-                    row = None
-                url = doc_url(source_id) if row else None
-            else:
-                continue
+    with get_db_context() as conn:
+        try:
+            cursor = conn.cursor()
+            for source_type, source_id, score in matches:
+                if exclude_type and exclude_id and source_type == exclude_type \
+                        and source_id == exclude_id:
+                    continue
+                if source_type == 'post':
+                    cursor.execute('''
+                        SELECT id, title, content, access_level, author_id
+                        FROM posts WHERE id = ? AND is_published = 1 AND post_type = 'blog' AND deleted_at IS NULL
+                    ''', (source_id,))
+                    row = cursor.fetchone()
+                    if row and post_listing_visibility(
+                            dict(row), user_id=user_id, role=viewer_role) != 'full':
+                        row = None
+                    url = post_url(source_id) if row else None
+                elif source_type == 'doc':
+                    cursor.execute('''
+                        SELECT id, title, content, is_published, author_id
+                        FROM posts WHERE id = ? AND post_type = 'knowledge' AND deleted_at IS NULL
+                    ''', (source_id,))
+                    row = cursor.fetchone()
+                    if row and not _doc_visible_to_viewer(row, user_id, viewer_role):
+                        row = None
+                    url = doc_url(source_id) if row else None
+                else:
+                    continue
 
-            if not row:
-                continue
+                if not row:
+                    continue
 
-            # 内容过短的实体没有参考价值，跳过
-            full_text = f"{row['title'] or ''}{row['content'] or ''}"
-            if len(full_text) < RELATED_MIN_TEXT_LENGTH:
-                continue
+                # 内容过短的实体没有参考价值，跳过
+                full_text = f"{row['title'] or ''}{row['content'] or ''}"
+                if len(full_text) < RELATED_MIN_TEXT_LENGTH:
+                    continue
 
-            items.append({
-                'source_type': source_type,
-                'source_id': source_id,
-                'title': row['title'],
-                'excerpt': _make_excerpt(row['content']),
-                'url': url,
-                'score': round(float(score), 3),
-            })
-            if len(items) >= limit:
-                break
-    finally:
-        conn.close()
+                items.append({
+                    'source_type': source_type,
+                    'source_id': source_id,
+                    'title': row['title'],
+                    'excerpt': _make_excerpt(row['content']),
+                    'url': url,
+                    'score': round(float(score), 3),
+                })
+                if len(items) >= limit:
+                    break
+        finally:
+            pass
 
-    return items
+        return items

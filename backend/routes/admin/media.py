@@ -273,7 +273,7 @@ def mobile_upload_image():
 @login_required
 def media_library():
     """最近上传图片列表，供编辑器媒体库复用。"""
-    from models import get_db_connection
+    from models import get_db_context
     images_dir = os.path.join(UPLOAD_FOLDER, 'images')
     query = (request.args.get('q') or '').strip().lower()
     items = []
@@ -298,42 +298,42 @@ def media_library():
             })
     items.sort(key=lambda item: item['mtime'], reverse=True)
     items = items[:100]
-    conn = get_db_connection()
-    try:
-        for item in items:
-            item['references'] = conn.execute(
-                'SELECT COUNT(*) AS c FROM posts WHERE deleted_at IS NULL AND content LIKE ?',
-                (f'%{item["name"]}%',),
-            ).fetchone()['c']
-    finally:
-        conn.close()
-    return jsonify({'success': True, 'items': items})
+    with get_db_context() as conn:
+        try:
+            for item in items:
+                item['references'] = conn.execute(
+                    'SELECT COUNT(*) AS c FROM posts WHERE deleted_at IS NULL AND content LIKE ?',
+                    (f'%{item["name"]}%',),
+                ).fetchone()['c']
+        finally:
+            pass
+        return jsonify({'success': True, 'items': items})
 
 
 @admin_bp.route('/media/library/delete', methods=['POST'])
 @role_required('admin', 'editor')
 def media_library_delete():
     """删除未被正文引用的图片。"""
-    from models import get_db_connection
+    from models import get_db_context
     data = request.get_json(silent=True) or request.form
     name = os.path.basename((data.get('name') or '').strip())
     if not name:
         return jsonify({'success': False, 'error': '缺少文件名'}), 400
-    conn = get_db_connection()
-    try:
-        refs = conn.execute(
-            'SELECT COUNT(*) AS c FROM posts WHERE deleted_at IS NULL AND content LIKE ?',
-            (f'%{name}%',),
-        ).fetchone()['c']
-    finally:
-        conn.close()
-    if refs:
-        return jsonify({'success': False, 'error': f'该图片仍被 {refs} 篇文章引用，不能删除'}), 400
-    path = os.path.join(UPLOAD_FOLDER, 'images', name)
-    if not os.path.isfile(path):
-        return jsonify({'success': False, 'error': '图片不存在'}), 404
-    try:
-        os.remove(path)
-    except OSError as exc:
-        return jsonify({'success': False, 'error': str(exc)}), 500
-    return jsonify({'success': True})
+    with get_db_context() as conn:
+        try:
+            refs = conn.execute(
+                'SELECT COUNT(*) AS c FROM posts WHERE deleted_at IS NULL AND content LIKE ?',
+                (f'%{name}%',),
+            ).fetchone()['c']
+        finally:
+            pass
+        if refs:
+            return jsonify({'success': False, 'error': f'该图片仍被 {refs} 篇文章引用，不能删除'}), 400
+        path = os.path.join(UPLOAD_FOLDER, 'images', name)
+        if not os.path.isfile(path):
+            return jsonify({'success': False, 'error': '图片不存在'}), 404
+        try:
+            os.remove(path)
+        except OSError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 500
+        return jsonify({'success': True})

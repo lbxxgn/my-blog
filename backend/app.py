@@ -95,7 +95,7 @@ except ImportError:
 # 数据模型导入
 # =============================================================================
 from models import (
-    get_db_connection, init_db, get_user_by_username, create_user,
+    get_db_context, init_db, get_user_by_username, create_user,
     get_site_icon_version, get_site_identity
 )
 
@@ -658,19 +658,18 @@ def auto_regenerate_assets():
 
     # 恢复未完成的图片优化任务
     try:
-        from models import get_db_connection
+        from models import get_db_context
         from tasks.image_optimization_task import queue_image_optimization
 
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT original_path FROM optimized_images
-            WHERE status IN ('pending', 'failed')
-               OR (status = 'completed' AND (medium_path IS NULL OR medium_path = ''))
-            ORDER BY created_at ASC
-        ''')
-        pending = cursor.fetchall()
-        conn.close()
+        with get_db_context() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT original_path FROM optimized_images
+                WHERE status IN ('pending', 'failed')
+                   OR (status = 'completed' AND (medium_path IS NULL OR medium_path = ''))
+                ORDER BY created_at ASC
+            ''')
+            pending = cursor.fetchall()
 
         requeued = 0
         for row in pending:
@@ -1082,14 +1081,11 @@ def healthz():
 def readyz():
     """就绪检查：数据库可连接且基础表已初始化。"""
     try:
-        conn = get_db_connection()
-        try:
+        with get_db_context() as conn:
             conn.execute('SELECT 1').fetchone()
             row = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='posts'"
             ).fetchone()
-        finally:
-            conn.close()
         if not row:
             raise RuntimeError('schema not initialized')
         return jsonify({'status': 'ready'}), 200
@@ -1118,37 +1114,36 @@ def weekly_review_command():
     """
     from services.weekly_review import generate_weekly_review
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, username FROM users
-        WHERE ai_tag_generation_enabled = 1
-          AND ai_api_key IS NOT NULL AND ai_api_key != ''
-        ORDER BY id
-    ''')
-    users = [dict(r) for r in cursor.fetchall()]
-    if not users:
-        # 没有启用 AI 的用户时，退而为第一个 admin 生成（会自动降级为纯统计版）
-        cursor.execute("SELECT id, username FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, username FROM users
+            WHERE ai_tag_generation_enabled = 1
+              AND ai_api_key IS NOT NULL AND ai_api_key != ''
+            ORDER BY id
+        ''')
         users = [dict(r) for r in cursor.fetchall()]
-    conn.close()
+        if not users:
+            # 没有启用 AI 的用户时，退而为第一个 admin 生成（会自动降级为纯统计版）
+            cursor.execute("SELECT id, username FROM users WHERE role = 'admin' ORDER BY id LIMIT 1")
+            users = [dict(r) for r in cursor.fetchall()]
 
-    if not users:
-        print('没有可生成回顾的用户')
-        return
+        if not users:
+            print('没有可生成回顾的用户')
+            return
 
-    for user in users:
-        try:
-            result = generate_weekly_review(user['id'])
-            if result.get('exists'):
-                print(f"[{user['username']}] 本周回顾已存在: {result['title']} ({result['url']})")
-            elif result.get('success'):
-                mode = 'AI' if result.get('ai_used') else '统计'
-                print(f"[{user['username']}] 已生成（{mode}版）: {result['title']} ({result['url']})")
-            else:
-                print(f"[{user['username']}] 生成失败: {result.get('error')}")
-        except Exception as e:
-            print(f"[{user['username']}] 生成异常: {e}")
+        for user in users:
+            try:
+                result = generate_weekly_review(user['id'])
+                if result.get('exists'):
+                    print(f"[{user['username']}] 本周回顾已存在: {result['title']} ({result['url']})")
+                elif result.get('success'):
+                    mode = 'AI' if result.get('ai_used') else '统计'
+                    print(f"[{user['username']}] 已生成（{mode}版）: {result['title']} ({result['url']})")
+                else:
+                    print(f"[{user['username']}] 生成失败: {result.get('error')}")
+            except Exception as e:
+                print(f"[{user['username']}] 生成异常: {e}")
 
 # =============================================================================
 # 自动备份调度器

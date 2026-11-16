@@ -8,7 +8,8 @@ from typing import Dict, List, Tuple
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from models import get_db_connection
+from models import get_db_context
+
 
 
 def _get_or_create_category(cursor, name, space='blog', parent_id=None):
@@ -75,86 +76,85 @@ def import_from_json(json_file_path: str, user_id: int = None, dry_run: bool = F
     if not posts:
         return 0, 0, ["❌ JSON文件中没有找到文章数据"]
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    if user_id is None:
-        cursor.execute('SELECT id FROM users WHERE role = "admin" LIMIT 1')
-        user = cursor.fetchone()
-        if not user:
-            conn.close()
-            return 0, 0, ["❌ 系统中没有管理员用户，无法导入"]
-        user_id = user['id']
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        if user_id is None:
+            cursor.execute('SELECT id FROM users WHERE role = "admin" LIMIT 1')
+            user = cursor.fetchone()
+            if not user:
+                return 0, 0, ["❌ 系统中没有管理员用户，无法导入"]
+            user_id = user['id']
 
-    imported_count = 0
-    skipped_count = 0
-    try:
-        conn.execute('BEGIN')
-        for post_data in posts:
-            try:
-                title = (post_data.get('title') or '').strip()
-                content = post_data.get('content') or ''
-                if not title or not content:
-                    skipped_count += 1
-                    messages.append("⚠️ 跳过：文章缺少标题或内容")
-                    continue
+        imported_count = 0
+        skipped_count = 0
+        try:
+            conn.execute('BEGIN')
+            for post_data in posts:
+                try:
+                    title = (post_data.get('title') or '').strip()
+                    content = post_data.get('content') or ''
+                    if not title or not content:
+                        skipped_count += 1
+                        messages.append("⚠️ 跳过：文章缺少标题或内容")
+                        continue
 
-                cursor.execute('SELECT id FROM posts WHERE title = ? AND created_at = ?',
-                               (title, post_data.get('created_at')))
-                if cursor.fetchone():
-                    skipped_count += 1
-                    messages.append(f"⚠️ 跳过：文章已存在 - {title}")
-                    continue
+                    cursor.execute('SELECT id FROM posts WHERE title = ? AND created_at = ?',
+                                   (title, post_data.get('created_at')))
+                    if cursor.fetchone():
+                        skipped_count += 1
+                        messages.append(f"⚠️ 跳过：文章已存在 - {title}")
+                        continue
 
-                category_id = _get_or_create_category(
-                    cursor, post_data.get('category_name'),
-                    space=post_data.get('category_space') or 'blog',
-                    parent_id=post_data.get('category_parent_id'),
-                )
-                content_format = (post_data.get('content_format') or 'html').lower()
-                if content_format not in ('html', 'markdown'):
-                    content_format = 'html'
-                post_type = post_data.get('post_type') or 'blog'
-                access_password = post_data.get('access_password')
-                if access_password and post_data.get('access_level') == 'password':
+                    category_id = _get_or_create_category(
+                        cursor, post_data.get('category_name'),
+                        space=post_data.get('category_space') or 'blog',
+                        parent_id=post_data.get('category_parent_id'),
+                    )
+                    content_format = (post_data.get('content_format') or 'html').lower()
+                    if content_format not in ('html', 'markdown'):
+                        content_format = 'html'
+                    post_type = post_data.get('post_type') or 'blog'
+                    access_password = post_data.get('access_password')
+                    if access_password and post_data.get('access_level') == 'password':
+                        try:
+                            from models import hash_access_password
+                            access_password = hash_access_password(access_password)
+                        except Exception:
+                            pass
+                    payload = dict(post_data)
+                    payload['category_id'] = category_id
+                    if dry_run:
+                        imported_count += 1
+                        messages.append(f"🔎 预检通过：{title}")
+                        continue
+                    post_id = _insert_post(cursor, payload, user_id, content_format, post_type, access_password)
+                    tags = post_data.get('tags') or ''
+                    if isinstance(tags, str):
+                        tags = [t.strip() for t in re.split(r'[,，]', tags) if t.strip()]
+                    _set_tags(cursor, post_id, tags)
                     try:
-                        from models import hash_access_password
-                        access_password = hash_access_password(access_password)
+                        from models.db import _safe_replace_post_fts
+                        _safe_replace_post_fts(cursor, post_id, title, content)
                     except Exception:
                         pass
-                payload = dict(post_data)
-                payload['category_id'] = category_id
-                if dry_run:
                     imported_count += 1
-                    messages.append(f"🔎 预检通过：{title}")
-                    continue
-                post_id = _insert_post(cursor, payload, user_id, content_format, post_type, access_password)
-                tags = post_data.get('tags') or ''
-                if isinstance(tags, str):
-                    tags = [t.strip() for t in re.split(r'[,，]', tags) if t.strip()]
-                _set_tags(cursor, post_id, tags)
-                try:
-                    from models.db import _safe_replace_post_fts
-                    _safe_replace_post_fts(cursor, post_id, title, content)
-                except Exception:
-                    pass
-                imported_count += 1
-                messages.append(f"✅ 导入成功：{title}")
-            except Exception as e:
-                skipped_count += 1
-                messages.append(f"❌ 导入失败：{post_data.get('title', 'Unknown')} - {str(e)}")
-        if dry_run:
+                    messages.append(f"✅ 导入成功：{title}")
+                except Exception as e:
+                    skipped_count += 1
+                    messages.append(f"❌ 导入失败：{post_data.get('title', 'Unknown')} - {str(e)}")
+            if dry_run:
+                conn.rollback()
+            else:
+                conn.commit()
+        except Exception as e:
             conn.rollback()
-        else:
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        messages.append(f"❌ 导入事务失败，已回滚：{str(e)}")
-    finally:
-        conn.close()
+            messages.append(f"❌ 导入事务失败，已回滚：{str(e)}")
+        finally:
+            pass
 
-    prefix = '预检' if dry_run else '导入'
-    messages.insert(0, f"📊 {prefix}完成：通过 {imported_count} 篇，跳过 {skipped_count} 篇")
-    return imported_count, skipped_count, messages
+        prefix = '预检' if dry_run else '导入'
+        messages.insert(0, f"📊 {prefix}完成：通过 {imported_count} 篇，跳过 {skipped_count} 篇")
+        return imported_count, skipped_count, messages
 
 
 def import_from_markdown_directory(markdown_dir: str, user_id: int = None, dry_run: bool = False) -> Tuple[int, int, List[str]]:
@@ -167,88 +167,87 @@ def import_from_markdown_directory(markdown_dir: str, user_id: int = None, dry_r
     if not md_files:
         return 0, 0, [f"❌ 在目录中未找到Markdown文件: {markdown_dir}"]
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    if user_id is None:
-        cursor.execute('SELECT id FROM users WHERE role = "admin" LIMIT 1')
-        user = cursor.fetchone()
-        if not user:
-            conn.close()
-            return 0, 0, ["❌ 系统中没有管理员用户，无法导入"]
-        user_id = user['id']
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+        if user_id is None:
+            cursor.execute('SELECT id FROM users WHERE role = "admin" LIMIT 1')
+            user = cursor.fetchone()
+            if not user:
+                return 0, 0, ["❌ 系统中没有管理员用户，无法导入"]
+            user_id = user['id']
 
-    imported_count = 0
-    skipped_count = 0
-    try:
-        conn.execute('BEGIN')
-        for md_file in md_files:
-            try:
-                content = md_file.read_text(encoding='utf-8')
-                metadata, body_content = parse_frontmatter(content)
-                if not metadata or not metadata.get('title'):
-                    skipped_count += 1
-                    messages.append(f"⚠️ 跳过：{md_file.name} - 缺少标题元数据")
-                    continue
-                title = str(metadata.get('title', '')).strip()
-                created_at = metadata.get('date')
-                if created_at:
-                    cursor.execute('SELECT id FROM posts WHERE title = ? AND created_at = ?', (title, created_at))
-                    if cursor.fetchone():
-                        skipped_count += 1
-                        messages.append(f"⚠️ 跳过：文章已存在 - {title}")
-                        continue
-                post_type = metadata.get('post_type') or 'blog'
-                category_id = _get_or_create_category(
-                    cursor, metadata.get('category'),
-                    space='knowledge' if post_type == 'knowledge' else 'blog',
-                )
-                tags = metadata.get('tags', [])
-                if isinstance(tags, str):
-                    tags = [t.strip() for t in re.split(r'[,，]', tags) if t.strip()]
-                content_format = str(metadata.get('content_format') or 'markdown').lower()
-                if content_format not in ('html', 'markdown'):
-                    content_format = 'markdown'
-                payload = {
-                    'title': title,
-                    'content': body_content,
-                    'is_published': 1 if metadata.get('published', True) else 0,
-                    'category_id': category_id,
-                    'created_at': created_at,
-                    'updated_at': metadata.get('updated', created_at),
-                    'type': metadata.get('type') or 'post',
-                    'access_level': metadata.get('access_level') or 'public',
-                    'publish_at': metadata.get('publish_at'),
-                    'source_post_id': metadata.get('source_post_id'),
-                }
-                if dry_run:
-                    imported_count += 1
-                    messages.append(f"🔎 预检通过：{title}")
-                    continue
-                post_id = _insert_post(cursor, payload, user_id, content_format, post_type, None)
-                _set_tags(cursor, post_id, tags)
+        imported_count = 0
+        skipped_count = 0
+        try:
+            conn.execute('BEGIN')
+            for md_file in md_files:
                 try:
-                    from models.db import _safe_replace_post_fts
-                    _safe_replace_post_fts(cursor, post_id, title, body_content)
-                except Exception:
-                    pass
-                imported_count += 1
-                messages.append(f"✅ 导入成功：{title}")
-            except Exception as e:
-                skipped_count += 1
-                messages.append(f"❌ 导入失败：{md_file.name} - {str(e)}")
-        if dry_run:
+                    content = md_file.read_text(encoding='utf-8')
+                    metadata, body_content = parse_frontmatter(content)
+                    if not metadata or not metadata.get('title'):
+                        skipped_count += 1
+                        messages.append(f"⚠️ 跳过：{md_file.name} - 缺少标题元数据")
+                        continue
+                    title = str(metadata.get('title', '')).strip()
+                    created_at = metadata.get('date')
+                    if created_at:
+                        cursor.execute('SELECT id FROM posts WHERE title = ? AND created_at = ?', (title, created_at))
+                        if cursor.fetchone():
+                            skipped_count += 1
+                            messages.append(f"⚠️ 跳过：文章已存在 - {title}")
+                            continue
+                    post_type = metadata.get('post_type') or 'blog'
+                    category_id = _get_or_create_category(
+                        cursor, metadata.get('category'),
+                        space='knowledge' if post_type == 'knowledge' else 'blog',
+                    )
+                    tags = metadata.get('tags', [])
+                    if isinstance(tags, str):
+                        tags = [t.strip() for t in re.split(r'[,，]', tags) if t.strip()]
+                    content_format = str(metadata.get('content_format') or 'markdown').lower()
+                    if content_format not in ('html', 'markdown'):
+                        content_format = 'markdown'
+                    payload = {
+                        'title': title,
+                        'content': body_content,
+                        'is_published': 1 if metadata.get('published', True) else 0,
+                        'category_id': category_id,
+                        'created_at': created_at,
+                        'updated_at': metadata.get('updated', created_at),
+                        'type': metadata.get('type') or 'post',
+                        'access_level': metadata.get('access_level') or 'public',
+                        'publish_at': metadata.get('publish_at'),
+                        'source_post_id': metadata.get('source_post_id'),
+                    }
+                    if dry_run:
+                        imported_count += 1
+                        messages.append(f"🔎 预检通过：{title}")
+                        continue
+                    post_id = _insert_post(cursor, payload, user_id, content_format, post_type, None)
+                    _set_tags(cursor, post_id, tags)
+                    try:
+                        from models.db import _safe_replace_post_fts
+                        _safe_replace_post_fts(cursor, post_id, title, body_content)
+                    except Exception:
+                        pass
+                    imported_count += 1
+                    messages.append(f"✅ 导入成功：{title}")
+                except Exception as e:
+                    skipped_count += 1
+                    messages.append(f"❌ 导入失败：{md_file.name} - {str(e)}")
+            if dry_run:
+                conn.rollback()
+            else:
+                conn.commit()
+        except Exception as e:
             conn.rollback()
-        else:
-            conn.commit()
-    except Exception as e:
-        conn.rollback()
-        messages.append(f"❌ 导入事务失败，已回滚：{str(e)}")
-    finally:
-        conn.close()
+            messages.append(f"❌ 导入事务失败，已回滚：{str(e)}")
+        finally:
+            pass
 
-    prefix = '预检' if dry_run else '导入'
-    messages.insert(0, f"📊 {prefix}完成：通过 {imported_count} 篇，跳过 {skipped_count} 篇")
-    return imported_count, skipped_count, messages
+        prefix = '预检' if dry_run else '导入'
+        messages.insert(0, f"📊 {prefix}完成：通过 {imported_count} 篇，跳过 {skipped_count} 篇")
+        return imported_count, skipped_count, messages
 
 
 def parse_frontmatter(content: str) -> Tuple[Dict, str]:

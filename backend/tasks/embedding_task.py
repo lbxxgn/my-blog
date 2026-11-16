@@ -63,15 +63,12 @@ def _any_embedding_enabled():
 
     value = False
     try:
-        from models import get_db_connection
-        conn = get_db_connection()
-        try:
+        from models import get_db_context
+        with get_db_context() as conn:
             row = conn.execute(
                 'SELECT COUNT(*) AS c FROM users WHERE ai_embedding_enabled = 1'
             ).fetchone()
             value = bool(row and row['c'] > 0)
-        finally:
-            conn.close()
     except Exception as e:
         # 迁移 009 未执行等情况：视为全局未启用
         logger.debug(f"Embedding enabled probe failed, treating as disabled: {e}")
@@ -117,42 +114,43 @@ def _load_entity(source_type, source_id):
     post_type='knowledge' 的归为 'doc'（与入队时的类型可能不一致，
     由调用方负责清理旧类型下的残留向量）。
     """
-    from models import get_db_connection
 
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
-        if source_type in ('post', 'doc'):
-            cursor.execute(
-                'SELECT id, title, content, author_id, post_type FROM posts WHERE id = ?',
-                (source_id,)
-            )
-            row = cursor.fetchone()
-            if not row:
-                return None
-            return {
-                'title': row['title'],
-                'content': row['content'],
-                'owner_id': row['author_id'],
-                'source_type': 'doc' if row['post_type'] == 'knowledge' else 'post',
-            }
-        if source_type == 'card':
-            cursor.execute(
-                'SELECT id, title, content, user_id FROM cards WHERE id = ?',
-                (source_id,)
-            )
-            row = cursor.fetchone()
-            if not row:
-                return None
-            return {
-                'title': row['title'],
-                'content': row['content'],
-                'owner_id': row['user_id'],
-                'source_type': 'card',
-            }
-        return None
-    finally:
-        conn.close()
+    from models import get_db_context
+
+    with get_db_context() as conn:
+        try:
+            cursor = conn.cursor()
+            if source_type in ('post', 'doc'):
+                cursor.execute(
+                    'SELECT id, title, content, author_id, post_type FROM posts WHERE id = ?',
+                    (source_id,)
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return None
+                return {
+                    'title': row['title'],
+                    'content': row['content'],
+                    'owner_id': row['author_id'],
+                    'source_type': 'doc' if row['post_type'] == 'knowledge' else 'post',
+                }
+            if source_type == 'card':
+                cursor.execute(
+                    'SELECT id, title, content, user_id FROM cards WHERE id = ?',
+                    (source_id,)
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return None
+                return {
+                    'title': row['title'],
+                    'content': row['content'],
+                    'owner_id': row['user_id'],
+                    'source_type': 'card',
+                }
+            return None
+        finally:
+            pass
 
 
 def _build_text(title, content):

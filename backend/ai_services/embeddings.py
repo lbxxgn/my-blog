@@ -35,47 +35,47 @@ def get_embedding_config(user_id):
         return None
 
     # 延迟导入，避免 ai_services <-> models 循环依赖
-    from models import get_db_connection
+    from models import get_db_context
 
-    conn = get_db_connection()
-    try:
-        cursor = conn.cursor()
+    with get_db_context() as conn:
         try:
-            cursor.execute('''
-                SELECT ai_embedding_enabled, ai_embedding_base_url,
-                       ai_embedding_api_key, ai_embedding_model
-                FROM users
-                WHERE id = ?
-            ''', (user_id,))
-        except sqlite3.OperationalError as e:
-            # 迁移 009 尚未执行：视为未配置
-            logger.warning(f"Embedding config columns missing, run migrations: {e}")
-            return None
-        row = cursor.fetchone()
-    finally:
-        conn.close()
-
-    if not row:
-        return None
-
-    raw_key = row['ai_embedding_api_key']
-    if raw_key and not is_encrypted(raw_key):
-        try:
-            from models import get_db_context
-            with get_db_context() as upgrade_conn:
-                upgrade_conn.execute(
-                    'UPDATE users SET ai_embedding_api_key = ? WHERE id = ?',
-                    (encrypt_secret(raw_key), user_id),
-                )
-        except Exception:
+            cursor = conn.cursor()
+            try:
+                cursor.execute('''
+                    SELECT ai_embedding_enabled, ai_embedding_base_url,
+                           ai_embedding_api_key, ai_embedding_model
+                    FROM users
+                    WHERE id = ?
+                ''', (user_id,))
+            except sqlite3.OperationalError as e:
+                # 迁移 009 尚未执行：视为未配置
+                logger.warning(f"Embedding config columns missing, run migrations: {e}")
+                return None
+            row = cursor.fetchone()
+        finally:
             pass
 
-    return {
-        'enabled': bool(row['ai_embedding_enabled']),
-        'base_url': row['ai_embedding_base_url'] or DEFAULT_BASE_URL,
-        'api_key': decrypt_secret(raw_key),
-        'model': row['ai_embedding_model'] or DEFAULT_MODEL,
-    }
+        if not row:
+            return None
+
+        raw_key = row['ai_embedding_api_key']
+        if raw_key and not is_encrypted(raw_key):
+            try:
+                from models import get_db_context
+                with get_db_context() as upgrade_conn:
+                    upgrade_conn.execute(
+                        'UPDATE users SET ai_embedding_api_key = ? WHERE id = ?',
+                        (encrypt_secret(raw_key), user_id),
+                    )
+            except Exception:
+                pass
+
+        return {
+            'enabled': bool(row['ai_embedding_enabled']),
+            'base_url': row['ai_embedding_base_url'] or DEFAULT_BASE_URL,
+            'api_key': decrypt_secret(raw_key),
+            'model': row['ai_embedding_model'] or DEFAULT_MODEL,
+        }
 
 
 def update_embedding_config(user_id, data):

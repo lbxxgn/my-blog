@@ -115,9 +115,10 @@ class TestImportFromJson:
         conn.commit()
         conn.close()
 
-        with patch('import_posts.get_db_connection') as mock_get_conn:
-            mock_get_conn.return_value = sqlite3.connect(str(db_path))
-            mock_get_conn.return_value.row_factory = sqlite3.Row
+        with patch('import_posts.get_db_context') as mock_get_ctx:
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            mock_get_ctx.return_value.__enter__.return_value = conn
 
             imported, skipped, messages = import_posts.import_from_json(str(json_file))
 
@@ -194,9 +195,10 @@ This is the content.''')
         conn.commit()
         conn.close()
 
-        with patch('import_posts.get_db_connection') as mock_get_conn:
-            mock_get_conn.return_value = sqlite3.connect(str(db_path))
-            mock_get_conn.return_value.row_factory = sqlite3.Row
+        with patch('import_posts.get_db_context') as mock_get_ctx:
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            mock_get_ctx.return_value.__enter__.return_value = conn
 
             imported, skipped, messages = import_posts.import_from_markdown_directory(str(md_dir))
 

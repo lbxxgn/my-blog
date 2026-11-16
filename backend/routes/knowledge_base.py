@@ -15,7 +15,7 @@ from models import (
     update_card_status, update_card, delete_card,
     merge_cards_to_post, get_user_ai_config, ai_merge_cards_to_post,
     create_annotation, get_annotations_by_url, create_post,
-    get_category_by_name, create_category, get_category_by_id, get_db_connection
+    get_category_by_name, create_category, get_category_by_id, get_db_context
 )
 from datetime import datetime
 from logger import log_operation, api_internal_error
@@ -576,10 +576,9 @@ def ai_merge_cards():
             user_config=user_ai_config,
             merge_style=merge_style
         )
-        conn = get_db_connection()
-        conn.execute('UPDATE posts SET category_id = ? WHERE id = ?', (cat['id'], result['post_id']))
-        conn.commit()
-        conn.close()
+        with get_db_context() as conn:
+            conn.execute('UPDATE posts SET category_id = ? WHERE id = ?', (cat['id'], result['post_id']))
+            conn.commit()
 
         log_operation(session['user_id'], session.get('username', 'Unknown'),
                      'AI合并卡片', f'卡片IDs: {card_ids} -> 文章ID: {result["post_id"]}')

@@ -6,7 +6,7 @@ Category Model Functions
 
 import sqlite3
 
-from .db import get_db_connection, get_db_context
+from .db import get_db_context
 
 __all__ = [
     'create_category',
@@ -129,14 +129,13 @@ def merge_category(source_id, target_id):
 
 def get_posts_by_category(category_id, include_drafts=False):
     """Get all posts in a category"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    with get_db_context() as conn:
+        cursor = conn.cursor()
 
-    if include_drafts:
-        cursor.execute('SELECT * FROM posts WHERE category_id = ? AND deleted_at IS NULL ORDER BY created_at DESC', (category_id,))
-    else:
-        cursor.execute('SELECT * FROM posts WHERE category_id = ? AND is_published = 1 AND deleted_at IS NULL ORDER BY created_at DESC', (category_id,))
+        if include_drafts:
+            cursor.execute('SELECT * FROM posts WHERE category_id = ? AND deleted_at IS NULL ORDER BY created_at DESC', (category_id,))
+        else:
+            cursor.execute('SELECT * FROM posts WHERE category_id = ? AND is_published = 1 AND deleted_at IS NULL ORDER BY created_at DESC', (category_id,))
 
-    posts = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return posts
+        posts = [dict(row) for row in cursor.fetchall()]
+        return posts

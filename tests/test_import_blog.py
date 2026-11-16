@@ -79,9 +79,9 @@ class TestImportBlogsFromXml:
         return xml_file
 
     @patch('import_blog.create_post')
-    @patch('import_blog.get_db_connection')
+    @patch('import_blog.get_db_context')
     @patch('import_blog.init_db')
-    def test_import_single_blog(self, mock_init, mock_get_conn, mock_create_post, tmp_path):
+    def test_import_single_blog(self, mock_init, mock_get_ctx, mock_create_post, tmp_path):
         """Test importing a single blog entry - the post doesn't exist so it should be created"""
         # Setup
         mock_create_post.return_value = 1
@@ -93,7 +93,7 @@ class TestImportBlogsFromXml:
             None  # Post doesn't exist yet
         ]
         mock_conn.cursor.return_value = mock_cursor
-        mock_get_conn.return_value = mock_conn
+        mock_get_ctx.return_value.__enter__.return_value = mock_conn
 
         xml_file = self.create_test_xml(tmp_path, [{
             'title': 'Test Post',
@@ -109,14 +109,14 @@ class TestImportBlogsFromXml:
         # Verify create_post was called
         mock_create_post.assert_called_once()
 
-    @patch('import_blog.get_db_connection')
+    @patch('import_blog.get_db_context')
     @patch('import_blog.init_db')
-    def test_import_no_entries(self, mock_init, mock_get_conn, tmp_path):
+    def test_import_no_entries(self, mock_init, mock_get_ctx, tmp_path):
         """Test importing with no entries"""
         xml_file = self.create_test_xml(tmp_path, [])
 
         mock_conn = MagicMock()
-        mock_get_conn.return_value = mock_conn
+        mock_get_ctx.return_value.__enter__.return_value = mock_conn
 
         with patch('import_blog.Path') as mock_path, patch('import_blog.get_all_categories', return_value=[]):
             mock_path.return_value.exists.return_value = True
