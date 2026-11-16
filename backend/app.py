@@ -26,7 +26,7 @@ Flask博客系统 - 主应用文件
 # =============================================================================
 # 标准库导入
 # =============================================================================
-from flask import Flask, render_template, request, jsonify, send_file, abort
+from flask import Flask, render_template, request, jsonify, send_file, abort, redirect, url_for
 from werkzeug.security import generate_password_hash
 import json
 import os
@@ -684,198 +684,16 @@ def auto_regenerate_assets():
         logger.warning(f'恢复待优化任务失败: {e}')
 
 # =============================================================================
-# 兼容性endpoint别名（保持旧模板的url_for调用正常工作）
+# 旧客户端路径兼容
 # =============================================================================
-# 由于blueprint重构，endpoint名称从'index'变为'blog.index'等
-# 为了保持模板兼容性，为旧endpoint名称创建路由包装器
-
-# Blog endpoints
-@app.route('/')
-def index():
-    """首页别名（兼容模板）"""
-    return app.view_functions['blog.index']()
-
-@app.route('/search')
-def search():
-    """搜索页面别名（兼容模板）"""
-    return app.view_functions['blog.search']()
-
-@app.route('/post/<int:post_id>')
-def view_post(post_id):
-    """查看文章别名（兼容模板）"""
-    return app.view_functions['blog.view_post'](post_id)
-
-@app.route('/category/<int:category_id>')
-def view_category(category_id):
-    """查看分类别名（兼容模板）"""
-    return app.view_functions['blog.view_category'](category_id)
-
-@app.route('/tag/<int:tag_id>')
-def view_tag(tag_id):
-    """查看标签别名（兼容模板）"""
-    return app.view_functions['blog.view_tag'](tag_id)
-
-@app.route('/author/<int:author_id>')
-def view_author(author_id):
-    """查看作者别名（兼容模板）"""
-    return app.view_functions['blog.view_author'](author_id)
-
-@app.route('/post/<int:post_id>/comment', methods=['POST'])
-def add_comment(post_id):
-    """添加评论别名（兼容模板）"""
-    return app.view_functions['blog.add_comment'](post_id)
-
-# Auth endpoints
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    """登录别名（兼容模板）"""
-    return app.view_functions['auth.login']()
-
-@app.route('/logout')
-def logout():
-    """退出登录别名（兼容模板）"""
-    return app.view_functions['auth.logout']()
-
-@app.route('/change-password', methods=['GET', 'POST'])
-def change_password():
-    """修改密码别名（兼容模板）"""
-    return app.view_functions['auth.change_password']()
-
-# Admin endpoints
-@app.route('/admin')
-def admin_dashboard():
-    """管理后台首页别名（兼容模板）"""
-    return app.view_functions['admin.admin_dashboard']()
-
-@app.route('/admin/new', methods=['GET', 'POST'])
-def new_post():
-    """新建文章别名（兼容模板）"""
-    return app.view_functions['admin.new_post']()
+# 仅保留路径与 blueprint 不一致、浏览器插件/旧客户端仍在使用的入口；
+# 模板已统一使用 blueprint endpoint 名称，不再为旧 url_for endpoint 建包装器。
 
 @app.route('/new', methods=['GET', 'POST'])
 def legacy_new_post():
-    """历史新建文章入口别名（兼容旧链接和旧测试）"""
-    return app.view_functions['admin.new_post']()
+    """历史新建文章入口，308 重定向到后台新建页。"""
+    return redirect(url_for('admin.new_post'), code=302)
 
-@app.route('/admin/users')
-def user_list():
-    """用户列表别名（兼容模板）"""
-    return app.view_functions['admin.user_list']()
-
-@app.route('/admin/users/new')
-def new_user():
-    """新建用户别名（兼容模板）"""
-    return app.view_functions['admin.new_user']()
-
-@app.route('/admin/categories')
-def category_list():
-    """分类列表别名（兼容模板）"""
-    return app.view_functions['admin.categories']()
-
-@app.route('/admin/categories/new', methods=['POST'])
-def new_category():
-    """新建分类别名（兼容模板）"""
-    return app.view_functions['admin.new_category']()
-
-@app.route('/admin/tags')
-def tag_list():
-    """标签列表别名（兼容模板）"""
-    return app.view_functions['admin.tags']()
-
-@app.route('/admin/tags/new', methods=['POST'])
-def new_tag():
-    """新建标签别名（兼容模板）"""
-    return app.view_functions['admin.new_tag']()
-
-@app.route('/admin/export')
-def export_page():
-    """导出页面别名（兼容模板）"""
-    return app.view_functions['admin.export']()
-
-@app.route('/admin/export/json')
-def export_json():
-    """导出JSON别名（兼容模板）"""
-    return app.view_functions['admin.export_json']()
-
-@app.route('/admin/export/markdown')
-def export_markdown():
-    """导出Markdown别名（兼容模板）"""
-    return app.view_functions['admin.export_markdown']()
-
-@app.route('/admin/import')
-def import_page():
-    """导入页面别名（兼容模板）"""
-    return app.view_functions['admin.import_page']()
-
-@app.route('/admin/import/json', methods=['POST'])
-def import_json():
-    """导入JSON别名（兼容模板）"""
-    return app.view_functions['admin.import_json']()
-
-@app.route('/admin/import/markdown', methods=['POST'])
-def import_markdown():
-    """导入Markdown别名（兼容模板）"""
-    return app.view_functions['admin.import_markdown']()
-
-@app.route('/admin/edit/<int:post_id>', methods=['GET', 'POST'])
-def edit_post(post_id):
-    """编辑文章别名（兼容模板）"""
-    return app.view_functions['admin.edit_post'](post_id)
-
-@app.route('/admin/delete/<int:post_id>', methods=['POST'])
-def delete_post_route(post_id):
-    """删除文章别名（兼容模板）"""
-    return app.view_functions['admin.delete_post_route'](post_id)
-
-@app.route('/admin/batch-update-category', methods=['POST'])
-def batch_update_category():
-    """批量更新分类别名（兼容模板）"""
-    return app.view_functions['admin.batch_update_category']()
-
-@app.route('/admin/batch-delete', methods=['POST'])
-def batch_delete():
-    """批量删除别名（兼容模板）"""
-    return app.view_functions['admin.batch_delete']()
-
-@app.route('/admin/upload', methods=['POST'])
-def upload():
-    """文件上传别名（兼容模板）"""
-    return app.view_functions['admin.upload']()
-
-@app.route('/admin/categories/<int:category_id>/delete', methods=['POST'])
-def delete_category_route(category_id):
-    """删除分类别名（兼容模板）"""
-    return app.view_functions['admin.delete_category_route'](category_id)
-
-@app.route('/admin/tags/<int:tag_id>/delete', methods=['POST'])
-def delete_tag_route(tag_id):
-    """删除标签别名（兼容模板）"""
-    return app.view_functions['admin.delete_tag_route'](tag_id)
-
-@app.route('/admin/comments')
-def comments_list():
-    """评论列表别名（兼容模板）"""
-    return app.view_functions['admin.comments']()
-
-@app.route('/admin/comments/<int:comment_id>/toggle', methods=['POST'])
-def toggle_comment(comment_id):
-    """切换评论状态别名（兼容模板）"""
-    return app.view_functions['admin.toggle_comment'](comment_id)
-
-@app.route('/admin/comments/<int:comment_id>/delete', methods=['POST'])
-def delete_comment_route(comment_id):
-    """删除评论别名（兼容模板）"""
-    return app.view_functions['admin.delete_comment_route'](comment_id)
-
-@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
-def edit_user(user_id):
-    """编辑用户别名（兼容模板）"""
-    return app.view_functions['admin.edit_user'](user_id)
-
-@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
-def delete_user_route(user_id):
-    """删除用户别名（兼容模板）"""
-    return app.view_functions['admin.delete_user_route'](user_id)
 
 # Knowledge base API aliases
 @app.route('/api/plugin/submit', methods=['POST'])
@@ -943,15 +761,6 @@ csrf.exempt(app.view_functions['plugin_submit'])
 csrf.exempt(app.view_functions['plugin_sync_annotations'])
 
 # AI endpoints
-@app.route('/admin/ai/history')
-def ai_history():
-    """AI历史记录别名（兼容模板）"""
-    return app.view_functions['ai.history']()
-
-@app.route('/admin/ai/configure', methods=['GET', 'POST'])
-def ai_settings():
-    """AI设置页面别名（兼容模板）"""
-    return app.view_functions['ai.configure']()
 
 # =============================================================================
 # 创建管理员用户

@@ -6,12 +6,12 @@
 <div class="admin-categories">
     <div class="dashboard-header">
         <h2>标签管理</h2>
-        <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">返回管理后台</a>
     </div>
 
     <div class="category-form">
         <h3>创建新标签</h3>
-        <form action="{{ url_for('new_tag') }}" method="post">
+        <form action="{{ url_for('admin.new_tag') }}" method="post">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
                 <label for="name">标签名称</label>
@@ -56,7 +56,7 @@
                         </select>
                         <button type="submit" class="btn btn-sm">合并</button>
                     </form>
-                    <form action="{{ url_for('delete_tag_route', tag_id=tag.id) }}" method="post" class="delete-form"
+                    <form action="{{ url_for('admin.delete_tag_route', tag_id=tag.id) }}" method="post" class="delete-form"
                           data-confirm="确定删除此标签吗？将从 {{ tag.post_count or 0 }} 篇文章移除。"
                           data-confirm-destructive="true" data-confirm-text="删除">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>

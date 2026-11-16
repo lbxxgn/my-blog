@@ -38,7 +38,7 @@ def _make_excerpt(content, length=EXCERPT_LENGTH):
 
 
 def post_url(post_id):
-    return url_for('view_post', post_id=post_id)
+    return url_for('blog.view_post', post_id=post_id)
 
 
 def doc_url(doc_id):

@@ -458,7 +458,7 @@ header {
                 <div class="meta-left">
                     {% if post.author_display_name or post.author_username %}
                     <span class="author-name">
-                        <a href="{{ url_for('view_author', author_id=post.author_id) }}">
+                        <a href="{{ url_for('blog.view_author', author_id=post.author_id) }}">
                             {{ post.author_display_name or post.author_username }}
                         </a>
                     </span>
@@ -483,7 +483,7 @@ header {
         {% if post.tags %}
         <div class="post-tags">
             {% for tag in post.tags %}
-            <a href="{{ url_for('view_tag', tag_id=tag.id) }}" class="post-tag">#{{ tag.name }}</a>
+            <a href="{{ url_for('blog.view_tag', tag_id=tag.id) }}" class="post-tag">#{{ tag.name }}</a>
             {% endfor %}
         </div>
         {% endif %}
@@ -599,7 +599,7 @@ header {
             </div>
             {% endif %}
 
-            <form class="comment-form" action="{{ url_for('add_comment', post_id=post.id) }}" method="post"
+            <form class="comment-form" action="{{ url_for('blog.add_comment', post_id=post.id) }}" method="post"
                   data-author-name="{{ session.get('display_name') or session.get('username') or '' }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 {% if not session.get('user_id') %}
@@ -620,7 +620,7 @@ header {
         {% if adjacent and (adjacent.prev or adjacent.next) %}
         <div class="post-adjacent">
             {% if adjacent.prev %}
-            <a href="{{ url_for('view_post', post_id=adjacent.prev.id) }}" class="post-adjacent-card post-adjacent-prev">
+            <a href="{{ url_for('blog.view_post', post_id=adjacent.prev.id) }}" class="post-adjacent-card post-adjacent-prev">
                 <span class="post-adjacent-label">← 上一篇</span>
                 <span class="post-adjacent-title">{{ adjacent.prev.title }}</span>
             </a>
@@ -628,7 +628,7 @@ header {
             <span class="post-adjacent-card post-adjacent-empty"></span>
             {% endif %}
             {% if adjacent.next %}
-            <a href="{{ url_for('view_post', post_id=adjacent.next.id) }}" class="post-adjacent-card post-adjacent-next">
+            <a href="{{ url_for('blog.view_post', post_id=adjacent.next.id) }}" class="post-adjacent-card post-adjacent-next">
                 <span class="post-adjacent-label">下一篇 →</span>
                 <span class="post-adjacent-title">{{ adjacent.next.title }}</span>
             </a>
@@ -637,7 +637,7 @@ header {
             {% endif %}
         </div>
         {% endif %}
-        <a href="{{ url_for('index') }}" class="back-link">← 返回首页</a>
+        <a href="{{ url_for('blog.index') }}" class="back-link">← 返回首页</a>
     </div>
 </div>
 {% endblock %}
@@ -740,7 +740,7 @@ header {
     var content = currentComment.length > 990 ? currentComment.slice(0, 990) + '……' : currentComment;
     publishBtn.disabled = true;
     publishBtn.textContent = '发表中...';
-    fetch('{{ url_for("add_comment", post_id=post.id) }}', {
+    fetch('{{ url_for("blog.add_comment", post_id=post.id) }}', {
       method: 'POST',
       headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token() }}'},
       body: new URLSearchParams({author_name: 'AI 导师', author_email: '', content: content})

@@ -71,7 +71,7 @@
                 <button type="submit" class="btn btn-primary">
                     {% if user %}保存修改{% else %}创建用户{% endif %}
                 </button>
-                <a href="{{ url_for('user_list') }}" class="btn">取消</a>
+                <a href="{{ url_for('admin.user_list') }}" class="btn">取消</a>
             </div>
         </form>
     </div>

@@ -180,10 +180,6 @@ def app_with_aliases(temp_db):
     """
     from app import app
 
-    # 设置endpoint别名
-    app.view_functions['index'] = app.view_functions['blog.index']
-    app.view_functions['login'] = app.view_functions['auth.login']
-
     return app
 
 

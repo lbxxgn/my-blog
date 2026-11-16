@@ -6,12 +6,12 @@
 <div class="container admin-categories">
     <div class="dashboard-header">
         <h2>分类管理</h2>
-        <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">返回管理后台</a>
     </div>
 
     <div class="category-form">
         <h3>创建新分类</h3>
-        <form method="POST" action="{{ url_for('new_category') }}">
+        <form method="POST" action="{{ url_for('admin.new_category') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="form-group">
                 <label for="name">分类名称</label>
@@ -56,7 +56,7 @@
                             </select>
                             <button type="submit" class="btn btn-sm">合并</button>
                         </form>
-                        <form method="POST" action="{{ url_for('delete_category_route', category_id=category.id) }}"
+                        <form method="POST" action="{{ url_for('admin.delete_category_route', category_id=category.id) }}"
                               class="delete-form"
                               data-confirm="确定删除「{{ category.name }}」？将影响 {{ category.total_count or 0 }} 篇文章，它们会变为未分类。"
                               data-confirm-destructive="true" data-confirm-text="删除">

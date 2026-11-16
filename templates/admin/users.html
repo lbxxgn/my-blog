@@ -7,8 +7,8 @@
     <div class="dashboard-header">
         <h2>用户管理</h2>
         <div class="header-actions">
-            <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
-            <a href="{{ url_for('new_user') }}" class="btn btn-primary">新建用户</a>
+            <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">返回管理后台</a>
+            <a href="{{ url_for('admin.new_user') }}" class="btn btn-primary">新建用户</a>
         </div>
     </div>
 
@@ -51,9 +51,9 @@
                 </td>
                 <td>{{ (user.created_at|localtime)[:10] if user.created_at else '-' }}</td>
                 <td class="actions">
-                    <a href="{{ url_for('edit_user', user_id=user.id) }}" class="btn btn-sm">编辑</a>
+                    <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" class="btn btn-sm">编辑</a>
                     {% if user.id != session.get('user_id') %}
-                    <form method="POST" action="{{ url_for('delete_user_route', user_id=user.id) }}"
+                    <form method="POST" action="{{ url_for('admin.delete_user_route', user_id=user.id) }}"
                           class="delete-form"
                           data-confirm="确定删除用户 {{ user.username }}？该用户的文章将变为无作者状态。"
                           data-confirm-destructive="true"
@@ -70,7 +70,7 @@
     {% else %}
     <div class="empty-state">
         <p>还没有任何用户。</p>
-        <a href="{{ url_for('new_user') }}" class="btn btn-primary">创建第一个用户</a>
+        <a href="{{ url_for('admin.new_user') }}" class="btn btn-primary">创建第一个用户</a>
     </div>
     {% endif %}
 </div>

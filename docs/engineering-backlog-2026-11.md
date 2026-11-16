@@ -12,6 +12,7 @@
 - 新增 `scripts/backup.sh`（SQLite Online Backup + 完整性校验）。
 - 修复 drafts 遗留唯一索引（迁移 014）。
 - 测试库改为 `init_db + 迁移` 生成，测试不再手写 DDL。
+- 移除 40 个重复 legacy 别名路由，模板统一使用 blueprint endpoint；保留 12 个旧客户端路径入口。
 - CI 增加前端构建、依赖缓存、依赖审计；拆分 dev 依赖；补 ruff 配置；pytest 不再强制覆盖率。
 
 ---
@@ -41,7 +42,7 @@
 | BE-4 | 中 | `init_db` 与迁移双份 schema；gunicorn 启动不自动迁移 | `backend/models/db.py:110`、`backend/migrations/` | 迁移作为唯一 schema 来源；启动/升级脚本自动执行 | 空库 + 旧库均可自动升级 |
 | BE-5 | 中 | 后台任务为进程内 daemon 线程，多 worker 不一致、重启丢任务 | `backend/routes/review.py:202`、`admin/posts.py:298`、`services/backup.py:387` | 外置 RQ/Celery；或至少持久化任务 + 幂等 + 重试 | 重启不丢任务；多 worker 只执行一次 |
 | BE-6 | 中 | 语义检索全表加载向量到 Python，O(N) | `backend/models/embeddings.py:145` | 引入向量索引/外部向量库，或先加缓存与分页 | 数据量增长后 P95 可控 |
-| BE-7 | 低 | `app.py` 保留 61 个路由，其中大量兼容别名 | `backend/app.py:688-960` | 模板改用 blueprint endpoint，删除别名 | 删除后模板/旧链接仍可访问（301） |
+| BE-7 | 低 | 仍有 12 个旧客户端路径入口（`/new`、`/api/plugin/*`、`/api/cards/*`） | `backend/app.py` 旧路径兼容段 | 迁移到对应 blueprint 或提供 301/307 后废弃，并更新浏览器插件 | 旧路径仅保留重定向，无直接视图包装 |
 | BE-8 | 低 | 日志无 request id/结构化字段 | `backend/logger.py` | JSON 日志 + `X-Request-ID` + 用户/耗时字段 | 可按请求串联排障 |
 | BE-9 | 低 | CGI 时代的调试 `print` 仍散落 | `backend/routes/ai/generation.py:102`、导入/迁移脚本 | CLI 保留 print，Web 路径改 logger | Web 请求无 print 输出 |
 

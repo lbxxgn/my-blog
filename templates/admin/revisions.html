@@ -6,7 +6,7 @@
         <h2>历史版本：{{ post.title }}</h2>
         <div class="header-actions">
             <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn">返回编辑</a>
-            <a href="{{ url_for('admin_dashboard') }}" class="btn">管理后台</a>
+            <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">管理后台</a>
         </div>
     </div>
     <p style="color: var(--text-secondary); margin-bottom: 12px;">保存或覆盖正文前会自动生成快照，最多保留最近 100 个版本。</p>

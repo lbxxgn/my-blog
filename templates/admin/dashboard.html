@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% macro dash_url(p) %}{{ url_for('admin_dashboard', page=p, per_page=pagination.per_page, category_id=current_category_id, type=current_type, q=current_query, status=current_status, access_level=current_access, author_id=current_author_id) }}{% endmacro %}
+{% macro dash_url(p) %}{{ url_for('admin.admin_dashboard', page=p, per_page=pagination.per_page, category_id=current_category_id, type=current_type, q=current_query, status=current_status, access_level=current_access, author_id=current_author_id) }}{% endmacro %}
 
 {% block title %}管理后台 - {{ site_name }}{% endblock %}
 
@@ -12,10 +12,10 @@
             <h2>文章管理</h2>
             <p class="dashboard-subtitle">查找、整理和发布你的内容</p>
         </div>
-        <a href="{{ url_for('new_post') }}" class="btn btn-primary dashboard-create">新建文章</a>
+        <a href="{{ url_for('admin.new_post') }}" class="btn btn-primary dashboard-create">新建文章</a>
     </div>
 
-    <form method="GET" action="{{ url_for('admin_dashboard') }}" class="filter-bar">
+    <form method="GET" action="{{ url_for('admin.admin_dashboard') }}" class="filter-bar">
         <div class="filter-main">
             <div class="filter-group filter-search">
                 <label for="q">搜索标题或正文</label>
@@ -42,7 +42,7 @@
             </div>
             <div class="filter-group filter-actions">
                 <button type="submit" class="btn btn-sm btn-primary">筛选</button>
-                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-sm">重置</a>
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-sm">重置</a>
             </div>
         </div>
 
@@ -119,7 +119,7 @@
                 {% for post in posts %}
                     <tr data-post-id="{{ post.id }}">
                         <td><input type="checkbox" class="post-checkbox" value="{{ post.id }}" aria-label="选择《{{ post.title }}》" onchange="togglePostSelection(this)"></td>
-                        <td><a href="{{ url_for('view_post', post_id=post.id) }}">{{ post.title }}</a></td>
+                        <td><a href="{{ url_for('blog.view_post', post_id=post.id) }}">{{ post.title }}</a></td>
                         <td>
                             {% set type_label = '笔记' if post.type == 'note' else '文章' %}
                             {% set category_label = post.category_name or '未分类' %}
@@ -135,14 +135,14 @@
                         <td>{{ post.created_at|localtime }}</td>
                         <td>{{ (post.updated_at|localtime)[:16] if post.updated_at else '-' }}</td>
                         <td class="actions">
-                            <a href="{{ url_for('edit_post', post_id=post.id) }}" class="btn btn-sm">编辑</a>
+                            <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-sm">编辑</a>
                             {% if post.type == 'note' %}
                             <form method="POST" action="{{ url_for('admin.convert_note_to_post', post_id=post.id) }}" class="delete-form">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <button type="submit" class="btn btn-sm">转文章</button>
                             </form>
                             {% endif %}
-                            <form method="POST" action="{{ url_for('delete_post_route', post_id=post.id) }}" class="delete-form"
+                            <form method="POST" action="{{ url_for('admin.delete_post_route', post_id=post.id) }}" class="delete-form"
                                   data-confirm="文章会移入回收站，之后可恢复。确定删除这篇文章？"
                                   data-confirm-destructive="true"
                                   data-confirm-text="移入回收站">
@@ -197,9 +197,9 @@
     {% else %}
         <div class="empty-state">
             {% if current_query or current_status or current_access or current_type or current_author_id or current_category_id %}
-            <p>没有符合筛选条件的文章。<a href="{{ url_for('admin_dashboard') }}">清除筛选</a></p>
+            <p>没有符合筛选条件的文章。<a href="{{ url_for('admin.admin_dashboard') }}">清除筛选</a></p>
             {% else %}
-            <p>还没有任何文章。<a href="{{ url_for('new_post') }}">创建第一篇</a></p>
+            <p>还没有任何文章。<a href="{{ url_for('admin.new_post') }}">创建第一篇</a></p>
             {% endif %}
         </div>
     {% endif %}

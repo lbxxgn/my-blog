@@ -93,7 +93,7 @@ def role_required(*allowed_roles):
             if not user or not user.get('is_active', 1):
                 session.clear()
                 flash('用户不存在或已被停用', 'error')
-                return redirect(url_for('logout'))
+                return redirect(url_for('auth.logout'))
 
             if user.get('role') not in allowed_roles:
                 flash('权限不足', 'error')
@@ -125,7 +125,7 @@ def can_edit_post(f):
         if not user or not user.get('is_active', 1):
             session.clear()
             flash('用户不存在或已被停用', 'error')
-            return redirect(url_for('logout'))
+            return redirect(url_for('auth.logout'))
 
         post = get_post_by_id(post_id)
         if not post:
@@ -142,7 +142,7 @@ def can_edit_post(f):
                 return f(post_id, *args, **kwargs)
             else:
                 flash('您只能编辑自己的文章', 'error')
-                return redirect(url_for('view_post', post_id=post_id))
+                return redirect(url_for('blog.view_post', post_id=post_id))
 
         flash('权限不足', 'error')
         return redirect(url_for('blog.index'))
@@ -165,12 +165,12 @@ def can_delete_post(f):
         if not user or not user.get('is_active', 1):
             session.clear()
             flash('用户不存在或已被停用', 'error')
-            return redirect(url_for('logout'))
+            return redirect(url_for('auth.logout'))
 
         # 只有admin可以删除文章
         if user.get('role') != 'admin':
             flash('只有管理员可以删除文章', 'error')
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('admin.admin_dashboard'))
 
         return f(post_id, *args, **kwargs)
 
@@ -188,7 +188,7 @@ def can_manage_users(f):
         user = _load_session_user()
         if not user or not user.get('is_active', 1) or user.get('role') != 'admin':
             flash('只有管理员可以管理用户', 'error')
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('admin.admin_dashboard'))
 
         return f(*args, **kwargs)
     return decorated_function

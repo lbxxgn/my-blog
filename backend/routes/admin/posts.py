@@ -120,7 +120,7 @@ def image_optimization_status(optimization_id):
         logger.error(f'Error fetching optimization status: {e}')
         return api_internal_error(e)
 
-@admin_bp.route('/')
+@admin_bp.route('/', strict_slashes=False)
 @login_required
 def admin_dashboard():
     """管理仪表板 - 列出所有文章包括草稿"""

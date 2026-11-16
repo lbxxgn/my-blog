@@ -4,7 +4,7 @@
 <div class="container admin-categories">
     <div class="dashboard-header">
         <h2>回收站</h2>
-        <a href="{{ url_for('admin_dashboard') }}" class="btn">返回管理后台</a>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">返回管理后台</a>
     </div>
     <p style="color: var(--text-secondary); margin-bottom: 12px;">删除的文章会先进入这里，可恢复或永久删除。</p>
     {% if posts %}
