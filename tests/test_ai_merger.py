@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from ai_services.card_merger import AICardMerger
-from ai_services.tag_generator import TagGenerator
+from backend.ai_services.card_merger import AICardMerger
+from backend.ai_services.tag_generator import TagGenerator
 
 
 class TestAICardMerger:
@@ -10,7 +10,7 @@ class TestAICardMerger:
 
     def test_merge_cards_with_ai(self, temp_db, monkeypatch):
         """测试AI合并卡片"""
-        from models import create_card
+        from backend.models import create_card
 
         # Create test cards
         card1_id = create_card(

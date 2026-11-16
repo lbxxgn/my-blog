@@ -24,9 +24,9 @@ from pathlib import Path
 import os
 import re
 
-from auth_decorators import login_required
-from logger import api_internal_error
-from models import (
+from backend.auth_decorators import login_required
+from backend.logger import api_internal_error
+from backend.models import (
     get_category_tree, get_category_path, get_subcategories,
     get_doc_count_by_category, get_knowledge_doc, get_knowledge_docs_by_category, get_recent_knowledge_docs,
     get_knowledge_docs_for_tree, get_all_knowledge_docs, search_knowledge_docs,
@@ -36,8 +36,8 @@ from models import (
     create_knowledge_doc, update_knowledge_doc, reorder_knowledge_doc, soft_delete_post,
 )
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
-from models.draft import save_draft, get_drafts, delete_drafts_for_post
-from utils.markdown_renderer import render_content
+from backend.models.draft import save_draft, get_drafts, delete_drafts_for_post
+from backend.utils.markdown_renderer import render_content
 
 knowledge_bp = Blueprint('knowledge', __name__)
 

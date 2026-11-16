@@ -9,11 +9,9 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-BACKEND_DIR = PROJECT_ROOT / 'backend'
 
 # 同时保留项目根目录和 backend 目录，兼容现有测试导入风格
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(BACKEND_DIR))
 
 
 @pytest.fixture(autouse=True)
@@ -25,7 +23,7 @@ def isolate_log_files(tmp_path, monkeypatch):
     log_dir.mkdir()
     files = {
         'LOG_DIR': log_dir,
-        'APP_LOG': log_dir / 'app.log',
+        'APP_LOG': log_dir / 'backend.app.log',
         'LOGIN_LOG': log_dir / 'login.log',
         'OPERATION_LOG': log_dir / 'operation.log',
         'ERROR_LOG': log_dir / 'error.log',
@@ -50,7 +48,7 @@ def schema_template(tmp_path_factory):
     import os
 
     import backend.config as config
-    import models
+    import backend.models as models
 
     template = tmp_path_factory.mktemp('schema') / 'template.db'
     original_testing = os.environ.get('TESTING')
@@ -92,7 +90,7 @@ def temp_db(schema_template):
     """
     import importlib
     import backend.config as config
-    import models
+    import backend.models as models
     import uuid
     import sqlite3
 
@@ -178,7 +176,7 @@ def app_with_aliases(temp_db):
     """
     创建设置了endpoint别名的Flask应用
     """
-    from app import app
+    from backend.app import app
 
     return app
 
@@ -202,7 +200,7 @@ def test_admin_user(temp_db):
     Returns:
         dict: 用户信息字典
     """
-    from models import create_user
+    from backend.models import create_user
     from werkzeug.security import generate_password_hash
     
     password_hash = generate_password_hash('TestPassword123!', method='pbkdf2:sha256')
@@ -236,7 +234,7 @@ def test_user(temp_db):
     Returns:
         dict: 用户信息字典
     """
-    from models import create_user
+    from backend.models import create_user
     from werkzeug.security import generate_password_hash
     
     password_hash = generate_password_hash('UserPassword123!', method='pbkdf2:sha256')
@@ -264,7 +262,7 @@ def test_post(temp_db, test_user):
     Returns:
         dict: 文章信息字典
     """
-    from models import create_post
+    from backend.models import create_post
 
     # Check if create_post supports access_level parameter
     import inspect
@@ -310,7 +308,7 @@ def client(app_with_aliases):
 
     # 重置限流计数，避免跨测试污染
     try:
-        from app import limiter
+        from backend.app import limiter
         limiter.reset()
     except Exception:
         pass
@@ -352,7 +350,7 @@ def limited_client(app_with_aliases):
 
     # 重置内存中的限流计数，避免跨测试污染
     try:
-        from app import limiter
+        from backend.app import limiter
         limiter.reset()
     except Exception:
         pass

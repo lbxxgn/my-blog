@@ -9,10 +9,10 @@ from flask import Blueprint, request, jsonify
 import logging
 import re
 
-from models import get_db_context, get_user_ai_config, save_ai_tag_history
+from backend.models import get_db_context, get_user_ai_config, save_ai_tag_history
 from backend.routes.ai import _run_structured_prompt
-from auth_decorators import get_current_user
-from logger import log_error
+from backend.auth_decorators import get_current_user
+from backend.logger import log_error
 from backend.config import ALLOWED_EXTENSIONS
 
 def _auto_title(content: str) -> str:

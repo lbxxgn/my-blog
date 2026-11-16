@@ -19,10 +19,9 @@ import argparse
 from pathlib import Path
 
 # 添加后端目录到路径
-backend_dir = Path(__file__).parent
-sys.path.insert(0, str(backend_dir))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from utils.image_cleanup import (
+from backend.utils.image_cleanup import (
     extract_images_from_content,
     remove_img_tags_by_urls,
     check_image_url,
@@ -30,7 +29,7 @@ from utils.image_cleanup import (
     print_cleanup_report,
     CleanupLogger
 )
-from models import get_db_context
+from backend.models import get_db_context
 from backend.config import get_backup_path
 
 

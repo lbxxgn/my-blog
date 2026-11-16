@@ -4,7 +4,7 @@
 """
 from functools import wraps
 from flask import session, flash, redirect, url_for, request
-from models import get_user_by_username, get_user_by_id, get_post_by_id
+from backend.models import get_user_by_username, get_user_by_id, get_post_by_id
 
 
 def _load_session_user():
@@ -59,7 +59,7 @@ def api_key_required(f):
             g.user_id = user['id']
             return f(*args, **kwargs)
 
-        from models import validate_api_key
+        from backend.models import validate_api_key
 
         api_key = request.headers.get('X-API-Key')
         user_id = validate_api_key(api_key)

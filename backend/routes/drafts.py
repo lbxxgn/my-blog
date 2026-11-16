@@ -1,8 +1,8 @@
 """草稿同步API路由"""
 from flask import Blueprint, request, jsonify, session
 from functools import wraps
-from logger import api_internal_error
-from models.draft import (
+from backend.logger import api_internal_error
+from backend.models.draft import (
     save_draft,
     get_drafts,
     get_draft,

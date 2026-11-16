@@ -7,10 +7,7 @@ Database Model Functions
 import sqlite3
 import logging
 import os
-from pathlib import Path
 from contextlib import contextmanager
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
 import backend.config as config
 
 # Setup logger

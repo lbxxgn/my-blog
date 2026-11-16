@@ -8,9 +8,9 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 # Add backend directory to path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from models import (
+from backend.models import (
     init_db, create_post, create_category,
     get_all_categories, get_db_context
 )

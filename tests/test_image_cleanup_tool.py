@@ -1,12 +1,9 @@
 """Tests for image cleanup tool"""
 import sqlite3
-from pathlib import Path
 from unittest.mock import patch
+import backend.image_cleanup_tool as image_cleanup_tool
 
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))
 
-import image_cleanup_tool
 
 
 class TestCleanLocalImages:
@@ -47,7 +44,7 @@ class TestCleanLocalImages:
             mock_conn.row_factory = sqlite3.Row
             mock_get_ctx.return_value.__enter__.return_value = mock_conn
 
-            with patch('image_cleanup_tool.CleanupLogger'):
+            with patch('backend.image_cleanup_tool.CleanupLogger'):
                 result = image_cleanup_tool.clean_local_images(dry_run=True)
 
         assert result['total_posts'] == 1
@@ -122,9 +119,9 @@ class TestFastCleanInvalidDomains:
 class TestCheckExternalImages:
     """Test checking external images"""
 
-    @patch('image_cleanup_tool.get_db_context')
-    @patch('image_cleanup_tool.extract_images_from_content')
-    @patch('image_cleanup_tool.check_image_urls_with_progress')
+    @patch('backend.image_cleanup_tool.get_db_context')
+    @patch('backend.image_cleanup_tool.extract_images_from_content')
+    @patch('backend.image_cleanup_tool.check_image_urls_with_progress')
     def test_check_external_images_no_posts(self, mock_check_urls, mock_extract, mock_get_ctx, tmp_path):
         """Test checking with no posts"""
         db_path = tmp_path / 'test.db'
@@ -146,9 +143,9 @@ class TestCheckExternalImages:
 
         mock_print.assert_any_call('✅ 没有找到外部图片URL')
 
-    @patch('image_cleanup_tool.get_db_context')
-    @patch('image_cleanup_tool.extract_images_from_content')
-    @patch('image_cleanup_tool.check_image_urls_with_progress')
+    @patch('backend.image_cleanup_tool.get_db_context')
+    @patch('backend.image_cleanup_tool.extract_images_from_content')
+    @patch('backend.image_cleanup_tool.check_image_urls_with_progress')
     def test_check_external_images_with_urls(self, mock_check_urls, mock_extract, mock_get_ctx, tmp_path):
         """Test checking with external URLs"""
         db_path = tmp_path / 'test.db'
@@ -176,7 +173,7 @@ class TestCheckExternalImages:
 class TestMainFunction:
     """Test main function argument parsing"""
 
-    @patch('image_cleanup_tool.clean_local_images')
+    @patch('backend.image_cleanup_tool.clean_local_images')
     def test_main_local_mode(self, mock_clean):
         """Test local mode"""
         mock_clean.return_value = {'invalid_images': 5}
@@ -187,7 +184,7 @@ class TestMainFunction:
 
         mock_clean.assert_called_once()
 
-    @patch('image_cleanup_tool.clean_all_images')
+    @patch('backend.image_cleanup_tool.clean_all_images')
     def test_main_all_mode(self, mock_clean):
         """Test all mode"""
         mock_clean.return_value = {'invalid_images': 0}
@@ -198,7 +195,7 @@ class TestMainFunction:
 
         mock_clean.assert_called_once()
 
-    @patch('image_cleanup_tool.fast_clean_invalid_domains')
+    @patch('backend.image_cleanup_tool.fast_clean_invalid_domains')
     def test_main_fast_clean_mode(self, mock_clean):
         """Test fast-clean mode"""
         mock_clean.return_value = {'total_posts': 10}
@@ -209,7 +206,7 @@ class TestMainFunction:
 
         mock_clean.assert_called_once()
 
-    @patch('image_cleanup_tool.check_external_images')
+    @patch('backend.image_cleanup_tool.check_external_images')
     def test_main_check_external_mode(self, mock_check):
         """Test check-external mode"""
         with patch('sys.argv', ['image_cleanup_tool', 'check-external']):

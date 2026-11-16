@@ -4,9 +4,6 @@ Card Model Functions
 知识库卡片 CRUD、合并与时间线，以及卡片标注（annotations）。
 """
 
-from pathlib import Path
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
 
 from .db import get_db_context
 
@@ -327,7 +324,7 @@ def ai_merge_cards_to_post(card_ids, user_id, user_config, merge_style='comprehe
     Returns:
         dict: 包含 post_id, title, content, outline, tags, tokens_used
     """
-    from ai_services.card_merger import AICardMerger
+    from backend.ai_services.card_merger import AICardMerger
 
     # Use AI to merge
     ai_result = AICardMerger.merge_cards(
@@ -438,7 +435,7 @@ def get_annotations_by_url(user_id, source_url):
 def _enqueue_card_embedding(card_id):
     """保存后异步更新向量"""
     try:
-        from tasks.embedding_task import enqueue_embedding
+        from backend.tasks.embedding_task import enqueue_embedding
         enqueue_embedding('card', card_id)
     except Exception:
         pass
@@ -446,7 +443,7 @@ def _enqueue_card_embedding(card_id):
 def _remove_card_embedding(card_id):
     """删除卡片时清理向量"""
     try:
-        from tasks.embedding_task import remove_embedding
+        from backend.tasks.embedding_task import remove_embedding
         remove_embedding('card', card_id)
     except Exception:
         pass

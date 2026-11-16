@@ -35,7 +35,7 @@ def get_embedding_config(user_id):
         return None
 
     # 延迟导入，避免 ai_services <-> models 循环依赖
-    from models import get_db_context
+    from backend.models import get_db_context
 
     with get_db_context() as conn:
         try:
@@ -61,7 +61,7 @@ def get_embedding_config(user_id):
         raw_key = row['ai_embedding_api_key']
         if raw_key and not is_encrypted(raw_key):
             try:
-                from models import get_db_context
+                from backend.models import get_db_context
                 with get_db_context() as upgrade_conn:
                     upgrade_conn.execute(
                         'UPDATE users SET ai_embedding_api_key = ? WHERE id = ?',
@@ -90,7 +90,7 @@ def update_embedding_config(user_id, data):
     Returns:
         bool: 是否有字段被更新
     """
-    from models import get_db_context
+    from backend.models import get_db_context
 
     updates = []
     params = []
@@ -121,7 +121,7 @@ def update_embedding_config(user_id, data):
 
     # 启用状态变化后，立即失效任务队列的“是否有用户启用”缓存
     try:
-        from tasks.embedding_task import reset_enabled_cache
+        from backend.tasks.embedding_task import reset_enabled_cache
         reset_enabled_cache()
     except Exception:
         pass

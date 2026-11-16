@@ -1,5 +1,5 @@
-"""utils.markdown_renderer 单元测试：Markdown 渲染 + XSS 清洗。"""
-from utils.markdown_renderer import render_content, render_html, render_markdown
+"""backend.utils.markdown_renderer 单元测试：Markdown 渲染 + XSS 清洗。"""
+from backend.utils.markdown_renderer import render_content, render_html, render_markdown
 
 
 class TestRenderMarkdown:

@@ -190,8 +190,8 @@ generate_manifest() {
         source .venv/bin/activate
         python3 -c "
 import sys
-sys.path.insert(0, 'backend')
-from utils.asset_version import AssetVersionManager
+sys.path.insert(0, '.')
+from backend.utils.asset_version import AssetVersionManager
 manager = AssetVersionManager('static')
 manager.regenerate()
 print('Manifest生成完成')
@@ -287,8 +287,8 @@ verify_upgrade() {
 
     tables_exist=$(python3 -c "
 import sys
-sys.path.insert(0, 'backend')
-from models import get_db_connection
+sys.path.insert(0, '.')
+from backend.models import get_db_connection
 conn = get_db_connection()
 cursor = conn.cursor()
 cursor.execute(\"\"\"

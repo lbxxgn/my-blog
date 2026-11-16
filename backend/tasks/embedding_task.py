@@ -63,7 +63,7 @@ def _any_embedding_enabled():
 
     value = False
     try:
-        from models import get_db_context
+        from backend.models import get_db_context
         with get_db_context() as conn:
             row = conn.execute(
                 'SELECT COUNT(*) AS c FROM users WHERE ai_embedding_enabled = 1'
@@ -100,7 +100,7 @@ def enqueue_embedding(source_type, source_id):
 def remove_embedding(source_type, source_id):
     """同步删除向量记录（实体删除时调用，绝不抛异常）"""
     try:
-        from models.embeddings import delete_embedding
+        from backend.models.embeddings import delete_embedding
         delete_embedding(source_type, source_id)
     except Exception as e:
         logger.warning(f"remove_embedding({source_type}, {source_id}) failed: {e}")
@@ -115,7 +115,7 @@ def _load_entity(source_type, source_id):
     由调用方负责清理旧类型下的残留向量）。
     """
 
-    from models import get_db_context
+    from backend.models import get_db_context
 
     with get_db_context() as conn:
         try:
@@ -165,8 +165,8 @@ def process_embedding(source_type, source_id):
         bool: 实际写入向量返回 True；各种跳过/失败返回 False
     """
     try:
-        from ai_services.embeddings import embed_text, get_embedding_config
-        from models.embeddings import get_embedding, upsert_embedding
+        from backend.ai_services.embeddings import embed_text, get_embedding_config
+        from backend.models.embeddings import get_embedding, upsert_embedding
 
         entity = _load_entity(source_type, source_id)
         if not entity:

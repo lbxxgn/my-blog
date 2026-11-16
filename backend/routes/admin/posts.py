@@ -2,15 +2,15 @@
 
 from flask import render_template, request, redirect, url_for, session, flash, jsonify
 
-from models import (
+from backend.models import (
     get_all_posts, get_all_post_ids, get_post_by_id, create_post, update_post, get_all_categories, set_post_tags, get_db_context, get_all_users, get_all_tags,
     get_post_revisions, get_post_revision, restore_post_revision,
     soft_delete_post, get_deleted_posts, restore_deleted_post, purge_deleted_post,
 )
-from auth_decorators import login_required, can_edit_post, can_delete_post, role_required, get_current_user
-from logger import log_operation, api_internal_error
+from backend.auth_decorators import login_required, can_edit_post, can_delete_post, role_required, get_current_user
+from backend.logger import log_operation, api_internal_error
 from backend.config import UPLOAD_FOLDER
-from utils.markdown_renderer import render_content, render_markdown
+from backend.utils.markdown_renderer import render_content, render_markdown
 import re
 import threading
 from datetime import datetime
@@ -69,7 +69,7 @@ def convert_content_format():
         content = data.get('content', '')
         target = _normalize_content_format(data.get('to'))
         if target == 'markdown':
-            from models.knowledge import html_to_markdown
+            from backend.models.knowledge import html_to_markdown
             converted = html_to_markdown(content)
         else:
             converted = render_markdown(content)
@@ -125,7 +125,7 @@ def image_optimization_status(optimization_id):
 def admin_dashboard():
     """管理仪表板 - 列出所有文章包括草稿"""
     try:
-        from models import publish_due_posts
+        from backend.models import publish_due_posts
         publish_due_posts()
     except Exception:
         pass

@@ -1,7 +1,7 @@
 """首页/归档/分类/标签/作者（blog 蓝图子模块）。"""
 
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
-from models import (
+from backend.models import (
     get_all_posts, get_all_posts_cursor, get_all_categories, get_category_by_id, get_all_tags,
     get_tag_by_id, get_posts_by_tag, get_posts_by_author, get_user_by_id,
     get_popular_tags, sanitize_posts_for_viewer,
@@ -23,7 +23,7 @@ def index():
     模板可通过 post.type 判断内容类型并选择不同的渲染方式。
     """
     try:
-        from models import publish_due_posts
+        from backend.models import publish_due_posts
         publish_due_posts()
     except Exception:
         pass
@@ -138,7 +138,7 @@ def archive():
     - year: 指定年份
     - month: 指定月份
     """
-    from models import get_db_context
+    from backend.models import get_db_context
     from flask import render_template
 
     days = request.args.get('days', type=int)

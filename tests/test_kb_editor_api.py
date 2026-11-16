@@ -38,7 +38,7 @@ class TestKbImageUpload:
         self._login(client, test_admin_user)
         # The blueprint is imported as ``routes.knowledge`` at runtime.
         monkeypatch.setattr(
-            "routes.knowledge.UPLOAD_FOLDER", tmp_path / "uploads"
+            "backend.routes.knowledge.UPLOAD_FOLDER", tmp_path / "uploads"
         )
 
         resp = client.post(

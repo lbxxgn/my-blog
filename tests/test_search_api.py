@@ -52,10 +52,10 @@ def configured_embedding(monkeypatch):
     """mock 已启用且可用的 embedding 配置"""
     config = {'enabled': True, 'base_url': 'https://example.com/v1',
               'api_key': 'test-key', 'model': 'test-model'}
-    monkeypatch.setattr('routes.search_helpers.get_embedding_config',
+    monkeypatch.setattr('backend.routes.search_helpers.get_embedding_config',
                         lambda user_id: config)
     # 查询向量固定为 [1.0, 0.0]
-    monkeypatch.setattr('routes.search_helpers.embed_text',
+    monkeypatch.setattr('backend.routes.search_helpers.embed_text',
                         lambda text, config: [1.0, 0.0])
     return config
 
@@ -63,7 +63,7 @@ def configured_embedding(monkeypatch):
 @pytest.fixture
 def search_data(temp_db, test_user):
     """预置搜索数据：文章、知识库文档、卡片、批注"""
-    from models import get_db_connection
+    from backend.models import get_db_connection
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -163,7 +163,7 @@ class TestUnifiedSearchApi:
         assert data['posts'] == [] and data['docs'] == []
 
     def test_limit_applies_per_group(self, client, test_user):
-        from models import get_db_connection
+        from backend.models import get_db_connection
         _login(client, test_user)
         conn = get_db_connection()
         for i in range(8):
@@ -226,7 +226,7 @@ class TestSemanticSearchApi:
         def _broken(text, config):
             raise RuntimeError('connection refused by upstream')
 
-        monkeypatch.setattr('routes.search_helpers.embed_text', _broken)
+        monkeypatch.setattr('backend.routes.search_helpers.embed_text', _broken)
         resp = client.get('/api/search/semantic?q=flask')
         assert resp.status_code == 502
         data = resp.get_json()
@@ -294,7 +294,7 @@ class TestRelatedApi:
 
     def test_related_excludes_short_entities(self, client, test_user,
                                              embeddings_table, configured_embedding):
-        from models import get_db_connection
+        from backend.models import get_db_connection
         _login(client, test_user)
         conn = get_db_connection()
         cur = conn.cursor()
@@ -327,7 +327,7 @@ class TestRelatedApi:
         def _broken(text, config):
             raise ValueError('bad api key')
 
-        monkeypatch.setattr('routes.search_helpers.embed_text', _broken)
+        monkeypatch.setattr('backend.routes.search_helpers.embed_text', _broken)
         resp = client.post('/api/related', data=json.dumps(self._payload()),
                            content_type='application/json')
         assert resp.status_code == 502
@@ -373,7 +373,7 @@ class TestSearchPageSemantic:
 def test_semantic_search_applies_viewer_visibility(client, search_data,
                                                    embeddings_table, configured_embedding):
     """他人私密文章应隐藏；密码文章只返回标题；他人未发布文档应隐藏。"""
-    from models import create_post, create_user
+    from backend.models import create_post, create_user
     from werkzeug.security import generate_password_hash
 
     other_id = create_user(

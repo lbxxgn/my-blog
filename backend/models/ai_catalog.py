@@ -17,11 +17,11 @@ import sqlite3
 from typing import Any, Dict, List, Optional
 
 from .db import get_db_context
-from ai_services.provider_defaults import (
+from backend.ai_services.provider_defaults import (
     DEFAULT_CATALOG,
     currency_symbol,
 )
-from ai_services.url_guard import UnsafeBaseUrlError, validate_ai_base_url
+from backend.ai_services.url_guard import UnsafeBaseUrlError, validate_ai_base_url
 
 __all__ = [
     'CatalogError',

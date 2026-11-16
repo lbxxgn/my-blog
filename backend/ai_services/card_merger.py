@@ -38,7 +38,7 @@ class AICardMerger:
                 - tags: Generated tags
                 - tokens_used: Token count
         """
-        from models import get_cards_by_user
+        from backend.models import get_cards_by_user
 
         # Get cards
         all_cards = get_cards_by_user(user_id)

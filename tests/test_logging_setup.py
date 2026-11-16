@@ -5,8 +5,8 @@ from pathlib import Path
 
 from flask import Flask
 
-import logger as log_module
-from logger import setup_logging
+import backend.logger as log_module
+from backend.logger import setup_logging
 
 
 def _read(path):
@@ -42,9 +42,9 @@ def test_logs_are_routed_by_type():
     app = Flask(__name__)
     setup_logging(app)
 
-    logging.getLogger('services.demo').info('demo-info')
-    logging.getLogger('services.demo').warning('demo-warning')
-    logging.getLogger('services.demo').error('demo-error')
+    logging.getLogger('backend.services.demo').info('demo-info')
+    logging.getLogger('backend.services.demo').warning('demo-warning')
+    logging.getLogger('backend.services.demo').error('demo-error')
     log_module.log_sql('demo_op', 'SELECT 1')
     log_module.log_login('alice')
     log_module.log_operation(1, 'alice', 'demo-action')

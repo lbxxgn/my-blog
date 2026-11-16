@@ -1,7 +1,7 @@
 """搜索（关键词 / 语义）（blog 蓝图子模块）。"""
 
 from flask import render_template, request, session
-from models import (
+from backend.models import (
     search_posts,
     sanitize_posts_for_viewer,
     search_knowledge_docs,
@@ -52,7 +52,7 @@ def search():
             query, viewer_id=user_id, viewer_role=session.get('role'),
             page=1, per_page=20,
         )
-        from routes.search_helpers import search_cards_and_annotations
+        from backend.routes.search_helpers import search_cards_and_annotations
         extra = search_cards_and_annotations(user_id, query, limit=20)
         card_results = extra['cards']
         annotation_results = extra['annotations']
@@ -90,7 +90,7 @@ def search():
 
 def _search_semantic(query, source):
     """语义搜索页：结果按相似度降序，不做分页与高亮"""
-    from routes.search_helpers import (
+    from backend.routes.search_helpers import (
         EmbeddingApiError,
         EmbeddingNotConfigured,
         is_embedding_configured,

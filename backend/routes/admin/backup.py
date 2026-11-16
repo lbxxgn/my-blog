@@ -22,8 +22,8 @@ from flask_wtf.csrf import validate_csrf
 from werkzeug.exceptions import RequestEntityTooLarge
 from wtforms.validators import ValidationError
 
-from auth_decorators import admin_required
-from logger import log_error, log_operation
+from backend.auth_decorators import admin_required
+from backend.logger import log_error, log_operation
 from backend.services import backup as backup_service
 
 from . import admin_bp

@@ -6,9 +6,9 @@ import os
 import shutil
 from pathlib import Path
 
-from auth_decorators import admin_required, role_required
+from backend.auth_decorators import admin_required, role_required
 from backend.config import BASE_DIR
-from logger import log_operation, log_error
+from backend.logger import log_operation, log_error
 
 
 from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401
@@ -59,7 +59,7 @@ def export_page():
 def export_markdown():
     """导出所有文章为Markdown文件"""
     try:
-        from export import export_all_posts_to_markdown
+        from backend.export import export_all_posts_to_markdown
         count, path = export_all_posts_to_markdown()
         log_operation(session.get('user_id'), session.get('username'), f'导出 {count} 篇文章为 Markdown')
         archive_path = shutil.make_archive(path, 'zip', root_dir=path)
@@ -79,7 +79,7 @@ def export_markdown():
 def export_json():
     """导出所有文章为JSON"""
     try:
-        from export import export_to_json
+        from backend.export import export_to_json
         count, path = export_to_json()
         log_operation(session.get('user_id'), session.get('username'), f'导出 {count} 篇文章为 JSON')
         return send_file(
@@ -98,7 +98,7 @@ def export_json():
 def export_full():
     """导出完整 ZIP：JSON 全字段 + 上传图片。"""
     try:
-        from export import export_full_archive
+        from backend.export import export_full_archive
         count, path = export_full_archive()
         log_operation(session.get('user_id'), session.get('username'), f'完整导出 {count} 篇文章（含图片）')
         return send_file(path, mimetype='application/zip', as_attachment=True,
@@ -114,7 +114,7 @@ def export_full():
 def export_knowledge():
     """单独导出知识库空间（JSON + 图片 ZIP）。"""
     try:
-        from export import export_full_archive
+        from backend.export import export_full_archive
         count, path = export_full_archive(post_type='knowledge')
         log_operation(session.get('user_id'), session.get('username'), f'导出知识库 {count} 篇')
         return send_file(path, mimetype='application/zip', as_attachment=True,
@@ -166,7 +166,7 @@ def import_json():
             json_path = str(candidates[0])
             images_dir = Path(extract_dir) / 'images'
 
-        from import_posts import import_from_json
+        from backend.import_posts import import_from_json
         count, skipped, messages = import_from_json(json_path, user_id, dry_run=dry_run)
         if images_dir:
             image_count = _copy_import_images(images_dir, dry_run=dry_run)
@@ -213,7 +213,7 @@ def import_markdown():
             posts_dir = os.path.join(extract_dir, 'posts')
             if not os.path.exists(posts_dir):
                 posts_dir = extract_dir
-            from import_posts import import_from_markdown_directory
+            from backend.import_posts import import_from_markdown_directory
             count, skipped, messages = import_from_markdown_directory(posts_dir, user_id, dry_run=dry_run)
             image_count = _copy_import_images(Path(extract_dir) / 'images', dry_run=dry_run)
             if image_count:

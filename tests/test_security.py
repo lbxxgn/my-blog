@@ -282,7 +282,7 @@ class TestProtectedContentDisclosure:
     """受保护文章内容/密码不得通过公开接口泄露"""
 
     def _make_password_post(self, owner_id):
-        from models import create_post
+        from backend.models import create_post
         return create_post(
             title='Secret password post',
             content='TOP-SECRET-BODY',
@@ -294,7 +294,7 @@ class TestProtectedContentDisclosure:
 
     def test_api_posts_hides_password_and_body(self, client, temp_db, test_user):
         """匿名 /api/posts 不得返回 access_password，且受限文章正文应为空"""
-        from app import cache
+        from backend.app import cache
         cache.clear()
         self._make_password_post(test_user['id'])
 
@@ -326,8 +326,8 @@ class TestProtectedContentDisclosure:
 
     def test_private_post_hidden_from_anonymous_listing(self, client, temp_db, test_user):
         """私密文章不应出现在匿名列表中"""
-        from app import cache
-        from models import create_post
+        from backend.app import cache
+        from backend.models import create_post
         cache.clear()
         create_post(
             title='Private listing post',
@@ -345,7 +345,7 @@ class TestStoredXssTagNames:
     """标签/分类名中的脚本片段不得逃逸出内联 <script>"""
 
     def test_tag_name_script_is_escaped(self, client, temp_db):
-        from models import create_tag
+        from backend.models import create_tag
         create_tag('</script><script>alert(1)</script>')
 
         html = client.get('/').get_data(as_text=True)
@@ -357,7 +357,7 @@ class TestObjectLevelAccess:
     """对象级访问控制：禁止操作他人内容"""
 
     def _make_other_author(self):
-        from models import create_user
+        from backend.models import create_user
         from werkzeug.security import generate_password_hash
         return create_user(
             'other_author',
@@ -366,7 +366,7 @@ class TestObjectLevelAccess:
         )
 
     def test_precipitate_other_users_private_post_forbidden(self, client, temp_db, test_user):
-        from models import create_post
+        from backend.models import create_post
 
         post_id = create_post(
             title='Owner private post',

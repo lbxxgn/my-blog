@@ -12,13 +12,13 @@ import re
 import base64
 import json
 
-from models import (
+from backend.models import (
     get_user_by_username, get_user_by_id, get_user_passkeys,
     get_passkey_by_credential_id, create_user_passkey,
     update_user_passkey_usage, delete_user_passkey, update_user_password
 )
-from auth_decorators import login_required
-from logger import log_login
+from backend.auth_decorators import login_required
+from backend.logger import log_login
 from backend.config import PASSKEY_RP_NAME, PASSKEY_RP_ID, PASSKEY_ALLOWED_ORIGINS
 from webauthn import (
     generate_registration_options,

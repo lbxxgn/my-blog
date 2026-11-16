@@ -11,7 +11,7 @@ from tests.test_p1_features import _login
 @pytest.mark.usefixtures('client')
 class TestAiStatusAndCostRemoval:
     def test_ai_status_reports_configured(self, client, temp_db, test_user):
-        from models import update_user_ai_config
+        from backend.models import update_user_ai_config
         _login(client, test_user)
         data = client.get('/admin/ai/status').get_json()
         assert data['ai_configured'] is False
@@ -45,7 +45,7 @@ class TestSiteAndEditEntry:
         assert manifest['name'] == '新站名'
 
     def test_post_page_shows_edit_link_for_author(self, client, temp_db, test_user):
-        from models import create_post
+        from backend.models import create_post
         post_id = create_post('Editable', 'body', True, None, test_user['id'])
         _login(client, test_user)
         page = client.get(f'/post/{post_id}').get_data(as_text=True)
@@ -59,7 +59,7 @@ class TestSiteAndEditEntry:
 @pytest.mark.usefixtures('client')
 class TestBlogKnowledgeBridge:
     def test_precipitate_is_idempotent_and_backlinked(self, client, temp_db, test_user):
-        from models import create_post, create_kb_category, get_db_connection
+        from backend.models import create_post, create_kb_category, get_db_connection
         cat_id = create_kb_category('Bridge KB', space='knowledge')
         post_id = create_post('Bridge post', '<p>hello</p>', True, None, test_user['id'])
         _login(client, test_user)
@@ -78,7 +78,7 @@ class TestBlogKnowledgeBridge:
         assert '已沉淀到知识库' in page
 
     def test_doc_can_be_converted_to_blog_draft_once(self, client, temp_db, test_user):
-        from models import create_kb_category, create_knowledge_doc, get_db_connection
+        from backend.models import create_kb_category, create_knowledge_doc, get_db_connection
         cat_id = create_kb_category('Bridge KB 2', space='knowledge')
         doc_id = create_knowledge_doc('Doc to blog', 'markdown body', cat_id, author_id=test_user['id'])
         _login(client, test_user)
@@ -97,7 +97,7 @@ class TestBlogKnowledgeBridge:
 @pytest.mark.usefixtures('client')
 class TestUnifiedSearch:
     def test_all_source_includes_docs_cards_annotations(self, client, temp_db, test_user):
-        from models import create_post, create_kb_category, create_knowledge_doc, create_card, create_annotation
+        from backend.models import create_post, create_kb_category, create_knowledge_doc, create_card, create_annotation
         create_post('flask blog', 'flask body', True, None, test_user['id'])
         cat_id = create_kb_category('Search KB', space='knowledge')
         create_knowledge_doc('flask doc', 'flask doc body', cat_id, author_id=test_user['id'])
@@ -116,8 +116,8 @@ class TestUnifiedSearch:
 @pytest.mark.usefixtures('client')
 class TestExportImport:
     def test_json_export_contains_full_fields(self, temp_db, test_user, tmp_path):
-        from models import create_post
-        import export
+        import backend.export as export
+        from backend.models import create_post
         create_post('Full fields', 'body', True, None, test_user['id'], access_level='private',
                     post_type='knowledge', content_format='markdown')
         count, path = export.export_to_json(str(tmp_path))
@@ -128,8 +128,8 @@ class TestExportImport:
             assert key in item
 
     def test_dry_run_import_does_not_write(self, temp_db, test_user, tmp_path):
-        from models import create_post, get_db_connection
-        from import_posts import import_from_json
+        from backend.models import create_post, get_db_connection
+        from backend.import_posts import import_from_json
         create_post('Existing post', 'body', True, None, test_user['id'])
         payload = {'posts': [{
             'title': 'Preview only', 'content': 'body', 'is_published': 1,
@@ -146,8 +146,8 @@ class TestExportImport:
         assert count == 0
 
     def test_full_export_zip_contains_json_and_images(self, temp_db, test_user, tmp_path, monkeypatch):
-        from models import create_post
-        import export
+        import backend.export as export
+        from backend.models import create_post
         uploads = tmp_path / 'static' / 'uploads' / 'images'
         uploads.mkdir(parents=True)
         (uploads / 'demo.jpg').write_bytes(b'jpg')
@@ -172,7 +172,7 @@ class TestExportImport:
 @pytest.mark.usefixtures('client')
 class TestKnowledgeTreeCompletion:
     def test_category_delete_requires_target_when_docs_exist(self, client, temp_db, test_admin_user):
-        from models import create_kb_category, create_knowledge_doc, get_category_by_id, get_knowledge_doc
+        from backend.models import create_kb_category, create_knowledge_doc, get_category_by_id, get_knowledge_doc
         source = create_kb_category('Move source', space='knowledge')
         target = create_kb_category('Move target', space='knowledge')
         doc_id = create_knowledge_doc('Movable doc', 'body', source, author_id=test_admin_user['id'])
@@ -188,7 +188,7 @@ class TestKnowledgeTreeCompletion:
         assert get_knowledge_doc(doc_id)['category_id'] == target
 
     def test_tree_renders_document_drag_handle(self, client, temp_db, test_admin_user):
-        from models import create_kb_category, create_knowledge_doc
+        from backend.models import create_kb_category, create_knowledge_doc
         cat_id = create_kb_category('Drag cat', space='knowledge')
         create_knowledge_doc('Drag doc', 'body', cat_id, author_id=test_admin_user['id'])
         _login(client, test_admin_user)

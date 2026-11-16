@@ -27,7 +27,7 @@ def embedding_db(temp_db):
     from backend.migrations.migrate_embeddings import migrate
     assert migrate() is True
 
-    from tasks.embedding_task import reset_enabled_cache
+    from backend.tasks.embedding_task import reset_enabled_cache
     reset_enabled_cache()
     yield temp_db
     reset_enabled_cache()
@@ -36,7 +36,7 @@ def embedding_db(temp_db):
 @pytest.fixture
 def mock_embed_text():
     """mock ai_services.embeddings.embed_text，禁止任何真实 API 调用"""
-    with mock.patch('ai_services.embeddings.embed_text',
+    with mock.patch('backend.ai_services.embeddings.embed_text',
                     return_value=list(MOCK_VECTOR)) as m:
         yield m
 
@@ -44,8 +44,8 @@ def mock_embed_text():
 @pytest.fixture
 def embedding_user(embedding_db):
     """创建了启用 Embedding 的普通用户"""
-    from models import create_user
-    from ai_services.embeddings import update_embedding_config
+    from backend.models import create_user
+    from backend.ai_services.embeddings import update_embedding_config
 
     user_id = create_user('emb_user', 'fake-hash', role='author')
     update_embedding_config(user_id, {
@@ -57,7 +57,7 @@ def embedding_user(embedding_db):
 
 def _wait_for_embedding(source_type, source_id, timeout=5.0):
     """轮询等待后台 worker 写入向量"""
-    from models.embeddings import get_embedding
+    from backend.models.embeddings import get_embedding
     deadline = time.time() + timeout
     while time.time() < deadline:
         record = get_embedding(source_type, source_id)
@@ -98,7 +98,7 @@ class TestMigration009:
 
     def test_unique_constraint(self, embedding_db):
         """(source_type, source_id) 唯一"""
-        from models.embeddings import get_embedding, upsert_embedding
+        from backend.models.embeddings import get_embedding, upsert_embedding
         upsert_embedding('post', 1, [1.0, 0.0], model='m1')
         upsert_embedding('post', 1, [0.0, 1.0], model='m2')  # 应更新而非插入
 
@@ -117,7 +117,7 @@ class TestEmbeddingModel:
     """models/embeddings 的 CRUD 与相似度检索"""
 
     def test_upsert_and_get(self, embedding_db):
-        from models.embeddings import get_embedding, upsert_embedding
+        from backend.models.embeddings import get_embedding, upsert_embedding
 
         upsert_embedding('post', 1, [1.0, 0.0, 0.0], model='m1', content_hash='h1')
         record = get_embedding('post', 1)
@@ -132,11 +132,11 @@ class TestEmbeddingModel:
         assert record['vector'] == pytest.approx([0.0, 1.0, 0.0])
 
     def test_get_missing_returns_none(self, embedding_db):
-        from models.embeddings import get_embedding
+        from backend.models.embeddings import get_embedding
         assert get_embedding('card', 999) is None
 
     def test_delete(self, embedding_db):
-        from models.embeddings import delete_embedding, get_embedding, upsert_embedding
+        from backend.models.embeddings import delete_embedding, get_embedding, upsert_embedding
 
         upsert_embedding('card', 5, [1.0, 0.0], model='m1')
         assert delete_embedding('card', 5) is True
@@ -144,13 +144,13 @@ class TestEmbeddingModel:
         assert delete_embedding('card', 5) is False  # 已删除，幂等
 
     def test_invalid_source_type_rejected(self, embedding_db):
-        from models.embeddings import upsert_embedding
+        from backend.models.embeddings import upsert_embedding
         with pytest.raises(ValueError):
             upsert_embedding('bogus', 1, [1.0])
 
     def test_search_similar_order_and_scores(self, embedding_db):
         """top-k 顺序与余弦相似度正确性"""
-        from models.embeddings import search_similar, upsert_embedding
+        from backend.models.embeddings import search_similar, upsert_embedding
 
         upsert_embedding('post', 1, [1.0, 0.0, 0.0], model='m')
         upsert_embedding('post', 2, [0.9, 0.1, 0.0], model='m')
@@ -169,7 +169,7 @@ class TestEmbeddingModel:
         assert results[3][2] == pytest.approx(-1.0)
 
     def test_search_similar_top_k(self, embedding_db):
-        from models.embeddings import search_similar, upsert_embedding
+        from backend.models.embeddings import search_similar, upsert_embedding
 
         for i in range(5):
             upsert_embedding('post', i + 1, [1.0, i * 0.01], model='m')
@@ -180,7 +180,7 @@ class TestEmbeddingModel:
         assert results[0] == ('post', 1, pytest.approx(1.0))
 
     def test_search_similar_source_type_filter(self, embedding_db):
-        from models.embeddings import search_similar, upsert_embedding
+        from backend.models.embeddings import search_similar, upsert_embedding
 
         upsert_embedding('post', 1, [1.0, 0.0], model='m')
         upsert_embedding('card', 2, [1.0, 0.0], model='m')
@@ -190,7 +190,7 @@ class TestEmbeddingModel:
         assert {(st, sid) for st, sid, _ in results} == {('card', 2), ('doc', 3)}
 
     def test_search_similar_empty_table(self, embedding_db):
-        from models.embeddings import search_similar
+        from backend.models.embeddings import search_similar
         assert search_similar([1.0, 0.0]) == []
 
 
@@ -199,8 +199,8 @@ class TestEmbeddingTask:
 
     def test_enqueue_noop_when_globally_disabled(self, embedding_db, mock_embed_text, test_user):
         """无任何用户启用时，enqueue 快速返回 None（连 worker 都不启动）"""
-        from models import create_post
-        from tasks.embedding_task import enqueue_embedding
+        from backend.models import create_post
+        from backend.tasks.embedding_task import enqueue_embedding
 
         post_id = create_post(title='T', content='C', author_id=test_user['id'])
         assert enqueue_embedding('post', post_id) is None
@@ -208,7 +208,7 @@ class TestEmbeddingTask:
 
     def test_process_writes_vector_when_enabled(self, embedding_db, mock_embed_text, embedding_user):
         """启用后保存文章，钩子触发后台生成向量"""
-        from models import create_post
+        from backend.models import create_post
 
         post_id = create_post(title='Hello', content='World content', author_id=embedding_user)
 
@@ -221,9 +221,9 @@ class TestEmbeddingTask:
 
     def test_skip_when_content_unchanged(self, embedding_db, mock_embed_text, test_user):
         """内容未变（content_hash 与模型一致）时跳过，不重复调用 API"""
-        from models import create_post
-        from ai_services.embeddings import update_embedding_config
-        from tasks.embedding_task import enqueue_embedding
+        from backend.models import create_post
+        from backend.ai_services.embeddings import update_embedding_config
+        from backend.tasks.embedding_task import enqueue_embedding
 
         # 未启用时创建（钩子在快速路径返回），避免后台线程竞争
         post_id = create_post(title='T1', content='Body', author_id=test_user['id'])
@@ -246,8 +246,8 @@ class TestEmbeddingTask:
 
     def test_reembed_when_content_changes(self, embedding_db, mock_embed_text, embedding_user):
         """内容变化后重新生成向量"""
-        from models import create_post, update_post
-        from models.embeddings import get_embedding
+        from backend.models import create_post, update_post
+        from backend.models.embeddings import get_embedding
 
         post_id = create_post(title='T2', content='Old body', author_id=embedding_user)
         assert _wait_for_embedding('post', post_id) is not None
@@ -267,10 +267,10 @@ class TestEmbeddingTask:
 
     def test_knowledge_doc_uses_doc_source_type(self, embedding_db, mock_embed_text, test_user):
         """post_type='knowledge' 的文章归入 'doc' 类型"""
-        from models import create_post
-        from ai_services.embeddings import update_embedding_config
-        from models.embeddings import get_embedding
-        from tasks.embedding_task import enqueue_embedding
+        from backend.models import create_post
+        from backend.ai_services.embeddings import update_embedding_config
+        from backend.models.embeddings import get_embedding
+        from backend.tasks.embedding_task import enqueue_embedding
 
         post_id = create_post(title='Doc', content='Knowledge', author_id=test_user['id'],
                               post_type='knowledge')
@@ -287,10 +287,10 @@ class TestEmbeddingTask:
 
     def test_card_embedding_and_delete_hook(self, embedding_db, mock_embed_text, test_user):
         """卡片生成向量；删除卡片时钩子同步清理"""
-        from models import create_card, delete_card
-        from ai_services.embeddings import update_embedding_config
-        from models.embeddings import get_embedding
-        from tasks.embedding_task import enqueue_embedding
+        from backend.models import create_card, delete_card
+        from backend.ai_services.embeddings import update_embedding_config
+        from backend.models.embeddings import get_embedding
+        from backend.tasks.embedding_task import enqueue_embedding
 
         card_id = create_card(test_user['id'], 'Card title', 'Card content')
         update_embedding_config(test_user['id'], {
@@ -306,10 +306,10 @@ class TestEmbeddingTask:
         assert get_embedding('card', card_id) is None
 
     def test_delete_post_hook_removes_embedding(self, embedding_db, mock_embed_text, test_user):
-        from models import create_post, delete_post
-        from ai_services.embeddings import update_embedding_config
-        from models.embeddings import get_embedding
-        from tasks.embedding_task import enqueue_embedding
+        from backend.models import create_post, delete_post
+        from backend.ai_services.embeddings import update_embedding_config
+        from backend.models.embeddings import get_embedding
+        from backend.tasks.embedding_task import enqueue_embedding
 
         post_id = create_post(title='T3', content='To be deleted', author_id=test_user['id'])
         update_embedding_config(test_user['id'], {
@@ -326,10 +326,10 @@ class TestEmbeddingTask:
 
 
 class TestEmbeddingConfigService:
-    """ai_services.embeddings 的配置读写"""
+    """backend.ai_services.embeddings 的配置读写"""
 
     def test_config_roundtrip(self, embedding_db, test_user):
-        from ai_services.embeddings import get_embedding_config, update_embedding_config
+        from backend.ai_services.embeddings import get_embedding_config, update_embedding_config
 
         # 默认：未启用
         config = get_embedding_config(test_user['id'])
@@ -351,11 +351,11 @@ class TestEmbeddingConfigService:
         assert config['model'] == 'custom-model'
 
     def test_config_missing_user(self, embedding_db):
-        from ai_services.embeddings import get_embedding_config
+        from backend.ai_services.embeddings import get_embedding_config
         assert get_embedding_config(99999) is None
 
     def test_test_connection_without_key(self, embedding_db):
-        from ai_services.embeddings import test_embedding_connection
+        from backend.ai_services.embeddings import test_embedding_connection
         result = test_embedding_connection({'api_key': None})
         assert result['success'] is False
 
@@ -377,8 +377,8 @@ class TestRebuildEndpoint:
         assert response.status_code in (302, 401, 403)
 
     def test_rebuild_enqueues_all_content(self, client, embedding_db, mock_embed_text, test_admin_user):
-        from models import create_card, create_post
-        from ai_services.embeddings import update_embedding_config
+        from backend.models import create_card, create_post
+        from backend.ai_services.embeddings import update_embedding_config
 
         admin_id = test_admin_user['id']
         # 启用前先创建内容，避免钩子触发后台线程竞争

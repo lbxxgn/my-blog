@@ -4,8 +4,8 @@ import logging
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from image_processor import generate_image_sizes
-from models import get_db_context
+from backend.image_processor import generate_image_sizes
+from backend.models import get_db_context
 
 logger = logging.getLogger(__name__)
 

@@ -6,10 +6,10 @@ API路由
 
 from flask import Blueprint, request, jsonify, url_for, current_app, session
 
-from auth_decorators import login_required
-from models import get_all_posts_cursor, sanitize_posts_for_viewer
-from logger import api_internal_error
-from routes.search_helpers import (
+from backend.auth_decorators import login_required
+from backend.models import get_all_posts_cursor, sanitize_posts_for_viewer
+from backend.logger import api_internal_error
+from backend.routes.search_helpers import (
     EmbeddingApiError,
     EmbeddingNotConfigured,
     find_related,
@@ -134,7 +134,7 @@ def get_original_image_url():
     try:
         # 使用数据库查询替代目录遍历，提高性能
         import os
-        from models import get_db_context
+        from backend.models import get_db_context
 
         with get_db_context() as conn:
             cursor = conn.cursor()

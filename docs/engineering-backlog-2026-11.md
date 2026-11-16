@@ -13,6 +13,7 @@
 - 修复 drafts 遗留唯一索引（迁移 014）。
 - 测试库改为 `init_db + 迁移` 生成，测试不再手写 DDL。
 - 移除 40 个重复 legacy 别名路由，模板统一使用 blueprint endpoint；保留 12 个旧客户端路径入口。
+- 导入统一为 `backend.*`，移除 `backend/` 的 `sys.path` 注入，消除 `models` / `backend.models` 双模块身份。
 - CI 增加前端构建、依赖缓存、依赖审计；拆分 dev 依赖；补 ruff 配置；pytest 不再强制覆盖率。
 
 ---
@@ -37,7 +38,7 @@
 | ID | 优先级 | 问题 | 证据 | 建议 | 验收标准 |
 |---|---|---|---|---|---|
 | BE-1 | 中 | 无 app factory；导入即启动调度器、做配置校验 | `backend/app.py:115,1133` | 引入 `create_app(config)`，副作用移到启动入口 | 测试可创建多个隔离 app |
-| BE-2 | 中 | `models` 与 `backend.models` 双身份，可能重复加载 | `backend/app.py:44`、文档 `from backend.models` | 统一 `backend.*` 绝对导入，移除 `sys.path` hack | 全仓库只有一种导入路径 |
+
 | BE-3 | 中 | 数据库连接/事务管理不统一，异常路径可能泄漏 | `get_db_connection` 125 处 vs `get_db_context` 77 处；`models/cards.py` 已修一处 | 全面改用 `get_db_context`，禁止裸 `commit/close` | 新增代码统一上下文管理器 |
 | BE-4 | 中 | `init_db` 与迁移双份 schema；gunicorn 启动不自动迁移 | `backend/models/db.py:110`、`backend/migrations/` | 迁移作为唯一 schema 来源；启动/升级脚本自动执行 | 空库 + 旧库均可自动升级 |
 | BE-5 | 中 | 后台任务为进程内 daemon 线程，多 worker 不一致、重启丢任务 | `backend/routes/review.py:202`、`admin/posts.py:298`、`services/backup.py:387` | 外置 RQ/Celery；或至少持久化任务 + 幂等 + 重试 | 重启不丢任务；多 worker 只执行一次 |

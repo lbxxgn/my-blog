@@ -15,11 +15,11 @@ import logging
 import re
 from datetime import datetime, timedelta
 
-from models import (
+from backend.models import (
     get_db_context, get_user_ai_config,
     create_kb_category, create_knowledge_doc, update_knowledge_doc,
 )
-from utils.timezone import LOCAL_OFFSET, local_now, utc_now
+from backend.utils.timezone import LOCAL_OFFSET, local_now, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -249,7 +249,7 @@ def _create_user_provider(user_id):
         return None
     if not ai_config.get('ai_api_key'):
         return None
-    from ai_services import TagGenerator
+    from backend.ai_services import TagGenerator
     return TagGenerator.create_provider(
         ai_config.get('ai_provider', 'dashscope'),
         ai_config['ai_api_key'],

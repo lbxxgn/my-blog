@@ -2,7 +2,7 @@
 
 import pytest
 
-from models import (
+from backend.models import (
     CatalogError,
     create_model,
     create_provider,
@@ -193,7 +193,7 @@ class TestCatalogStorage:
             _create_model(provider_id, input_price=-1)
 
     def test_tag_generator_uses_catalog_model_and_pricing(self, temp_db):
-        from ai_services import TagGenerator
+        from backend.ai_services import TagGenerator
 
         provider_id = _create_provider()
         _create_model(provider_id, input_price=0.001, output_price=0.002)
@@ -211,7 +211,7 @@ class TestCatalogStorage:
 
     def test_catalog_model_does_not_trigger_invalid_model_warning(
             self, temp_db, caplog):
-        from ai_services import TagGenerator
+        from backend.ai_services import TagGenerator
 
         deepseek = get_provider('deepseek')
         _create_model(
@@ -379,7 +379,7 @@ class TestCatalogRoutes:
         })
         assert response.status_code == 200
 
-        from models import get_user_ai_config
+        from backend.models import get_user_ai_config
         config = get_user_ai_config(test_admin_user['id'])
         assert config['ai_provider'] == 'deepseek'
         assert config['ai_model']

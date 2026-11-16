@@ -11,9 +11,9 @@ import re
 
 from flask import url_for
 
-from ai_services.embeddings import embed_text, get_embedding_config
-from models import get_db_context, get_user_by_id, post_listing_visibility
-from models.embeddings import search_similar
+from backend.ai_services.embeddings import embed_text, get_embedding_config
+from backend.models import get_db_context, get_user_by_id, post_listing_visibility
+from backend.models.embeddings import search_similar
 
 logger = logging.getLogger(__name__)
 

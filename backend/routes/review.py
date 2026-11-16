@@ -15,11 +15,11 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, current_app, jsonify, render_template, request, session
 
-from auth_decorators import login_required
-from logger import log_error
-from models import get_db_context, truncate_text
-from services import weekly_review as weekly_review_service
-from utils.timezone import LOCAL_OFFSET, local_now
+from backend.auth_decorators import login_required
+from backend.logger import log_error
+from backend.models import get_db_context, truncate_text
+from backend.services import weekly_review as weekly_review_service
+from backend.utils.timezone import LOCAL_OFFSET, local_now
 
 logger = logging.getLogger(__name__)
 

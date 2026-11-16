@@ -5,10 +5,10 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
 
-from models import (
+from backend.models import (
     create_optimized_image_record,
 )
-from auth_decorators import login_required, role_required, api_key_required
+from backend.auth_decorators import login_required, role_required, api_key_required
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 
 
@@ -117,8 +117,8 @@ def upload_image():
 
     # 记录到数据库并触发后台优化
     try:
-        from image_processor import get_image_hash
-        from tasks.image_optimization_task import queue_image_optimization
+        from backend.image_processor import get_image_hash
+        from backend.tasks.image_optimization_task import queue_image_optimization
 
         image_hash = get_image_hash(str(original_path))
         optimization_id = create_optimized_image_record(
@@ -273,7 +273,7 @@ def mobile_upload_image():
 @login_required
 def media_library():
     """最近上传图片列表，供编辑器媒体库复用。"""
-    from models import get_db_context
+    from backend.models import get_db_context
     images_dir = os.path.join(UPLOAD_FOLDER, 'images')
     query = (request.args.get('q') or '').strip().lower()
     items = []
@@ -314,7 +314,7 @@ def media_library():
 @role_required('admin', 'editor')
 def media_library_delete():
     """删除未被正文引用的图片。"""
-    from models import get_db_context
+    from backend.models import get_db_context
     data = request.get_json(silent=True) or request.form
     name = os.path.basename((data.get('name') or '').strip())
     if not name:

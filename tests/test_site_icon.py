@@ -33,7 +33,7 @@ def icon_dir(tmp_path, monkeypatch):
 
 class TestSiteSettingsModel:
     def test_set_get_delete(self, temp_db):
-        from models import set_site_setting, get_site_setting, delete_site_setting
+        from backend.models import set_site_setting, get_site_setting, delete_site_setting
 
         assert get_site_setting('foo') is None
         assert get_site_setting('foo', 'bar') == 'bar'
@@ -48,7 +48,7 @@ class TestSiteSettingsModel:
         assert get_site_setting('foo') is None
 
     def test_icon_version_default(self, temp_db):
-        from models import get_site_icon_version
+        from backend.models import get_site_icon_version
         assert get_site_icon_version() == '0'
 
 
@@ -107,7 +107,7 @@ class TestSiteIconAdmin:
         )
         assert response.status_code in (301, 302)
 
-        from models import get_site_icon_version
+        from backend.models import get_site_icon_version
         assert get_site_icon_version() != '0'
 
         for name in ('icon-16.png', 'icon-32.png', 'icon-48.png',

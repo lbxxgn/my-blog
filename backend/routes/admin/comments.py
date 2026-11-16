@@ -2,12 +2,12 @@
 
 from flask import render_template, redirect, url_for, flash
 
-from models import (
+from backend.models import (
     get_all_comments,
     update_comment_visibility, delete_comment,
     get_db_context,
 )
-from auth_decorators import role_required
+from backend.auth_decorators import role_required
 
 
 from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401

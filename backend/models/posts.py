@@ -748,7 +748,7 @@ def verify_post_password(post_id, password):
 def _enqueue_post_embedding(post_id, post_type=None):
     """保存后异步更新向量；post_type='knowledge' 的归为 'doc'"""
     try:
-        from tasks.embedding_task import enqueue_embedding
+        from backend.tasks.embedding_task import enqueue_embedding
         enqueue_embedding('doc' if post_type == 'knowledge' else 'post', post_id)
     except Exception:
         pass
@@ -756,7 +756,7 @@ def _enqueue_post_embedding(post_id, post_type=None):
 def _remove_post_embedding(post_id):
     """删除文章时清理向量（post/doc 两种类型都清，覆盖 post_type 变更过的情况）"""
     try:
-        from tasks.embedding_task import remove_embedding
+        from backend.tasks.embedding_task import remove_embedding
         remove_embedding('post', post_id)
         remove_embedding('doc', post_id)
     except Exception:

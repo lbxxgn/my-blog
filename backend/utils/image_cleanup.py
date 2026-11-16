@@ -30,7 +30,7 @@ IMG_TAG_PATTERN = re.compile(r'<img[^>]*src=(?:"[^"]+"|\'[^\']+\'|[^>\s]+)[^>]*>
 def get_db_connection():
     """获取数据库连接（使用models.py的现有工具）"""
     try:
-        from models import get_db_connection
+        from backend.models import get_db_connection
         return get_db_connection()
     except ImportError:
         # 回退到直接创建连接

@@ -1,8 +1,8 @@
 """文章详情、密码校验、评论、沉淀（blog 蓝图子模块）。"""
 
 from flask import render_template, request, redirect, url_for, session, flash, jsonify, abort
-from utils.markdown_renderer import render_content
-from models import (
+from backend.utils.markdown_renderer import render_content
+from backend.models import (
     get_post_by_id,
     get_post_tags, get_comments_by_post, create_comment,
     check_post_access, verify_post_password, get_category_tree, precipitate_post_to_knowledge, get_adjacent_posts,
@@ -25,7 +25,7 @@ def _flatten_tree(nodes, depth=0):
 def view_post(post_id):
     """查看单篇文章"""
     try:
-        from models import publish_due_posts
+        from backend.models import publish_due_posts
         publish_due_posts()
     except Exception:
         pass
@@ -120,7 +120,7 @@ def precipitate_to_knowledge(post_id):
     """将博客文章沉淀为知识库文档"""
     if not session.get('user_id'):
         return jsonify({'success': False, 'error': '请先登录'}), 401
-    from models import get_category_by_id
+    from backend.models import get_category_by_id
 
     # 对象级权限校验：不得沉淀他人未发布/私密/密码文章
     post = get_post_by_id(post_id)

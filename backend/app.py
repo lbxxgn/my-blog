@@ -35,13 +35,10 @@ import sqlite3
 import sys
 from pathlib import Path
 
-CURRENT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = CURRENT_DIR.parent
-# 同时加入项目根目录与 backend/ 目录，
-# 保证 `python backend/app.py` 与 `gunicorn backend.app:app` 两种加载方式都可用
-for _p in (str(PROJECT_ROOT), str(CURRENT_DIR)):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# 统一使用 backend.* 绝对导入；脚本方式启动时保证项目根目录在 sys.path 中
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # =============================================================================
 # 项目配置导入
@@ -71,12 +68,12 @@ import logging
 # 延迟导入项目模块（避免循环导入问题）
 def get_setup_logging():
     """获取setup_logging函数"""
-    from logger import setup_logging
+    from backend.logger import setup_logging
     return setup_logging
 
 def get_log_error():
     """获取log_error函数"""
-    from logger import log_error
+    from backend.logger import log_error
     return log_error
 
 logger = logging.getLogger(__name__)
@@ -94,7 +91,7 @@ except ImportError:
 # =============================================================================
 # 数据模型导入
 # =============================================================================
-from models import (
+from backend.models import (
     get_db_context, init_db, get_user_by_username, create_user,
     get_site_icon_version, get_site_identity
 )
@@ -106,8 +103,8 @@ from models import (
 # =============================================================================
 # 静态资源版本管理导入
 # =============================================================================
-from utils.asset_version import AssetVersionManager
-from utils.template_helpers import register_template_helpers
+from backend.utils.asset_version import AssetVersionManager
+from backend.utils.template_helpers import register_template_helpers
 
 # =============================================================================
 # Flask应用初始化
@@ -483,7 +480,7 @@ get_setup_logging()(app)
 # 时区处理
 # =============================================================================
 from datetime import datetime
-from utils.timezone import utc_to_local
+from backend.utils.timezone import utc_to_local
 
 app.jinja_env.globals.update(utc_to_local=utc_to_local)
 
@@ -495,7 +492,7 @@ def localtime_filter(value):
 @app.template_filter('excerpt')
 def excerpt_filter(value, max_length=200):
     """Jinja2过滤器：获取文章摘要（清理HTML并截断）"""
-    from models import get_post_excerpt
+    from backend.models import get_post_excerpt
     return get_post_excerpt(value, max_length)
 
 @app.template_filter('highlight')
@@ -547,9 +544,9 @@ def allowed_file(filename):
 # =============================================================================
 # 注册蓝图
 # =============================================================================
-from routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
-from routes.drafts import drafts_bp
-from routes.review import review_bp
+from backend.routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
+from backend.routes.drafts import drafts_bp
+from backend.routes.review import review_bp
 
 # 注册认证蓝图
 app.register_blueprint(auth_bp)
@@ -579,7 +576,7 @@ app.register_blueprint(drafts_bp)
 app.register_blueprint(review_bp)
 
 # 注册移动端蓝图
-from routes.admin import mobile_bp
+from backend.routes.admin import mobile_bp
 app.register_blueprint(mobile_bp, url_prefix='/mobile')
 
 # 为浏览器扩展API端点豁免 CSRF 保护
@@ -658,8 +655,8 @@ def auto_regenerate_assets():
 
     # 恢复未完成的图片优化任务
     try:
-        from models import get_db_context
-        from tasks.image_optimization_task import queue_image_optimization
+        from backend.models import get_db_context
+        from backend.tasks.image_optimization_task import queue_image_optimization
 
         with get_db_context() as conn:
             cursor = conn.cursor()
@@ -921,7 +918,7 @@ def weekly_review_command():
     适合 crontab 定时调用，例如每周一早上：
         0 9 * * 1 cd /path/to/my-blog && .venv/bin/flask --app backend/app.py weekly-review
     """
-    from services.weekly_review import generate_weekly_review
+    from backend.services.weekly_review import generate_weekly_review
 
     with get_db_context() as conn:
         cursor = conn.cursor()

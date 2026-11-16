@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.config import BASE_DIR
-from models import get_db_context
+from backend.models import get_db_context
 
 POST_SELECT = '''
     SELECT

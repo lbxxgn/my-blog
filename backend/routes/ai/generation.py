@@ -3,12 +3,12 @@
 
 from flask import request, session, jsonify
 
-from ai_services import TagGenerator
-from models import (
+from backend.ai_services import TagGenerator
+from backend.models import (
     get_user_ai_config, save_ai_tag_history, get_all_posts
 )
-from auth_decorators import login_required
-from logger import log_operation, log_error, api_internal_error
+from backend.auth_decorators import login_required
+from backend.logger import log_operation, log_error, api_internal_error
 
 
 

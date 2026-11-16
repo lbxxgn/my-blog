@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from models import get_db_context
+from backend.models import get_db_context
 
 
 
@@ -117,7 +117,7 @@ def import_from_json(json_file_path: str, user_id: int = None, dry_run: bool = F
                     access_password = post_data.get('access_password')
                     if access_password and post_data.get('access_level') == 'password':
                         try:
-                            from models import hash_access_password
+                            from backend.models import hash_access_password
                             access_password = hash_access_password(access_password)
                         except Exception:
                             pass
@@ -133,7 +133,7 @@ def import_from_json(json_file_path: str, user_id: int = None, dry_run: bool = F
                         tags = [t.strip() for t in re.split(r'[,，]', tags) if t.strip()]
                     _set_tags(cursor, post_id, tags)
                     try:
-                        from models.db import _safe_replace_post_fts
+                        from backend.models.db import _safe_replace_post_fts
                         _safe_replace_post_fts(cursor, post_id, title, content)
                     except Exception:
                         pass
@@ -226,7 +226,7 @@ def import_from_markdown_directory(markdown_dir: str, user_id: int = None, dry_r
                     post_id = _insert_post(cursor, payload, user_id, content_format, post_type, None)
                     _set_tags(cursor, post_id, tags)
                     try:
-                        from models.db import _safe_replace_post_fts
+                        from backend.models.db import _safe_replace_post_fts
                         _safe_replace_post_fts(cursor, post_id, title, body_content)
                     except Exception:
                         pass

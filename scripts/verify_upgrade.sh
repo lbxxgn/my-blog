@@ -118,8 +118,8 @@ check_database() {
     # 检查drafts表
     drafts_exists=$(python3 -c "
 import sys
-sys.path.insert(0, 'backend')
-from models import get_db_connection
+sys.path.insert(0, '.')
+from backend.models import get_db_connection
 conn = get_db_connection()
 cursor = conn.cursor()
 cursor.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='drafts'\")
@@ -134,8 +134,8 @@ print(1 if result else 0)
         # 检查索引
         drafts_indexes=$(python3 -c "
 import sys
-sys.path.insert(0, 'backend')
-from models import get_db_connection
+sys.path.insert(0, '.')
+from backend.models import get_db_connection
 conn = get_db_connection()
 cursor = conn.cursor()
 cursor.execute(\"SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND tbl_name='drafts'\")
@@ -156,8 +156,8 @@ print(count)
     # 检查optimized_images表
     images_exists=$(python3 -c "
 import sys
-sys.path.insert(0, 'backend')
-from models import get_db_connection
+sys.path.insert(0, '.')
+from backend.models import get_db_connection
 conn = get_db_connection()
 cursor = conn.cursor()
 cursor.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='optimized_images'\")

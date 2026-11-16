@@ -9,7 +9,7 @@ import logging
 import os
 import re
 
-from models import get_db_context
+from backend.models import get_db_context
 from backend.config import BASE_DIR
 
 logger = logging.getLogger(__name__)

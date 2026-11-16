@@ -29,7 +29,7 @@ try:
 except ImportError:
     print('⚠️  未安装 python-dotenv，跳过 .env 加载；请确保 DATABASE_URL 等变量已在环境中。')
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import backend.config as config
 

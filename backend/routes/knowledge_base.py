@@ -9,8 +9,8 @@
 """
 
 from flask import Blueprint, request, jsonify, g, session, redirect, url_for
-from auth_decorators import login_required, api_key_required
-from models import (
+from backend.auth_decorators import login_required, api_key_required
+from backend.models import (
     create_card, get_card_by_id, get_cards_by_user,
     update_card_status, update_card, delete_card,
     merge_cards_to_post, get_user_ai_config, ai_merge_cards_to_post,
@@ -18,7 +18,7 @@ from models import (
     get_category_by_name, create_category, get_category_by_id, get_db_context
 )
 from datetime import datetime
-from logger import log_operation, api_internal_error
+from backend.logger import log_operation, api_internal_error
 
 knowledge_base_bp = Blueprint('knowledge_base', __name__)
 
@@ -230,7 +230,7 @@ def get_annotations():
 @api_key_required
 def get_recent_captures():
     """获取最近捕获的卡片"""
-    from models import get_cards_by_user
+    from backend.models import get_cards_by_user
 
     limit = request.args.get('limit', 10, type=int)
     limit = min(limit, 50)  # Cap at 50
@@ -491,7 +491,7 @@ def merge_cards():
 @login_required
 def generate_card_tags():
     """AI生成卡片标签"""
-    from ai_services import TagGenerator
+    from backend.ai_services import TagGenerator
 
     data = request.get_json()
     card_id = data.get('card_id')
@@ -602,7 +602,7 @@ def ai_merge_cards():
 @login_required
 def convert_card_to_post(card_id):
     """将卡片转换为文章"""
-    from models import get_card_by_id, create_post, get_category_by_name, create_category, delete_card
+    from backend.models import get_card_by_id, create_post, get_category_by_name, create_category, delete_card
 
     # 获取卡片
     card = get_card_by_id(card_id)

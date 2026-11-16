@@ -1,13 +1,10 @@
 """Tests for database check and repair tool"""
 import sqlite3
-from pathlib import Path
 from unittest.mock import patch
+import backend.db_check as db_check
 
 # Import the module under test
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent / 'backend'))
 
-import db_check
 
 
 class TestCheckDatabase:
