@@ -75,7 +75,6 @@ check_files() {
         "templates/review.html"
         "static/js/command-palette.js"
         "static/js/review.js"
-        "static/js/voice-input.js"
         "static/sw.js"
         # 历史版本
         "static/js/shortcuts.js"

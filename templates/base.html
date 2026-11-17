@@ -568,9 +568,6 @@
         </div>
         <div class="mobile-editor-toolbar-shell">
             <div class="mobile-editor-toolbar">
-                <button type="button" class="toolbar-btn" id="toolbarIndent" title="首行缩进">
-                    <span class="toolbar-icon" aria-hidden="true">⇥</span>
-                </button>
                 <button type="button" class="toolbar-btn" id="toolbarImage" title="添加图片">
                     <span class="toolbar-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none">
@@ -579,9 +576,6 @@
                             <path d="M6 16l3.2-3.2a1 1 0 0 1 1.4 0L13 15l2.3-2.3a1 1 0 0 1 1.4 0L18 14"></path>
                         </svg>
                     </span>
-                </button>
-                <button type="button" class="toolbar-btn" id="toolbarVoice" title="语音输入">
-                    <span class="toolbar-icon" aria-hidden="true">🎙️</span>
                 </button>
                 <button type="button" class="toolbar-btn" id="toolbarTags" title="快速输入标签">
                     <span class="toolbar-icon">#</span>
@@ -638,7 +632,6 @@ window.availableCategories = {{ (all_categories or [])|tojson }};
 </script>
 
 
-<script src="{{ static_file('js/voice-input.js') }}"></script>
 <script src="{{ static_file('js/mobile-editor.js') }}"></script>
 {% endif %}
 
