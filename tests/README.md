@@ -31,10 +31,20 @@ tests/
 ├── test_search_api.py         # 搜索 API
 ├── test_security.py           # 安全（CSRF、XSS、速率限制、CSP）
 ├── test_site_icon.py          # 站点图标
-└── e2e_kb_editor.py           # 端到端知识库编辑器测试（CDP + Chrome，手动运行）
+├── e2e_kb_editor.py           # 知识库编辑器冒烟脚本（CDP + Chrome，手动运行）
+└── e2e/                       # 浏览器端到端测试（pytest，opt-in）
+    ├── conftest.py            # 临时数据库 + 独立 Flask 服务 + Headless Chrome fixtures
+    ├── harness.py             # CDP 封装（导航、填表、点击、fetch 断言）
+    ├── test_public_site.py    # 首页、文章详情、搜索、分类/标签/归档、公开 API
+    ├── test_auth.py           # 登录、登出、受保护页面跳转
+    ├── test_admin_posts.py    # 文章创建/发布/编辑/草稿/下架/回收站恢复
+    ├── test_comments.py       # 评论提交与后台审核
+    ├── test_knowledge_base.py # 知识库浏览/搜索、BlockNote 建文档、自动保存
+    ├── test_personal_features.py # 回顾页、统一搜索、快速笔记与卡片 API
+    └── test_pwa_and_health.py # 健康检查、manifest、Service Worker、404
 ```
 
-当前共有 **523** 个 pytest 测试用例（`pytest --collect-only -q | tail -1` 可查），外加一个独立的 E2E 脚本。
+当前共有 **523** 个单元/集成测试，外加 **26** 个浏览器 E2E 用例（默认跳过，需 `E2E=1` 开启）。
 
 ## 运行测试
 
@@ -78,11 +88,26 @@ pytest -v
 
 ### E2E 测试
 
+浏览器 E2E 测试默认跳过，不会影响 `make test` / `make check`。它们会自动启动一个使用临时数据库的 Flask 服务和 Headless Chrome：
+
+```bash
+# 推荐：通过 make 运行
+make test-e2e
+
+# 或直接运行
+E2E=1 pytest tests/e2e -v
+
+# 指定 Chrome/Chromium 路径（未自动找到时）
+E2E_CHROME_BIN=/path/to/chrome E2E=1 pytest tests/e2e -v
+```
+
+测试覆盖：公开站点浏览/搜索、登录登出、后台文章全生命周期（创建/发布/编辑/草稿/下架/删除恢复）、评论提交与审核、知识库浏览/搜索/BlockNote 编辑器建文档/自动保存、回顾页与个人 API、PWA 与健康检查。
+
+知识库编辑器的完整冒烟脚本（含图片上传与 AI 面板）仍可单独运行，需要先启动本地 Flask 服务：
+
 ```bash
 python tests/e2e_kb_editor.py
 ```
-
-需要本地启动 Flask 服务，并安装 Chrome 浏览器。
 
 ## 编写测试
 

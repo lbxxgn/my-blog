@@ -164,7 +164,11 @@ def type_text(cdp: CDPClient, selector: str, text: str):
 
 
 def click_save_button(cdp: CDPClient):
-    """Click the React save button via CDP mouse events."""
+    """Click the "保存并查看" button via CDP mouse events.
+
+    编辑器主按钮（"保存"）会留在当前页，这里用次按钮保存后跳转到详情页，
+    以验证新建文档的完整保存 + 跳转流程。
+    """
 
     rect = json.loads(
         cdp.send(
@@ -172,7 +176,8 @@ def click_save_button(cdp: CDPClient):
             {
                 "expression": """
                     (function() {
-                        const btn = document.querySelector('button[type="button"].btn-primary');
+                        const btn = Array.from(document.querySelectorAll('button'))
+                            .find((item) => (item.textContent || '').trim() === '保存并查看');
                         if (!btn) throw new Error('Save button not found');
                         btn.scrollIntoView({ block: 'center', inline: 'center' });
                         const r = btn.getBoundingClientRect();
