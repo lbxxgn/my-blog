@@ -5,6 +5,15 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
   base: '/static/frontend/',
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': 'http://127.0.0.1:5001',
+      '/knowledge': 'http://127.0.0.1:5001',
+      '/admin': 'http://127.0.0.1:5001',
+      '/static/uploads': 'http://127.0.0.1:5001',
+    },
+  },
   build: {
     outDir: '../static/frontend',
     emptyOutDir: true,

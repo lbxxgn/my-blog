@@ -130,7 +130,7 @@ npm run build
 cd ..
 ```
 
-构建产物输出到 `static/frontend/`，Nginx 需要直接服务该目录下的哈希资源（见 Nginx 配置示例）。
+构建产物输出到 `static/frontend/`（该目录已不再入库，部署/升级时必须执行构建），Nginx 需要直接服务该目录下的哈希资源（见 Nginx 配置示例）。
 
 ### 5. Systemd 服务配置
 
@@ -159,7 +159,7 @@ Environment="PYTHONPATH=/var/www/my-blog"
 Environment="PORT=5001"
 EnvironmentFile=-/var/www/my-blog/.env
 
-ExecStart=/var/www/my-blog/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5001 backend.app:app
+ExecStart=/var/www/my-blog/.venv/bin/gunicorn --workers 1 --bind 127.0.0.1:5001 backend.app:app
 
 # 关于监听地址：
 # - 默认 --bind 127.0.0.1:5001 只接受本机/nginx 转发，避免绕过 TLS 与安全头直连应用。
@@ -308,7 +308,7 @@ git pull origin main
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 4. 运行数据库迁移（自动按序执行未应用的迁移）
+# 4. 运行数据库迁移（生产启动时 AUTO_MIGRATE=True 会自动执行；也可手动执行）
 python3 -m backend.migrations
 # 查看迁移状态
 python3 -m backend.migrations status

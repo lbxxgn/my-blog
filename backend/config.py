@@ -222,6 +222,9 @@ AI_HISTORY_ENABLED = os.environ.get('AI_HISTORY_ENABLED', 'True').lower() in ('t
 AI_REQUEST_TIMEOUT = float(os.environ.get('AI_REQUEST_TIMEOUT', 60))
 AI_REQUEST_MAX_RETRIES = int(os.environ.get('AI_REQUEST_MAX_RETRIES', 1))
 
+# 启动时自动执行待应用迁移（生产默认开启）
+AUTO_MIGRATE = os.environ.get('AUTO_MIGRATE', 'True' if IS_PRODUCTION else 'False').lower() in ('true', '1', 'yes')
+
 # 是否信任反向代理的 X-Forwarded-* 头（Nginx 部署时开启）
 TRUST_PROXY_HEADERS = os.environ.get('TRUST_PROXY_HEADERS', 'False').lower() in ('true', '1', 'yes')
 

@@ -12,9 +12,7 @@ from backend.logger import log_operation, api_internal_error
 from backend.config import UPLOAD_FOLDER
 from backend.utils.markdown_renderer import render_content, render_markdown
 import re
-import threading
 from datetime import datetime
-from flask import current_app
 
 
 from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401
@@ -289,12 +287,14 @@ def new_post():
                 conn.execute('UPDATE posts SET publish_at = ? WHERE id = ?', (publish_at, post_id))
                 conn.commit()
 
-        # 如果原标题为空，后台异步调用AI生成更好的标题
+        # 如果原标题为空，后台异步调用AI生成更好的标题（持久化任务队列）
         if not raw_title and post_id:
-            app = current_app._get_current_object()
-            t = threading.Thread(target=_async_ai_title, args=(app, post_id, content, author_id))
-            t.daemon = True
-            t.start()
+            from backend.services.task_queue import enqueue
+            enqueue('ai_title', {
+                'post_id': post_id,
+                'content': content[:3000],
+                'user_id': author_id,
+            }, dedupe_key=f'ai_title:{post_id}')
 
         # 更新AI历史记录
         try:
@@ -414,13 +414,14 @@ def edit_post(post_id):
             conn.execute('UPDATE posts SET publish_at = ? WHERE id = ?', (publish_at, post_id))
             conn.commit()
 
-        # 如果原标题为空，后台异步调用AI生成更好的标题
+        # 如果原标题为空，后台异步调用AI生成更好的标题（持久化任务队列）
         if not raw_title:
-            user_id = session.get('user_id')
-            app = current_app._get_current_object()
-            t = threading.Thread(target=_async_ai_title, args=(app, post_id, content, user_id))
-            t.daemon = True
-            t.start()
+            from backend.services.task_queue import enqueue
+            enqueue('ai_title', {
+                'post_id': post_id,
+                'content': content[:3000],
+                'user_id': session.get('user_id'),
+            }, dedupe_key=f'ai_title:{post_id}')
 
         # 更新标签
         if tag_names and tag_names[0]:

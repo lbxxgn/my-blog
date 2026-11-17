@@ -13,7 +13,7 @@ import logging
 import threading
 from datetime import datetime, timedelta
 
-from flask import Blueprint, current_app, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, render_template, request, session
 
 from backend.auth_decorators import login_required
 from backend.logger import log_error
@@ -195,10 +195,9 @@ def api_review_weekly_generate():
                         'doc_id': existing['id'],
                         'url': f"/knowledge/doc/{existing['id']}"}), 200
 
-    app = current_app._get_current_object()
     _set_weekly_task(user_id, status='running', doc_id=None, url=None, error=None)
-    t = threading.Thread(target=_run_weekly_review, args=(app, user_id))
-    t.daemon = True
-    t.start()
+    week_key = local_now().strftime('%G-%V')
+    from backend.services.task_queue import enqueue
+    enqueue('review_weekly', {'user_id': user_id}, dedupe_key=f'review:{user_id}:{week_key}')
 
     return jsonify({'success': True, 'status': 'running'}), 202

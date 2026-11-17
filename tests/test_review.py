@@ -12,10 +12,12 @@
 
 import json
 import sqlite3
-import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
+
+pytestmark = pytest.mark.integration
+
 
 LOCAL_OFFSET = timedelta(hours=8)  # 与服务端一致：created_at 存 UTC，统计按 UTC+8
 
@@ -438,13 +440,9 @@ class TestWeeklyAPI:
         assert resp.status_code == 202
         assert resp.get_json()['status'] == 'running'
 
-        state = {}
-        for _ in range(100):
-            state = client.get('/api/review/weekly/status').get_json()
-            if state['status'] != 'running':
-                break
-            time.sleep(0.05)
-
+        from backend.services.task_queue import run_pending_tasks
+        run_pending_tasks(client.application)
+        state = client.get('/api/review/weekly/status').get_json()
         assert state['status'] == 'done'
         assert state['doc_id'] == 999
         assert calls['user_id'] == test_admin_user['id']

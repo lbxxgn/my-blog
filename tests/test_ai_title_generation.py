@@ -1,6 +1,11 @@
 """AI 标题自动生成回归测试。"""
 
+import pytest
+
 from backend.models import create_post, get_post_by_id, update_user_ai_config
+
+pytestmark = pytest.mark.integration
+
 
 
 def test_async_ai_title_updates_post(temp_db, test_admin_user, monkeypatch):
@@ -54,11 +59,8 @@ def test_new_post_with_empty_title_starts_ai_title_task(
         'content_format': 'html',
     })
     assert response.status_code in (302, 200)
-
-    import time
-    deadline = time.time() + 2
-    while not calls and time.time() < deadline:
-        time.sleep(0.02)
+    from backend.services.task_queue import run_pending_tasks
+    run_pending_tasks(client.application)
     assert calls
 
 
@@ -74,11 +76,9 @@ def _post_new(client, test_admin_user, title):
     })
 
 
-def _wait_for_calls(calls):
-    import time
-    deadline = time.time() + 2
-    while not calls and time.time() < deadline:
-        time.sleep(0.02)
+def _wait_for_calls(calls, app):
+    from backend.services.task_queue import run_pending_tasks
+    run_pending_tasks(app)
 
 
 def test_whitespace_title_still_triggers_ai_title(
@@ -90,7 +90,7 @@ def test_whitespace_title_still_triggers_ai_title(
 
     response = _post_new(client, test_admin_user, '   ')
     assert response.status_code in (302, 200)
-    _wait_for_calls(calls)
+    _wait_for_calls(calls, client.application)
     assert calls
 
 
@@ -103,14 +103,13 @@ def test_user_title_does_not_trigger_ai_title(
 
     response = _post_new(client, test_admin_user, '我自己写的标题')
     assert response.status_code in (302, 200)
-    import time
-    time.sleep(0.15)
+    from backend.services.task_queue import run_pending_tasks
+    run_pending_tasks(client.application)
     assert not calls
 
 
 def test_new_post_thread_updates_title_and_history(
         client, test_admin_user, temp_db, monkeypatch):
-    import time
     from backend.routes import admin as admin_module
     from backend.models import get_ai_tag_history, get_post_by_id, update_user_ai_config
 
@@ -143,15 +142,9 @@ def test_new_post_thread_updates_title_and_history(
     })
     assert response.status_code in (302, 200)
 
-    deadline = time.time() + 3
-    title = None
-    while time.time() < deadline:
-        post = get_post_by_id(1)
-        if post and post['title'] == '线程生成的标题':
-            title = post['title']
-            break
-        time.sleep(0.05)
-    assert title == '线程生成的标题'
+    from backend.services.task_queue import run_pending_tasks
+    run_pending_tasks(client.application)
+    assert get_post_by_id(1)['title'] == '线程生成的标题'
 
     history = get_ai_tag_history(user_id=test_admin_user['id'])
     title_records = [

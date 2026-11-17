@@ -8,6 +8,7 @@ array('f').tobytes() 的 float32 二进制存入 BLOB 列。
 
 import logging
 import sqlite3
+import threading
 from array import array
 
 import numpy as np
@@ -24,6 +25,20 @@ __all__ = [
 ]
 
 SOURCE_TYPES = ('post', 'card', 'doc')
+
+# 进程内向量缓存：避免每次查询都从 SQLite 读取并反序列化全部 BLOB。
+# 仍为线性扫描，但把 DB IO/反序列化从每次查询降为仅在数据变化时一次。
+_vector_cache = {
+    'signature': None,
+    'by_dim': {},
+}
+_vector_cache_lock = threading.Lock()
+
+
+def invalidate_vector_cache():
+    with _vector_cache_lock:
+        _vector_cache['signature'] = None
+        _vector_cache['by_dim'] = {}
 
 
 def _validate_source_type(source_type):
@@ -73,6 +88,7 @@ def upsert_embedding(source_type, source_id, vector, model=None, content_hash=No
                     updated_at = CURRENT_TIMESTAMP
             ''', (source_type, source_id, model, blob, content_hash))
             conn.commit()
+            invalidate_vector_cache()
             return cursor.lastrowid
         finally:
             pass
@@ -117,9 +133,46 @@ def delete_embedding(source_type, source_id):
                 (source_type, source_id)
             )
             conn.commit()
+            if cursor.rowcount:
+                invalidate_vector_cache()
             return cursor.rowcount > 0
         finally:
             pass
+
+
+def _load_vector_cache(conn):
+    """按维度加载并缓存归一化矩阵；返回 (signature, {dim: (keys, matrix, norms)})。"""
+    db_row = conn.execute('PRAGMA database_list').fetchone()
+    db_file = db_row['file'] if db_row else ''
+    signature = conn.execute(
+        'SELECT COUNT(*) AS c, COALESCE(MAX(updated_at), \'\') AS m, COALESCE(SUM(LENGTH(vector)), 0) AS s FROM embeddings'
+    ).fetchone()
+    signature = (db_file, signature['c'], signature['m'], signature['s'])
+    with _vector_cache_lock:
+        if _vector_cache['signature'] == signature:
+            return signature, _vector_cache['by_dim']
+
+    rows = conn.execute(
+        'SELECT source_type, source_id, vector FROM embeddings WHERE vector IS NOT NULL'
+    ).fetchall()
+    grouped = {}
+    for row in rows:
+        arr = np.frombuffer(row['vector'], dtype=np.float32)
+        if arr.size == 0:
+            continue
+        grouped.setdefault(arr.size, ([], []))[0].append((row['source_type'], row['source_id']))
+        grouped[arr.size][1].append(arr)
+
+    by_dim = {}
+    for dim, (keys, vectors) in grouped.items():
+        matrix = np.stack(vectors)
+        norms = np.linalg.norm(matrix, axis=1)
+        by_dim[dim] = (keys, matrix, norms)
+
+    with _vector_cache_lock:
+        _vector_cache['signature'] = signature
+        _vector_cache['by_dim'] = by_dim
+    return signature, by_dim
 
 
 def search_similar(query_vector, top_k=10, source_types=None):
@@ -134,58 +187,42 @@ def search_similar(query_vector, top_k=10, source_types=None):
     Returns:
         list[tuple]: [(source_type, source_id, score)]，按相似度降序
     """
-    with get_db_context() as conn:
-        try:
-            cursor = conn.cursor()
-            if source_types:
-                invalid = set(source_types) - set(SOURCE_TYPES)
-                if invalid:
-                    raise ValueError(f"Invalid source_types: {sorted(invalid)}")
-                placeholders = ','.join('?' * len(source_types))
-                cursor.execute(
-                    f'SELECT source_type, source_id, vector FROM embeddings '
-                    f'WHERE vector IS NOT NULL AND source_type IN ({placeholders})',
-                    list(source_types)
-                )
-            else:
-                cursor.execute('SELECT source_type, source_id, vector FROM embeddings WHERE vector IS NOT NULL')
-            rows = cursor.fetchall()
-        except sqlite3.OperationalError as e:
-            # 迁移 009 尚未执行：没有表可搜
-            logger.warning(f"embeddings table unavailable: {e}")
+    if source_types:
+        invalid = set(source_types) - set(SOURCE_TYPES)
+        if invalid:
+            raise ValueError(f"Invalid source_types: {sorted(invalid)}")
+
+    query = np.asarray(query_vector, dtype=np.float32)
+    query_norm = np.linalg.norm(query)
+    if query_norm == 0:
+        return []
+
+    try:
+        with get_db_context() as conn:
+            _signature, by_dim = _load_vector_cache(conn)
+    except sqlite3.OperationalError as e:
+        logger.warning(f"embeddings table unavailable: {e}")
+        return []
+
+    entry = by_dim.get(query.size)
+    if not entry:
+        return []
+    keys, matrix, norms = entry
+
+    if source_types:
+        allowed = set(source_types)
+        mask = np.array([key[0] in allowed for key in keys], dtype=bool)
+        if not mask.any():
             return []
-        finally:
-            pass
+        keys = [key for key, keep in zip(keys, mask) if keep]
+        matrix = matrix[mask]
+        norms = norms[mask]
 
-        if not rows:
-            return []
+    nonzero = norms > 0
+    if not nonzero.any():
+        return []
 
-        query = np.asarray(query_vector, dtype=np.float32)
-        query_norm = np.linalg.norm(query)
-        if query_norm == 0:
-            return []
-
-        keys = []
-        vectors = []
-        for row in rows:
-            arr = np.frombuffer(row['vector'], dtype=np.float32)
-            if arr.shape != query.shape:
-                # 维度不一致（可能换了模型），跳过
-                continue
-            keys.append((row['source_type'], row['source_id']))
-            vectors.append(arr)
-
-        if not vectors:
-            return []
-
-        matrix = np.stack(vectors)
-        norms = np.linalg.norm(matrix, axis=1)
-        nonzero = norms > 0
-        if not nonzero.any():
-            return []
-
-        scores = np.zeros(len(vectors), dtype=np.float32)
-        scores[nonzero] = (matrix[nonzero] @ query) / (norms[nonzero] * query_norm)
-
-        order = np.argsort(-scores)[:top_k]
-        return [(keys[i][0], keys[i][1], float(scores[i])) for i in order]
+    scores = np.zeros(len(keys), dtype=np.float32)
+    scores[nonzero] = (matrix[nonzero] @ query) / (norms[nonzero] * query_norm)
+    order = np.argsort(-scores)[:top_k]
+    return [(keys[i][0], keys[i][1], float(scores[i])) for i in order]

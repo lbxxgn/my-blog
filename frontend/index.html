@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KB Editor Dev</title>
+  </head>
+  <body>
+    <div id="kb-editor-root"></div>
+    <script>
+      window.__KB_EDITOR_INIT__ = window.__KB_EDITOR_INIT__ || {
+        mode: 'new',
+        doc: null,
+        categories: [],
+        csrfToken: '',
+      };
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
