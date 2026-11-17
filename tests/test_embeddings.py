@@ -18,6 +18,9 @@ from unittest import mock
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
+
 MOCK_VECTOR = [0.25, 0.5, 0.5, 0.25]
 
 

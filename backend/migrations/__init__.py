@@ -35,6 +35,7 @@ import backend.config as config
 
 # (version, 描述, 模块名, 入口函数名) —— 只追加，勿修改已有条目
 MIGRATIONS = [
+    ('000_baseline', '基础 schema（新建空库时使用）', 'backend.migrations.migrate_baseline', 'migrate'),
     ('001_multiauthor', '用户表多作者字段', 'backend.migrations.migrate_multiauthor', 'migrate_database'),
     ('002_knowledge_base', '知识库独立空间与树形分类', 'backend.migrations.migrate_knowledge_base', 'migrate'),
     ('003_drafts', '草稿同步表', 'backend.migrations.migrate_drafts', 'migrate'),
@@ -49,6 +50,7 @@ MIGRATIONS = [
     ('012_ai_catalog', 'AI 提供商与模型目录表', 'backend.migrations.migrate_ai_catalog', 'migrate'),
     ('013_p1_features', '定时发布、软删除、修订历史与多草稿设备', 'backend.migrations.migrate_p1_features', 'migrate'),
     ('014_draft_unique_index', '修正 drafts 唯一索引以支持多设备草稿', 'backend.migrations.migrate_draft_unique_index', 'migrate'),
+    ('015_background_tasks', '持久化后台任务队列', 'backend.migrations.migrate_background_tasks', 'migrate'),
 ]
 
 

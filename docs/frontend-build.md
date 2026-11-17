@@ -29,7 +29,7 @@ cd frontend
 npm run dev
 ```
 
-开发服务器默认在 `http://localhost:5173` 运行，与 Flask 后端独立。
+开发服务器默认在 `http://localhost:5173` 运行，已配置 `/api`、`/knowledge`、`/admin` 到 `127.0.0.1:5001` 的代理。`static/frontend/` 构建产物不入库，生产/升级流程必须执行 `npm ci && npm run build`。
 
 ## 常见问题
 

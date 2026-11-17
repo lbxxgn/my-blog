@@ -175,6 +175,25 @@ run_migrations() {
     fi
 }
 
+# 构建知识库编辑器前端（构建产物不再入库）
+build_frontend() {
+    if [ ! -d "$PROJECT_ROOT/frontend" ]; then
+        log_warning "frontend/ 不存在，跳过前端构建"
+        return 0
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+        log_warning "npm 不可用，跳过前端构建；请安装 Node.js 后执行: cd frontend && npm ci && npm run build"
+        return 0
+    fi
+    log "构建前端..."
+    if (cd "$PROJECT_ROOT/frontend" && npm ci --silent && npm run build >> "$LOG_FILE" 2>&1); then
+        log "前端构建完成 ✓"
+    else
+        log_error "前端构建失败，请检查日志: $LOG_FILE"
+        return 1
+    fi
+}
+
 # 生成静态资源manifest
 generate_manifest() {
     log "生成静态资源manifest..."
@@ -453,7 +472,8 @@ EOF
     # 5. 运行迁移
     run_migrations || exit 1
 
-    # 6. 生成manifest
+    # 6. 构建前端 + 生成manifest
+    build_frontend || log_warning "前端构建失败，知识库编辑器可能不可用"
     generate_manifest || log_warning "Manifest生成失败，但不影响核心功能"
 
     # 7. 重启应用

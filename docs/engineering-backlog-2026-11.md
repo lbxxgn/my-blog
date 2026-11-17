@@ -15,6 +15,8 @@
 - 移除 40 个重复 legacy 别名路由，模板统一使用 blueprint endpoint；保留 12 个旧客户端路径入口。
 - 导入统一为 `backend.*`，移除 `backend/` 的 `sys.path` 注入，消除 `models` / `backend.models` 双模块身份。
 - 引入 `create_app(config_overrides=None)`，保留模块级 `app = create_app()` 兼容 gunicorn 与测试；扩展改为 `init_app`。
+- 新增基线迁移 000 + `AUTO_MIGRATE` 启动自动迁移；后台任务落库（review/ai title）；embedding 增加进程内向量缓存；legacy 路径迁移到独立 blueprint。
+- 静态资源版本化补齐；E2E 接入 CI；schema 快照测试；测试 marker 分层；构建产物/用户上传移出 Git；SQLite 示例收敛为单 worker。
 - CI 增加前端构建、依赖缓存、依赖审计；拆分 dev 依赖；补 ruff 配置；pytest 不再强制覆盖率。
 
 ---
@@ -40,11 +42,9 @@
 |---|---|---|---|---|---|
 
 
-| BE-3 | 中 | 数据库连接/事务管理不统一，异常路径可能泄漏 | `get_db_connection` 125 处 vs `get_db_context` 77 处；`models/cards.py` 已修一处 | 全面改用 `get_db_context`，禁止裸 `commit/close` | 新增代码统一上下文管理器 |
-| BE-4 | 中 | `init_db` 与迁移双份 schema；gunicorn 启动不自动迁移 | `backend/models/db.py:110`、`backend/migrations/` | 迁移作为唯一 schema 来源；启动/升级脚本自动执行 | 空库 + 旧库均可自动升级 |
-| BE-5 | 中 | 后台任务为进程内 daemon 线程，多 worker 不一致、重启丢任务 | `backend/routes/review.py:202`、`admin/posts.py:298`、`services/backup.py:387` | 外置 RQ/Celery；或至少持久化任务 + 幂等 + 重试 | 重启不丢任务；多 worker 只执行一次 |
-| BE-6 | 中 | 语义检索全表加载向量到 Python，O(N) | `backend/models/embeddings.py:145` | 引入向量索引/外部向量库，或先加缓存与分页 | 数据量增长后 P95 可控 |
-| BE-7 | 低 | 仍有 12 个旧客户端路径入口（`/new`、`/api/plugin/*`、`/api/cards/*`） | `backend/app.py` 旧路径兼容段 | 迁移到对应 blueprint 或提供 301/307 后废弃，并更新浏览器插件 | 旧路径仅保留重定向，无直接视图包装 |
+| BE-5 | 中 | review/ai title 已落库；embedding 队列仍为进程内 | `backend/tasks/embedding_task.py` | 将 embedding 任务也接入持久化队列 | 重启不丢 embedding 任务 |
+| BE-6 | 中 | embedding 已加进程内缓存，但仍是线性扫描 | `backend/models/embeddings.py` | 引入 sqlite-vec/外部向量库实现 ANN | 数据量增长后 P95 可控 |
+| BE-7 | 低 | legacy 路径已移入 blueprint，但仍为视图包装 | `backend/routes/legacy.py` | 更新浏览器插件后改为 301/307 或删除 | 旧路径仅保留重定向 |
 | BE-8 | 低 | 日志无 request id/结构化字段 | `backend/logger.py` | JSON 日志 + `X-Request-ID` + 用户/耗时字段 | 可按请求串联排障 |
 | BE-9 | 低 | CGI 时代的调试 `print` 仍散落 | `backend/routes/ai/generation.py:102`、导入/迁移脚本 | CLI 保留 print，Web 路径改 logger | Web 请求无 print 输出 |
 
@@ -52,9 +52,6 @@
 
 | ID | 优先级 | 问题 | 证据 | 建议 | 验收标准 |
 |---|---|---|---|---|---|
-| QA-1 | 中 | E2E 未进 CI、依赖 Chrome、无法自动跑 | `tests/e2e_kb_editor.py`、`pytest.ini` | 迁 Playwright，放 `tests/e2e/`，CI 起服务后执行 | PR 自动跑核心编辑流程 |
-| QA-2 | 中 | 迁移只验证“能跑”，无 schema 快照/回滚测试 | `tests/conftest.py` | 加 schema 快照对比；关键迁移加 down/回滚演练 | 迁移差异会在 CI 报警 |
-| QA-3 | 中 | 测试未分层，固定 `sleep` 易 flaky | `tests/test_embeddings.py:66`、`test_ai_title_generation.py` | 用 `Event`/轮询；启用 `slow/integration` marker 分档 | CI 可分 unit/integration 两档 |
 | QA-4 | 低 | 覆盖率已恢复显式执行，但门槛仅 40% | `Makefile:coverage` | 逐步提升到 60%+，按模块设阈值 | 覆盖率下降会失败 |
 | QA-5 | 低 | 前端零测试 | `frontend/package.json:10` | 引入 Vitest + 关键组件测试 | `npm test` 可在 CI 运行 |
 | QA-6 | 低 | `pytest-randomly`/xdist 未启用，顺序依赖不可见 | `tests/conftest.py` | 引入随机顺序测试，修复暴露的全局状态 | 随机顺序稳定通过 |
@@ -65,10 +62,8 @@
 |---|---|---|---|---|---|
 | FE-1 | 高 | Quill 与 BlockNote 两套编辑器并存，上传/草稿/AI 逻辑重复 | `templates/admin/editor.html`、`static/js/editor.js`、`frontend/src` | 明确唯一编辑器；先抽共享上传/草稿/AI 服务 | 同一功能只维护一份 |
 | FE-2 | 高 | 知识库上传绕过图片优化，原图直接进正文 | `backend/routes/knowledge.py:428-494`、`routes/admin/media.py:121` | 统一上传服务，统一入队优化 + 懒加载 | 知识库图片同样生成 WebP/缩略图 |
-| FE-3 | 中 | 构建产物入库、CI 已构建但不校验产物一致；`npm run dev` 不可用 | `static/frontend/`、`frontend/vite.config.ts` | 构建产物移出 Git；CI 校验；补 `server.proxy` | 源码改动未构建会被 CI 拦截 |
-| FE-4 | 中 | 模板巨石与内联 CSS/JS 多 | `templates/admin/editor.html` 1706 行、`post.html` 973 行 | 抽页面级 CSS/JS 与 Jinja 宏 | 单模板 < 600 行，内联样式清零 |
+| FE-4 | 低 | 内联 CSS 已抽出；post 页仍有内联 JS | `templates/post.html` | 继续抽页面级 JS 与 Jinja 宏 | 内联脚本清零 |
 | FE-5 | 中 | CSS 重复/覆盖严重 | `style.css` 与 `enhancements.css` 91 个重复选择器 | 按 tokens/base/components/pages 分层合并 | 无重复基础组件规则 |
-| FE-6 | 中 | 静态资源版本化不一致，手工 `?v=` 不会更新 | `templates/post.html:8,648`、`app.py:145` | 统一走版本清单；加模板测试禁止无版本 js/css | 发布后所有资源自动失效 |
 | FE-7 | 中 | `fetch` 无统一超时/取消/`response.ok` 校验 | `static/js/infinite-scroll.js:150`、`draft-sync.js:8` | 抽统一 `request()` 封装 | 401/500 有统一提示，分页可取消 |
 | FE-8 | 低 | a11y/i18n 无基线，动态图片 alt 为空 | `base.html:571`、`infinite-scroll.js:315` | skip link、aria-label、alt 透传；按需引入 Babel | axe 基础检查通过 |
 | FE-9 | 低 | 调试钩子暴露到生产 | `frontend/src/KbEditorApp.tsx:207` | 仅 `import.meta.env.DEV` 挂载 | 生产包无调试全局变量 |
@@ -77,9 +72,7 @@
 
 | ID | 优先级 | 问题 | 证据 | 建议 | 验收标准 |
 |---|---|---|---|---|---|
-| OPS-1 | 中 | `static/uploads` 用户图片与 `static/frontend` 构建产物仍被 Git 跟踪 | `git ls-files static/uploads` 9 个、`static/frontend` 23 个 | `git rm --cached`，补 ignore；必要时 `git filter-repo` 清理历史 | 仓库不再包含用户数据/构建产物 |
 | OPS-2 | 低 | 工作区大文件堆积 | `exports` 153M、`backups` 360M、`static/uploads` 195M | 定期清理；CI 加“已跟踪但被忽略文件”检查 | clone/磁盘占用可控 |
-| OPS-3 | 中 | SQLite 单写 + 2 worker，长期扩展性有限 | `simple-blog.service.example:60`、`models/db.py` | 评估迁移 PostgreSQL；或明确单 worker 部署 | 并发写入无锁等待 |
 | OPS-4 | 低 | 无 Docker/容器化方案 | README 已注明 | 提供 Dockerfile + compose（含备份卷） | 一条命令可起完整服务 |
 | OPS-5 | 低 | Nginx 无边缘限流、上传上限 4g、HSTS 注释 | `nginx.conf.example:181,228` | 加 `limit_req`、收紧上传、HTTPS 后启用 HSTS | 边缘层可挡暴力请求 |
 | OPS-6 | 低 | systemd 安全加固有限 | `simple-blog.service.example` | 增加 `ProtectSystem`、`ReadWritePaths`、`PrivateDevices` | `systemd-analyze security` 评分提升 |
@@ -95,8 +88,8 @@
 
 ## 建议选择顺序
 
-1. **SEC-1 / SEC-2**：登录限流与共享存储，投入小、收益直接。
+1. **SEC-1 / SEC-2**：登录限流与共享存储。
 2. **FE-1 / FE-2**：统一上传与编辑器，避免继续双轨复制。
-3. **BE-4 / BE-5 / BE-6**：迁移唯一化、后台任务外置、向量检索索引化。
-4. **QA-1 / QA-2**：E2E 与迁移测试，防止回归。
-5. **OPS-1**：清理仓库中的用户数据与构建产物。
+3. **BE-5 / BE-6**：embedding 持久化队列与 ANN 索引。
+4. **SEC-3 / SEC-4**：CSP 与 SSRF 加固。
+5. **OPS-2 / OPS-5**：工作区清理与 Nginx 边缘防护。

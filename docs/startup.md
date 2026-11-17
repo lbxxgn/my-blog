@@ -177,11 +177,11 @@ python -c "from backend.app import app; from backend.models import init_db; init
 pip install gunicorn
 
 # 启动应用
-gunicorn -w 2 -b 127.0.0.1:5001 backend.app:app
+gunicorn -w 1 -b 127.0.0.1:5001 backend.app:app
 ```
 
 参数说明：
-- `-w 2`: 2 个工作进程（SQLite 写入场景不建议过多）
+- `-w 1`: 1 个工作进程（SQLite 单写，建议单 worker；需要并发请迁移 PostgreSQL）
 - `-b 127.0.0.1:5001`: 仅监听本机，远程通过 Nginx 转发；需直连时再改 `0.0.0.0`
 - `backend.app:app`: 应用模块路径
 
@@ -303,7 +303,7 @@ Environment="FLASK_ENV=production"
 EnvironmentFile=-/path/to/my-blog/.env
 
 ExecStart=/path/to/my-blog/.venv/bin/gunicorn \
-    -w 2 \
+    -w 1 \
     -b 127.0.0.1:5001 \
     --error-logfile - \
     backend.app:app

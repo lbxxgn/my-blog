@@ -57,7 +57,7 @@ EnvironmentFile=-/path/to/my-blog/.env
 #   --access-logfile /path/to/my-blog/logs/access.log \
 #   --error-logfile  /path/to/my-blog/logs/gunicorn-error.log
 # 全量备份/恢复可能耗时较长，--timeout 需大于 gunicorn 默认的 30s
-ExecStart=/path/to/my-blog/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5001 --timeout 300 --graceful-timeout 60 backend.app:app
+ExecStart=/path/to/my-blog/.venv/bin/gunicorn --workers 1 --bind 127.0.0.1:5001 --timeout 300 --graceful-timeout 60 backend.app:app
 
 # ============================================
 # 重启策略

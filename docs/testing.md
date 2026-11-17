@@ -33,7 +33,7 @@
 | `e2e_kb_editor.py` | 知识库编辑器冒烟脚本（CDP + Chrome，手动运行） |
 | `e2e/` | 浏览器端到端 pytest 套件（26 个用例，默认跳过，`E2E=1` 开启） |
 
-**当前测试总数**: 523 个单元/集成测试，外加 26 个浏览器 E2E 用例（`pytest --collect-only -q | tail -1` 统计，包含被跳过的 E2E）。
+**当前测试总数**: 527 个单元/集成测试，外加 26 个浏览器 E2E 用例（`pytest --collect-only -q | tail -1` 统计，包含被跳过的 E2E）。
 
 ### 已覆盖的功能模块
 
@@ -72,6 +72,10 @@ pytest tests/test_admin_features.py -v
 # 运行关键快速检查
 make check
 
+# 只跑单元测试 / 只跑集成（线程、异步等）
+make test-unit
+make test-integration
+
 # 查看测试覆盖率（含 40% 门槛，报告在 htmlcov/）
 make coverage
 
@@ -93,7 +97,9 @@ E2E_CHROME_BIN=/path/to/chrome E2E=1 pytest tests/e2e -v
 
 覆盖范围：公开站点与搜索、登录/登出、后台文章创建/发布/编辑/草稿/下架/回收站恢复、评论提交与审核、知识库浏览/搜索/BlockNote 编辑器建文档/自动保存、回顾页与个人 API、PWA 与健康检查。
 
-### 按类型运行
+E2E 已在 CI 中通过 `E2E=1 pytest tests/e2e` 执行（需要 Chrome）；本地未设置 `E2E=1` 时会自动跳过。
+
+## 按类型运行
 
 ```bash
 # 只运行单元测试

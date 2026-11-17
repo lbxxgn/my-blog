@@ -26,7 +26,7 @@ Flask博客系统 - 主应用文件
 # =============================================================================
 # 标准库导入
 # =============================================================================
-from flask import Flask, render_template, request, jsonify, send_file, abort, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, abort
 from werkzeug.security import generate_password_hash
 import json
 import os
@@ -43,7 +43,7 @@ if str(PROJECT_ROOT) not in sys.path:
 # =============================================================================
 # 项目配置导入
 # =============================================================================
-from backend.config import (SECRET_KEY, ALLOWED_EXTENSIONS,
+from backend.config import (SECRET_KEY, ALLOWED_EXTENSIONS, AUTO_MIGRATE,
                             MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION,
                             SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT,
                             PERMANENT_SESSION_LIFETIME, REMEMBER_DEVICE_DAYS,
@@ -135,6 +135,7 @@ def create_app(config_overrides=None):
         IS_PRODUCTION=IS_PRODUCTION,
         FORCE_HTTPS=FORCE_HTTPS,
         TRUST_PROXY_HEADERS=TRUST_PROXY_HEADERS,
+        AUTO_MIGRATE=AUTO_MIGRATE,
     )
     if config_overrides:
         app.config.update(config_overrides)
@@ -381,6 +382,20 @@ def create_app(config_overrides=None):
     app_limiter.init_app(app)
     app_cache.init_app(app)
     app.cache = app_cache
+
+    if (app.config.get('AUTO_MIGRATE') and not app.config.get('TESTING')
+            and os.environ.get('TESTING') != '1' and 'pytest' not in sys.modules):
+        import contextlib
+        import io
+
+        from backend.migrations import apply_migrations
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            applied, _skipped, failed = apply_migrations(verbose=False)
+        if failed:
+            raise RuntimeError(f'数据库迁移失败: {failed}')
+        if applied:
+            logger.info('已自动应用 %s 个数据库迁移', applied)
     app.csrf_protect = app_csrf
     app.limiter = app_limiter
 
@@ -561,6 +576,7 @@ def create_app(config_overrides=None):
     from backend.routes import auth_bp, blog_bp, admin_bp, api_bp, ai_bp, knowledge_base_bp, knowledge_bp
     from backend.routes.drafts import drafts_bp
     from backend.routes.review import review_bp
+    from backend.routes.legacy import legacy_bp
 
     # 注册认证蓝图
     app.register_blueprint(auth_bp)
@@ -589,6 +605,9 @@ def create_app(config_overrides=None):
     # 注册回顾页蓝图（那年今日 / 写作热力 / 每周回顾）
     app.register_blueprint(review_bp)
 
+    # 注册旧客户端路径兼容蓝图（/new、/api/plugin/*、/api/cards/*）
+    app.register_blueprint(legacy_bp)
+
     # 注册移动端蓝图
     from backend.routes.admin import mobile_bp
     app.register_blueprint(mobile_bp, url_prefix='/mobile')
@@ -610,6 +629,8 @@ def create_app(config_overrides=None):
     app_csrf.exempt(app.view_functions['ai.test_ai_config'])
     # 全量备份恢复需要接收超过全局上限的 ZIP：先豁免，视图内提高 body 上限后手动校验 CSRF
     app_csrf.exempt(app.view_functions['admin.restore_backup'])
+    app_csrf.exempt(app.view_functions['legacy.plugin_submit'])
+    app_csrf.exempt(app.view_functions['legacy.plugin_sync_annotations'])
 
 
     def _apply_route_limit(endpoint: str, limit: str) -> None:
@@ -693,83 +714,6 @@ def create_app(config_overrides=None):
                 logger.info(f'恢复了 {requeued} 个待优化任务')
         except Exception as e:
             logger.warning(f'恢复待优化任务失败: {e}')
-
-    # =============================================================================
-    # 旧客户端路径兼容
-    # =============================================================================
-    # 仅保留路径与 blueprint 不一致、浏览器插件/旧客户端仍在使用的入口；
-    # 模板已统一使用 blueprint endpoint 名称，不再为旧 url_for endpoint 建包装器。
-
-    @app.route('/new', methods=['GET', 'POST'])
-    def legacy_new_post():
-        """历史新建文章入口，308 重定向到后台新建页。"""
-        return redirect(url_for('admin.new_post'), code=302)
-
-
-    # Knowledge base API aliases
-    @app.route('/api/plugin/submit', methods=['POST'])
-    def plugin_submit():
-        """浏览器插件提交别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.plugin_submit']()
-
-    @app.route('/api/plugin/sync-annotations', methods=['POST'])
-    def plugin_sync_annotations():
-        """浏览器插件标注同步别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.sync_annotations']()
-
-    @app.route('/api/plugin/annotations', methods=['GET'])
-    def plugin_annotations():
-        """浏览器插件标注查询别名（兼容旧客户端）"""
-        if not request.args.get('url'):
-            return jsonify({
-                'success': True,
-                'annotations': [],
-                'count': 0
-            })
-        return app.view_functions['knowledge_base.get_annotations']()
-
-    @app.route('/api/plugin/recent', methods=['GET'])
-    def plugin_recent():
-        """浏览器插件最近记录别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.get_recent_captures']()
-
-    @app.route('/api/cards', methods=['GET'])
-    def cards_list():
-        """卡片列表别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.card_list']()
-
-    @app.route('/api/cards/<int:card_id>', methods=['GET', 'PUT', 'DELETE'])
-    def card_detail(card_id):
-        """卡片详情别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.card_detail'](card_id)
-
-    @app.route('/api/cards/<int:card_id>/status', methods=['PUT'])
-    def card_status(card_id):
-        """卡片状态更新别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.card_status'](card_id)
-
-    @app.route('/api/cards/merge', methods=['POST'])
-    def cards_merge():
-        """卡片合并别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.merge_cards']()
-
-    @app.route('/api/cards/generate-tags', methods=['POST'])
-    def cards_generate_tags():
-        """卡片标签生成别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.generate_card_tags']()
-
-    @app.route('/api/cards/ai-merge', methods=['POST'])
-    def cards_ai_merge():
-        """AI卡片合并别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.ai_merge_cards']()
-
-    @app.route('/api/card/<int:card_id>/convert-to-post', methods=['POST'])
-    def convert_card_to_post(card_id):
-        """卡片转文章别名（兼容旧客户端）"""
-        return app.view_functions['knowledge_base.convert_card_to_post'](card_id)
-
-    app_csrf.exempt(app.view_functions['plugin_submit'])
-    app_csrf.exempt(app.view_functions['plugin_sync_annotations'])
 
     # AI endpoints
     # =============================================================================
@@ -999,6 +943,17 @@ def _maybe_start_backup_scheduler():
 
 _maybe_start_backup_scheduler()
 
+
+def _maybe_start_task_worker():
+    if os.environ.get('TESTING') == '1' or 'pytest' in sys.modules:
+        return
+    if DEBUG and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        return
+    from backend.services.task_queue import start_worker
+    start_worker(app)
+
+
+_maybe_start_task_worker()
 
 
 # =============================================================================

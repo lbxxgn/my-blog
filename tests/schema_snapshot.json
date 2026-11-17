@@ -1,0 +1,446 @@
+[
+  {
+    "type": "index",
+    "name": "idx_ai_history_created",
+    "table": "ai_tag_history",
+    "sql": "CREATE INDEX idx_ai_history_created ON ai_tag_history(created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_ai_history_post",
+    "table": "ai_tag_history",
+    "sql": "CREATE INDEX idx_ai_history_post ON ai_tag_history(post_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_ai_history_user",
+    "table": "ai_tag_history",
+    "sql": "CREATE INDEX idx_ai_history_user ON ai_tag_history(user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_ai_models_provider",
+    "table": "ai_models",
+    "sql": "CREATE INDEX idx_ai_models_provider ON ai_models(provider_id, sort_order, id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_annotations_user_url",
+    "table": "card_annotations",
+    "sql": "CREATE INDEX idx_annotations_user_url ON card_annotations(user_id, source_url)"
+  },
+  {
+    "type": "index",
+    "name": "idx_api_keys_user",
+    "table": "api_keys",
+    "sql": "CREATE INDEX idx_api_keys_user ON api_keys(user_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_author_created",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_author_created ON posts(author_id, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_author_id",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_author_id ON posts(author_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_background_tasks_dedupe",
+    "table": "background_tasks",
+    "sql": "CREATE UNIQUE INDEX idx_background_tasks_dedupe\n            ON background_tasks(kind, dedupe_key)\n            WHERE dedupe_key IS NOT NULL AND status IN ('pending', 'running')\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_background_tasks_pending",
+    "table": "background_tasks",
+    "sql": "CREATE INDEX idx_background_tasks_pending\n            ON background_tasks(status, run_after, id)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_cards_created",
+    "table": "cards",
+    "sql": "CREATE INDEX idx_cards_created ON cards(created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_cards_linked_article",
+    "table": "cards",
+    "sql": "CREATE INDEX idx_cards_linked_article ON cards(linked_article_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_cards_user_status",
+    "table": "cards",
+    "sql": "CREATE INDEX idx_cards_user_status ON cards(user_id, status)"
+  },
+  {
+    "type": "index",
+    "name": "idx_categories_parent",
+    "table": "categories",
+    "sql": "CREATE INDEX idx_categories_parent ON categories(parent_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_categories_space",
+    "table": "categories",
+    "sql": "CREATE INDEX idx_categories_space ON categories(space)"
+  },
+  {
+    "type": "index",
+    "name": "idx_categories_space_parent",
+    "table": "categories",
+    "sql": "CREATE INDEX idx_categories_space_parent ON categories(space, parent_id, sort_order)"
+  },
+  {
+    "type": "index",
+    "name": "idx_category_id",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_category_id ON posts(category_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_comments_post",
+    "table": "comments",
+    "sql": "CREATE INDEX idx_comments_post ON comments(post_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_comments_post_created",
+    "table": "comments",
+    "sql": "CREATE INDEX idx_comments_post_created ON comments(post_id, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_created_at",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_created_at ON posts(created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_drafts_device",
+    "table": "drafts",
+    "sql": "CREATE INDEX idx_drafts_device\n            ON drafts(user_id, device_info, updated_at)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_drafts_post",
+    "table": "drafts",
+    "sql": "CREATE INDEX idx_drafts_post\n            ON drafts(post_id)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_drafts_unique_post",
+    "table": "drafts",
+    "sql": "CREATE UNIQUE INDEX idx_drafts_unique_post\n                ON drafts(user_id, post_id, device_token)\n                WHERE post_id IS NOT NULL\n            "
+  },
+  {
+    "type": "index",
+    "name": "idx_drafts_user_post",
+    "table": "drafts",
+    "sql": "CREATE INDEX idx_drafts_user_post\n            ON drafts(user_id, post_id)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_drafts_user_updated",
+    "table": "drafts",
+    "sql": "CREATE INDEX idx_drafts_user_updated\n            ON drafts(user_id, updated_at DESC)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_note_links_source",
+    "table": "note_links",
+    "sql": "CREATE INDEX idx_note_links_source ON note_links(source_post_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_note_links_target",
+    "table": "note_links",
+    "sql": "CREATE INDEX idx_note_links_target ON note_links(target_post_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_optimized_hash",
+    "table": "optimized_images",
+    "sql": "CREATE INDEX idx_optimized_hash\n            ON optimized_images(original_hash)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_optimized_original",
+    "table": "optimized_images",
+    "sql": "CREATE INDEX idx_optimized_original\n            ON optimized_images(original_path)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_optimized_status",
+    "table": "optimized_images",
+    "sql": "CREATE INDEX idx_optimized_status\n            ON optimized_images(status)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_parent_note",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_parent_note ON posts(parent_note_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_post_tags_post",
+    "table": "post_tags",
+    "sql": "CREATE INDEX idx_post_tags_post ON post_tags(post_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_post_tags_post_tag",
+    "table": "post_tags",
+    "sql": "CREATE INDEX idx_post_tags_post_tag ON post_tags(post_id, tag_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_post_tags_tag",
+    "table": "post_tags",
+    "sql": "CREATE INDEX idx_post_tags_tag ON post_tags(tag_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_post_tags_tag_post",
+    "table": "post_tags",
+    "sql": "CREATE INDEX idx_post_tags_tag_post ON post_tags(tag_id, post_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_post_type",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_post_type ON posts(post_type)"
+  },
+  {
+    "type": "index",
+    "name": "idx_posts_author_published",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_posts_author_published ON posts(author_id, is_published, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_posts_category_published",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_posts_category_published ON posts(category_id, is_published, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_posts_content_format",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_posts_content_format ON posts(content_format)"
+  },
+  {
+    "type": "index",
+    "name": "idx_posts_kb_order",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_posts_kb_order ON posts(category_id, sort_order)"
+  },
+  {
+    "type": "index",
+    "name": "idx_posts_post_type",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_posts_post_type ON posts(post_type)"
+  },
+  {
+    "type": "index",
+    "name": "idx_posts_post_type_created",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_posts_post_type_created ON posts(post_type, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_posts_source_post_id",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_posts_source_post_id ON posts(source_post_id)"
+  },
+  {
+    "type": "index",
+    "name": "idx_posts_type",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_posts_type\n            ON posts(type)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_posts_type_created",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_posts_type_created\n            ON posts(type, created_at DESC)\n        "
+  },
+  {
+    "type": "index",
+    "name": "idx_published_created",
+    "table": "posts",
+    "sql": "CREATE INDEX idx_published_created ON posts(is_published, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_revisions_post",
+    "table": "post_revisions",
+    "sql": "CREATE INDEX idx_revisions_post ON post_revisions(post_id, created_at DESC)"
+  },
+  {
+    "type": "index",
+    "name": "idx_tags_name",
+    "table": "tags",
+    "sql": "CREATE INDEX idx_tags_name ON tags(name)"
+  },
+  {
+    "type": "index",
+    "name": "idx_users_username",
+    "table": "users",
+    "sql": "CREATE INDEX idx_users_username ON users(username)"
+  },
+  {
+    "type": "table",
+    "name": "ai_models",
+    "table": "ai_models",
+    "sql": "CREATE TABLE ai_models (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                provider_id INTEGER NOT NULL,\n                model_id TEXT NOT NULL,\n                display_name TEXT,\n                description TEXT,\n                input_price REAL,\n                output_price REAL,\n                enabled BOOLEAN DEFAULT 1,\n                is_default BOOLEAN DEFAULT 0,\n                sort_order INTEGER DEFAULT 0,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                UNIQUE(provider_id, model_id),\n                FOREIGN KEY(provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE\n            )"
+  },
+  {
+    "type": "table",
+    "name": "ai_providers",
+    "table": "ai_providers",
+    "sql": "CREATE TABLE ai_providers (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                slug TEXT NOT NULL UNIQUE,\n                name TEXT NOT NULL,\n                description TEXT,\n                driver TEXT NOT NULL,\n                base_url TEXT,\n                currency TEXT NOT NULL DEFAULT 'CNY',\n                allow_custom_model BOOLEAN DEFAULT 0,\n                requires_base_url BOOLEAN DEFAULT 0,\n                enabled BOOLEAN DEFAULT 1,\n                is_builtin BOOLEAN DEFAULT 0,\n                sort_order INTEGER DEFAULT 0,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )"
+  },
+  {
+    "type": "table",
+    "name": "ai_tag_history",
+    "table": "ai_tag_history",
+    "sql": "CREATE TABLE ai_tag_history (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            post_id INTEGER NOT NULL,\n            user_id INTEGER NOT NULL,\n            prompt TEXT,\n            generated_tags TEXT,\n            model_used TEXT,\n            tokens_used INTEGER,\n            cost DECIMAL(10, 6),\n            currency TEXT DEFAULT 'USD',\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )"
+  },
+  {
+    "type": "table",
+    "name": "api_keys",
+    "table": "api_keys",
+    "sql": "CREATE TABLE api_keys (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            user_id INTEGER NOT NULL,\n            api_key TEXT NOT NULL UNIQUE,\n            is_active INTEGER DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (user_id) REFERENCES users(id)\n        )"
+  },
+  {
+    "type": "table",
+    "name": "background_tasks",
+    "table": "background_tasks",
+    "sql": "CREATE TABLE background_tasks (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                kind TEXT NOT NULL,\n                dedupe_key TEXT,\n                payload TEXT NOT NULL,\n                status TEXT NOT NULL DEFAULT 'pending',\n                attempts INTEGER NOT NULL DEFAULT 0,\n                max_attempts INTEGER NOT NULL DEFAULT 3,\n                run_after TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                locked_at TIMESTAMP,\n                locked_by TEXT,\n                last_error TEXT,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )"
+  },
+  {
+    "type": "table",
+    "name": "card_annotations",
+    "table": "card_annotations",
+    "sql": "CREATE TABLE card_annotations (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            user_id INTEGER NOT NULL,\n            card_id INTEGER,\n            source_url TEXT NOT NULL,\n            annotation_text TEXT,\n            xpath TEXT,\n            color TEXT DEFAULT 'yellow',\n            note TEXT,\n            annotation_type TEXT DEFAULT 'highlight',\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (user_id) REFERENCES users(id),\n            FOREIGN KEY (card_id) REFERENCES cards(id)\n        )"
+  },
+  {
+    "type": "table",
+    "name": "cards",
+    "table": "cards",
+    "sql": "CREATE TABLE cards (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            user_id INTEGER NOT NULL,\n            title TEXT,\n            content TEXT NOT NULL,\n            tags TEXT,\n            status TEXT DEFAULT 'idea',\n            source TEXT DEFAULT 'web',\n            linked_article_id INTEGER,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (user_id) REFERENCES users(id),\n            FOREIGN KEY (linked_article_id) REFERENCES posts(id)\n        )"
+  },
+  {
+    "type": "table",
+    "name": "categories",
+    "table": "categories",
+    "sql": "CREATE TABLE categories (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            name TEXT NOT NULL UNIQUE,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        , parent_id INTEGER, slug TEXT, sort_order INTEGER DEFAULT 0, space TEXT DEFAULT 'blog', icon TEXT, description TEXT)"
+  },
+  {
+    "type": "table",
+    "name": "comments",
+    "table": "comments",
+    "sql": "CREATE TABLE comments (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            post_id INTEGER NOT NULL,\n            author_name TEXT NOT NULL,\n            author_email TEXT,\n            content TEXT NOT NULL,\n            is_visible BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE\n        )"
+  },
+  {
+    "type": "table",
+    "name": "drafts",
+    "table": "drafts",
+    "sql": "CREATE TABLE drafts (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                user_id INTEGER NOT NULL,\n                post_id INTEGER,\n                title TEXT NOT NULL,\n                content TEXT NOT NULL,\n                category_id INTEGER,\n                tags TEXT,\n                is_published BOOLEAN DEFAULT 0,\n                device_info TEXT,\n                user_agent TEXT,\n                last_sync TIMESTAMP,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, device_token TEXT DEFAULT '',\n                FOREIGN KEY (user_id) REFERENCES users(id),\n                FOREIGN KEY (post_id) REFERENCES posts(id),\n                FOREIGN KEY (category_id) REFERENCES categories(id)\n            )"
+  },
+  {
+    "type": "table",
+    "name": "embeddings",
+    "table": "embeddings",
+    "sql": "CREATE TABLE embeddings (\n                id INTEGER PRIMARY KEY,\n                source_type TEXT NOT NULL,\n                source_id INTEGER NOT NULL,\n                model TEXT,\n                vector BLOB,\n                content_hash TEXT,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                UNIQUE(source_type, source_id)\n            )"
+  },
+  {
+    "type": "table",
+    "name": "note_links",
+    "table": "note_links",
+    "sql": "CREATE TABLE note_links (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            source_post_id INTEGER NOT NULL,\n            target_post_id INTEGER NOT NULL,\n            link_text TEXT,\n            link_context TEXT,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (source_post_id) REFERENCES posts(id) ON DELETE CASCADE,\n            FOREIGN KEY (target_post_id) REFERENCES posts(id) ON DELETE CASCADE,\n            UNIQUE(source_post_id, target_post_id)\n        )"
+  },
+  {
+    "type": "table",
+    "name": "optimized_images",
+    "table": "optimized_images",
+    "sql": "CREATE TABLE optimized_images (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                original_path TEXT NOT NULL,\n                original_hash TEXT,\n                thumbnail_path TEXT,\n                medium_path TEXT,\n                large_path TEXT,\n                original_size INTEGER,\n                optimized_size INTEGER,\n                status TEXT DEFAULT 'pending',\n                error_message TEXT,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                completed_at TIMESTAMP\n            )"
+  },
+  {
+    "type": "table",
+    "name": "post_revisions",
+    "table": "post_revisions",
+    "sql": "CREATE TABLE post_revisions (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            post_id INTEGER NOT NULL,\n            title TEXT NOT NULL,\n            content TEXT NOT NULL,\n            content_format TEXT DEFAULT 'html',\n            category_id INTEGER,\n            tags_json TEXT,\n            access_level TEXT DEFAULT 'public',\n            access_password TEXT,\n            post_type TEXT DEFAULT 'blog',\n            type TEXT DEFAULT 'post',\n            author_id INTEGER,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE\n        )"
+  },
+  {
+    "type": "table",
+    "name": "post_tags",
+    "table": "post_tags",
+    "sql": "CREATE TABLE post_tags (\n            post_id INTEGER,\n            tag_id INTEGER,\n            PRIMARY KEY (post_id, tag_id),\n            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,\n            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE\n        )"
+  },
+  {
+    "type": "table",
+    "name": "posts",
+    "table": "posts",
+    "sql": "CREATE TABLE posts (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            title TEXT NOT NULL,\n            content TEXT NOT NULL,\n            is_published BOOLEAN DEFAULT 0,\n            category_id INTEGER,\n            author_id INTEGER DEFAULT 1,\n            access_level TEXT DEFAULT 'public',\n            access_password TEXT,\n            publish_at TIMESTAMP,\n            deleted_at TIMESTAMP,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, post_type TEXT DEFAULT 'blog', type TEXT DEFAULT 'post', source_card_ids TEXT, excerpt TEXT, metadata TEXT, parent_note_id INTEGER, link_count INTEGER DEFAULT 0, content_format TEXT DEFAULT 'html', sort_order INTEGER DEFAULT 0, source_post_id INTEGER,\n            FOREIGN KEY (category_id) REFERENCES categories(id),\n            FOREIGN KEY (author_id) REFERENCES users(id)\n        )"
+  },
+  {
+    "type": "table",
+    "name": "posts_fts",
+    "table": "posts_fts",
+    "sql": "CREATE VIRTUAL TABLE posts_fts USING fts5(\n            title,\n            content,\n            content='posts',\n            content_rowid='rowid'\n        )"
+  },
+  {
+    "type": "table",
+    "name": "posts_fts_config",
+    "table": "posts_fts_config",
+    "sql": "CREATE TABLE 'posts_fts_config'(k PRIMARY KEY, v) WITHOUT ROWID"
+  },
+  {
+    "type": "table",
+    "name": "posts_fts_data",
+    "table": "posts_fts_data",
+    "sql": "CREATE TABLE 'posts_fts_data'(id INTEGER PRIMARY KEY, block BLOB)"
+  },
+  {
+    "type": "table",
+    "name": "posts_fts_docsize",
+    "table": "posts_fts_docsize",
+    "sql": "CREATE TABLE 'posts_fts_docsize'(id INTEGER PRIMARY KEY, sz BLOB)"
+  },
+  {
+    "type": "table",
+    "name": "posts_fts_idx",
+    "table": "posts_fts_idx",
+    "sql": "CREATE TABLE 'posts_fts_idx'(segid, term, pgno, PRIMARY KEY(segid, term)) WITHOUT ROWID"
+  },
+  {
+    "type": "table",
+    "name": "site_settings",
+    "table": "site_settings",
+    "sql": "CREATE TABLE site_settings (\n            key TEXT PRIMARY KEY,\n            value TEXT,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )"
+  },
+  {
+    "type": "table",
+    "name": "tags",
+    "table": "tags",
+    "sql": "CREATE TABLE tags (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            name TEXT NOT NULL UNIQUE,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n        )"
+  },
+  {
+    "type": "table",
+    "name": "user_passkeys",
+    "table": "user_passkeys",
+    "sql": "CREATE TABLE user_passkeys (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            user_id INTEGER NOT NULL,\n            credential_id BLOB NOT NULL UNIQUE,\n            public_key BLOB NOT NULL,\n            sign_count INTEGER DEFAULT 0,\n            device_name TEXT,\n            transports TEXT,\n            credential_device_type TEXT,\n            backup_eligible BOOLEAN DEFAULT 0,\n            backup_state BOOLEAN DEFAULT 0,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            last_used_at TIMESTAMP,\n            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n        )"
+  },
+  {
+    "type": "table",
+    "name": "users",
+    "table": "users",
+    "sql": "CREATE TABLE users (\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\n            username TEXT UNIQUE NOT NULL,\n            password_hash TEXT NOT NULL,\n            role TEXT NOT NULL DEFAULT 'author',\n            display_name TEXT,\n            bio TEXT,\n            avatar_url TEXT,\n            is_active BOOLEAN DEFAULT 1,\n            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n            ai_tag_generation_enabled BOOLEAN DEFAULT 1,\n            ai_provider TEXT DEFAULT 'dashscope',\n            ai_api_key TEXT,\n            ai_model TEXT DEFAULT 'qwen-turbo',\n            ai_base_url TEXT\n        , ai_embedding_enabled INTEGER DEFAULT 0, ai_embedding_base_url TEXT, ai_embedding_api_key TEXT, ai_embedding_model TEXT)"
+  }
+]

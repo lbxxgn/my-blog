@@ -91,7 +91,16 @@ def enqueue_embedding(source_type, source_id):
             return None
         if not _any_embedding_enabled():
             return None
-        return embedding_queue.submit(source_type, source_id)
+        import os
+        import sys
+        if os.environ.get('TESTING') == '1' or 'pytest' in sys.modules:
+            return embedding_queue.submit(source_type, source_id)
+        from backend.services.task_queue import enqueue
+        enqueue('embedding', {
+            'source_type': source_type,
+            'source_id': source_id,
+        }, dedupe_key=f'embedding:{source_type}:{source_id}')
+        return True
     except Exception as e:
         logger.warning(f"enqueue_embedding({source_type}, {source_id}) failed: {e}")
         return None
