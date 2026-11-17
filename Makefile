@@ -3,13 +3,17 @@ PYTEST ?= $(PYTHON) -m pytest
 IMAGE_TESTS = tests/test_image_cleanup_tool.py tests/test_image_edge_cases.py tests/test_image_processing.py
 CHECK_FILES = backend/app.py backend/config.py backend/routes/api.py backend/routes/blog/__init__.py backend/routes/admin/__init__.py backend/routes/ai/__init__.py
 
-.PHONY: run test test-images check lint coverage clean-artifacts diag-api
+.PHONY: run test test-e2e test-images check lint coverage clean-artifacts diag-api
 
 run:
 	$(PYTHON) backend/app.py
 
 test:
 	$(PYTEST) tests/ -v
+
+# 浏览器端到端测试（需要本机 Chrome/Chromium；可用 E2E_CHROME_BIN 指定）
+test-e2e:
+	E2E=1 $(PYTEST) tests/e2e -v
 
 test-images:
 	$(PYTEST) -q $(IMAGE_TESTS)

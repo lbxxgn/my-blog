@@ -30,9 +30,10 @@
 | `test_search_api.py` | 搜索 API |
 | `test_security.py` | 安全（CSRF、XSS、速率限制、CSP、Cookie） |
 | `test_site_icon.py` | 站点图标 |
-| `e2e_kb_editor.py` | 端到端知识库编辑器测试（CDP + Chrome，手动运行） |
+| `e2e_kb_editor.py` | 知识库编辑器冒烟脚本（CDP + Chrome，手动运行） |
+| `e2e/` | 浏览器端到端 pytest 套件（26 个用例，默认跳过，`E2E=1` 开启） |
 
-**当前测试总数**: 523 个单元/集成测试（`pytest --collect-only -q | tail -1` 统计），外加 1 个 E2E 脚本。
+**当前测试总数**: 523 个单元/集成测试，外加 26 个浏览器 E2E 用例（`pytest --collect-only -q | tail -1` 统计，包含被跳过的 E2E）。
 
 ### 已覆盖的功能模块
 
@@ -73,7 +74,24 @@ make check
 
 # 查看测试覆盖率（含 40% 门槛，报告在 htmlcov/）
 make coverage
+
+# 浏览器端到端测试（自动启动临时服务 + Headless Chrome，默认不在 make check 中运行）
+make test-e2e
 ```
+
+### 浏览器 E2E 测试
+
+`tests/e2e/` 下的用例默认跳过，只有设置 `E2E=1` 时才会启动独立的 Flask 服务和 Headless Chrome：
+
+```bash
+E2E=1 pytest tests/e2e -v
+E2E=1 pytest tests/e2e/test_admin_posts.py -v
+
+# 未自动找到 Chrome 时显式指定
+E2E_CHROME_BIN=/path/to/chrome E2E=1 pytest tests/e2e -v
+```
+
+覆盖范围：公开站点与搜索、登录/登出、后台文章创建/发布/编辑/草稿/下架/回收站恢复、评论提交与审核、知识库浏览/搜索/BlockNote 编辑器建文档/自动保存、回顾页与个人 API、PWA 与健康检查。
 
 ### 按类型运行
 
