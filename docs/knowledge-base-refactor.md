@@ -9,7 +9,7 @@
 | 定位 | 灵感卡片、快速记事、时间线 | 独立知识空间，目录树 + 文档 |
 | 数据组织 | 卡片、状态、标签、时间线 | 树形目录 + 富文本文档 |
 | 编辑器 | 传统表单/Quill | React + BlockNote |
-| 与博客关系 | 可孵化成文章 | 完全独立，不与博客混用 |
+| 与博客关系 | 可转文章（卡片界面入口已下线，API 保留） | 完全独立，不与博客混用 |
 
 ## 技术实现
 
@@ -23,7 +23,7 @@
 新版编辑器需要构建前端资源：
 
 ```bash
-cd frontend && npm install && npm run build && cd ..
+./scripts/build-frontend.sh
 ```
 
 ## 测试
@@ -32,8 +32,11 @@ cd frontend && npm install && npm run build && cd ..
 # API 测试
 pytest tests/test_kb_editor_api.py -v
 
-# E2E 测试
-pytest tests/e2e_kb_editor.py -v
+# E2E 测试（Chrome，opt-in）
+E2E=1 pytest tests/e2e -v
+
+# 或编辑器完整冒烟脚本（需先启动 Flask 服务）
+python tests/e2e_kb_editor.py
 ```
 
 ## 迁移说明

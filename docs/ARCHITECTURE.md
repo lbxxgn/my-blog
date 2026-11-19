@@ -7,6 +7,8 @@
 - [项目结构](#项目结构)
 - [数据模型](#数据模型)
 - [路由架构](#路由架构)
+- [应用工厂与启动流程](#应用工厂与启动流程)
+- [后台任务队列](#后台任务队列)
 - [安全机制](#安全机制)
 - [AI 服务架构](#ai-服务架构)
 - [图片处理流程](#图片处理流程)
@@ -37,10 +39,11 @@ Simple Blog 是一个基于 Flask 的现代化博客系统，采用模块化蓝�
 | SQLite | 3.x | 数据库（FTS5 全文搜索） |
 | Python | 3.11+ | 运行环境 |
 | Flask-WTF | 1.2+ | CSRF 保护 |
-| Flask-Limiter | 3.x+ | 速率限制 |
-| Flask-Caching | 3.x+ | 简单缓存 |
+| Flask-Limiter | 3.5+ | 速率限制（默认 memory://，单 worker） |
+| Flask-Caching | 2.x+ | 简单缓存 |
+| numpy | 1.26+ | 向量相似度计算 |
 | webauthn | 2.7+ | Passkey 认证 |
-| Pillow | 10.0+ | 图片处理 |
+| Pillow | 13.0+ | 图片处理 |
 | pillow-heif | 0.13+ | HEIC 格式支持 |
 | qrcode | - | 分享二维码 |
 | html2text | - | Markdown 转换 |
@@ -61,10 +64,10 @@ Simple Blog 是一个基于 Flask 的现代化博客系统，采用模块化蓝�
 | Vanilla JavaScript | 博客/后台核心交互 |
 | Quill.js | 传统富文本编辑器 |
 | 原生 CSS | 样式系统、响应式、暗黑模式 |
-| React 19.2 | 新版知识库编辑器框架 |
+| React 19.3 | 新版知识库编辑器框架 |
 | Vite 8.1 | 前端构建工具与 manifest |
 | TypeScript 6.0 | 编辑器类型安全 |
-| BlockNote 0.51 | 块编辑器 |
+| BlockNote 0.55 | 块编辑器 |
 | Mantine 9.4 | React UI 组件库 |
 | Markdown2 | Markdown 渲染 |
 | Bleach | HTML 清理 |
@@ -78,7 +81,7 @@ my-blog/
 │
 ├── backend/                      # 后端代码
 │   ├── __init__.py              # 后端包标记
-│   ├── app.py                   # 应用主入口、蓝图注册、Vite 清单读取
+│   ├── app.py                   # create_app() 工厂、蓝图注册、Vite 清单读取、CLI
 │   ├── config.py                # 配置管理（唯一配置入口）
 │   ├── logger.py                # 日志系统
 │   ├── auth_decorators.py       # 登录与权限装饰器
@@ -97,56 +100,69 @@ my-blog/
 │   │   ├── comments.py         # 评论与图片优化记录
 │   │   ├── users.py            # 用户/Passkey/AI 配置/API Key
 │   │   ├── cards.py            # 卡片与标注
+│   │   ├── embeddings.py       # 向量存取与相似度检索（带进程内缓存）
+│   │   ├── revisions.py        # 文章/文档修订历史与回收站辅助
+│   │   ├── ai_catalog.py       # AI 提供商与模型目录（站点级）
+│   │   ├── site_settings.py    # 站点级键值配置（站点图标版本等）
 │   │   ├── utils.py            # HTML 清理与文本截断
 │   │   ├── draft.py            # 草稿模型
 │   │   ├── models.py           # re-export 兼容壳（勿新增代码）
 │   │   └── __init__.py         # 模型导出
 │   │
 │   ├── routes/                  # 路由模块（蓝图）
-│   │   ├── __init__.py         # 蓝图注册
+│   │   ├── __init__.py         # 蓝图导出
 │   │   ├── auth.py             # 认证路由（登录/Passkey）
 │   │   ├── blog/               # 博客公开路由（feed / post_detail / search / mobile）
-│   │   ├── admin/              # 管理后台路由 + 移动端上传蓝图（posts/batch/media/taxonomy/comments/import_export/users/site）
+│   │   ├── admin/              # 管理后台路由 + 移动端上传蓝图
 │   │   ├── api.py              # RESTful API
 │   │   ├── ai/                 # AI 功能路由（config / generation / organize / mentor）
 │   │   ├── knowledge_base.py   # 旧版插件 API（页面已重定向到 knowledge）
 │   │   ├── knowledge.py        # 新版知识空间
-│   │   └── drafts.py           # 草稿同步路由
+│   │   ├── drafts.py           # 草稿同步路由
+│   │   ├── review.py           # 回顾页 / 每周回顾
+│   │   └── legacy.py           # 旧客户端路径兼容（/new、/api/plugin/*、/api/cards/*）
+│   │
+│   ├── services/                # 服务层
+│   │   ├── backup.py           # 全量备份/恢复
+│   │   ├── task_queue.py       # SQLite 持久化后台任务队列
+│   │   └── weekly_review.py    # 每周回顾生成
 │   │
 │   ├── ai_services/            # AI 服务层
-│   │   ├── __init__.py
 │   │   ├── tag_generator.py    # 标签生成服务
 │   │   ├── card_merger.py      # AI 卡片合并
 │   │   ├── base.py             # 提供商抽象基类
 │   │   ├── openai_compatible.py # OpenAI 兼容 API 共享实现
 │   │   ├── dashscope_provider.py
 │   │   ├── deepseek_provider.py
-│   │   └── custom_provider.py
+│   │   ├── custom_provider.py
+│   │   ├── embeddings.py       # Embedding 服务封装
+│   │   ├── provider_defaults.py # 各提供商默认模型
+│   │   └── url_guard.py        # AI Base URL SSRF 校验
 │   │
 │   ├── utils/                  # 工具函数
 │   │   ├── asset_version.py    # 静态资源版本管理
 │   │   ├── image_cleanup.py    # 图片清理逻辑
 │   │   ├── image_processor.py  # 图片处理
-│   │   └── template_helpers.py # 模板辅助函数
+│   │   ├── secret_box.py       # API Key 对称加密
+│   │   ├── site_icon.py        # 站点图标处理
+│   │   ├── markdown_renderer.py # 内容渲染（markdown / html 分流）
+│   │   ├── template_helpers.py # 模板辅助函数（static_file/vite_asset）
+│   │   └── timezone.py         # 本地时区工具
 │   │
 │   ├── tasks/                  # 后台任务
-│   │   └── image_optimization_task.py  # 图片优化任务
+│   │   ├── image_optimization_task.py  # 图片优化线程池
+│   │   └── embedding_task.py           # Embedding 任务（生产走持久化队列）
 │   │
-│   └── migrations/             # 版本化数据库迁移
+│   └── migrations/             # 版本化数据库迁移（000 baseline ~ 015）
 │       ├── __init__.py         # 迁移运行器（schema_migrations 版本表）
-│       ├── __main__.py         # python -m backend.migrations 入口
-│       ├── migrate_add_access_control.py
-│       ├── migrate_add_post_type.py
-│       ├── migrate_ai_features.py
-│       ├── migrate_drafts.py
-│       ├── migrate_image_optimization.py
-│       ├── migrate_knowledge_base.py
-│       └── migrate_multiauthor.py
+│       ├── __main__.py         # python -m backend.migrations [status]
+│       └── migrate_*.py        # 各版本迁移
 │
 ├── frontend/                    # 新版知识库编辑器（React + Vite）
 │   ├── package.json
 │   ├── vite.config.ts
 │   ├── tsconfig.json
+│   ├── index.html               # 本地开发挂载页（npm run dev）
 │   └── src/
 │
 ├── templates/                   # Jinja2 模板
@@ -157,19 +173,14 @@ my-blog/
 │   ├── change_password.html     # 修改密码 / Passkey 管理
 │   ├── admin/                   # 管理后台模板
 │   └── knowledge/               # 知识空间模板
-│       ├── index.html
-│       ├── category.html
-│       ├── doc.html
-│       ├── editor.html
-│       └── _tree.html
 │
 ├── static/                      # 静态资源
-│   ├── css/                    # 样式文件
+│   ├── css/                    # 样式文件（含 editor-page.css / post-page.css）
 │   ├── js/                     # 传统 JavaScript
-│   ├── vendor/                 # 第三方库
-│   ├── uploads/                # 用户上传内容
-│   ├── manifest.json           # 旧版资源清单
-│   └── frontend/               # Vite 构建产物（运行 npm run build 生成）
+│   ├── vendor/                 # 第三方库（Quill 等）
+│   ├── uploads/                # 用户上传内容（不入库）
+│   ├── manifest.json           # 传统静态资源清单
+│   └── frontend/               # Vite 构建产物（不入库，npm run build 生成）
 │       └── .vite/manifest.json
 │
 ├── db/                          # 数据库目录
@@ -181,17 +192,19 @@ my-blog/
 │
 ├── safari-extension/            # Safari 扩展
 │
-├── tests/                       # 测试代码
+├── tests/                       # 单元/集成测试 + tests/e2e/ 浏览器 E2E
 ├── scripts/                     # 项目脚本与诊断工具
 │   ├── start.sh
+│   ├── build-frontend.sh       # 前端构建（依赖变化才 npm ci）
 │   ├── install-service.sh
 │   ├── upgrade.sh
 │   ├── rollback.sh
 │   ├── verify_upgrade.sh
+│   ├── backup.sh
 │   ├── generate_manifest.py
 │   └── diagnostics/
 │
-├── .github/workflows/           # CI 配置
+├── .github/workflows/           # CI（backend / frontend / e2e / audit）
 ├── docs/                        # 文档
 └── requirements.txt             # Python 依赖
 ```
@@ -262,6 +275,26 @@ CREATE VIRTUAL TABLE posts_fts USING fts5(
 ```
 > FTS 索引不再通过触发器自动维护，而是在 `posts` 的增删改查操作中手动同步。
 
+#### 文章修订表 (post_revisions)
+```sql
+CREATE TABLE post_revisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    content_format TEXT DEFAULT 'html',
+    category_id INTEGER,
+    tags_json TEXT,
+    access_level TEXT DEFAULT 'public',
+    access_password TEXT,
+    post_type TEXT DEFAULT 'blog',
+    type TEXT DEFAULT 'post',
+    author_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+> 每次保存正文前生成修订快照；后台「历史版本」/「回收站」基于此与 `posts.deleted_at`。
+
 #### 分类表 (categories)
 ```sql
 CREATE TABLE categories (
@@ -306,6 +339,16 @@ CREATE TABLE comments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
+
+#### 站点设置表 (site_settings)
+```sql
+CREATE TABLE site_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+> 站点级键值配置（目前用于自定义站点图标版本等）。
 
 #### Passkey 表 (user_passkeys)
 ```sql
@@ -388,6 +431,20 @@ CREATE TABLE card_annotations (
 );
 ```
 
+#### 向量表 (embeddings)
+```sql
+CREATE TABLE embeddings (
+    id INTEGER PRIMARY KEY,
+    source_type TEXT NOT NULL,   -- post / doc / card
+    source_id INTEGER NOT NULL,
+    model TEXT,
+    vector BLOB,
+    content_hash TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_type, source_id)
+);
+```
+
 #### API 密钥表 (api_keys)
 ```sql
 CREATE TABLE api_keys (
@@ -412,6 +469,63 @@ CREATE TABLE note_links (
 );
 ```
 
+#### 后台任务表 (background_tasks)
+```sql
+CREATE TABLE background_tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,                -- review_weekly / ai_title / embedding
+    dedupe_key TEXT,
+    payload TEXT NOT NULL,             -- JSON
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 3,
+    run_after TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    locked_at TIMESTAMP,
+    locked_by TEXT,
+    last_error TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- 部分唯一索引：同 kind+dedupe_key 只允许一个 pending/running
+```
+
+#### AI 提供商表 (ai_providers) / 模型表 (ai_models)
+```sql
+CREATE TABLE ai_providers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT,
+    driver TEXT NOT NULL,
+    base_url TEXT,
+    currency TEXT NOT NULL DEFAULT 'CNY',
+    allow_custom_model BOOLEAN DEFAULT 0,
+    requires_base_url BOOLEAN DEFAULT 0,
+    enabled BOOLEAN DEFAULT 1,
+    is_builtin BOOLEAN DEFAULT 0,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE ai_models (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider_id INTEGER NOT NULL REFERENCES ai_providers(id) ON DELETE CASCADE,
+    model_id TEXT NOT NULL,
+    display_name TEXT,
+    description TEXT,
+    input_price REAL,
+    output_price REAL,
+    enabled BOOLEAN DEFAULT 1,
+    is_default BOOLEAN DEFAULT 0,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(provider_id, model_id)
+);
+```
+> 站点级 AI 目录，后台可启用/禁用提供商与模型、维护价格。
+
 #### AI 使用记录表 (ai_tag_history)
 ```sql
 CREATE TABLE ai_tag_history (
@@ -435,7 +549,7 @@ CREATE TABLE ai_tag_history (
 ### 蓝图注册
 
 ```python
-# backend/app.py
+# backend/app.py::create_app()
 
 # 认证蓝图
 app.register_blueprint(auth_bp)
@@ -443,14 +557,14 @@ app.register_blueprint(auth_bp)
 # 博客蓝图
 app.register_blueprint(blog_bp)
 
-# 管理后台蓝图
-app.register_blueprint(admin_bp, url_prefix='/admin')
+# 管理后台蓝图（admin_bp 自带 url_prefix='/admin'）
+app.register_blueprint(admin_bp)
 
 # API 蓝图
 app.register_blueprint(api_bp, url_prefix='/api')
 
-# AI 蓝图
-app.register_blueprint(ai_bp, url_prefix='/admin/ai')
+# AI 蓝图（ai_bp 自带 url_prefix='/admin/ai'）
+app.register_blueprint(ai_bp)
 
 # 旧版知识库/插件 API 蓝图
 app.register_blueprint(knowledge_base_bp, url_prefix='/knowledge_base')
@@ -460,6 +574,12 @@ app.register_blueprint(knowledge_bp, url_prefix='/knowledge')
 
 # 草稿同步蓝图
 app.register_blueprint(drafts_bp)
+
+# 回顾页蓝图（那年今日 / 写作热力 / 每周回顾）
+app.register_blueprint(review_bp)
+
+# 旧客户端路径兼容蓝图（/new、/api/plugin/*、/api/cards/*）
+app.register_blueprint(legacy_bp)
 
 # 移动端蓝图
 app.register_blueprint(mobile_bp, url_prefix='/mobile')
@@ -477,7 +597,49 @@ app.register_blueprint(mobile_bp, url_prefix='/mobile')
 | `knowledge_base_bp` | `/knowledge_base` | 插件 API（旧） | `/knowledge_base/api/plugin/submit`, `/knowledge_base/api/plugin/sync-annotations`, `/knowledge_base/api/plugin/annotations`, `/knowledge_base/api/cards/*` |
 | `knowledge_bp` | `/knowledge` | 知识空间（新） | `/knowledge/`, `/knowledge/category/<id>`, `/knowledge/doc/<id>`, `/knowledge/doc/new`, `/knowledge/doc/<id>/edit`, `/knowledge/reorder`, `/knowledge/doc/upload-image`, `/knowledge/doc/<id>/autosave` |
 | `drafts_bp` | 无 | 草稿同步 | `/api/drafts/*` |
+| `review_bp` | 无 | 回顾与统计 | `/review`, `/api/review/today`, `/api/review/activity`, `/api/review/weekly` |
+| `legacy_bp` | 无 | 旧客户端路径兼容 | `/new`, `/api/plugin/*`, `/api/cards/*`（内部转发到 knowledge_base 视图） |
 | `mobile_bp` | `/mobile` | 移动端 | `/mobile/upload`, `/mobile/my-posts` |
+
+健康检查端点（不属于任何蓝图）：`GET /healthz`（存活）、`GET /readyz`（就绪，含数据库探测）。
+
+---
+
+## 应用工厂与启动流程
+
+`backend/app.py` 暴露 `create_app(config_overrides=None)`，模块级 `app = create_app()` 供 gunicorn 与旧脚本使用：
+
+```python
+# gunicorn backend.app:app
+# 测试可直接创建隔离实例
+app = create_app({'TESTING': True, 'DATABASE_URL': 'sqlite:///:memory:'})
+```
+
+启动顺序：
+
+1. 加载 `backend.config`
+2. `create_app()` 应用 `config_overrides`（测试/多实例）
+3. 初始化扩展（CSRF / Limiter / Cache / 日志），每个实例独立
+4. 注册蓝图与模板过滤器
+5. 非 DEBUG 环境默认 `AUTO_MIGRATE=True`，执行待应用迁移，失败即拒绝启动
+6. 启动备份调度器与持久化任务 worker（`TESTING`/pytest 下跳过）
+
+可选副作用开关：`SETUP_LOGGING`、`REGENERATE_ASSETS`，测试中可关闭。
+
+---
+
+## 后台任务队列
+
+生产环境的异步任务写入 SQLite `background_tasks` 表，由每个进程内的 worker 抢占执行：
+
+- 入队：`backend/services/task_queue.py::enqueue(kind, payload, dedupe_key=...)`
+- 支持任务类型：`review_weekly`、`ai_title`、`embedding`
+- 去重：`dedupe_key` + 部分唯一索引（仅 `pending`/`running` 生效）
+- 重试：失败按指数退避，超过 `max_attempts` 置为 `failed`
+- 抢占：`BEGIN IMMEDIATE` + 条件更新，多 worker 只执行一次
+- 手工排空（测试/运维）：`run_pending_tasks(app)`
+
+图片优化任务仍使用进程内线程池（状态持久化在 `optimized_images`，启动时会重新入队未完成任务）。
 
 ---
 
@@ -487,7 +649,8 @@ app.register_blueprint(mobile_bp, url_prefix='/mobile')
 
 #### 密码认证
 - 使用 `werkzeug.security` 进行密码哈希
-- 密码强度验证：至少 10 位，包含大小写字母和数字
+- 普通用户密码强度：至少 10 位，包含大小写字母和数字
+- `ADMIN_PASSWORD` 环境变量：至少 12 位，且拒绝 `password`、`admin123` 等常见弱密码
 
 #### Passkey / WebAuthn
 - 支持无密码登录
@@ -510,26 +673,39 @@ def can_manage_users(f):
 ### 2. CSRF 保护
 
 ```python
-csrf = CSRFProtect(app)
+# 每个 app 实例独立初始化（create_app 内）
+app_csrf = CSRFProtect()
+app_csrf.init_app(app)
+app.csrf_protect = app_csrf
 
-# 全局启用
-app.config['WTF_CSRF_ENABLED'] = True
-
-# 部分端点豁免（浏览器扩展需求）
-csrf.exempt(app.view_functions['knowledge_base.plugin_submit'])
+# 部分端点豁免（浏览器扩展 / 移动端 / 备份恢复无法携带 token）
+app_csrf.exempt(app.view_functions['knowledge_base.plugin_submit'])
+app_csrf.exempt(app.view_functions['knowledge_base.sync_annotations'])
+app_csrf.exempt(app.view_functions['knowledge_base.plugin_validate'])
+app_csrf.exempt(app.view_functions['mobile.mobile_upload_image'])
+app_csrf.exempt(app.view_functions['ai.test_ai_config'])
+app_csrf.exempt(app.view_functions['admin.restore_backup'])
+app_csrf.exempt(app.view_functions['legacy.plugin_submit'])
+app_csrf.exempt(app.view_functions['legacy.plugin_sync_annotations'])
 ```
+
+> 豁免端点仍需通过会话校验与权限装饰器；`admin.restore_backup` 在视图内提高 body 上限后手动校验 CSRF。
 
 ### 3. 速率限制
 
 ```python
-limiter = Limiter(
-    app=app,
+app_limiter = Limiter(
     key_func=get_remote_address,
-    default_limits=["1000 per day", "200 per hour"]
+    default_limits=["1000 per day", "200 per hour"],
+    storage_uri="memory://",
 )
+app_limiter.init_app(app)
+app.limiter = app_limiter
 
-# 登录端点严格限制
+# 单端点限流在注册蓝图后按 view function 逐个应用（_apply_route_limit）
 ```
+
+> `memory://` 只在单进程内有效，因此生产部署固定 `gunicorn --workers 1`；多 worker 需改用 Redis 或先迁移 PostgreSQL。登录接口目前尚未单独限流（见 backlog SEC-1）。
 
 ### 4. XSS 防护
 
@@ -560,11 +736,13 @@ cursor.execute('SELECT * FROM posts WHERE id = ?', (post_id,))
 ### 6. 会话安全
 
 ```python
-# 会话配置
-SESSION_COOKIE_SECURE = True      # HTTPS only
+# 会话配置（backend/config.py）
 SESSION_COOKIE_HTTPONLY = True    # 防止 JS 访问
 SESSION_COOKIE_SAMESITE = 'Lax'   # CSRF 防护
+SESSION_COOKIE_SECURE = True      # 仅生产且 FORCE_HTTPS=True 时为 True
 ```
+
+> 生产环境需要在 `.env` 显式设置 `FORCE_HTTPS=True`，否则 Cookie 不带 `Secure` 标记（启动时会有告警）。
 
 ---
 
@@ -690,7 +868,7 @@ function getOptimizedImageUrl(originalUrl, size) {
 
 | 文件/目录 | 说明 |
 |----------|------|
-| `frontend/package.json` | 依赖：React 19.2、Vite 8.1、BlockNote 0.51、Mantine 9.4 |
+| `frontend/package.json` | 依赖：React 19.3、Vite 8.1、BlockNote 0.55、Mantine 9.4 |
 | `frontend/vite.config.ts` | 构建到 `../static/frontend/`，启用 manifest |
 | `frontend/src/main.tsx` | 挂载入口 |
 | `frontend/src/KbEditorApp.tsx` | 编辑器主组件：标题、目录、标签、排序、发布、保存、自动保存、AI 面板 |
@@ -703,9 +881,8 @@ function getOptimizedImageUrl(originalUrl, size) {
 构建流程：
 
 ```bash
-cd frontend
-npm install
-npm run build
+# 依赖变化时才 npm ci，并校验 manifest
+./scripts/build-frontend.sh
 ```
 
 产物写入 `static/frontend/`，生成 `static/frontend/.vite/manifest.json`。Flask 在 `backend/app.py` 中通过 `get_vite_manifest()` 与 `vite_asset()` 读取清单，并在 `templates/knowledge/editor.html` 中注入对应的 JS/CSS 路径。
@@ -832,7 +1009,7 @@ log_error(error, context='Error context')
 
 ### 数据库迁移
 
-迁移由版本化运行器管理（`schema_migrations` 表记录已应用版本）：
+迁移由版本化运行器管理（`schema_migrations` 表记录已应用版本），共 16 个：`000_baseline`（新建空库时创建基础表，复用 `init_db()`）到 `015_background_tasks`。
 
 ```bash
 # 应用所有待执行迁移
@@ -842,8 +1019,11 @@ python -m backend.migrations
 python -m backend.migrations status
 ```
 
+`AUTO_MIGRATE` 在非 DEBUG 环境默认 `True`（生产默认开启），应用启动时自动应用待执行迁移，失败则拒绝启动；`DEBUG=True` 与测试环境默认关闭。
+
 新增迁移：在 `backend/migrations/` 新建 `migrate_xxx.py`（提供幂等的 `migrate()` 函数），
-并在 `backend/migrations/__init__.py` 的 `MIGRATIONS` 注册表末尾追加条目。
+在 `backend/migrations/__init__.py` 的 `MIGRATIONS` 注册表末尾追加条目，
+然后运行 `python scripts/generate_schema_snapshot.py` 更新 `tests/schema_snapshot.json`（否则 CI 失败）。
 
 ### 版本升级
 
@@ -854,8 +1034,11 @@ git pull origin main
 # 更新依赖
 pip install -r requirements.txt
 
-# 运行迁移
+# 运行迁移（生产启动时 AUTO_MIGRATE 也会自动执行）
 python -m backend.migrations
+
+# 构建前端（static/frontend 不入库）
+./scripts/build-frontend.sh
 
 # 重启服务
 sudo systemctl restart simple-blog

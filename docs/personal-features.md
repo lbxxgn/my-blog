@@ -1,9 +1,11 @@
 # 个人效率功能说明
 
-**版本**: v1.0
-**最后更新**: 2026-09-25
+**版本**: v1.1
+**最后更新**: 2026-11-19
 
-本文档介绍 2026-09 版本新增的个人使用体验功能：命令面板、统一搜索、语义搜索、相关内容提示、回顾页、每周 AI 回顾、语音速记。
+本文档介绍 2026-09 版本新增的个人使用体验功能：命令面板、统一搜索、语义搜索、相关内容提示、回顾页、每周 AI 回顾。
+
+> 注：移动端语音速记已从现行版本移除（浏览器 Web Speech API 识别质量与移动端兼容性不足），本文其余功能仍然有效。
 
 ---
 
@@ -59,27 +61,19 @@
 - **自动**：服务器 crontab 加一行（每周一 8:05）：
 
 ```cron
-5 8 * * 1 cd /path/to/my-blog && .venv/bin/flask weekly-review
+5 8 * * 1 cd /path/to/my-blog && .venv/bin/flask --app backend.app weekly-review
 ```
 
 - CLI 对所有开启 AI 的用户逐个生成；同一周重复执行会返回已存在，不会重复创建
 - AI 未配置时会生成纯统计版本的回顾
-
-## 🎙️ 语音速记
-
-- 移动端首页「＋发布」面板提供麦克风按钮；点一次开始，识别中的文字直接写入正文，再点一次停止
-- 录音时按钮变红并显示「正在聆听」；暂停后若系统自动结束，再点一次即可接着输入
-- 基于浏览器自带 Web Speech API（免费、无需服务器），支持中文，边说边实时上屏
-- iPhone 请使用 Safari 并允许麦克风权限；不支持或无法授权时，也可以聚焦正文后使用 iPhone 键盘自带的麦克风听写
-- 需要 Chrome / Edge / Safari 较新版本；不支持的浏览器按钮自动置灰
 
 ---
 
 ## 🛠️ 部署注意事项
 
 1. **新依赖 numpy**：生产环境执行 `pip install -r requirements.txt`
-2. **数据库迁移**：部署后执行 `python -m backend.migrations`（迁移 009 创建 `embeddings` 表与 embedding 配置列）
-3. **前端构建**：`cd frontend && npm run build`（知识库编辑器新增「相关」面板）
+2. **数据库迁移**：执行 `python -m backend.migrations`（非 DEBUG 环境默认 `AUTO_MIGRATE=True`，会在启动时自动执行；009 创建 `embeddings` 表，015 创建持久化后台任务表）
+3. **前端构建**：`./scripts/build-frontend.sh`（构建产物 `static/frontend/` 不入库）
 4. **静态资源清单**：新增 JS/CSS 后执行 `python scripts/generate_manifest.py`
 5. **新增 API** 详见 [API 文档](api-documentation.md) 的「搜索API」「回顾API」章节
 
@@ -89,5 +83,4 @@
 |------|-----------|
 | 语义搜索显示「未配置 Embedding」 | 到 AI 设置页配置 embedding（见上文） |
 | 「重建向量索引」后语义结果仍为空 | 后台任务异步执行中，稍后刷新；看服务日志确认 embedding 配置生效 |
-| 语音按钮置灰 | 浏览器不支持 Web Speech API，换 Chrome/Edge/Safari |
-| `flask weekly-review` 无输出 | 确认用户已开启 AI 并配置了 API Key；AI 未配置时只对第一个 admin 生成降级版 |
+| `flask --app backend.app weekly-review` 无输出 | 确认用户已开启 AI 并配置了 API Key；AI 未配置时只对第一个 admin 生成降级版 |

@@ -1,13 +1,24 @@
 """图片后台优化任务系统"""
-import threading
 import logging
-from queue import Queue
+import os
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from queue import Queue
+
 from backend.image_processor import generate_image_sizes
 from backend.models import get_db_context
 
 logger = logging.getLogger(__name__)
+
+
+def _worker_count():
+    """图片优化线程数，可由 IMAGE_OPTIMIZATION_WORKERS 覆盖（默认 4）。"""
+    try:
+        value = int(os.environ.get('IMAGE_OPTIMIZATION_WORKERS', '4'))
+    except ValueError:
+        return 4
+    return max(1, min(value, 16))
 
 class ImageOptimizationQueue:
     """线程安全的图片优化队列"""
@@ -18,7 +29,7 @@ class ImageOptimizationQueue:
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)
-                cls._instance.executor = ThreadPoolExecutor(max_workers=4)
+                cls._instance.executor = ThreadPoolExecutor(max_workers=_worker_count())
                 cls._instance.queue = Queue()
                 cls._instance.processing = False
             return cls._instance

@@ -12,21 +12,24 @@ pip install -r requirements.txt
 
 ## 构建新版知识库编辑器
 
-首次运行或前端源码变更后需要构建：
+首次运行或前端源码变更后需要构建（需要 Node.js 22+，见 `.nvmrc`）：
 
 ```bash
-cd frontend
-npm install
-npm run build
-cd ..
+# 方式一：脚本（依赖变化时才重新 npm ci）
+./scripts/build-frontend.sh
+
+# 方式二：手动
+cd frontend && npm ci && npm run build && cd ..
 ```
 
-构建产物输出到 `static/frontend/`，Flask 通过 `backend/app.py` 中的 `vite_asset()` 读取 `static/frontend/.vite/manifest.json`。
+构建产物输出到 `static/frontend/`（不入库，必须构建），Flask 通过 `backend/app.py` 中的 `vite_asset()` 读取 `static/frontend/.vite/manifest.json`。
 
 ## 一行命令升级
 
 ```bash
-chmod +x scripts/*.sh && ./scripts/upgrade.sh && ./scripts/verify_upgrade.sh
+chmod +x scripts/*.sh
+git pull origin main          # 升级脚本本身不执行 git pull
+./scripts/upgrade.sh && ./scripts/verify_upgrade.sh
 ```
 
 ## 分步升级
@@ -35,7 +38,8 @@ chmod +x scripts/*.sh && ./scripts/upgrade.sh && ./scripts/verify_upgrade.sh
 # 1️⃣ 赋予权限
 chmod +x scripts/*.sh
 
-# 2️⃣ 执行升级
+# 2️⃣ 拉取代码并执行升级（脚本不做 git pull）
+git pull origin main
 ./scripts/upgrade.sh
 
 # 3️⃣ 验证结果
@@ -97,8 +101,12 @@ curl http://127.0.0.1:5001
 # API 测试
 pytest tests/test_kb_editor_api.py -v
 
-# E2E 测试
-pytest tests/e2e_kb_editor.py -v
+# E2E 测试（需要 Chrome，默认跳过）
+make test-e2e
+# 或完整 pytest E2E 套件
+E2E=1 pytest tests/e2e -v
+# 手动冒烟脚本（需先启动 Flask）
+python tests/e2e_kb_editor.py
 ```
 
 ## 文件清单
@@ -136,7 +144,7 @@ lsof -ti:5001 | xargs kill -9
 **Q: 新版知识库编辑器空白？**
 ```bash
 # 重新构建前端
-cd frontend && npm install && npm run build && cd ..
+cd frontend && npm ci && npm run build && cd ..
 # 确认 static/frontend/.vite/manifest.json 存在
 ls static/frontend/.vite/manifest.json
 ```

@@ -1,13 +1,14 @@
 # Simple Blog API 文档
 
-**版本**: v2.4
-**最后更新**: 2026-09-25
+**版本**: v2.5
+**最后更新**: 2026-11-17
 **基础URL**: `http://your-domain.com`
 
 ---
 
 ## 📋 目录
 
+- [系统健康检查](#系统健康检查)
 - [认证](#认证)
 - [Passkey 认证](#passkey-认证)
 - [文章API](#文章api)
@@ -24,6 +25,33 @@
 - [新知识空间API](#新知识空间api)
 - [导入导出API](#导入导出api)
 - [工具API](#工具api)
+
+---
+
+## 🩺 系统健康检查
+
+无需认证，供 systemd/负载均衡/监控探活使用。
+
+### 存活检查
+
+```
+GET /healthz
+```
+
+返回 `200` 表示进程可响应，不访问数据库。
+
+### 就绪检查
+
+```
+GET /readyz
+```
+
+返回 `200` 表示数据库可连接且基础表已初始化；不可用时返回 `503`。
+
+```bash
+curl -fsS http://127.0.0.1:5001/healthz
+curl -fsS http://127.0.0.1:5001/readyz
+```
 
 ---
 
@@ -53,8 +81,10 @@ Content-Type: application/x-www-form-urlencoded
 ### 登出
 
 ```http
-POST /logout
+GET /logout
 ```
+
+清除会话并跳转首页（导航链接触发，非 JSON API）。
 
 ### 修改密码
 
@@ -351,19 +381,6 @@ GET /archive?days={7}&year={2026}&month={3}
 | days | int | 最近N天（7/30/90/365） |
 | year | int | 年份 |
 | month | int | 月份 |
-
-### 清除会话密码记录
-
-```http
-POST /clear-session
-```
-
-**响应示例：**
-```json
-{
-  "success": true,
-  "message": "Session已清除"
-}
 
 ### 导入数据
 
@@ -773,7 +790,8 @@ GET /api/review/weekly/status
 ### 定时任务 CLI
 
 ```bash
-flask weekly-review
+# 项目根目录、虚拟环境激活后执行
+.venv/bin/flask --app backend.app weekly-review
 ```
 
 对所有开启 AI 的用户逐个生成本周回顾（幂等），供 crontab 调用。
@@ -1237,15 +1255,6 @@ GET /knowledge/doc/{doc_id}/draft
   }
 }
 ```
-
-### 归档旧卡片
-```http
-POST /knowledge/card/{card_id}/archive
-```
-
-将旧版知识卡片归档到知识空间。
-
----
 
 ## 🤖 AI功能API
 

@@ -1,5 +1,7 @@
 # 升级部署指南：个人效率功能版本（2026-09）
 
+> **历史版本升级指南**：本文记录 2026-09 版本的升级步骤，其中「语音速记」功能已从现行版本移除；当前部署请以 [部署指南](../DEPLOYMENT.md) 与 [升级指南](upgrade.md) 为准。
+
 **适用版本**: commit `fb6c181`（`feat: 个人知识管理体验升级（9 项功能）`）
 **最后更新**: 2026-09-25
 **前置要求**: 已按 [部署指南](../DEPLOYMENT.md) 完成基础部署的旧版本
@@ -58,7 +60,7 @@ python -m backend.migrations
 python -m backend.migrations status                 # 验证：009_embeddings 显示 ✅
 
 # 5. 前端构建（git 已包含构建产物 static/frontend/，仅当自行修改前端源码时需要）
-cd frontend && npm install && npm run build && cd ..
+./scripts/build-frontend.sh
 
 # 6. 静态资源清单（新增 command-palette/review/voice-input 等 JS/CSS）
 python scripts/generate_manifest.py

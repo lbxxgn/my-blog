@@ -6,12 +6,19 @@
 
 | 文件 | 描述 |
 |------|------|
-| `conftest.py` | pytest 配置和共享 fixtures |
+| `conftest.py` | pytest 配置、临时数据库与共享 fixtures |
+| `schema_snapshot_utils.py` | schema 快照导出工具 |
 | `test_admin_features.py` | 管理后台功能 |
+| `test_ai_catalog.py` | AI 提供商与模型目录 |
 | `test_ai_mentor_restructure.py` | AI 导师重构 |
 | `test_ai_merger.py` | AI 卡片合并 |
+| `test_ai_title_generation.py` | AI 标题生成（持久化任务队列） |
+| `test_app_factory.py` | create_app 工厂与配置隔离 |
+| `test_asset_versioning.py` | 模板静态资源版本化检查 |
+| `test_backup.py` | 备份与恢复 |
 | `test_db_check.py` | 数据库完整性检查 |
 | `test_drafts.py` | 草稿同步 |
+| `test_editor_content_formats.py` | 编辑器内容格式 |
 | `test_embeddings.py` | Embedding / 语义搜索 |
 | `test_image_cleanup_tool.py` | 图片清理工具 |
 | `test_image_edge_cases.py` | 图片边界情况 |
@@ -20,20 +27,39 @@
 | `test_import_posts.py` | 文章导入 |
 | `test_kb_editor_api.py` | 知识库编辑器后端 API（图片上传、自动保存、目录排序） |
 | `test_knowledge_base.py` | 知识库 |
+| `test_logging_setup.py` | 日志文件与测试隔离 |
+| `test_markdown_renderer.py` | Markdown 渲染与 HTML 清洗 |
+| `test_migrate_content_format.py` | 迁移 011（内容格式纠偏） |
 | `test_migrations_runner.py` | 版本化迁移运行器 |
 | `test_models.py` | 核心数据模型 |
 | `test_models_edge_cases.py` | 模型边界情况 |
+| `test_p0_hardening.py` | P0 安全/体验修复回归 |
+| `test_p1_batch.py` | P1 批量修复回归 |
+| `test_p1_features.py` | P1 功能（定时发布/软删除/修订等） |
 | `test_pwa.py` | PWA / Service Worker / iOS 图标 / 卡片 API |
 | `test_review.py` | 回顾页 / 每周回顾 |
 | `test_routes.py` | 路由行为 |
 | `test_routes_edge_cases.py` | 路由边界情况 |
+| `test_schema_snapshot.py` | schema 快照与迁移一致性 |
 | `test_search_api.py` | 搜索 API |
 | `test_security.py` | 安全（CSRF、XSS、速率限制、CSP、Cookie） |
+| `test_security_p0.py` | P0 安全修复回归 |
 | `test_site_icon.py` | 站点图标 |
+| `test_task_queue.py` | 持久化后台任务队列 |
+| `test_timezone_utils.py` | 时区工具 |
 | `e2e_kb_editor.py` | 知识库编辑器冒烟脚本（CDP + Chrome，手动运行） |
-| `e2e/` | 浏览器端到端 pytest 套件（26 个用例，默认跳过，`E2E=1` 开启） |
+| `e2e/conftest.py` | 临时数据库 + 独立 Flask 服务 + Headless Chrome fixtures |
+| `e2e/_server.py` | 独立测试服务启动辅助 |
+| `e2e/harness.py` | CDP 封装（导航、填表、点击、fetch 断言） |
+| `e2e/test_public_site.py` | 首页、文章详情、搜索、分类/标签/归档、公开 API |
+| `e2e/test_auth.py` | 登录、登出、受保护页面跳转 |
+| `e2e/test_admin_posts.py` | 文章创建/发布/编辑/草稿/下架/回收站恢复 |
+| `e2e/test_comments.py` | 评论提交与后台审核 |
+| `e2e/test_knowledge_base.py` | 知识库浏览/搜索、BlockNote 建文档、自动保存 |
+| `e2e/test_personal_features.py` | 回顾页、统一搜索、快速笔记与卡片 API |
+| `e2e/test_pwa_and_health.py` | 健康检查、manifest、Service Worker、404（共 26 个用例，默认跳过） |
 
-**当前测试总数**: 527 个单元/集成测试，外加 26 个浏览器 E2E 用例（`pytest --collect-only -q | tail -1` 统计，包含被跳过的 E2E）。
+**当前测试总数**: 527 个单元/集成测试，外加 26 个浏览器 E2E 用例；`pytest --collect-only -q` 共收集 **553** 个用例。
 
 ### 已覆盖的功能模块
 
@@ -99,14 +125,25 @@ E2E_CHROME_BIN=/path/to/chrome E2E=1 pytest tests/e2e -v
 
 E2E 已在 CI 中通过 `E2E=1 pytest tests/e2e` 执行（需要 Chrome）；本地未设置 `E2E=1` 时会自动跳过。
 
+### schema 快照
+
+`tests/schema_snapshot.json` 记录 `init_db + 全部迁移` 后的表/索引结构，`tests/test_schema_snapshot.py` 会与之逐项比对。新增或修改迁移后必须重新生成，否则 CI 会失败：
+
+```bash
+.venv/bin/python scripts/generate_schema_snapshot.py
+```
+
 ## 按类型运行
 
 ```bash
-# 只运行单元测试
-pytest tests/ -v -m "not integration"
+# 只运行单元测试（等价于 make test-unit）
+pytest tests/ -v -m "not integration and not e2e"
 
-# 只运行集成测试
-pytest tests/ -v -m integration
+# 只运行集成测试（线程、异步、持久化队列等；等价于 make test-integration）
+pytest tests/ -q -m "integration and not e2e"
+
+# 只运行浏览器 E2E（等价于 make test-e2e）
+E2E=1 pytest tests/e2e -v
 
 # 排除慢速测试
 pytest tests/ -v -m "not slow"
