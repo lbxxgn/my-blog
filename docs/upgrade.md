@@ -56,8 +56,8 @@ export DATABASE_URL="sqlite:///db/simple_blog.db"
 python3 -m backend.migrations
 python3 -m backend.migrations status   # 查看状态
 
-# 6. 构建知识库编辑器前端（需要 Node.js 18+）
-cd frontend && npm install && npm run build && cd ..
+# 6. 构建知识库编辑器前端（需要 Node.js 22+，构建产物不入库）
+./scripts/build-frontend.sh
 
 # 7. 生成静态资源 manifest
 python3 scripts/generate_manifest.py
@@ -186,8 +186,7 @@ CREATE TABLE optimized_images (
 # 图片优化线程数（默认：4）
 export IMAGE_OPTIMIZATION_WORKERS=4
 
-# 草稿自动保存间隔（默认：30秒）
-export DRAFT_AUTO_SAVE_INTERVAL=30
+# 草稿自动保存间隔由前端写死为 15 秒（draft-sync.js），不支持环境变量覆盖
 
 # Passkey / WebAuthn
 PASSKEY_RP_NAME=Simple Blog
@@ -248,7 +247,7 @@ AI_CONTENT_MAX_LENGTH=500
 - [ ] 修改 CSS 后 hash 值变化
 
 #### 6. 知识库编辑器 ✅
-- [ ] 访问 http://localhost:5001/knowledge/edit
+- [ ] 访问 http://localhost:5001/knowledge/doc/new
 - [ ] 确认 `/static/frontend/` 下的 JS/CSS 资源加载正常
 - [ ] 编辑器可正常创建和编辑知识库条目
 
@@ -330,7 +329,7 @@ tail -50 logs/app.log
 # - 端口被占用：lsof -ti:5001 | xargs kill -9
 # - 依赖缺失：pip install -r requirements.txt
 # - 数据库错误：export DATABASE_URL="sqlite:///db/simple_blog.db"
-# - 前端未构建：cd frontend && npm install && npm run build
+# - 前端未构建：./scripts/build-frontend.sh
 ```
 
 ### 3. 静态资源 404
@@ -342,7 +341,7 @@ tail -50 logs/app.log
 python3 scripts/generate_manifest.py
 
 # 重新构建前端（知识库编辑器）
-cd frontend && npm install && npm run build && cd ..
+./scripts/build-frontend.sh
 
 # 检查文件权限
 chmod -R 755 static/
@@ -388,11 +387,11 @@ curl -X POST http://127.0.0.1:5001/api/drafts \
 
 ### 6. 知识库编辑器空白或报错
 
-**问题：** 访问 `/knowledge/edit` 页面空白
+**问题：** 访问 `/knowledge/doc/new` 页面空白
 **解决：**
 ```bash
 # 确认已构建前端
-cd frontend && npm install && npm run build && cd ..
+./scripts/build-frontend.sh
 
 # 确认 static/frontend/ 目录存在且 Nginx 已配置
 ls -la static/frontend/
@@ -496,7 +495,7 @@ tail -f logs/error.log
 - [ ] 已备份重要数据
 - [ ] 有足够的磁盘空间（至少 1GB）
 - [ ] Python 3.11+ 已安装
-- [ ] Node.js 18+ 已安装（构建知识库编辑器）
+- [ ] Node.js 22+ 已安装（构建知识库编辑器）
 - [ ] 有 sudo/root 权限（如果需要）
 - [ ] 了解回滚方法
 - [ ] 已通知用户（如果是生产环境）

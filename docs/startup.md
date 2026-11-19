@@ -1,7 +1,7 @@
 # Simple Blog 启动指南
 
-**版本**: 3.0
-**更新日期**: 2026-06-28
+**版本**: 3.1
+**更新日期**: 2026-11-19
 **Python 要求**: 3.11+（推荐）
 
 ---
@@ -24,15 +24,18 @@ pip install -r requirements.txt
 ```
 
 所需依赖（详见 `requirements.txt`）：
-- Flask 3.0+
+- Flask 3.x
 - Flask-WTF
 - Flask-Limiter
-- bleach
+- Flask-Caching
+- bleach[css]
 - markdown2
-- Pillow
-- pytz
+- Pillow 13+ / pillow-heif
+- numpy
+- cryptography
 - python-dotenv
 - webauthn
+- gunicorn（Linux 生产环境）
 
 ### 2. 设置环境变量
 
@@ -79,21 +82,25 @@ export AI_CONTENT_MAX_LENGTH="500"
 ### 3. 初始化数据库
 
 ```bash
-python -c "from backend.app import app; from backend.models import init_db; init_db()"
+# 创建基础表并应用全部迁移（基线 + 增量）
+python3 -m backend.migrations
+
+# 查看迁移状态
+python3 -m backend.migrations status
 ```
 
 ### 4. 构建知识库编辑器前端
 
-知识库编辑器基于 React + Vite，需要 Node.js 18+：
+知识库编辑器基于 React + Vite，需要 Node.js 22+（见 `.nvmrc`）：
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run build
 cd ..
 ```
 
-构建产物输出到 `static/frontend/`，Nginx 需要直接服务该目录。
+也可直接运行 `./scripts/build-frontend.sh`（依赖变化时才重新安装，并校验 manifest）。构建产物输出到 `static/frontend/`（不入库），Nginx 需要直接服务该目录。
 
 ### 5. 启动应用
 
@@ -117,7 +124,7 @@ ADMIN_USERNAME="admin" ADMIN_PASSWORD="<强密码>" python3 backend/app.py
 - **主页**: http://localhost:5001/
 - **登录**: http://localhost:5001/login
 - **管理后台**: http://localhost:5001/admin
-- **知识库编辑**: http://localhost:5001/knowledge/edit
+- **知识库编辑**: http://localhost:5001/knowledge/doc/new
 
 ---
 
@@ -138,23 +145,24 @@ python3 backend/app.py
 
 数据库文件位置：`db/simple_blog.db`
 
-首次启动会自动：
-1. 创建数据库表结构
+首次启动（`python3 backend/app.py`）会自动：
+1. 创建基础数据库表结构（`init_db()`）
 2. 创建默认管理员账号（使用环境变量中的用户名和密码）
 3. 初始化全文搜索索引
 
-如需手动初始化：
+完整迁移需手动执行（非 DEBUG 环境默认 `AUTO_MIGRATE=True`，会在启动时自动应用）：
 
 ```bash
-python -c "from backend.app import app; from backend.models import init_db; init_db()"
+python3 -m backend.migrations
+python3 -m backend.migrations status  # 查看已应用版本
 ```
 
 ### 文件上传配置
 
 - **上传目录**: `static/uploads/`
-- **允许格式**: PNG, JPG, JPEG, GIF, WEBP, HEIC
-- **单次请求上限**: 100MB（`MAX_CONTENT_LENGTH`）
-- **图片尺寸**: 最大 4096x4096 像素
+- **允许格式**: PNG, JPG, JPEG, GIF, WEBP, HEIC, HEIF
+- **单次请求上限**: 100MB（全局 `MAX_CONTENT_LENGTH`）；图片上传单文件 50MB
+- **图片尺寸**: 原图超过 2560×1440 会等比缩小；生成 thumbnail 150 / medium 600 / large 1200 / feed 1920 多尺寸 WebP
 
 ### 日志系统
 
@@ -221,7 +229,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/path/to/my-blog
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-Environment="FLASK_APP=app.py"
+Environment="FLASK_APP=backend.app"
 Environment="FLASK_ENV=production"
 Environment="PYTHONPATH=/path/to/my-blog"
 Environment="PORT=5001"
@@ -296,7 +304,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/path/to/my-blog
 Environment="PATH=/path/to/my-blog/.venv/bin:/usr/local/bin:/usr/bin:/bin"
-Environment="FLASK_APP=app.py"
+Environment="FLASK_APP=backend.app"
 Environment="FLASK_ENV=production"
 
 # 从 .env 文件加载环境变量
@@ -599,8 +607,8 @@ lsof -nP -iTCP:5001 | grep LISTEN
 # 测试 API
 curl http://localhost:5001/api/posts
 
-# 数据库备份
-cp db/simple_blog.db db/simple_blog.db.backup
+# 数据库一致性备份（WAL 模式下不要直接 cp）
+./scripts/backup.sh
 
 # 查看数据库内容
 sqlite3 db/simple_blog.db "SELECT id, title, created_at FROM posts LIMIT 10;"
@@ -612,7 +620,7 @@ python3 -m backend.migrations
 python3 scripts/generate_manifest.py
 
 # 构建知识库编辑器前端
-cd frontend && npm install && npm run build && cd ..
+./scripts/build-frontend.sh
 ```
 
 ---
@@ -653,16 +661,13 @@ cd frontend && npm install && npm run build && cd ..
 编辑 `.env` 文件：
 
 ```bash
-# AI 默认提供商和模型（仅这两个是环境变量）
+# AI 默认提供商和模型
 AI_DEFAULT_PROVIDER=dashscope
 AI_DEFAULT_MODEL=qwen-turbo
 
 # 限流与长度限制
 AI_RATE_LIMIT_PER_HOUR=10
 AI_CONTENT_MAX_LENGTH=500
-
-# 启用 AI 标签生成（可选）
-AI_TAG_GENERATION_ENABLED=1
 ```
 
 ### AI 功能说明
@@ -708,7 +713,7 @@ AI_TAG_GENERATION_ENABLED=1
 
 ## 技术栈
 
-- **后端**: Flask 3.0, Python 3.11+
+- **后端**: Flask 3.1, Python 3.11+
 - **数据库**: SQLite 3 + FTS5 全文搜索
 - **前端**: 原生 JavaScript, CSS3, React + Vite（知识库编辑器）
 - **Markdown**: markdown2
@@ -726,7 +731,7 @@ AI_TAG_GENERATION_ENABLED=1
 3. **端口占用**: 确认 5001 端口未被占用
 4. **数据库权限**: 确认 `db/` 目录可写
 5. **Python 版本**: 推荐 Python 3.11+
-6. **前端构建**: 确认已运行 `cd frontend && npm install && npm run build`
+6. **前端构建**: 确认已运行 `./scripts/build-frontend.sh`
 
 ---
 

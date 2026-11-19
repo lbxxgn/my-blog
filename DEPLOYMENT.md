@@ -25,7 +25,10 @@
 git clone https://github.com/lbxxgn/my-blog.git
 cd my-blog
 
-# 运行自动安装
+# 先构建知识库编辑器前端（构建产物不入库）
+./scripts/build-frontend.sh
+
+# 运行自动安装（检测到缺失前端构建产物会提示）
 sudo ./scripts/install-service.sh
 ```
 
@@ -44,11 +47,11 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 4. 初始化数据库
-python -c "from backend.app import app; from backend.models import init_db; init_db()"
+# 4. 初始化数据库并应用全部迁移（基线 + 增量）
+python3 -m backend.migrations
 
 # 5. 构建知识库编辑器前端（需要 Node.js）
-cd frontend && npm install && npm run build && cd ..
+cd frontend && npm ci && npm run build && cd ..
 
 # 6. 安装 systemd 服务
 sudo ./scripts/install-service.sh
@@ -63,7 +66,7 @@ sudo ./scripts/install-service.sh
 
 - **操作系统**: Linux (Ubuntu 20.04+, CentOS 8+, Debian 11+)
 - **Python**: 3.11 或更高版本（推荐）
-- **Node.js**: 18+（构建知识库编辑器前端需要）
+- **Node.js**: 22+（构建知识库编辑器前端需要，见 `.nvmrc`）
 - **内存**: 至少 512MB RAM
 - **磁盘**: 至少 1GB 可用空间
 
@@ -117,20 +120,34 @@ source .venv/bin/activate
 # 安装 Python 依赖
 pip install -r requirements.txt
 
-# 初始化数据库
-python -c "from backend.app import app; from backend.models import init_db; init_db()"
+# 初始化数据库并应用全部迁移（非 DEBUG 环境默认 AUTO_MIGRATE=True，也会自动执行）
+python3 -m backend.migrations
 ```
 
 ### 4. 构建知识库编辑器前端
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run build
 cd ..
 ```
 
 构建产物输出到 `static/frontend/`（该目录已不再入库，部署/升级时必须执行构建），Nginx 需要直接服务该目录下的哈希资源（见 Nginx 配置示例）。
+
+也可以使用统一脚本（依赖变化时才重新 `npm ci`，并校验 manifest 是否生成）：
+
+```bash
+./scripts/build-frontend.sh
+```
+
+如需在每次 `systemctl restart` 前自动构建，在服务文件中加入（注意 git pull 后仍建议先手动构建一次）：
+
+```ini
+ExecStartPre=/var/www/my-blog/scripts/build-frontend.sh
+```
+
+这样构建失败会阻止服务启动，避免带着旧前端继续运行。代价是启动依赖 npm，重启耗时增加约 1 秒（依赖未变时）。
 
 ### 5. Systemd 服务配置
 
@@ -153,7 +170,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/my-blog
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-Environment="FLASK_APP=app.py"
+Environment="FLASK_APP=backend.app"
 Environment="FLASK_ENV=production"
 Environment="PYTHONPATH=/var/www/my-blog"
 Environment="PORT=5001"
@@ -283,8 +300,10 @@ cd /var/www/my-blog
 #### 方法一：使用升级脚本
 
 ```bash
-# 一键升级（脚本会自动备份、安装依赖、运行迁移、重启服务）
-chmod +x scripts/upgrade.sh scripts/verify_upgrade.sh scripts/rollback.sh
+# 一键升级（脚本会自动备份、安装依赖、运行迁移、构建前端、重启服务）
+# 注意：脚本不执行 git pull，需先手动拉取代码
+git pull origin main
+chmod +x scripts/*.sh
 ./scripts/upgrade.sh
 
 # 验证结果
@@ -314,7 +333,7 @@ python3 -m backend.migrations
 python3 -m backend.migrations status
 
 # 5. 构建前端（如前端有更新）
-cd frontend && npm install && npm run build && cd ..
+cd frontend && npm ci && npm run build && cd ..
 
 # 6. 重启服务
 sudo systemctl restart simple-blog
@@ -330,10 +349,11 @@ sudo systemctl status simple-blog
 
 ```bash
 # 检查应用状态
-curl http://localhost:5001
+curl -fsS http://127.0.0.1:5001/healthz
+curl -fsS http://127.0.0.1:5001/readyz
 
 # 检查进程
-ps aux | grep "python.*app.py"
+pgrep -af "gunicorn.*backend.app"
 
 # 检查端口
 lsof -i:5001
@@ -352,7 +372,7 @@ lsof -i:5001
    - 测试登录功能
    - 验证草稿自动保存
 
-4. **知识库编辑器**: http://your-server-ip:5001/knowledge/edit
+4. **知识库编辑器**: http://your-server-ip:5001/knowledge/doc/new
    - 验证 React/Vite 前端资源正常加载
 
 ---
@@ -435,7 +455,7 @@ chmod -R 755 static/
 python3 scripts/generate_manifest.py
 
 # 重新构建前端（知识库编辑器）
-cd frontend && npm install && npm run build && cd ..
+cd frontend && npm ci && npm run build && cd ..
 
 # 重启服务
 sudo systemctl restart simple-blog
@@ -729,7 +749,8 @@ sudo systemctl start simple-blog
 - [ ] 服务正常运行（端口 5001）
 - [ ] 首页可访问
 - [ ] CSS/JS 正常加载
-- [ ] 知识库编辑器资源正常
+- [ ] 知识库编辑器资源正常（`static/frontend/.vite/manifest.json` 存在）
+- [ ] 迁移已全部应用（`python3 -m backend.migrations status`）
 - [ ] 文章页面正常
 - [ ] 登录功能正常
 - [ ] 日志无错误信息

@@ -11,8 +11,8 @@ cp .env.example .env
 # 编辑 .env，设置管理员密码和 SECRET_KEY
 pip install -r requirements.txt
 
-# 构建新版知识库编辑器（React + Vite）
-cd frontend && npm install && npm run build && cd ..
+# 构建新版知识库编辑器（React + Vite，构建产物不入库）
+./scripts/build-frontend.sh
 
 # 启动服务
 python backend/app.py
@@ -62,9 +62,9 @@ python backend/app.py
 
 - **后端**：Flask 3.1.3、Python 3.11+、SQLite 3 + FTS5、Jinja2
 - **传统前端**：Vanilla JS + Quill 编辑器
-- **新版知识库编辑器**：React 19.2 + Vite 8.1 + BlockNote 0.51 + Mantine 9
+- **新版知识库编辑器**：React 19.3 + Vite 8.1 + BlockNote 0.55 + Mantine 9
 - **AI**：阿里百炼 / DeepSeek / 自定义 OpenAI 兼容（API Key 在后台「AI 设置」配置）
-- **测试**：pytest + pytest-cov（527 个测试）
+- **测试**：pytest + pytest-cov（527 个单元/集成 + 26 个浏览器 E2E）
 
 ## 项目结构
 
@@ -80,7 +80,11 @@ my-blog/
 │   │   ├── ai/                 # ai_bp（config / generation / organize / mentor）
 │   │   ├── knowledge_base.py   # knowledge_base_bp (/knowledge_base)
 │   │   ├── knowledge.py        # knowledge_bp (/knowledge)
-│   │   └── drafts.py           # drafts_bp
+│   │   ├── drafts.py           # drafts_bp
+│   │   ├── review.py           # review_bp (/review)
+│   │   └── legacy.py           # legacy_bp（旧客户端路径兼容）
+│   ├── services/               # 服务层（备份、持久化任务队列、每周回顾）
+│   ├── tasks/                  # 后台任务（图片优化、Embedding）
 │   ├── ai_services/            # AI 服务
 │   ├── utils/                  # 工具模块
 │   │   └── asset_version.py    # 静态资源版本管理
@@ -90,7 +94,7 @@ my-blog/
 ├── static/                     # 静态资源
 │   ├── css/                    # 传统样式
 │   ├── js/                     # 传统脚本
-│   └── frontend/               # Vite 构建产物（含 .vite/manifest.json）
+│   └── frontend/               # Vite 构建产物（不入库，npm run build 生成）
 ├── templates/                  # Jinja2 HTML 模板
 ├── browser-extension/          # 浏览器扩展
 ├── safari-extension/           # Safari 扩展
@@ -124,7 +128,7 @@ my-blog/
 
 ### 更多文档
 - [完整文档索引](docs/) - 所有文档的导航中心
-- [交互与体验优化待办](docs/optimization-backlog.md) - P0 修复记录与后续 P1/P2 计划
+- [交互与体验优化待办](docs/optimization-backlog.md) - P0/P1 修复记录与后续 P2 计划
 - [工程化优化待办](docs/engineering-backlog-2026-11.md) - 安全/架构/测试/前端后续可选项
 - [API 文档](docs/api-documentation.md) - REST API 参考
 - [测试说明](docs/testing.md) - 测试运行方式与调试方法
@@ -138,6 +142,13 @@ make check
 
 # 运行全部测试
 make test
+
+# 只跑单元测试 / 集成测试（异步、队列等）
+make test-unit
+make test-integration
+
+# 浏览器 E2E（需要本机 Chrome，默认跳过）
+make test-e2e
 
 # 构建前端（React 知识库编辑器，详见 docs/frontend-build.md）
 cd frontend && npm run build
@@ -167,8 +178,12 @@ ADMIN_PASSWORD=<至少12位，含大小写字母和数字>
 SECRET_KEY=change-this-to-a-random-secret-key-in-production
 DEBUG=False
 PORT=5001
+HOST=0.0.0.0              # 仅 python backend/app.py 直接启动时生效
 FLASK_ENV=production
 FORCE_HTTPS=False
+AUTO_MIGRATE=True         # 非 DEBUG 默认开启；启动时自动应用待执行迁移
+TRUST_PROXY_HEADERS=False # Nginx 反代后设为 True，限流/审计才能拿到真实 IP
+# DATABASE_URL=sqlite:///db/simple_blog.db
 
 # 网站信息
 SITE_NAME=我的博客
@@ -182,12 +197,16 @@ PASSKEY_ALLOWED_ORIGINS=http://localhost:5001,https://example.com
 REMEMBER_DEVICE_DAYS=90
 
 # AI 配置（可选）
-# 仅下面两个是环境变量；API Key 在后台「AI 设置」页按用户配置
+# API Key 在后台「AI 设置」页按用户配置；下面是全局默认值与限流项
 AI_DEFAULT_PROVIDER=dashscope
 AI_DEFAULT_MODEL=qwen-turbo
 AI_RATE_LIMIT_PER_HOUR=10
 AI_CONTENT_MAX_LENGTH=500
 AI_HISTORY_ENABLED=True
+# AI_ALLOW_PRIVATE_BASE_URLS=False   # 仅自建本地模型时放开私网 Base URL
+
+# 图片优化
+IMAGE_OPTIMIZATION_WORKERS=4
 
 # 静态资源
 USE_MINIFIED_ASSETS=True

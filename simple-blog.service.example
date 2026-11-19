@@ -29,7 +29,7 @@ Environment="PYTHONPATH=/path/to/my-blog"
 # ============================================
 # 基础配置
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-Environment="FLASK_APP=app.py"
+Environment="FLASK_APP=backend.app"
 Environment="FLASK_ENV=production"
 
 # 时区（数据库时间统一存 UTC，展示层按 UTC+8 转换；固定时区避免随服务器漂移）
@@ -49,14 +49,17 @@ EnvironmentFile=-/path/to/my-blog/.env
 # 启动命令
 # ============================================
 # 生产环境使用 gunicorn（勿用 Flask 开发服务器对外服务）
-# 默认绑定 0.0.0.0 直接对外；若架了 Nginx 反向代理，建议改绑 127.0.0.1 仅接受本机转发
-# workers 可按 CPU 核数调整
+# 默认绑定 127.0.0.1，仅接受本机/Nginx 转发；需直连时再改 0.0.0.0 并放通防火墙
+# workers 固定为 1：SQLite 单写 + 限流使用 memory://，多 worker 会导致计数不一致；
+# 需要多 worker 并发请先迁移 PostgreSQL 并改用共享限流存储（Redis）。
 #
 # 日志分离：应用 INFO 走 stdout（-> logs/app.log），ERROR 走 logs/error.log（见 backend/logger.py）。
 # gunicorn 自身的日志默认走 stderr，会被 StandardError 收进 error.log；如需单独保存，追加：
 #   --access-logfile /path/to/my-blog/logs/access.log \
 #   --error-logfile  /path/to/my-blog/logs/gunicorn-error.log
 # 全量备份/恢复可能耗时较长，--timeout 需大于 gunicorn 默认的 30s
+# 如需每次 restart 前自动重建前端，取消下面一行的注释（构建产物 static/frontend 不入库）：
+# ExecStartPre=/path/to/my-blog/scripts/build-frontend.sh
 ExecStart=/path/to/my-blog/.venv/bin/gunicorn --workers 1 --bind 127.0.0.1:5001 --timeout 300 --graceful-timeout 60 backend.app:app
 
 # ============================================

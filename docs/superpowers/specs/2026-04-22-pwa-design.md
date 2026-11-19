@@ -1,6 +1,6 @@
 # PWA (Progressive Web App) Design
 
-> ℹ️ **状态：历史设计稿，已完成**。仅作存档，当前实现见代码与 [个人效率功能说明](../personal-features.md)。
+> ℹ️ **状态：历史设计稿，已完成**。仅作存档，当前实现见代码与 [个人效率功能说明](../../personal-features.md)。
 
 ## Overview
 

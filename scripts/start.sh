@@ -52,8 +52,8 @@ echo -e "${YELLOW}[1/6] 检查Python版本...${NC}"
 PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
 echo -e "  当前版本: ${GREEN}Python $PYTHON_VERSION${NC}"
 
-if ! python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)" 2>/dev/null; then
-    echo -e "  ${RED}错误: 需要Python 3.8或更高版本${NC}"
+if ! python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" 2>/dev/null; then
+    echo -e "  ${RED}错误: 需要 Python 3.11 或更高版本${NC}"
     exit 1
 fi
 
@@ -112,13 +112,21 @@ echo -e "  DEBUG=$DEBUG"
 echo -e "  PORT=$PORT"
 
 # 检查数据库
-echo -e "${YELLOW}[4/6] 检查数据库...${NC}"
+echo -e "${YELLOW}[4/6] 检查数据库并应用迁移...${NC}"
 
+mkdir -p db
 if [ ! -f "db/simple_blog.db" ]; then
     echo -e "  ${YELLOW}数据库不存在，首次启动将自动创建${NC}"
 else
     DB_SIZE=$(du -h "db/simple_blog.db" | cut -f1)
     echo -e "  ${GREEN}✓${NC} 数据库存在 (大小: $DB_SIZE)"
+fi
+
+# 应用全部迁移（基线 + 增量），避免只建基础表导致列缺失
+if python3 -m backend.migrations >/dev/null 2>&1; then
+    echo -e "  ${GREEN}✓${NC} 数据库迁移已应用"
+else
+    echo -e "  ${YELLOW}⚠️  迁移执行失败，尝试手动运行查看原因: python3 -m backend.migrations${NC}"
 fi
 
 # 创建必要的目录
@@ -133,6 +141,12 @@ echo -e "  ${GREEN}✓${NC} logs/"
 echo -e "  ${GREEN}✓${NC} static/uploads/"
 echo -e "  ${GREEN}✓${NC} db/"
 echo -e "  ${GREEN}✓${NC} backups/"
+
+if [ ! -f "static/frontend/.vite/manifest.json" ]; then
+    echo ""
+    echo -e "  ${YELLOW}⚠️  未找到知识库编辑器构建产物${NC}"
+    echo -e "     请执行: ${BLUE}./scripts/build-frontend.sh${NC}"
+fi
 
 # 停止已存在的进程
 echo -e "${YELLOW}[6/6] 启动应用...${NC}"
