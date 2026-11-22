@@ -23,6 +23,14 @@
 - 生产部署统一为 `gunicorn --workers 1`（SQLite 单写 + `memory://` 限流），并在安装脚本/示例/文档中固定该值。
 - 2026-11 第二批：基线迁移 000、`AUTO_MIGRATE`、`background_tasks` 持久化队列（review / AI 标题 / embedding）、embedding 进程内缓存、legacy 蓝图、schema 快照、E2E 接入 CI、模板内联 CSS 抽出、静态资源版本化检查、构建产物/上传移出 Git、单 worker 收敛、`scripts/build-frontend.sh`。
 - 前端样式收敛：`style.css` 与 `enhancements.css` 合并为单一样式表（585 条选择器 / 0 重复），按「变量 → 排版 → 布局 → 组件 → 页面 → 主题」分区并补注释；合并前后在 78 个页面状态（浅色 / 深色 / 打印 / 移动端 / 减少动效）与 12 个 hover 态上逐元素比对计算样式，无差异。
+- 前端样式格式与去重（FE-10/FE-11）：新增 `scripts/css_clean.py`，9 个页面级样式表统一格式并合并 55 处重复选择器、删除 3 处与 `style.css` 声明完全相同的冗余；`make css-check` 接入 `make check`。
+- 前端请求层（FE-7）：新增 `static/js/http.js` 的 `AppHttp`（默认 20s 超时、`AbortSignal.any` 合并取消、`!response.ok` 抛 `HttpError`、统一错误提示），15 个页面脚本的 `fetch(` 全部迁移；无限滚动分页支持取消。
+- 前端模板解耦（FE-4）：模板内联 `<script>` 清零（含 `base.html` 的主题脚本、Service Worker 注册、标签/分类数据）。主题脚本外置为 `theme-init.js` 并保持同步加载以避免 FOUC；数据改为 `application/json` 数据块。
+- 前端内联样式清零：217 个 `style="..."` 全部移除，重复模式收进工具类、单次复杂样式进页面级组件类；83 个页面状态（公开/后台/移动端/深色/打印/减少动效）逐元素比对计算样式与改造前一致。
+- 前端内联事件处理器清零：34 处 `onclick`/`onchange` 改为 `data-action` + 事件委托，为收紧 CSP `script-src` 铺路。
+- 前端无障碍基线（FE-8）：新增 skip link 与 `<main id="main-content">`；批量操作、知识库新建目录、AI 点评/沉淀弹窗补 `role="dialog" aria-modal aria-labelledby`；纯图标关闭按钮补 `aria-label`。axe（WCAG 2A/2AA）复查模板层无结构性告警，剩余对比度与历史内容空链接另记为 FE-12。
+- 前端调试钩子（FE-9）：`window.__KB_EDITOR_INSTANCE__` / `window.__KB_SAVE__` 仅在 `import.meta.env.DEV` 或 E2E 标记下挂载。
+- 前端单元测试（QA-5）：`frontend/` 引入 Vitest + jsdom + Testing Library，11 个用例覆盖设备标签/草稿 token 与 `useAutoSave` 的本地暂存、防抖去重、冲突上报、失败回退；`npm test` 已接入 CI frontend job。
 
 ---
 
@@ -56,7 +64,6 @@
 | ID | 优先级 | 问题 | 证据 | 建议 | 验收标准 |
 |---|---|---|---|---|---|
 | QA-4 | 低 | 覆盖率已恢复显式执行，但门槛仅 40% | `Makefile`（`coverage` 目标） | 逐步提升到 60%+，按模块设阈值 | 覆盖率下降会失败 |
-| QA-5 | 低 | 前端零测试 | `frontend/package.json` | 引入 Vitest + 关键组件测试 | `npm test` 可在 CI 运行 |
 | QA-6 | 低 | `pytest-randomly`/xdist 未启用，顺序依赖不可见 | `tests/conftest.py` | 引入随机顺序测试，修复暴露的全局状态 | 随机顺序稳定通过 |
 
 ## 四、前端
@@ -65,12 +72,8 @@
 |---|---|---|---|---|---|
 | FE-1 | 高 | Quill 与 BlockNote 两套编辑器并存，上传/草稿/AI 逻辑重复 | `templates/admin/editor.html`、`static/js/editor.js`、`frontend/src` | 明确唯一编辑器；先抽共享上传/草稿/AI 服务 | 同一功能只维护一份 |
 | FE-2 | 高 | 知识库上传绕过图片优化，原图直接进正文 | `backend/routes/knowledge.py`（`upload_image`）、`backend/routes/admin/media.py` | 统一上传服务，统一入队优化 + 懒加载 | 知识库图片同样生成 WebP/缩略图 |
-| FE-4 | 低 | 内联 CSS 已抽出；post 页仍有内联 JS | `templates/post.html` | 继续抽页面级 JS 与 Jinja 宏 | 内联脚本清零 |
-| FE-7 | 中 | `fetch` 无统一超时/取消/`response.ok` 校验 | `static/js/infinite-scroll.js`、`static/js/draft-sync.js` | 抽统一 `request()` 封装 | 401/500 有统一提示，分页可取消 |
-| FE-8 | 低 | a11y/i18n 无基线，动态图片 alt 为空 | `templates/base.html`、`static/js/infinite-scroll.js` | skip link、aria-label、alt 透传；按需引入 Babel | axe 基础检查通过 |
-| FE-9 | 低 | 调试钩子暴露到生产 | `frontend/src/KbEditorApp.tsx:207`、`frontend/src/components/KbBlockNoteEditor.tsx:44` | 仅 `import.meta.env.DEV` 挂载 | 生产包无调试全局变量 |
-| FE-10 | 低 | 其余样式表仍有内部重复选择器，且部分文件被压成单行 | `editor-page.css`(18)、`post-page.css`(16)、`knowledge.css`(13)、`admin-layout.css`(5)、`pygments.css`(5)、`quill.css`(3)、`share.css`(3)；`draft-dialog.css`/`lightbox.css`/`pc-feed.css` 整文件 1 行 | 复用本次的合并脚本与格式统一流程 | 各文件 0 重复选择器，格式一致可读 |
-| FE-11 | 低 | 页面级样式与 `style.css` 仍有同名选择器（页级覆盖），其中 3 处声明完全相同 | `mobile-weibo.css`(22)、`post-page.css`(18)、`draft-dialog.css`(6)、`editor-page.css`(5)、`share.css`(4) | 逐项确认覆盖是否仍需要，删除声明完全相同的项 | 无「声明完全相同」的跨文件重复 |
+
+| FE-12 | 中 | axe 仍报 color-contrast（全站约 257 个节点）与历史正文空链接（`<a>` 无文本，来自导入内容） | `static/css/style.css`（对比度 token）、`backend/utils/markdown_renderer.py` | 调整次要文字/徽章对比度；导入时清理空链接或补 `aria-label` | axe serious 级告警清零 |
 
 ## 五、仓库与运维
 
