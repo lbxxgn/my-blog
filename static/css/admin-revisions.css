@@ -1,0 +1,29 @@
+
+/* 历史版本页（admin/revisions.html） */
+
+.revision-card {
+    margin-bottom: 10px;
+    padding: 12px;
+}
+
+.revision-summary {
+    cursor: pointer;
+}
+
+.revision-time {
+    color: var(--text-secondary);
+    margin-left: 8px;
+}
+
+.revision-body {
+    margin-top: 10px;
+}
+
+.revision-snippet {
+    white-space: pre-wrap;
+    max-height: 180px;
+    overflow: auto;
+    background: var(--code-bg, #f9fafb);
+    padding: 10px;
+    border-radius: 8px;
+}

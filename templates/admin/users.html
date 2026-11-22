@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/admin-users.css') }}">
+{% endblock %}
+
 
 {% block title %}用户管理 - {{ site_name }}{% endblock %}
 
@@ -75,43 +79,4 @@
     {% endif %}
 </div>
 
-<style>
-.role-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px;
-    font-size: 0.85rem;
-    font-weight: 500;
-}
-
-.role-admin {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.role-editor {
-    background: #dbeafe;
-    color: #1e40af;
-}
-
-.role-author {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.dark-theme .role-admin {
-    background: #7f1d1d;
-    color: #fecaca;
-}
-
-.dark-theme .role-editor {
-    background: #1e3a8a;
-    color: #bfdbfe;
-}
-
-.dark-theme .role-author {
-    background: #064e3b;
-    color: #d1fae5;
-}
-</style>
 {% endblock %}

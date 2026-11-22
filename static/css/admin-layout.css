@@ -187,3 +187,9 @@ body[data-page="admin"] main {
         box-shadow: none;
     }
 }
+
+/* 由 admin/user_form.html 内联 style 抽取 */
+.user-form-narrow {
+    max-width: 600px;
+    margin: 2rem auto;
+}

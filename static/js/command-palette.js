@@ -167,10 +167,12 @@
         if (abortController) abortController.abort();
         abortController = new AbortController();
         resultsEl.innerHTML = '<div class="cmdk-loading">搜索中…</div>';
-        fetch(SEARCH_URL + '?q=' + encodeURIComponent(query) + '&limit=6', {
+        AppHttp.request(SEARCH_URL + '?q=' + encodeURIComponent(query) + '&limit=6', {
             headers: { 'Accept': 'application/json', 'X-CSRFToken': window.getCsrfToken ? window.getCsrfToken() : '' },
             credentials: 'same-origin',
-            signal: abortController.signal
+            signal: abortController.signal,
+            acceptErrors: true,
+            silent: true
         }).then(function (res) {
             if (res.status === 401) throw new Error('unauthorized');
             if (!res.ok) throw new Error('http_' + res.status);
@@ -178,7 +180,7 @@
         }).then(function (data) {
             renderResults(query, data || {});
         }).catch(function (err) {
-            if (err && err.name === 'AbortError') return;
+            if (err && (err.name === 'AbortError' || err.cancelled)) return;
             if (err && err.message === 'unauthorized') {
                 close();
                 if (window.showAppToast) window.showAppToast('请先登录', 'error');

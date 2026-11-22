@@ -43,7 +43,7 @@
             {% endfor %}
         </div>
         {% if total_pages > 1 %}
-        <div class="pagination-bar" style="margin-top:16px;display:flex;gap:8px;align-items:center;">
+        <div class="pagination-bar u-flex-gap-8-mt-16" >
             {% if page > 1 %}<a class="btn btn-sm" href="{{ url_for('knowledge.all_documents', scope=scope, page=page-1) }}">上一页</a>{% endif %}
             <span>第 {{ page }} / {{ total_pages }} 页</span>
             {% if page < total_pages %}<a class="btn btn-sm" href="{{ url_for('knowledge.all_documents', scope=scope, page=page+1) }}">下一页</a>{% endif %}

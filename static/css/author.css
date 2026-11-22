@@ -1,0 +1,49 @@
+
+/* 作者页（author.html） */
+
+.author-card-box {
+    background: var(--code-bg, #f6f8fa);
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.author-card-row {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.author-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.author-avatar-fallback {
+    background: var(--primary-color, #10b981);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+}
+
+.author-name {
+    margin: 0 0 0.5rem 0;
+}
+
+.author-bio {
+    color: var(--text-secondary, #666);
+    margin: 0;
+}
+
+.author-meta {
+    color: var(--text-secondary, #999);
+    margin: 0.5rem 0 0 0;
+    font-size: 0.9rem;
+}
+
+.author-posts-title {
+    margin-bottom: 1rem;
+}

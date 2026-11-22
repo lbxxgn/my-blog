@@ -17,7 +17,8 @@
     }
 
     function fetchJSON(url, options) {
-        return fetch(url, options).then(function (resp) {
+        // 202 表示任务已受理，同样要解析响应体，因此自己判断状态码
+        return AppHttp.request(url, Object.assign({ acceptErrors: true }, options || {})).then(function (resp) {
             if (!resp.ok && resp.status !== 202) {
                 throw new Error('HTTP ' + resp.status);
             }

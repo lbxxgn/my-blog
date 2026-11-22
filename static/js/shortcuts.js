@@ -255,7 +255,7 @@ const mobileRegex=/Android|webOS|iPod|BlackBerry|IEMobile|Opera Mini/i;if(mobile
 if(window.innerWidth&&window.innerWidth<768){return true;}
 const hasTouchScreen=('ontouchstart'in window||navigator.maxTouchPoints>0||navigator.msMaxTouchPoints>0);if(hasTouchScreen&&window.innerWidth<1024){return true;}
 return false;}
-createHintElement(){const hint=document.createElement('div');hint.id='shortcutHint';hint.className='shortcut-hint';hint.innerHTML=`<div class="hint-header"><span>⌨️ 快捷键提示</span><button class="hint-close"onclick="window.shortcutHint.hide()">×</button></div><div class="hint-body">${this.getCurrentPageShortcuts()}</div>`;document.body.appendChild(hint);this.hintElement=hint;}
+createHintElement(){const hint=document.createElement('div');hint.id='shortcutHint';hint.className='shortcut-hint';hint.innerHTML=`<div class="hint-header"><span>⌨️ 快捷键提示</span><button type="button" class="hint-close" aria-label="关闭快捷键提示" data-shortcut-hint-close>×</button></div><div class="hint-body">${this.getCurrentPageShortcuts()}</div>`;document.body.appendChild(hint);this.hintElement=hint;var closeBtn=hint.querySelector('[data-shortcut-hint-close]');if(closeBtn){closeBtn.addEventListener('click',function(){window.shortcutHint.hide();});}}
 getCurrentPageShortcuts(){
   const mod = isMacPlatform ? '⌘' : 'Ctrl';
   const pageType = document.body.dataset.page || 'home';

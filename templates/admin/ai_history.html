@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/admin-ai-history.css') }}">
+{% endblock %}
+
 
 {% block title %}AI使用历史 - {{ site_name }}{% endblock %}
 
@@ -41,7 +45,7 @@
                     <th width="20%">文章</th>
                     <th width="15%">AI模型</th>
                     <th width="20%">结果</th>
-                    <th width="12%" style="text-align: right;">Token</th>
+                    <th class="u-text-right" width="12%" >Token</th>
                 </tr>
             </thead>
             <tbody>
@@ -126,7 +130,7 @@
                             <span class="text-muted">-</span>
                         {% endif %}
                     </td>
-                    <td class="number-cell" style="text-align: right;">{{ record.tokens_used or 0 }}</td>
+                    <td class="number-cell u-text-right" >{{ record.tokens_used or 0 }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -141,200 +145,4 @@
     {% endif %}
 </div>
 
-<style>
-.stats-summary {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
-
-.stat-card {
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 8px;
-    padding: 1.25rem;
-    text-align: center;
-}
-
-.stat-card .stat-label {
-    font-size: 0.875rem;
-    color: var(--text-secondary, #6b7280);
-    margin-bottom: 0.5rem;
-}
-
-.stat-card .stat-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--primary-color, #10b981);
-}
-
-.table-container {
-    overflow-x: auto;
-}
-
-.ai-history-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.ai-history-table th {
-    background: #f9fafb;
-    font-weight: 600;
-    color: #374151;
-    padding: 0.75rem 1rem;
-    text-align: left;
-    border-bottom: 2px solid #e5e7eb;
-}
-
-.ai-history-table td {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #e5e7eb;
-    vertical-align: top;
-}
-
-.ai-history-table tbody tr:hover {
-    background: #f9fafb;
-}
-
-.time-cell {
-    font-size: 0.875rem;
-    color: #6b7280;
-    white-space: nowrap;
-}
-
-.action-cell {
-    white-space: nowrap;
-}
-
-.action-tag {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.tag-type-generate {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.tag-type-summary {
-    background: #dbeafe;
-    color: #1e40af;
-}
-
-.tag-type-recommend {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.tag-type-continue {
-    background: #e0e7ff;
-    color: #3730a3;
-}
-
-.tag-type-default {
-    background: #e5e7eb;
-    color: #374151;
-}
-
-.article-cell {
-    font-size: 0.875rem;
-}
-
-.article-link {
-    color: #1f2937;
-    text-decoration: none;
-}
-
-.article-link:hover {
-    color: #3b82f6;
-    text-decoration: underline;
-}
-
-.text-muted {
-    color: #9ca3af;
-    font-size: 0.875rem;
-}
-
-.model-cell {
-    font-size: 0.875rem;
-}
-
-.model-code {
-    padding: 0.25rem 0.5rem;
-    background: #f3f4f6;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-family: 'Monaco', 'Courier New', monospace;
-    color: #374151;
-}
-
-.result-cell {
-    font-size: 0.875rem;
-}
-
-.tags-result {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.375rem;
-}
-
-.mini-tag {
-    display: inline-block;
-    padding: 0.125rem 0.5rem;
-    background: #f3f4f6;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    color: #374151;
-}
-
-.summary-result {
-    color: #6b7280;
-    font-style: italic;
-    line-height: 1.4;
-}
-
-.recommend-result,
-.continue-result {
-    color: #6b7280;
-    font-size: 0.875rem;
-}
-
-.number-cell {
-    font-size: 0.875rem;
-    font-family: 'Monaco', 'Courier New', monospace;
-    color: #374151;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 3rem 1rem;
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 8px;
-}
-
-.empty-state p {
-    color: var(--text-secondary, #6b7280);
-    margin-bottom: 1rem;
-}
-
-/* 响应式调整 */
-@media (max-width: 768px) {
-    .ai-history-table th,
-    .ai-history-table td {
-        padding: 0.5rem;
-        font-size: 0.75rem;
-    }
-
-    .action-tag {
-        font-size: 0.625rem;
-        padding: 0.1875rem 0.5rem;
-    }
-}
-</style>
 {% endblock %}

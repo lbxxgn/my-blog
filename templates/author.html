@@ -2,28 +2,30 @@
 
 {% block title %}{{ author.display_name or author.username }} - 作者页面{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/author.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <!-- 作者信息卡片 -->
-    <div class="author-card" style="background: var(--code-bg, #f6f8fa); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
-        <div style="display: flex; align-items: center; gap: 1.5rem;">
+    <div class="author-card author-card author-card-box">
+        <div class="author-card-row">
             {% if author.avatar_url %}
-            <img src="{{ author.avatar_url }}" alt="{{ author.display_name or author.username }}"
-                 style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover;">
+            <img src="{{ author.avatar_url }}" alt="{{ author.display_name or author.username }}" class="author-avatar">
             {% else %}
-            <div style="width: 80px; height: 80px; border-radius: 50%; background: var(--primary-color, #10b981);
-                        display: flex; align-items: center; justify-content: center; font-size: 2rem;">
+            <div class="author-avatar author-avatar-fallback">
                 👤
             </div>
             {% endif %}
 
             <div>
-                <h1 style="margin: 0 0 0.5rem 0;">{{ author.display_name or author.username }}</h1>
+                <h1 class="author-name">{{ author.display_name or author.username }}</h1>
                 {% if author.bio %}
-                <p style="color: var(--text-secondary, #666); margin: 0;">{{ author.bio }}</p>
+                <p class="author-bio">{{ author.bio }}</p>
                 {% endif %}
                 {% if author.role %}
-                <p style="color: var(--text-secondary, #999); margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+                <p class="author-meta">
                     {% if author.role == 'admin' %}管理员{% elif author.role == 'editor' %}编辑{% else %}作者{% endif %} · 共 {{ pagination.total }} 篇文章
                 </p>
                 {% endif %}
@@ -32,7 +34,7 @@
     </div>
 
     <!-- 文章列表 -->
-    <h2 style="margin-bottom: 1rem;">文章列表</h2>
+    <h2 class="author-posts-title">文章列表</h2>
 
     {% if posts %}
     <div class="posts-list">

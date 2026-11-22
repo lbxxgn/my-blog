@@ -204,6 +204,8 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
     editorRef.current = editorInstance;
   }, [editorInstance]);
   useEffect(() => {
+    // 仅开发环境 / E2E 暴露保存钩子（生产包不再挂全局调试钩子）
+    if (!import.meta.env.DEV && !(window as any).__KB_E2E__) return;
     (window as any).__KB_SAVE__ = () => handleSave(true);
   }, [handleSave]);
 

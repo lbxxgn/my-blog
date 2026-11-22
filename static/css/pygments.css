@@ -74,12 +74,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 .codehilite .vm { color: #19177C } /* Name.Variable.Magic */
 .codehilite .il { color: #666 } /* Literal.Number.Integer.Long */
 
-/* Dark mode overrides */
-pre { line-height: 125%; }
-td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
-span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
-td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
-span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+/* Dark mode overrides（行号/行内代码的基础规则见文件开头，此处不再重复） */
 .dark-theme .codehilite .hll { background-color: #49483e }
 .dark-theme .codehilite { background: #272822; color: #F8F8F2 }
 .dark-theme .codehilite .c { color: #959077 } /* Comment */

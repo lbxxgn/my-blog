@@ -30,7 +30,7 @@ const accessBtn=document.getElementById('toolbarAccess');if(accessBtn){accessBtn
 const accessPill=document.getElementById('mobileEditorAccessPill');if(accessPill){accessPill.addEventListener('click',toggleAccessLevel);}
 updateAccessPill();updateAccessIcon();}
 function handleImageSelect(e){const files=e.target.files;if(!files||files.length===0)return;const invalid=Array.from(files).find(file=>!file.type.startsWith('image/')||file.size>50*1024*1024);if(invalid){showToast(invalid.type.startsWith('image/')?'图片过大（最大 50MB）':'不支持的文件类型','error');e.target.value='';return;}if(!isPublishing){setEditorStatus('');}
-const remaining=9-selectedImages.length;const filesToProcess=Array.from(files).slice(0,remaining);filesToProcess.forEach(file=>{const reader=new FileReader();reader.onload=async function(event){const item={file:file,dataUrl:event.target.result,url:null};selectedImages.push(item);renderImages();saveDraft();updatePublishButton();const csrfToken=document.querySelector('meta[name="csrf_token"]')?.content;try{const fd=new FormData();fd.append('file',file);if(csrfToken){fd.append('csrf_token',csrfToken);}const resp=await fetch('/admin/upload',{method:'POST',headers:csrfToken?{'X-CSRFToken':csrfToken}:{},body:fd});const payload=await parseJsonResponse(resp);if(resp.ok&&payload.success&&payload.url){item.url=payload.url;item.file=null;renderImages();saveDraft();setEditorStatus('图片已上传','success');}else{throw new Error(payload.error||'上传失败');}}catch(err){showToast('图片上传失败：'+(err.message||'未知错误'),'error');setEditorStatus('图片将随发布一起上传','info');}};reader.readAsDataURL(file);});e.target.value='';}
+const remaining=9-selectedImages.length;const filesToProcess=Array.from(files).slice(0,remaining);filesToProcess.forEach(file=>{const reader=new FileReader();reader.onload=async function(event){const item={file:file,dataUrl:event.target.result,url:null};selectedImages.push(item);renderImages();saveDraft();updatePublishButton();const csrfToken=document.querySelector('meta[name="csrf_token"]')?.content;try{const fd=new FormData();fd.append('file',file);if(csrfToken){fd.append('csrf_token',csrfToken);}const resp=await AppHttp.request('/admin/upload',{method:'POST',headers:csrfToken?{'X-CSRFToken':csrfToken}:{},body:fd,acceptErrors:true,silent:true});const payload=await parseJsonResponse(resp);if(resp.ok&&payload.success&&payload.url){item.url=payload.url;item.file=null;renderImages();saveDraft();setEditorStatus('图片已上传','success');}else{throw new Error(payload.error||'上传失败');}}catch(err){showToast('图片上传失败：'+(err.message||'未知错误'),'error');setEditorStatus('图片将随发布一起上传','info');}};reader.readAsDataURL(file);});e.target.value='';}
 function renderImages(){const container=document.getElementById('mobileEditorImages');if(!container)return;container.innerHTML='';selectedImages.forEach((img,index)=>{const item=document.createElement('div');item.className='mobile-editor-image-item';item.innerHTML=`<img src="${img.url||img.dataUrl}"alt=""><button type="button"class="mobile-editor-image-remove"data-index="${index}">×</button>`;container.appendChild(item);});if(selectedImages.length<9){const addBtn=document.createElement('button');addBtn.type='button';addBtn.className='mobile-editor-image-item mobile-editor-add-image';addBtn.innerHTML='+';addBtn.addEventListener('click',function(){document.getElementById('mobileEditorImageInput').click();});container.appendChild(addBtn);}
 container.querySelectorAll('.mobile-editor-image-remove').forEach(btn=>{btn.addEventListener('click',function(e){e.stopPropagation();const index=parseInt(this.getAttribute('data-index'));selectedImages.splice(index,1);renderImages();saveDraft();updatePublishButton();});});}
 function initSelectors(){document.querySelectorAll('.selector-close, .selector-overlay').forEach(el=>{el.addEventListener('click',function(e){if(e.target===el||el.classList.contains('selector-close')){closeSelectors();}});});const tagsInput=document.getElementById('tagsQuickInput');if(tagsInput){tagsInput.addEventListener('input',function(){renderTagsList(this.value);});tagsInput.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();submitQuickTagInput();}});}}
@@ -108,10 +108,12 @@ async function publishPost(){
         if (selectedCategory) { formData.append('category_id', selectedCategory.id); }
         if (selectedTags.length > 0) { formData.append('tags', selectedTags.map(t => t.name).join(', ')); }
 
-        const response = await fetch('/admin/new', {
+        const response = await AppHttp.request('/admin/new', {
             method: 'POST',
             headers: {'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest'},
-            body: formData
+            body: formData,
+            acceptErrors: true,
+            silent: true
         });
 
         const payload = await parseJsonResponse(response);
@@ -152,7 +154,7 @@ async function publishPost(){
 async function uploadSelectedImages(csrfToken){if(selectedImages.length===0){return[];}
 const uploadedUrls=[];for(let index=0;index<selectedImages.length;index++){const image=selectedImages[index];if(image.url){uploadedUrls.push(image.url);continue;}const file=image.file||await dataUrlToFile(image.dataUrl,`mobile-image-${index+1}.png`);if(!file){throw new Error(`第 ${index+1}张图片无法读取，请重新选择`);}
 setPublishButtonState(`上传中 ${index+1}/${selectedImages.length}`);setEditorStatus(`正在上传第 ${index+1}张图片，共 ${selectedImages.length}张`,'info',{persistent:true});const formData=new FormData();formData.append('file',file);if(csrfToken){formData.append('csrf_token',csrfToken);}
-const response=await fetch('/admin/upload',{method:'POST',headers:csrfToken?{'X-CSRFToken':csrfToken}:{},body:formData});const payload=await parseJsonResponse(response);if(!response.ok||!payload.success){throw new Error(payload.error||`第 ${index+1}张图片上传失败`);}
+const response=await AppHttp.request('/admin/upload',{method:'POST',headers:csrfToken?{'X-CSRFToken':csrfToken}:{},body:formData,acceptErrors:true,silent:true});const payload=await parseJsonResponse(response);if(!response.ok||!payload.success){throw new Error(payload.error||`第 ${index+1}张图片上传失败`);}
 const imageUrl=payload.url||payload.urls?.large||payload.urls?.original||payload.urls?.medium||payload.urls?.thumbnail;if(!imageUrl){throw new Error(`第 ${index+1}张图片上传后没有返回可用地址`);}
 uploadedUrls.push(imageUrl);}
 setPublishButtonState('发送中...');return uploadedUrls;}

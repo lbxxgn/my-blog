@@ -1,5 +1,15 @@
 """临时冒烟测试：mentor-comment / restructure 端点与文章页 mentor-btn"""
 
+import pytest
+
+
+@pytest.fixture
+def kb_category(temp_db):
+    """沉淀/点评按钮只在知识库有目录时渲染，这里先建一个空目录。"""
+    from backend.models.knowledge import create_kb_category
+
+    return create_kb_category(name='测试目录', space='knowledge')
+
 
 def _login(client, username, password):
     return client.post('/login', data={'username': username, 'password': password},
@@ -24,15 +34,16 @@ def test_endpoints_ai_disabled(client, test_admin_user):
     assert r2.status_code in (400, 500) and r2.get_json()['success'] is False
 
 
-def test_post_page_has_mentor_btn(client, test_admin_user, test_post):
+def test_post_page_has_mentor_btn(client, test_admin_user, test_post, kb_category):
     _login(client, 'test_admin', 'TestPassword123!')
     resp = client.get(f"/post/{test_post['id']}")
     assert resp.status_code == 200
-    assert b'mentor-btn' in resp.data
-    assert b'mentor-modal' in resp.data
+    # 断言标记本身，而不是脚本里的 getElementById('mentor-btn') 字符串
+    assert b'id="mentor-btn"' in resp.data
+    assert b'id="mentor-modal"' in resp.data
 
 
-def test_post_page_no_mentor_btn_anonymous(client, test_post):
+def test_post_page_no_mentor_btn_anonymous(client, test_post, kb_category):
     resp = client.get(f"/post/{test_post['id']}")
     assert resp.status_code == 200
     # 按钮本身只在登录态渲染（JS/CSS 中的字符串不算）

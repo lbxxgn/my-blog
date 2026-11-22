@@ -148,11 +148,14 @@ document.addEventListener('DOMContentLoaded', function () {
         // 用 fetch 提交：只有服务端确认保存成功后才清理草稿，失败时草稿仍在
         function submitWithFetch(submitter, intent) {
             setSubmitBusy(true, submitter);
-            fetch(form.action, {
+            AppHttp.request(form.action, {
                 method: 'POST',
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
                 body: new FormData(form),
-                credentials: 'same-origin'
+                credentials: 'same-origin',
+                // 失败时要把服务端返回的错误正文转成提示，所以自己处理状态码
+                acceptErrors: true,
+                silent: true
             }).then(function (response) {
                 return response.text().then(function (text) {
                     var data = null;
@@ -239,12 +242,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         const formData = new FormData();
                         formData.append('file', file);
                         formData.append('csrf_token', csrfToken);
-                        const response = await fetch('/admin/upload', {
+                        const data = await AppHttp.json('/admin/upload', {
                             method: 'POST',
                             headers: { 'X-CSRFToken': csrfToken },
-                            body: formData
+                            body: formData,
+                            silent: true
                         });
-                        const data = await response.json();
                         if (data.success) {
                             quill.insertEmbed(insertIndex, 'image', data.url);
                             quill.insertText(insertIndex + 1, '\n');
@@ -387,11 +390,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!markdownPreview || contentFormat !== 'markdown') return;
             clearTimeout(previewTimer);
             previewTimer = setTimeout(function () {
-                fetch('/admin/preview', {
+                AppHttp.json('/admin/preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({ content: textarea.value, content_format: 'markdown' })
-                }).then(function (r) { return r.json(); }).then(function (data) {
+                    body: JSON.stringify({ content: textarea.value, content_format: 'markdown' }),
+                    silent: true
+                }).then(function (data) {
                     if (data && data.success) markdownPreview.innerHTML = data.html;
                 }).catch(function () { /* 预览失败不影响编辑 */ });
             }, 400);
@@ -452,12 +456,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
                 try {
-                    const resp = await fetch('/admin/convert-format', {
+                    const data = await AppHttp.json('/admin/convert-format', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                        body: JSON.stringify({ content: current, to: nextFormat })
+                        body: JSON.stringify({ content: current, to: nextFormat }),
+                        silent: true
                     });
-                    const data = await resp.json();
                     if (data && data.success) textarea.value = data.content;
                 } catch (e) {
                     console.warn('[Format] 转换失败，保留原内容:', e);
@@ -580,8 +584,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         function openMediaLibrary() {
-            fetch('/admin/media/library', { headers: { 'Accept': 'application/json' } })
-                .then(r => r.json())
+            AppHttp.json('/admin/media/library', { headers: { 'Accept': 'application/json' } })
                 .then(data => {
                     if (!data.success) throw new Error(data.error || '加载失败');
                     const overlay = document.createElement('div');
@@ -618,7 +621,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                 const fd = new FormData();
                                 fd.append('name', item.name);
                                 fd.append('csrf_token', csrfToken);
-                                const resp = await fetch('/admin/media/library/delete', { method: 'POST', body: fd, headers: { 'X-CSRFToken': csrfToken } });
+                                const resp = await AppHttp.request('/admin/media/library/delete', {
+                                    method: 'POST', body: fd, headers: { 'X-CSRFToken': csrfToken },
+                                    acceptErrors: true, silent: true
+                                });
                                 const result = await resp.json().catch(() => ({}));
                                 if (!resp.ok || !result.success) {
                                     alert(result.error || '删除失败');
@@ -682,10 +688,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const csrfToken = document.querySelector('meta[name="csrf_token"]')
                 ? document.querySelector('meta[name="csrf_token"]').getAttribute('content')
                 : '';
-            const response = await fetch('/admin/ai/generate-tags', {
+            const response = await AppHttp.request('/admin/ai/generate-tags', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                body: JSON.stringify({ title: title, content: content, post_id: postId })
+                body: JSON.stringify({ title: title, content: content, post_id: postId }),
+                acceptErrors: true,
+                silent: true
             });
             if (!response.ok) {
                 const responseText = await response.text();
@@ -746,8 +754,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const poll = setInterval(async () => {
             attempts++;
             try {
-                const response = await fetch(`/admin/image-status/${optimizationId}`);
-                const result = await response.json();
+                const result = await AppHttp.json(`/admin/image-status/${optimizationId}`, { silent: true });
                 if (result.status === 'completed') {
                     clearInterval(poll);
                     updateImageToOptimized(originalUrl, result.sizes, result.compression_ratio, insertIndex);

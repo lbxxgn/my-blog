@@ -1,0 +1,163 @@
+/* 登录 / 修改密码页（原模板内联样式） */
+
+.login-form-wide {
+    max-width: 640px;
+}
+
+.auth-lead {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+/* Passkey 不可用提示（非 localhost / https 时出现） */
+.passkey-host-warning {
+    margin-bottom: 1rem;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+}
+
+.passkey-host-warning-alt {
+    margin-top: 0.5rem;
+}
+
+.passkey-host-warning-link {
+    color: #c2410c;
+}
+
+.remember-device-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0.5rem 0 1rem;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.passkey-login-actions {
+    margin-top: 1rem;
+}
+
+.passkey-button {
+    width: 100%;
+}
+
+/* 提示条：默认隐藏，JS 切换 is-visible / is-success */
+.passkey-hint {
+    margin-top: 0.75rem;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--code-bg);
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    border: 1px solid var(--border-color);
+    display: none;
+}
+
+.passkey-hint.is-visible {
+    display: block;
+}
+
+.passkey-hint.is-success {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
+.passkey-status {
+    margin-top: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+/* 修改密码页 */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.form-actions .btn {
+    flex: 1;
+    text-align: center;
+}
+
+.section-divider {
+    margin: 2rem 0;
+    border: none;
+    border-top: 1px solid var(--border-color);
+}
+
+.section-title {
+    margin-bottom: 0.5rem;
+}
+
+.passkey-register-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.passkey-register-status {
+    color: var(--text-secondary);
+    align-self: center;
+}
+
+.passkey-register-hint {
+    margin-bottom: 1rem;
+}
+
+.passkey-list {
+    margin-top: 0.5rem;
+}
+
+.passkey-item {
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.passkey-item-header {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 0.3rem;
+}
+
+.passkey-device-name {
+    font-weight: 600;
+}
+
+.passkey-badge {
+    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--code-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.passkey-badge-synced {
+    background: #ecfdf5;
+    color: #065f46;
+    border-color: #a7f3d0;
+}
+
+.passkey-meta {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+}
+
+.passkey-empty {
+    color: var(--text-secondary);
+}

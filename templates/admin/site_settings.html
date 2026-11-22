@@ -2,6 +2,10 @@
 
 {% block title %}站点设置 - {{ site_name }}{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/admin-site.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container admin-site-settings">
     <div class="dashboard-header">
@@ -9,7 +13,7 @@
         <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">返回管理后台</a>
     </div>
 
-    <div class="category-form" style="margin-bottom:18px;">
+    <div class="category-form category-form site-section">
         <h3>站点信息</h3>
         <form method="POST" action="{{ url_for('admin.update_site_identity') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -31,26 +35,23 @@
 
     <div class="category-form">
         <h3>站点图标</h3>
-        <p style="color: var(--text-secondary); max-width: 640px;">
+        <p class="site-hint">
             上传一张正方形图片，系统会自动生成浏览器标签图标（favicon）、iOS 主屏图标与
             PWA 图标。建议尺寸不小于 180&times;180，支持 PNG / JPG / WEBP。
         </p>
 
-        <div style="display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin: 18px 0;">
-            <div style="text-align: center;">
-                <img src="{{ url_for('site_icon_48') }}?v={{ icon_version }}" alt="站点图标"
-                     style="width: 48px; height: 48px; border-radius: 8px; border: 1px solid var(--border-color);">
-                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">48px</div>
+        <div class="icon-preview-row">
+            <div class="u-text-center" >
+                <img src="{{ url_for('site_icon_48') }}?v={{ icon_version }}" alt="站点图标" class="icon-preview icon-preview-48">
+                <div class="u-hint-sm" >48px</div>
             </div>
-            <div style="text-align: center;">
-                <img src="{{ url_for('apple_touch_icon') }}?v={{ icon_version }}" alt="主屏图标"
-                     style="width: 60px; height: 60px; border-radius: 12px; border: 1px solid var(--border-color);">
-                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">iOS 180px</div>
+            <div class="u-text-center" >
+                <img src="{{ url_for('apple_touch_icon') }}?v={{ icon_version }}" alt="主屏图标" class="icon-preview icon-preview-60">
+                <div class="u-hint-sm" >iOS 180px</div>
             </div>
-            <div style="text-align: center;">
-                <img src="{{ url_for('site_icon_192') }}?v={{ icon_version }}" alt="PWA 图标"
-                     style="width: 96px; height: 96px; border-radius: 14px; border: 1px solid var(--border-color);">
-                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">PWA 192px</div>
+            <div class="u-text-center" >
+                <img src="{{ url_for('site_icon_192') }}?v={{ icon_version }}" alt="PWA 图标" class="icon-preview icon-preview-96">
+                <div class="u-hint-sm" >PWA 192px</div>
             </div>
         </div>
 
@@ -70,11 +71,7 @@
 
         {% if has_custom_icon %}
         <form method="POST" action="{{ url_for('admin.reset_site_icon') }}"
-              class="delete-form"
-              data-confirm="确定恢复默认图标？"
-              data-confirm-destructive="true"
-              data-confirm-text="恢复默认"
-              style="margin-top: 14px;">
+              class="delete-form delete-form reset-icon-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn btn-danger">恢复默认图标</button>
         </form>

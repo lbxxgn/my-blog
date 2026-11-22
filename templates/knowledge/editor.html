@@ -47,19 +47,6 @@
 }
 </script>
 
-<script>
-(function() {
-  var initEl = document.getElementById('kb-editor-init');
-  if (initEl) {
-    try {
-      window.__KB_EDITOR_INIT__ = JSON.parse(initEl.textContent);
-    } catch (e) {
-      console.error('Failed to parse editor init data:', e);
-      window.__KB_EDITOR_INIT__ = {};
-    }
-  }
-})();
-</script>
 
 {% for js_file in assets.js %}
 <script type="module" src="{{ url_for('static', filename=js_file) }}"></script>
