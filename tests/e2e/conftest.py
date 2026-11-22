@@ -204,7 +204,7 @@ def e2e_browser(e2e_server):
             cdp.send(domain)
         cdp.send(
             'Page.addScriptToEvaluateOnNewDocument',
-            {'source': 'window.confirm = () => true; window.alert = () => {}; window.prompt = () => null;'},
+            {'source': 'window.confirm = () => true; window.alert = () => {}; window.prompt = () => null; window.__KB_E2E__ = true;'},
         )
         yield cdp
     finally:
