@@ -22,6 +22,7 @@
 - CI 增加前端构建、依赖缓存、依赖审计、E2E；拆分 dev 依赖；补 ruff 配置；pytest 不再强制覆盖率。
 - 生产部署统一为 `gunicorn --workers 1`（SQLite 单写 + `memory://` 限流），并在安装脚本/示例/文档中固定该值。
 - 2026-11 第二批：基线迁移 000、`AUTO_MIGRATE`、`background_tasks` 持久化队列（review / AI 标题 / embedding）、embedding 进程内缓存、legacy 蓝图、schema 快照、E2E 接入 CI、模板内联 CSS 抽出、静态资源版本化检查、构建产物/上传移出 Git、单 worker 收敛、`scripts/build-frontend.sh`。
+- 前端样式收敛：`style.css` 与 `enhancements.css` 合并为单一样式表（585 条选择器 / 0 重复），按「变量 → 排版 → 布局 → 组件 → 页面 → 主题」分区并补注释；合并前后在 78 个页面状态（浅色 / 深色 / 打印 / 移动端 / 减少动效）与 12 个 hover 态上逐元素比对计算样式，无差异。
 
 ---
 
@@ -65,10 +66,11 @@
 | FE-1 | 高 | Quill 与 BlockNote 两套编辑器并存，上传/草稿/AI 逻辑重复 | `templates/admin/editor.html`、`static/js/editor.js`、`frontend/src` | 明确唯一编辑器；先抽共享上传/草稿/AI 服务 | 同一功能只维护一份 |
 | FE-2 | 高 | 知识库上传绕过图片优化，原图直接进正文 | `backend/routes/knowledge.py`（`upload_image`）、`backend/routes/admin/media.py` | 统一上传服务，统一入队优化 + 懒加载 | 知识库图片同样生成 WebP/缩略图 |
 | FE-4 | 低 | 内联 CSS 已抽出；post 页仍有内联 JS | `templates/post.html` | 继续抽页面级 JS 与 Jinja 宏 | 内联脚本清零 |
-| FE-5 | 中 | CSS 重复/覆盖严重 | `style.css` 与 `enhancements.css` 91 个重复选择器 | 按 tokens/base/components/pages 分层合并 | 无重复基础组件规则 |
 | FE-7 | 中 | `fetch` 无统一超时/取消/`response.ok` 校验 | `static/js/infinite-scroll.js`、`static/js/draft-sync.js` | 抽统一 `request()` 封装 | 401/500 有统一提示，分页可取消 |
 | FE-8 | 低 | a11y/i18n 无基线，动态图片 alt 为空 | `templates/base.html`、`static/js/infinite-scroll.js` | skip link、aria-label、alt 透传；按需引入 Babel | axe 基础检查通过 |
-| FE-9 | 低 | 调试钩子暴露到生产 | `frontend/src/KbEditorApp.tsx` | 仅 `import.meta.env.DEV` 挂载 | 生产包无调试全局变量 |
+| FE-9 | 低 | 调试钩子暴露到生产 | `frontend/src/KbEditorApp.tsx:207`、`frontend/src/components/KbBlockNoteEditor.tsx:44` | 仅 `import.meta.env.DEV` 挂载 | 生产包无调试全局变量 |
+| FE-10 | 低 | 其余样式表仍有内部重复选择器，且部分文件被压成单行 | `editor-page.css`(18)、`post-page.css`(16)、`knowledge.css`(13)、`admin-layout.css`(5)、`pygments.css`(5)、`quill.css`(3)、`share.css`(3)；`draft-dialog.css`/`lightbox.css`/`pc-feed.css` 整文件 1 行 | 复用本次的合并脚本与格式统一流程 | 各文件 0 重复选择器，格式一致可读 |
+| FE-11 | 低 | 页面级样式与 `style.css` 仍有同名选择器（页级覆盖），其中 3 处声明完全相同 | `mobile-weibo.css`(22)、`post-page.css`(18)、`draft-dialog.css`(6)、`editor-page.css`(5)、`share.css`(4) | 逐项确认覆盖是否仍需要，删除声明完全相同的项 | 无「声明完全相同」的跨文件重复 |
 
 ## 五、仓库与运维
 

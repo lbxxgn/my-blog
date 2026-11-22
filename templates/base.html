@@ -18,14 +18,12 @@
 
     {# 主样式表必须参与首帧渲染：曾用 media="print" + onload 的懒加载技巧，
        但脚本在 DOMContentLoaded 就会插入靠 CSS 隐藏的节点（如「代码已复制」提示、目录、
-       快捷键提示），CSS 未生效前它们会以纯文本形式闪一下，刷新页面时尤其明显。 #}
+       快捷键提示），CSS 未生效前它们会以纯文本形式闪一下，刷新页面时尤其明显。
+       全部页面样式（含此前的 enhancements.css）已合并进这一个文件。 #}
     <link rel="stylesheet" href="{{ static_file('css/style.css') }}">
 
     <!-- Syntax highlighting (Pygments) -->
     <link rel="stylesheet" href="{{ static_file('css/pygments.css') }}">
-
-    <!-- Frontend enhancements -->
-    <link rel="stylesheet" href="{{ static_file('css/enhancements.css') }}">
 
     <!-- 移动端完整样式 - 只在移动端加载 -->
     <link rel="stylesheet" href="{{ static_file('css/mobile-weibo.css') }}" media="(max-width: 768px)">
