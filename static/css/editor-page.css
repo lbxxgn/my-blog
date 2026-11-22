@@ -1,11 +1,10 @@
+/*
+ * editor-page.css
+ *
+ * 由 scripts/css_clean.py 整理：仅做格式化与重复选择器合并，未改动声明内容。
+ * 新增样式请直接修改对应规则，不要追加同名覆盖块。
+ */
 /* 内容区：标签与源码切换按钮 */
-.content-label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-
 #toggleSourceBtn.is-active {
     border-color: var(--primary-color, #10b981);
     color: var(--primary-color, #10b981);
@@ -18,49 +17,10 @@
     gap: 0.5rem;
 }
 
-.content-mode-controls select {
-    padding: 0.35rem 0.6rem;
-    border: 1px solid var(--border-color, #d1d5db);
-    border-radius: 6px;
-    font-size: 0.85rem;
-    background: var(--card-bg, #fff);
-    color: var(--text-color, #1f2937);
-}
-
 /* HTML 源码 / Markdown 模式下的 textarea 样式 */
-#content.source-mode,
-#content.markdown-mode {
-    display: block;
-    width: 100%;
-    min-height: 400px;
-    padding: 0.75rem;
-    border: 1px solid var(--border-color, #d1d5db);
-    border-radius: 8px;
-    font-family: var(--font-mono);
-    font-size: 0.9rem;
-    line-height: 1.6;
-    resize: vertical;
-}
-
-#content.markdown-mode {
-    min-height: 320px;
-}
-
 /* Markdown 实时预览 */
-.markdown-preview {
-    margin-top: 1rem;
-    padding: 1rem 1.25rem;
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 8px;
-    background: var(--card-bg, #fff);
-    color: var(--text-color, #1f2937);
-    line-height: 1.7;
-    min-height: 120px;
-    overflow-wrap: anywhere;
-}
-
 .markdown-preview:empty::before {
-    content: '预览区：开始输入 Markdown…';
+    content: "预览区：开始输入 Markdown…";
     color: var(--text-secondary, #9ca3af);
     font-size: 0.9rem;
 }
@@ -471,8 +431,8 @@
         flex-direction: column;
         gap: 1rem;
     }
-}
 
+}
 /* Editor Footer Layout */
 .editor-footer {
     display: flex;
@@ -546,8 +506,7 @@
         align-items: stretch;
     }
 
-    .footer-left,
-    .footer-right {
+    .footer-left {
         width: 100%;
         justify-content: center;
     }
@@ -559,10 +518,12 @@
     }
 
     .footer-right {
+        width: 100%;
+        justify-content: center;
         flex-wrap: wrap;
     }
-}
 
+}
 /* AI Button Styles */
 .ai-generate-btn {
     display: flex;
@@ -613,10 +574,6 @@
     animation: spin 0.6s linear infinite;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
 .dark-theme .ai-status.loading {
     background: #1e3a8a;
     color: #bfdbfe;
@@ -633,25 +590,7 @@
 }
 
 /* ==================== 自动保存样式 ==================== */
-
 /* 自动保存指示器 */
-.autosave-indicator {
-    position: fixed;
-    top: 80px;
-    right: 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    background: var(--card-bg, #fff);
-    border: 1px solid var(--border-color, #e5e7eb);
-    border-radius: 20px;
-    font-size: 0.875rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    z-index: 1000;
-    transition: all 0.3s ease;
-}
-
 .indicator-dot {
     width: 8px;
     height: 8px;
@@ -696,17 +635,6 @@
     border-radius: 16px;
 }
 
-.draft-recovery-content {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    border: 1px solid rgba(99, 102, 241, 0.15);
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-}
-
 .recovery-icon {
     font-size: 1.15rem;
     line-height: 1;
@@ -731,12 +659,6 @@
     cursor: pointer;
     font-size: 0.82rem;
     transition: all 0.2s ease;
-}
-
-.recovery-actions .btn-primary {
-    background: rgba(79, 70, 229, 0.1);
-    color: #4338ca;
-    border: 1px solid rgba(79, 70, 229, 0.14);
 }
 
 .recovery-actions .btn-primary:hover {
@@ -770,12 +692,6 @@
 
 /* 响应式 */
 @media (max-width: 768px) {
-    .autosave-indicator {
-        top: auto;
-        bottom: 20px;
-        right: 20px;
-    }
-
     .draft-recovery {
         top: auto;
         bottom: 78px;
@@ -790,9 +706,8 @@
     .recovery-actions {
         width: 100%;
     }
+
 }
-
-
 /* ==================== 现代化编辑器外观（仅样式覆盖） ==================== */
 .admin-editor {
     max-width: 1200px;
@@ -828,11 +743,13 @@
     font-weight: 760 !important;
     letter-spacing: -.02em;
 }
+
 #title::placeholder {
     color: var(--text-secondary, #9ca3af);
     opacity: .48;
     font-weight: 600;
 }
+
 #title:focus {
     border-bottom-color: rgba(16, 185, 129, .35) !important;
     outline: none !important;
@@ -840,16 +757,22 @@
 
 /* 内容标题行 */
 .content-label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     margin-top: 22px;
     margin-bottom: 10px;
     justify-content: flex-end;
 }
+
 .content-label-row > label {
     font-size: 13px;
     font-weight: 600;
     color: var(--text-secondary, #6b7280);
 }
+
 .content-mode-controls select {
+    border: 1px solid var(--border-color, #d1d5db);
     padding: 6px 9px !important;
     border-radius: 9px !important;
     border-color: var(--border-color, #e5e7eb) !important;
@@ -872,6 +795,7 @@
     background: linear-gradient(180deg, rgba(255,255,255,.72), rgba(248,250,252,.92));
     box-shadow: inset 0 1px 0 rgba(255,255,255,.75), 0 6px 18px rgba(15, 23, 42, .05);
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-formats {
     display: flex;
     align-items: center;
@@ -881,13 +805,14 @@
     padding-right: 10px;
     border-right: 1px solid rgba(15, 23, 42, .08);
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-formats:last-child {
     margin-right: 0;
     padding-right: 0;
     border-right: 0;
 }
-.admin-editor .ql-toolbar.ql-snow button,
-.admin-editor .ql-toolbar.ql-snow .ql-picker-label {
+
+.admin-editor .ql-toolbar.ql-snow button {
     width: 28px;
     height: 28px;
     display: inline-flex;
@@ -896,28 +821,41 @@
     border-radius: 8px;
     transition: background .15s ease, color .15s ease, transform .12s ease;
 }
+
 .admin-editor .ql-toolbar.ql-snow button:hover,
 .admin-editor .ql-toolbar.ql-snow .ql-picker-label:hover {
     background: rgba(16, 185, 129, .1);
     color: var(--primary-color, #10b981);
     transform: translateY(-1px);
 }
+
 .admin-editor .ql-toolbar.ql-snow button.ql-active {
     background: var(--primary-color, #10b981);
 }
+
 .admin-editor .ql-toolbar.ql-snow button.ql-active .ql-stroke {
     stroke: #fff;
 }
+
 .admin-editor .ql-toolbar.ql-snow button.ql-active .ql-fill {
     fill: #fff;
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-picker {
     flex: 0 0 auto;
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-picker.ql-header {
     width: 112px;
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-picker-label {
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: background .15s ease, color .15s ease, transform .12s ease;
     width: auto;
     padding: 0 22px 0 8px;
     gap: 3px;
@@ -925,14 +863,17 @@
     font-size: 12px;
     white-space: nowrap;
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-picker-label::before {
     line-height: 28px;
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-picker.ql-header svg {
     right: 6px;
     width: 14px;
     margin-top: -7px;
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-picker-options {
     border: 1px solid var(--border-color, #e5e7eb);
     border-radius: 10px;
@@ -940,15 +881,18 @@
     box-shadow: 0 12px 30px rgba(15, 23, 42, .14);
     padding: 5px;
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-picker-item {
     border-radius: 6px;
     padding: 4px 7px;
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-picker-item:hover,
 .admin-editor .ql-toolbar.ql-snow .ql-picker-item.ql-selected {
     color: var(--primary-color, #10b981) !important;
     background: rgba(16, 185, 129, .08);
 }
+
 .admin-editor .ql-toolbar.ql-snow .ql-separator {
     display: none;
 }
@@ -957,6 +901,7 @@
 .editor-schedule-advanced {
     margin-top: 2px;
 }
+
 .editor-schedule-advanced summary {
     list-style: none;
     cursor: pointer;
@@ -965,18 +910,22 @@
     font-size: 12px;
     user-select: none;
 }
+
 .editor-schedule-advanced summary::-webkit-details-marker {
     display: none;
 }
+
 .editor-schedule-advanced summary::before {
-    content: '▸';
+    content: "▸";
     display: inline-block;
     margin-right: 5px;
     transition: transform .15s ease;
 }
+
 .editor-schedule-advanced[open] summary::before {
     transform: rotate(90deg);
 }
+
 .editor-schedule-advanced input[type="datetime-local"] {
     margin-top: 4px;
     padding: 8px 10px !important;
@@ -988,35 +937,28 @@
 }
 
 /* 正文区 */
-.admin-editor .ql-container.ql-snow {
-    border: 0 !important;
-    font-family: inherit;
-    font-size: 17px;
+.admin-editor .ql-editor h1 {
+    letter-spacing: -.015em;
+    line-height: 1.3;
+    font-size: 1.7em;
 }
-.admin-editor .ql-editor {
-    min-height: 520px;
-    padding: 10px 2px 46px;
-    line-height: 1.85;
-    letter-spacing: .01em;
-    color: var(--text-color, #111827);
+
+.admin-editor .ql-editor h2 {
+    letter-spacing: -.015em;
+    line-height: 1.3;
+    font-size: 1.4em;
 }
-.admin-editor .ql-editor.ql-blank::before {
-    left: 2px;
-    right: 2px;
-    color: var(--text-secondary, #9ca3af);
-    font-style: normal;
-    opacity: .55;
-}
-.admin-editor .ql-editor h1,
-.admin-editor .ql-editor h2,
+
 .admin-editor .ql-editor h3 {
     letter-spacing: -.015em;
     line-height: 1.3;
+    font-size: 1.2em;
 }
-.admin-editor .ql-editor h1 { font-size: 1.7em; }
-.admin-editor .ql-editor h2 { font-size: 1.4em; }
-.admin-editor .ql-editor h3 { font-size: 1.2em; }
-.admin-editor .ql-editor p { margin: 0 0 .95em; }
+
+.admin-editor .ql-editor p {
+    margin: 0 0 .95em;
+}
+
 .admin-editor .ql-editor blockquote {
     margin: 1.2em 0;
     padding: .2em 1em;
@@ -1025,6 +967,7 @@
     background: rgba(16, 185, 129, .06);
     color: var(--text-secondary, #6b7280);
 }
+
 .admin-editor .ql-editor img {
     max-width: 100%;
     border-radius: 12px;
@@ -1032,6 +975,7 @@
     margin: 1.4em auto;
     box-shadow: 0 12px 32px rgba(15, 23, 42, .12);
 }
+
 .admin-editor .ql-editor pre.ql-syntax,
 .admin-editor .ql-editor .ql-code-block-container {
     border-radius: 12px;
@@ -1040,12 +984,18 @@
     color: #e2e8f0;
     overflow-x: auto;
 }
+
 .admin-editor .ql-editor a {
     color: var(--primary-color, #059669);
 }
 
 #content.source-mode,
 #content.markdown-mode {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--border-color, #d1d5db);
+    font-family: var(--font-mono);
+    resize: vertical;
     min-height: 500px;
     padding: 16px !important;
     border-radius: 13px !important;
@@ -1055,7 +1005,16 @@
     font-size: 14px !important;
     line-height: 1.7 !important;
 }
+
 .markdown-preview {
+    margin-top: 1rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    background: var(--card-bg, #fff);
+    color: var(--text-color, #1f2937);
+    line-height: 1.7;
+    min-height: 120px;
+    overflow-wrap: anywhere;
     border-radius: 13px;
     border-color: var(--border-color, #e5e7eb);
 }
@@ -1067,6 +1026,7 @@
     border-top: 1px solid var(--border-color, #e5e7eb);
     gap: 18px;
 }
+
 .admin-editor .form-row .form-group > label,
 .admin-editor .access-setting > label {
     display: block;
@@ -1075,6 +1035,7 @@
     font-weight: 600;
     color: var(--text-secondary, #6b7280) !important;
 }
+
 .admin-editor .form-row select,
 .admin-editor .form-row input[type="text"],
 .admin-editor #access_level,
@@ -1089,6 +1050,7 @@
     outline: none;
     transition: border-color .15s ease, box-shadow .15s ease;
 }
+
 .admin-editor .form-row select:focus,
 .admin-editor .form-row input[type="text"]:focus,
 .admin-editor #access_level:focus,
@@ -1097,6 +1059,7 @@
     border-color: rgba(16, 185, 129, .65) !important;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, .1) !important;
 }
+
 .admin-editor .form-row small {
     display: block;
     margin-top: 5px;
@@ -1116,15 +1079,18 @@
     align-items: flex-end;
     gap: 18px;
 }
+
 .admin-editor .footer-left {
     gap: 18px;
     flex-wrap: wrap;
 }
+
 .admin-editor .access-setting {
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
 }
+
 .admin-editor .footer-right {
     gap: 8px;
 }
@@ -1138,17 +1104,21 @@
     background: var(--card-bg, #fff);
     box-shadow: 0 10px 30px rgba(15, 23, 42, .04);
 }
+
 .admin-editor .assist-dock-header h3 {
     font-size: 15px;
 }
+
 .admin-editor .assist-dock-header p {
     font-size: 12.5px;
 }
+
 .admin-editor .assist-toggle {
     padding: 7px 12px;
     font-size: 12.5px;
     background: var(--code-bg, #f8fafc);
 }
+
 .admin-editor .editor-workbench-card {
     border-radius: 14px;
     border-color: var(--border-color, #e5e7eb);
@@ -1158,6 +1128,13 @@
 
 /* 状态与恢复提示 */
 .autosave-indicator {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    z-index: 1000;
+    transition: all 0.3s ease;
     top: 72px !important;
     right: 22px !important;
     padding: 7px 13px !important;
@@ -1167,13 +1144,22 @@
     box-shadow: 0 8px 22px rgba(15, 23, 42, .07) !important;
     font-size: 12px !important;
 }
+
 .draft-recovery-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    backdrop-filter: blur(10px);
     border-color: var(--border-color, #e5e7eb) !important;
     border-radius: 15px !important;
     background: color-mix(in srgb, var(--card-bg, #fff) 95%, transparent) !important;
     box-shadow: 0 18px 44px rgba(15, 23, 42, .14);
 }
+
 .recovery-actions .btn-primary {
+    border: 1px solid rgba(79, 70, 229, 0.14);
     background: rgba(16, 185, 129, .12) !important;
     color: #047857 !important;
     border-color: rgba(16, 185, 129, .2) !important;
@@ -1186,33 +1172,41 @@
     border-color: rgba(230, 237, 243, .12);
     box-shadow: 0 2px 12px rgba(0, 0, 0, .22);
 }
+
 .dark-theme #title,
 .dark-theme .admin-editor .ql-editor {
     color: #e6edf3 !important;
 }
+
 .dark-theme .admin-editor .ql-toolbar.ql-snow {
     background: linear-gradient(180deg, rgba(26, 34, 44, .96), rgba(23, 30, 38, .96));
     border-color: rgba(230, 237, 243, .12) !important;
     box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 6px 18px rgba(0,0,0,.18);
 }
+
 .dark-theme .admin-editor .editor-footer {
     background: rgba(23, 30, 38, .92) !important;
     border-color: rgba(230, 237, 243, .12) !important;
 }
+
 .dark-theme .editor-schedule-advanced input[type="datetime-local"] {
     background: #10161d !important;
     border-color: rgba(230, 237, 243, .14) !important;
     color: #e6edf3 !important;
 }
+
 .dark-theme .admin-editor .ql-toolbar.ql-snow .ql-stroke {
     stroke: #9aa8b6;
 }
+
 .dark-theme .admin-editor .ql-toolbar.ql-snow .ql-fill {
     fill: #9aa8b6;
 }
+
 .dark-theme .admin-editor .ql-toolbar.ql-snow .ql-picker {
     color: #9aa8b6;
 }
+
 .dark-theme .admin-editor .form-row select,
 .dark-theme .admin-editor .form-row input[type="text"],
 .dark-theme .admin-editor #access_level,
@@ -1231,35 +1225,38 @@
         padding: 18px 14px 24px;
         border-radius: 16px;
     }
-    #title { font-size: 30px !important; }
+
+    #title {
+        font-size: 30px !important;
+    }
+
     .admin-editor .ql-toolbar.ql-snow {
         overflow-x: auto;
         flex-wrap: nowrap;
         padding: 6px 8px;
     }
-    .admin-editor .ql-editor {
-        min-height: 58vh;
-        font-size: 16px;
-    }
+
     .admin-editor .editor-footer {
         position: static;
         align-items: stretch;
         padding: 10px;
     }
+
     .admin-editor .footer-left {
         gap: 8px;
     }
+
     .admin-editor .footer-right {
         justify-content: flex-end;
     }
+
     .autosave-indicator {
+        bottom: 20px;
         top: 54px !important;
         right: 10px !important;
     }
+
 }
-
-
-
 /* ==================== 正文编辑区与高级设置布局优化 ==================== */
 .admin-editor .editor-content-group {
     margin-top: 24px;
@@ -1267,21 +1264,32 @@
 
 /* 编辑纸面：柔和底色 + 充足留白 */
 .admin-editor .ql-container.ql-snow {
+    font-family: inherit;
+    font-size: 17px;
     border: 1px solid rgba(15, 23, 42, .08) !important;
     border-radius: 16px;
     background: color-mix(in srgb, var(--card-bg, #fff) 96%, #efe8dc);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55);
     overflow: hidden;
 }
+
 .admin-editor .ql-editor {
+    line-height: 1.85;
+    letter-spacing: .01em;
+    color: var(--text-color, #111827);
     padding: 32px 36px 72px !important;
     min-height: 560px;
 }
+
 .admin-editor .ql-editor.ql-blank::before {
+    color: var(--text-secondary, #9ca3af);
+    font-style: normal;
+    opacity: .55;
     left: 36px !important;
     right: 36px !important;
     top: 32px !important;
 }
+
 .admin-editor .ql-editor > *:first-child {
     margin-top: 0;
 }
@@ -1291,6 +1299,7 @@
     flex: 1 1 100%;
     width: 100%;
 }
+
 .editor-more-settings summary {
     list-style: none;
     cursor: pointer;
@@ -1299,45 +1308,55 @@
     font-size: 12px;
     user-select: none;
 }
+
 .editor-more-settings summary::-webkit-details-marker {
     display: none;
 }
+
 .editor-more-settings summary::before {
-    content: '▸';
+    content: "▸";
     display: inline-block;
     margin-right: 5px;
     transition: transform .15s ease;
 }
+
 .editor-more-settings[open] summary::before {
     transform: rotate(90deg);
 }
+
 .editor-more-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 14px;
     padding: 8px 0 2px;
 }
+
 .editor-more-grid > div {
     min-width: 0;
 }
+
 .editor-more-grid label {
     display: block;
     margin-bottom: 6px;
     color: var(--text-secondary, #9ca3af);
     font-size: 11.5px;
 }
+
 .editor-more-grid .content-mode-controls {
     display: flex;
     gap: 6px;
     align-items: center;
 }
+
 .editor-more-grid .content-mode-controls select {
     flex: 1;
     min-width: 0;
 }
+
 .editor-more-grid input[type="datetime-local"] {
     width: 100%;
 }
+
 .editor-more-grid .btn {
     white-space: nowrap;
 }
@@ -1347,6 +1366,7 @@
     border-color: rgba(230, 237, 243, .12) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
 }
+
 .dark-theme .editor-more-grid select,
 .dark-theme .editor-more-grid input {
     background: #10161d !important;
@@ -1356,15 +1376,19 @@
 
 @media (max-width: 768px) {
     .admin-editor .ql-editor {
+        font-size: 16px;
         padding: 22px 20px 54px !important;
         min-height: 58vh;
     }
+
     .admin-editor .ql-editor.ql-blank::before {
         left: 20px !important;
         right: 20px !important;
         top: 22px !important;
     }
+
     .editor-more-grid {
         grid-template-columns: 1fr;
     }
+
 }
