@@ -9,7 +9,6 @@
  * 4. 响应式（@media）规则紧跟在对应组件之后，修改时保持「先基础、后覆盖」的顺序。
  * 5. 无构建步骤：保存后刷新页面即可生效（生产环境请更新 static/manifest.json）。
  * ========================================================================== */
-
 * {
     margin: 0;
     padding: 0;
@@ -17,7 +16,6 @@
 }
 
 /* ===== 设计变量（颜色 / 字体 / 间距 / 圆角阴影，含深色主题） ===== */
-
 :root {
     --success-color: #10b981;
     --error-color: #ef4444;
@@ -106,7 +104,6 @@
 }
 
 /* ===== 基础排版与页面底色 ===== */
-
 body {
     padding: 0;
     font-family: var(--font-body);
@@ -120,7 +117,6 @@ body {
 }
 
 /* ===== 布局骨架（容器 / 主区域 / 侧边栏） ===== */
-
 .container {
     max-width: 1400px;
     margin: 0 auto;
@@ -231,7 +227,6 @@ body {
 
 }
 /* ===== 页头与导航 ===== */
-
 header {
     background-color: var(--header-bg);
     box-shadow: 0 1px 3px var(--header-shadow);
@@ -392,7 +387,6 @@ main {
 }
 
 /* ===== 文章卡片列表 ===== */
-
 .posts-list {
     display: flex;
     flex-direction: column;
@@ -488,7 +482,6 @@ main {
 }
 
 /* ===== 文章详情与正文排版 ===== */
-
 .post-full {
     max-width: var(--content-max-width);
     margin: 0 auto;
@@ -803,7 +796,6 @@ main {
 }
 
 /* ===== 表单与按钮 ===== */
-
 .login-form {
     max-width: 400px;
     margin: 2rem auto;
@@ -953,7 +945,6 @@ main {
 }
 
 /* ===== 后台通用布局（列表 / 表格 / 状态） ===== */
-
 .admin-dashboard {
     max-width: 1200px;
     margin: 0 auto;
@@ -1021,7 +1012,6 @@ main {
 }
 
 /* ===== 后台编辑器（工具栏 / 分栏预览） ===== */
-
 .admin-editor {
     max-width: 1200px;
     margin: 0 auto;
@@ -1648,7 +1638,6 @@ footer {
 
 }
 /* ===== 分类与标签 ===== */
-
 .category-filter {
     display: flex;
     gap: 0.5rem;
@@ -1931,7 +1920,6 @@ footer {
 }
 
 /* ===== 骨架屏与加载状态 ===== */
-
 .skeleton {
     background: linear-gradient( 90deg, var(--skeleton-start, #f0f0f0) 0%, var(--skeleton-middle, #e8e8e8) 40%, var(--skeleton-start, #f0f0f0) 80% );
     background-size: 200% 100%;
@@ -2087,7 +2075,6 @@ img.loaded {
 }
 
 /* ===== 文章标签 ===== */
-
 .post-tags {
     display: flex;
     gap: .5rem;
@@ -2159,7 +2146,6 @@ img.loaded {
 }
 
 /* ===== 搜索 ===== */
-
 .search-header {
     margin-bottom: 2rem;
 }
@@ -2233,7 +2219,6 @@ img.loaded {
 }
 
 /* ===== 评论区 ===== */
-
 .comments-section {
     max-width: var(--content-max-width);
     margin: 1.25rem auto 0;
@@ -2340,7 +2325,6 @@ img.loaded {
 }
 
 /* ===== 代码块复制按钮 ===== */
-
 .code-copy-btn {
     position: absolute;
     top: .5rem;
@@ -2453,7 +2437,6 @@ img.loaded {
 
 }
 /* ===== 图片灯箱 ===== */
-
 .lightbox .lb-image {
     border-radius: 8px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.3);
@@ -2528,7 +2511,6 @@ img.loaded {
 }
 
 /* ===== 快捷键提示 ===== */
-
 .shortcut-hint {
     position: fixed;
     bottom: 20px;
@@ -2616,7 +2598,6 @@ img.loaded {
 }
 
 /* ===== 移动端底部导航与浮动按钮 ===== */
-
 .mobile-bottom-nav,
 .mobile-editor-overlay,
 .mobile-editor-panel,
@@ -2860,18 +2841,6 @@ body[data-page*="admin"] .publish-btn {
     }
 
 }
-.dropdown-toggle {
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    padding: 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
 /* ============================================
    Blog Frontend Enhancements
    Editorial / Refined aesthetic direction
@@ -3164,43 +3133,7 @@ nav h1 a:hover {
 }
 
 /* --- Dropdown Menu Enhancement --- */
-.dropdown-menu {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.08);
-    padding: 6px;
-    min-width: 180px;
-    backdrop-filter: blur(20px);
-}
-
-.dropdown-menu li a {
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-size: 0.9rem;
-    color: var(--text-color);
-    transition: all 0.2s ease;
-}
-
-.dropdown-menu li a:hover {
-    background: rgba(42,157,143,0.08);
-    color: var(--primary-color);
-}
-
 /* --- Theme Toggle --- */
-.theme-toggle-nav {
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
-    padding: 6px 10px;
-    transition: all 0.3s var(--transition-smooth);
-}
-
-.theme-toggle-nav:hover {
-    background: rgba(42,157,143,0.08);
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-}
-
 /* --- Note Badge --- */
 /* --- Reading Progress Bar --- */
 .reading-progress {
@@ -3726,6 +3659,133 @@ body.reader-mode .reader-exit {
     .post-card-link {
         opacity: 1 !important;
         transform: none !important;
+    }
+
+}
+/* ===== 页头下拉菜单（原 templates/base.html 内联样式） ===== */
+/* Dropdown Menu Styles */
+.dropdown {
+    position: relative;
+}
+
+.dropdown-toggle {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+    /* Prevent text selection */
+}
+
+.dropdown-arrow {
+    font-size: 10px;
+    transition: transform 0.3s ease;
+    display: inline-block;
+}
+
+.dropdown-menu {
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(20px);
+    display: block;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: var(--card-bg, white);
+    min-width: 180px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    padding: 8px 0;
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.dropdown-menu li {
+    list-style: none;
+}
+
+.dropdown-menu li a {
+    border-radius: 8px;
+    font-size: 0.9rem;
+    display: block;
+    padding: 10px 20px;
+    color: var(--text-color, #333);
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.dropdown-menu li a:hover {
+    color: var(--primary-color);
+    background: var(--code-bg, #f5f5f5);
+}
+
+/* Active state for open dropdowns */
+.dropdown-menu.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.nav-links > li.dropdown:last-child > .dropdown-menu {
+    left: auto;
+    right: 0;
+}
+
+/* User Icon Style */
+.user-icon {
+    font-size: 18px;
+}
+
+/* Nav Theme Toggle */
+.nav-theme-toggle {
+    display: flex;
+    align-items: center;
+    list-style: none;
+}
+
+.theme-toggle-nav {
+    background: none;
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 6px 10px;
+    font-size: 1.1rem;
+    color: var(--text-color, #333);
+    transition: all 0.2s ease;
+}
+
+.theme-toggle-nav:hover {
+    background: rgba(42,157,143,0.08);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: var(--code-bg, #f3f4f6);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .dropdown-menu {
+        position: static;
+        box-shadow: none;
+        border-left: 3px solid #007bff;
+        padding-left: 10px;
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+    }
+
+    .dropdown-arrow {
+        display: inline-block;
+    }
+
+    .nav-theme-toggle {
+        display: none;
     }
 
 }

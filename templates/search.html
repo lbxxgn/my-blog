@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/search.css') }}">
+{% endblock %}
+
 
 {% block title %}搜索：{{ query }} - {{ site_name }}{% endblock %}
 
@@ -190,119 +194,4 @@
     {% endif %}
 </main>
 
-<style>
-.search-panel {
-    max-width: 860px;
-    margin: 0 auto 1.5rem;
-    padding: 1rem;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    background: var(--card-bg);
-}
-.search-panel .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-.search-panel .search-form {
-    display: flex;
-    gap: .65rem;
-    max-width: none;
-    margin: 0;
-    text-align: left;
-}
-.search-panel .search-input {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    background: var(--bg-color);
-    color: var(--text-color);
-}
-.search-panel .btn {
-    flex-shrink: 0;
-}
-.search-options {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: .75rem 1.25rem;
-    margin-top: .85rem;
-    padding-top: .75rem;
-    border-top: 1px solid var(--border-color);
-}
-.search-mode-switch,
-.search-source-tabs {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: .35rem;
-}
-.search-option-label {
-    margin-right: .25rem;
-    color: var(--text-secondary);
-    font-size: .75rem;
-}
-.search-mode,
-.source-tab {
-    padding: .35rem .75rem;
-    border: 1px solid transparent;
-    border-radius: 7px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: .8125rem;
-}
-.search-mode:hover,
-.source-tab:hover:not(.active) {
-    background: var(--code-bg);
-    color: var(--text-color);
-}
-.search-mode.active,
-.source-tab.active {
-    border-color: rgba(42, 157, 143, .2);
-    background: rgba(42, 157, 143, .1);
-    color: var(--primary-color);
-    font-weight: 600;
-}
-.search-summary {
-    margin: 1.5rem 0 .25rem;
-    color: var(--text-secondary);
-    font-size: .875rem;
-}
-.search-section-label {
-    margin: 1.5rem 0 .25rem;
-    color: var(--text-secondary);
-    font-size: .8125rem;
-    font-weight: 600;
-    letter-spacing: .02em;
-}
-/* 高亮改成“荧光笔”效果，避免整块色块看起来像坏掉的选择区 */
-.post-card mark,
-.search-summary mark {
-    background: linear-gradient(transparent 62%, rgba(26, 188, 156, .26) 62%);
-    color: inherit;
-    padding: 0;
-    border-radius: 0;
-}
-.semantic-badge{display:inline-block;background:rgba(26,188,156,.15);color:var(--primary-color);border:1px solid var(--primary-color);border-radius:10px;padding:0 .5rem;font-size:.75rem;font-weight:600;margin-right:.4rem;vertical-align:middle}
-.semantic-guide p{margin-bottom:.5rem}
-.empty-hint{color:var(--text-secondary);font-size:.9rem;margin-top:.5rem}
-.empty-actions{display:flex;gap:.75rem;justify-content:center;margin-top:1rem;flex-wrap:wrap}
-@media (max-width: 600px) {
-    .search-options {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-    .search-panel .search-form .btn {
-        width: auto;
-        padding: .75rem 1rem;
-    }
-}
-</style>
 {% endblock %}

@@ -1,0 +1,59 @@
+/*
+ * 首页
+ *
+ * 原先内联在 templates/index.html 的 <style> 中，抽成独立文件以便缓存，并为收紧 CSP
+ * （去掉 style-src 'unsafe-inline'）做准备。只在该页面引入。
+ * 重复选择器已用 scripts/css_clean.py 合并，可用 `make css-check` 复查。
+ */
+/* 「那年今日」侧边栏小组件 */
+#review-sidebar-widget .review-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 5px 0;
+    font-size: 13px;
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+#review-sidebar-widget a.review-item:hover .review-item-title {
+    color: var(--primary-color);
+}
+
+#review-sidebar-widget .review-item-year {
+    color: var(--primary-color);
+    font-weight: 700;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+#review-sidebar-widget .review-item-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+#review-sidebar-widget .review-item-excerpt {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin: 6px 0 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+#review-sidebar-widget .review-empty {
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding: 4px 0;
+}
+
+#review-sidebar-widget .review-more {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--primary-color);
+    text-decoration: none;
+}

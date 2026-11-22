@@ -1,0 +1,60 @@
+/*
+ * 归档页
+ *
+ * 原先内联在 templates/archive.html 的 <style> 中，抽成独立文件以便缓存，并为收紧 CSP
+ * （去掉 style-src 'unsafe-inline'）做准备。只在该页面引入。
+ * 重复选择器已用 scripts/css_clean.py 合并，可用 `make css-check` 复查。
+ */
+.archive-header {
+    margin-bottom: 30px;
+}
+
+.archive-header h1 {
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+
+.archive-filter {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.filter-btn {
+    padding: 10px 20px;
+    background: var(--code-bg, #f6f8fa);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 20px;
+    text-decoration: none;
+    color: var(--text-color, #333);
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover,
+.filter-btn.active {
+    background: var(--primary-color, #1abc9c);
+    color: white;
+    border-color: var(--primary-color, #1abc9c);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary, #999);
+}
+
+@media (max-width: 768px) {
+    .archive-filter {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 8px;
+    }
+
+    .filter-btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+}

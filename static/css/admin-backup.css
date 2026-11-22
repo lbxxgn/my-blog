@@ -1,0 +1,239 @@
+/*
+ * 后台备份
+ *
+ * 原先内联在 templates/admin/backup.html 的 <style> 中，抽成独立文件以便缓存，并为收紧 CSP
+ * （去掉 style-src 'unsafe-inline'）做准备。只在该页面引入。
+ * 重复选择器已用 scripts/css_clean.py 合并，可用 `make css-check` 复查。
+ */
+.admin-backup {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.backup-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.stat-card {
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background-color: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.stat-value {
+    color: var(--heading-color);
+    font-size: 1.35rem;
+}
+
+.stat-sub {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.backup-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background-color: var(--bg-color);
+}
+
+.backup-section h3 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    color: var(--heading-color);
+}
+
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+.section-heading {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.section-heading p {
+    margin: 0;
+    max-width: 640px;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.backup-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.backup-table td {
+    padding: 0.7rem 0.6rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.backup-table th {
+    padding: 0.7rem 0.6rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: middle;
+    color: var(--text-secondary);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.backup-name {
+    font-family: var(--font-mono);
+    word-break: break-all;
+    font-size: 0.85rem;
+}
+
+.actions-col {
+    width: 210px;
+}
+
+.backup-actions {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.inline-form {
+    display: inline;
+    margin: 0;
+}
+
+.backup-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background-color: rgba(26, 188, 156, 0.12);
+    color: var(--primary-color);
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.backup-badge.safety {
+    background-color: rgba(241, 196, 15, 0.16);
+    color: #b7791f;
+}
+
+.backup-badge.scheduled {
+    background-color: rgba(102, 126, 234, 0.14);
+    color: #5b6ed6;
+}
+
+.schedule-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.schedule-meta strong {
+    color: var(--heading-color);
+}
+
+.empty-state {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    border: 1px dashed var(--border-color);
+    border-radius: 10px;
+}
+
+.danger-zone {
+    border-color: rgba(231, 76, 60, 0.35);
+}
+
+.warning-box {
+    padding: 1rem 1.25rem;
+    border-radius: 10px;
+    background-color: rgba(231, 76, 60, 0.07);
+    border: 1px solid rgba(231, 76, 60, 0.25);
+    margin-bottom: 1.25rem;
+}
+
+.warning-box ul {
+    margin: 0.6rem 0 0;
+    padding-left: 1.4rem;
+    color: var(--text-secondary);
+}
+
+.warning-box li {
+    margin-bottom: 0.35rem;
+}
+
+.restore-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.restore-form label {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--heading-color);
+}
+
+.restore-form input[type="text"] {
+    width: 100%;
+    max-width: 260px;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font-mono);
+}
+
+.btn-danger-outline {
+    background: transparent;
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.6);
+}
+
+.btn-danger-outline:hover {
+    background-color: rgba(231, 76, 60, 0.1);
+}
+
+@media (max-width: 768px) {
+    .backup-section {
+        padding: 1.1rem;
+    }
+
+    .section-heading {
+        align-items: flex-start;
+    }
+
+    .section-heading form,
+    .section-heading .btn {
+        width: 100%;
+    }
+
+    .actions-col {
+        width: auto;
+    }
+
+}

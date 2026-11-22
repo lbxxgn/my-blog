@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/admin-ai-catalog.css') }}">
+{% endblock %}
+
 
 {% block title %}{{ provider.name }} - AI 供应商配置 - {{ site_name }}{% endblock %}
 
@@ -236,7 +240,6 @@
     </form>
 </dialog>
 
-{% include 'admin/_ai_catalog_styles.html' %}
 
 <script>
 const provider = {{ provider|tojson }};
