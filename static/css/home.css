@@ -57,3 +57,9 @@
     color: var(--primary-color);
     text-decoration: none;
 }
+
+/* 由 index.html 内联 style 抽取 */
+.home-empty {
+    text-align: center;
+    color: #666;
+}

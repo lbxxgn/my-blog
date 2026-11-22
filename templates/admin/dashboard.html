@@ -27,7 +27,7 @@
             </div>
             <div class="filter-group">
                 <label for="statusFilter">状态</label>
-                <select id="statusFilter" name="status" class="form-select" onchange="this.form.submit()">
+                <select id="statusFilter" name="status" class="form-select" data-auto-submit>
                     <option value="" {% if not current_status %}selected{% endif %}>全部</option>
                     <option value="published" {% if current_status == 'published' %}selected{% endif %}>已发布</option>
                     <option value="draft" {% if current_status == 'draft' %}selected{% endif %}>草稿</option>
@@ -36,7 +36,7 @@
             </div>
             <div class="filter-group">
                 <label for="categoryFilter">分类</label>
-                <select id="categoryFilter" name="category_id" class="form-select" onchange="this.form.submit()">
+                <select id="categoryFilter" name="category_id" class="form-select" data-auto-submit>
                     <option value="" {% if not current_category_id %}selected{% endif %}>全部分类</option>
                     <option value="none" {% if current_category_id == 'none' %}selected{% endif %}>未分类</option>
                     {% for category in categories %}
@@ -55,7 +55,7 @@
             <div class="filter-advanced-grid">
                 <div class="filter-group">
                     <label for="typeFilter">内容类型</label>
-                    <select id="typeFilter" name="type" class="form-select" onchange="this.form.submit()">
+                    <select id="typeFilter" name="type" class="form-select" data-auto-submit>
                         <option value="" {% if not current_type %}selected{% endif %}>全部</option>
                         <option value="post" {% if current_type == 'post' %}selected{% endif %}>文章</option>
                         <option value="note" {% if current_type == 'note' %}selected{% endif %}>笔记</option>
@@ -63,7 +63,7 @@
                 </div>
                 <div class="filter-group">
                     <label for="accessFilter">访问权限</label>
-                    <select id="accessFilter" name="access_level" class="form-select" onchange="this.form.submit()">
+                    <select id="accessFilter" name="access_level" class="form-select" data-auto-submit>
                         <option value="" {% if not current_access %}selected{% endif %}>全部</option>
                         <option value="public" {% if current_access == 'public' %}selected{% endif %}>公开</option>
                         <option value="login" {% if current_access == 'login' %}selected{% endif %}>登录</option>
@@ -74,7 +74,7 @@
                 {% if authors %}
                 <div class="filter-group">
                     <label for="authorFilter">作者</label>
-                    <select id="authorFilter" name="author_id" class="form-select" onchange="this.form.submit()">
+                    <select id="authorFilter" name="author_id" class="form-select" data-auto-submit>
                         <option value="" {% if not current_author_id %}selected{% endif %}>全部</option>
                         {% for author in authors %}
                         <option value="{{ author.id }}" {% if current_author_id == author.id %}selected{% endif %}>{{ author.display_name or author.username }}</option>
@@ -84,7 +84,7 @@
                 {% endif %}
                 <div class="filter-group">
                     <label for="perPageSelect">每页条数</label>
-                    <select id="perPageSelect" name="per_page" class="form-select" onchange="this.form.submit()">
+                    <select id="perPageSelect" name="per_page" class="form-select" data-auto-submit>
                         <option value="10" {% if pagination.per_page == 10 %}selected{% endif %}>10</option>
                         <option value="20" {% if pagination.per_page == 20 %}selected{% endif %}>20</option>
                         <option value="40" {% if pagination.per_page == 40 %}selected{% endif %}>40</option>
@@ -96,21 +96,21 @@
     </form>
 
     {% if posts %}
-        <div id="batchActionsBar" class="batch-actions-bar" style="display: none;">
+        <div id="batchActionsBar" class="batch-actions-bar u-hidden" >
             <span class="selected-info">已选择 <strong id="selectedCount">0</strong> 篇<span id="selectedScope" class="selected-scope"></span></span>
-            <button type="button" class="btn btn-xs btn-primary" onclick="showBatchPublishModal()">批量发布</button>
-            <button type="button" class="btn btn-xs" onclick="showBatchUnpublishModal()">取消发布</button>
-            <button type="button" class="btn btn-xs" onclick="showBatchCategoryModal()">设置分类</button>
-            <button type="button" class="btn btn-xs" onclick="showBatchTagsModal()">添加标签</button>
-            <button type="button" class="btn btn-xs" onclick="showBatchAccessModal()">访问权限</button>
-            <button type="button" class="btn btn-xs btn-danger" onclick="showBatchDeleteModal()">批量删除</button>
-            <button type="button" class="btn btn-xs" onclick="clearSelection()">取消选择</button>
+            <button type="button" class="btn btn-xs btn-primary" data-action="batch-publish">批量发布</button>
+            <button type="button" class="btn btn-xs" data-action="batch-unpublish">取消发布</button>
+            <button type="button" class="btn btn-xs" data-action="batch-category">设置分类</button>
+            <button type="button" class="btn btn-xs" data-action="batch-tags">添加标签</button>
+            <button type="button" class="btn btn-xs" data-action="batch-access">访问权限</button>
+            <button type="button" class="btn btn-xs btn-danger" data-action="batch-delete">批量删除</button>
+            <button type="button" class="btn btn-xs" data-action="clear-selection">取消选择</button>
         </div>
 
         <table class="posts-table">
             <thead>
                 <tr>
-                    <th><input type="checkbox" id="selectAll" onchange="toggleSelectAll()" title="全选当前筛选结果" aria-label="全选当前筛选结果"></th>
+                    <th><input type="checkbox" id="selectAll" data-change-action="toggle-select-all" title="全选当前筛选结果" aria-label="全选当前筛选结果"></th>
                     <th>标题</th>
                     <th>状态</th>
                     <th>权限</th>
@@ -122,7 +122,7 @@
             <tbody>
                 {% for post in posts %}
                     <tr data-post-id="{{ post.id }}">
-                        <td><input type="checkbox" class="post-checkbox" value="{{ post.id }}" aria-label="选择《{{ post.title }}》" onchange="togglePostSelection(this)"></td>
+                        <td><input type="checkbox" class="post-checkbox" value="{{ post.id }}" aria-label="选择《{{ post.title }}》" data-change-action="toggle-post-selection"></td>
                         <td><a href="{{ url_for('blog.view_post', post_id=post.id) }}">{{ post.title }}</a></td>
                         <td>
                             {% set type_label = '笔记' if post.type == 'note' else '文章' %}
@@ -154,7 +154,7 @@
                                 <button type="submit" class="btn btn-sm btn-danger">删除</button>
                             </form>
                             {% if not post.is_published %}
-                            <button type="button" class="btn btn-sm btn-primary" onclick="publishSinglePost({{ post.id }}, this)">发布</button>
+                            <button type="button" class="btn btn-sm btn-primary" data-action="publish-single" data-post-id="{{ post.id }}">发布</button>
                             {% endif %}
                         </td>
                     </tr>
@@ -210,11 +210,11 @@
 </div>
 
 <!-- Batch Category Modal -->
-<div id="batchCategoryModal" class="modal" style="display: none;">
+<div id="batchCategoryModal" class="modal u-hidden" role="dialog" aria-modal="true" aria-labelledby="batchCategoryModalTitle">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>批量设置分类</h3>
-            <button type="button" class="btn-close" onclick="closeBatchCategoryModal()">✕</button>
+            <h3 id="batchCategoryModalTitle">批量设置分类</h3>
+            <button type="button" class="btn-close" data-action="close-batch-category" aria-label="关闭">✕</button>
         </div>
         <div class="modal-body">
             <form id="batchCategoryForm">
@@ -229,7 +229,7 @@
                 </div>
                 <div class="modal-form-actions">
                     <button type="submit" class="btn btn-primary">确认设置</button>
-                    <button type="button" class="btn" onclick="closeBatchCategoryModal()">取消</button>
+                    <button type="button" class="btn" data-action="close-batch-category">取消</button>
                 </div>
             </form>
         </div>
@@ -237,11 +237,11 @@
 </div>
 
 <!-- Batch Delete Modal -->
-<div id="batchDeleteModal" class="modal" style="display: none;">
+<div id="batchDeleteModal" class="modal u-hidden" role="dialog" aria-modal="true" aria-labelledby="batchDeleteModalTitle">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>批量删除文章</h3>
-            <button type="button" class="btn-close" onclick="closeBatchDeleteModal()">✕</button>
+            <h3 id="batchDeleteModalTitle">批量删除文章</h3>
+            <button type="button" class="btn-close" data-action="close-batch-delete" aria-label="关闭">✕</button>
         </div>
         <div class="modal-body">
             <p class="delete-count-text">确定要将 <strong id="deleteCount">0</strong> 篇文章移入回收站吗？</p>
@@ -253,19 +253,19 @@
                 </ul>
             </div>
             <div class="modal-form-actions">
-                <button type="button" class="btn btn-danger" onclick="confirmBatchDelete()">移入回收站</button>
-                <button type="button" class="btn" onclick="closeBatchDeleteModal()">取消</button>
+                <button type="button" class="btn btn-danger" data-action="confirm-batch-delete">移入回收站</button>
+                <button type="button" class="btn" data-action="close-batch-delete">取消</button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Batch Tags Modal -->
-<div id="batchTagsModal" class="modal" style="display: none;">
+<div id="batchTagsModal" class="modal u-hidden" role="dialog" aria-modal="true" aria-labelledby="batchTagsModalTitle">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>批量添加标签</h3>
-            <button type="button" class="btn-close" onclick="closeBatchTagsModal()">✕</button>
+            <h3 id="batchTagsModalTitle">批量添加标签</h3>
+            <button type="button" class="btn-close" data-action="close-batch-tags" aria-label="关闭">✕</button>
         </div>
         <div class="modal-body">
             <form id="batchTagsForm">
@@ -276,7 +276,7 @@
                 </div>
                 <div class="modal-form-actions">
                     <button type="submit" class="btn btn-primary">确认添加</button>
-                    <button type="button" class="btn" onclick="closeBatchTagsModal()">取消</button>
+                    <button type="button" class="btn" data-action="close-batch-tags">取消</button>
                 </div>
             </form>
         </div>
@@ -284,29 +284,29 @@
 </div>
 
 <!-- Batch Access Modal -->
-<div id="batchAccessModal" class="modal" style="display: none;">
+<div id="batchAccessModal" class="modal u-hidden" role="dialog" aria-modal="true" aria-labelledby="batchAccessModalTitle">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>批量设置访问权限</h3>
-            <button type="button" class="btn-close" onclick="closeBatchAccessModal()">✕</button>
+            <h3 id="batchAccessModalTitle">批量设置访问权限</h3>
+            <button type="button" class="btn-close" data-action="close-batch-access" aria-label="关闭">✕</button>
         </div>
         <div class="modal-body">
             <form id="batchAccessForm">
                 <div class="form-group">
                     <label for="batchAccessLevel">访问权限</label>
-                    <select id="batchAccessLevel" name="access_level" class="form-select" onchange="togglePasswordField()">
+                    <select id="batchAccessLevel" name="access_level" class="form-select" data-change-action="toggle-password-field">
                         <option value="public">公开</option>
                         <option value="password">密码保护</option>
                         <option value="private">私密</option>
                     </select>
                 </div>
-                <div class="form-group" id="passwordFieldGroup" style="display: none;">
+                <div class="form-group u-hidden" id="passwordFieldGroup" >
                     <label for="batchAccessPassword">访问密码</label>
                     <input type="text" id="batchAccessPassword" name="access_password" class="form-input" placeholder="输入访问密码">
                 </div>
                 <div class="modal-form-actions">
                     <button type="submit" class="btn btn-primary">确认设置</button>
-                    <button type="button" class="btn" onclick="closeBatchAccessModal()">取消</button>
+                    <button type="button" class="btn" data-action="close-batch-access">取消</button>
                 </div>
             </form>
         </div>

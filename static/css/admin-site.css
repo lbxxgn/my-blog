@@ -1,0 +1,45 @@
+
+/* 站点设置页（admin/site_settings.html） */
+
+.site-section {
+    margin-bottom: 18px;
+}
+
+.site-hint {
+    color: var(--text-secondary);
+    max-width: 640px;
+}
+
+.icon-preview-row {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 18px 0;
+}
+
+.icon-preview {
+    border: 1px solid var(--border-color);
+}
+
+.icon-preview-48 {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+}
+
+.icon-preview-60 {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+}
+
+.icon-preview-96 {
+    width: 96px;
+    height: 96px;
+    border-radius: 14px;
+}
+
+.reset-icon-form {
+    margin-top: 14px;
+}

@@ -45,7 +45,7 @@
                     <th width="20%">文章</th>
                     <th width="15%">AI模型</th>
                     <th width="20%">结果</th>
-                    <th width="12%" style="text-align: right;">Token</th>
+                    <th class="u-text-right" width="12%" >Token</th>
                 </tr>
             </thead>
             <tbody>
@@ -130,7 +130,7 @@
                             <span class="text-muted">-</span>
                         {% endif %}
                     </td>
-                    <td class="number-cell" style="text-align: right;">{{ record.tokens_used or 0 }}</td>
+                    <td class="number-cell u-text-right" >{{ record.tokens_used or 0 }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

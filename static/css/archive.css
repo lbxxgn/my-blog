@@ -58,3 +58,13 @@
     }
 
 }
+
+/* 由 archive.html 内联 style 抽取 */
+.pagination-actions {
+    margin-top: 20px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}

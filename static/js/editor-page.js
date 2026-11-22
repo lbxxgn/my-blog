@@ -53,6 +53,30 @@ function togglePasswordField() {
 document.addEventListener('DOMContentLoaded', function() {
     togglePasswordField();
 
+    // 原模板里的 onchange="togglePasswordField()"
+    const accessSelect = document.getElementById('access_level');
+    if (accessSelect) {
+        accessSelect.addEventListener('change', togglePasswordField);
+    }
+
+    // 原模板里的 onclick="recoverDraft() / discardDraft() / togglePublish()"
+    document.addEventListener('click', function(event) {
+        const btn = event.target.closest('[data-editor-action]');
+        if (btn) {
+            const action = btn.dataset.editorAction;
+            if (action === 'recover' && window.recoverDraft) window.recoverDraft();
+            else if (action === 'discard' && window.discardDraft) window.discardDraft();
+            else if (action === 'publish') togglePublish();
+            return;
+        }
+
+        // 原模板里的 onclick="return confirm(...)"（取消发布）
+        const confirmBtn = event.target.closest('[data-confirm-submit]');
+        if (confirmBtn && !window.confirm(confirmBtn.dataset.confirmSubmit)) {
+            event.preventDefault();
+        }
+    });
+
     // Check AI features status and show/hide accordingly
     checkAIFeaturesStatus();
 });
@@ -60,9 +84,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // Check AI features status from server
 async function checkAIFeaturesStatus() {
     try {
-        const response = await fetch('/admin/ai/status');
-        if (response.ok) {
-            const data = await response.json();
+        const data = await AppHttp.json('/admin/ai/status', { silent: true });
+        if (data) {
             const aiEnabled = data.ai_enabled || false;
 
             console.log('[AI Features] Status:', aiEnabled ? 'enabled' : 'disabled');
@@ -198,16 +221,8 @@ async function generateAITitle() {
     const csrfToken = document.querySelector('meta[name="csrf_token"]')?.content || '';
 
     try {
-        const response = await fetch('/admin/ai/generate-title', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({content, post_id: postId})
-        });
-        const data = await response.json();
-        if (!response.ok || !data.success) {
+        const data = await AppHttp.postJSON('/admin/ai/generate-title', {content, post_id: postId}, {silent: true});
+        if (!data.success) {
             throw new Error(data.error || '生成失败');
         }
 
@@ -266,20 +281,11 @@ async function generateAISummary() {
     const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
 
     try {
-        const response = await fetch('/admin/ai/generate-summary', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                post_id: postId,
-                title: title,
-                content: content
-            })
-        });
-
-        const data = await response.json();
+        const data = await AppHttp.postJSON('/admin/ai/generate-summary', {
+            post_id: postId,
+            title: title,
+            content: content
+        }, {silent: true});
 
         if (data.success) {
             const summary = data.summary;
@@ -337,20 +343,11 @@ async function generateAIRecommendations() {
     const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
 
     try {
-        const response = await fetch('/admin/ai/recommend-posts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                post_id: postId,
-                title: title,
-                content: content
-            })
-        });
-
-        const data = await response.json();
+        const data = await AppHttp.postJSON('/admin/ai/recommend-posts', {
+            post_id: postId,
+            title: title,
+            content: content
+        }, {silent: true});
 
         if (data.success && data.recommendations.length > 0) {
             renderAiRecommendationList(data.recommendations);
@@ -405,20 +402,11 @@ async function continueAIWriting() {
     const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
 
     try {
-        const response = await fetch('/admin/ai/continue-writing', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                post_id: postId,
-                title: title,
-                content: content
-            })
-        });
-
-        const data = await response.json();
+        const data = await AppHttp.postJSON('/admin/ai/continue-writing', {
+            post_id: postId,
+            title: title,
+            content: content
+        }, {silent: true});
 
         if (data.success) {
             const continuation = data.continuation;
@@ -476,20 +464,11 @@ async function restructureAIContent() {
     const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
 
     try {
-        const response = await fetch('/admin/ai/restructure', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify({
-                post_id: postId,
-                title: title,
-                content: content
-            })
-        });
-
-        const data = await response.json();
+        const data = await AppHttp.postJSON('/admin/ai/restructure', {
+            post_id: postId,
+            title: title,
+            content: content
+        }, {silent: true});
 
         if (data.success) {
             const restructured = data.content;

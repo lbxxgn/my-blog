@@ -37,18 +37,18 @@
             <tr>
                 <td>{{ tag.id }}</td>
                 <td>
-                    <form method="POST" action="{{ url_for('admin.rename_tag_route', tag_id=tag.id) }}" style="display:flex;gap:4px;">
+                    <form class="u-flex-gap-4" method="POST" action="{{ url_for('admin.rename_tag_route', tag_id=tag.id) }}" >
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <input type="text" name="name" value="{{ tag.name }}" style="padding:4px 6px;border:1px solid var(--border-color);border-radius:4px;">
+                        <input class="u-select-sm" type="text" name="name" value="{{ tag.name }}" >
                         <button type="submit" class="btn btn-sm">重命名</button>
                     </form>
                 </td>
                 <td><span class="badge">{{ tag.post_count or 0 }} 篇</span></td>
                 <td>{{ tag.created_at|localtime }}</td>
                 <td>
-                    <form method="POST" action="{{ url_for('admin.merge_tag_route', tag_id=tag.id) }}" style="display:inline-flex;gap:4px;align-items:center;">
+                    <form class="u-inline-flex-center" method="POST" action="{{ url_for('admin.merge_tag_route', tag_id=tag.id) }}" >
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                        <select name="target_id" style="padding:4px 6px;border:1px solid var(--border-color);border-radius:4px;">
+                        <select class="u-select-sm" name="target_id" >
                             <option value="">合并到…</option>
                             {% for target in tags if target.id != tag.id %}
                             <option value="{{ target.id }}">{{ target.name }}</option>

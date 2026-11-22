@@ -20,13 +20,13 @@
     <div class="kb-main">
         <form action="{{ url_for('knowledge.search') }}" method="get" class="kb-search-bar">
             <input type="text" name="q" placeholder="搜索知识库..." value="{{ query }}" autofocus>
-            <select name="category_id" style="padding:8px;border:1px solid var(--border-color);border-radius:6px;">
+            <select class="u-box-sm" name="category_id" >
                 <option value="">全部目录</option>
                 {% for item in tree_flattened or [] %}
                 <option value="{{ item.id }}" {% if category_id == item.id %}selected{% endif %}>{{ item.indent }}{{ item.name }}</option>
                 {% endfor %}
             </select>
-            <select name="status" style="padding:8px;border:1px solid var(--border-color);border-radius:6px;">
+            <select class="u-box-sm" name="status" >
                 <option value="">全部状态</option>
                 <option value="published" {% if status == 'published' %}selected{% endif %}>已发布</option>
                 <option value="draft" {% if status == 'draft' %}selected{% endif %}>草稿</option>
@@ -52,7 +52,7 @@
             {% endfor %}
         </div>
         {% if total_pages > 1 %}
-        <div class="pagination-bar" style="margin-top:16px;display:flex;gap:8px;align-items:center;">
+        <div class="pagination-bar u-flex-gap-8-mt-16" >
             {% if page > 1 %}<a class="btn btn-sm" href="{{ url_for('knowledge.search', q=query, category_id=category_id, status=status, page=page-1) }}">上一页</a>{% endif %}
             <span>第 {{ page }} / {{ total_pages }} 页</span>
             {% if page < total_pages %}<a class="btn btn-sm" href="{{ url_for('knowledge.search', q=query, category_id=category_id, status=status, page=page+1) }}">下一页</a>{% endif %}

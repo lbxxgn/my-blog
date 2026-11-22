@@ -7,7 +7,7 @@
 {% block title %}AI 供应商管理 - {{ site_name }}{% endblock %}
 
 {% block content %}
-<div class="container admin-dashboard" style="max-width: 1100px;">
+<div class="container admin-dashboard u-max-1100" >
     <div class="dashboard-header">
         <h2>AI 供应商</h2>
         <div class="header-actions">
@@ -16,7 +16,7 @@
         </div>
     </div>
 
-    <div id="catalogMessage" class="catalog-message" style="display: none;"></div>
+    <div id="catalogMessage" class="catalog-message" hidden></div>
 
     <div class="ai-section">
         <div class="section-heading">
@@ -27,7 +27,7 @@
                     新增供应商仅支持 OpenAI 兼容驱动；供应商标识创建后不可修改。
                 </p>
             </div>
-            <button type="button" class="btn btn-primary" onclick="openProviderDialog()">
+            <button type="button" class="btn btn-primary" data-action="open-provider-dialog">
                 + 新增供应商
             </button>
         </div>
@@ -61,11 +61,11 @@
                 </p>
             </div>
             <button type="button" class="dialog-close" aria-label="关闭"
-                    onclick="closeDialog('providerDialog')">×</button>
+                    data-action="close-dialog" data-dialog="providerDialog">×</button>
         </header>
 
         <div class="dialog-body">
-            <div class="dialog-error" id="providerDialogError" style="display: none;"></div>
+            <div class="dialog-error" id="providerDialogError" hidden></div>
             <div class="form-grid">
                 <div class="form-field">
                     <label for="providerSlug">供应商标识 *</label>
@@ -124,204 +124,14 @@
         </div>
 
         <footer class="dialog-footer">
-            <button type="button" class="btn" onclick="closeDialog('providerDialog')">取消</button>
+            <button type="button" class="btn" data-action="close-dialog" data-dialog="providerDialog">取消</button>
             <button type="submit" class="btn btn-primary" id="providerSubmitBtn">创建供应商</button>
         </footer>
     </form>
 </dialog>
 
 
-<script>
-const catalog = {{ catalog|tojson }};
-
-function esc(value) {
-    return String(value === null || value === undefined ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function showMessage(text, type) {
-    const box = document.getElementById('catalogMessage');
-    box.textContent = text;
-    box.className = 'catalog-message ' + (type || 'success');
-    box.style.display = 'block';
-}
-
-function csrfToken() {
-    const meta = document.querySelector('meta[name="csrf_token"]');
-    return meta ? meta.content : '';
-}
-
-async function api(url, method, payload) {
-    const options = {
-        method,
-        credentials: 'same-origin',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken()
-        }
-    };
-    if (payload !== undefined) {
-        options.body = JSON.stringify(payload);
-    }
-    const response = await fetch(url, options);
-    let data = {};
-    try {
-        data = await response.json();
-    } catch (error) {
-        data = {success: false, error: `服务器返回异常 (${response.status})`};
-    }
-    if (!response.ok || !data.success) {
-        throw new Error(data.error || `请求失败 (${response.status})`);
-    }
-    return data;
-}
-
-function closeDialog(id) {
-    const dialog = document.getElementById(id);
-    if (dialog && dialog.open) {
-        dialog.close();
-    }
-}
-
-function clearDialogError(id) {
-    const box = document.getElementById(id);
-    if (box) {
-        box.textContent = '';
-        box.style.display = 'none';
-    }
-}
-
-function showDialogError(id, message) {
-    const box = document.getElementById(id);
-    if (!box) {
-        return;
-    }
-    box.textContent = message;
-    box.style.display = 'block';
-    box.scrollIntoView({behavior: 'smooth', block: 'nearest'});
-}
-
-function renderProviders() {
-    const tbody = document.getElementById('providerRows');
-    if (!catalog.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-row">暂无供应商，请先新增</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = catalog.map(provider => {
-        const modelCount = (provider.model_details || []).length;
-        const detailUrl = `/admin/ai/catalog/providers/${provider.provider_pk}`;
-        return `
-            <tr>
-                <td>
-                    <div class="name-cell">
-                        <a href="${detailUrl}" class="catalog-name-link">${esc(provider.name)}</a>
-                        <span class="model-id">${esc(provider.slug)}</span>
-                    </div>
-                </td>
-                <td>${esc(provider.driver)}</td>
-                <td><span class="model-id">${esc(provider.base_url || '—')}</span></td>
-                <td>${esc(provider.currency)}</td>
-                <td>${modelCount}</td>
-                <td>
-                    <div class="badge-stack">
-                        <span class="badge ${provider.enabled ? 'badge-on' : 'badge-off'}">
-                            ${provider.enabled ? '启用' : '停用'}
-                        </span>
-                        ${provider.is_builtin ? '<span class="badge badge-builtin">内置</span>' : ''}
-                        <span class="badge">${provider.usage_count} 用户</span>
-                    </div>
-                </td>
-                <td>
-                    <div class="actions">
-                        <a href="${detailUrl}" class="btn">进入配置</a>
-                        ${provider.is_builtin ? '' : `
-                        <button type="button" class="btn btn-danger"
-                                onclick="removeProvider(${provider.provider_pk})">删除</button>`}
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function openProviderDialog() {
-    const form = document.getElementById('providerForm');
-    form.reset();
-    clearDialogError('providerDialogError');
-
-    document.getElementById('providerCurrency').value = 'CNY';
-    document.getElementById('providerSort').value = '50';
-    document.getElementById('providerEnabled').checked = true;
-
-    const driverSelect = document.getElementById('providerDriver');
-    driverSelect.value = 'openai_compatible';
-    Array.from(driverSelect.options).forEach(option => {
-        option.disabled = option.value !== 'openai_compatible';
-    });
-
-    document.getElementById('providerDialog').showModal();
-}
-
-async function submitProvider(event) {
-    event.preventDefault();
-    const button = document.getElementById('providerSubmitBtn');
-
-    const payload = {
-        slug: document.getElementById('providerSlug').value.trim(),
-        name: document.getElementById('providerName').value.trim(),
-        driver: document.getElementById('providerDriver').value,
-        description: document.getElementById('providerDescription').value.trim(),
-        base_url: document.getElementById('providerBaseUrl').value.trim(),
-        currency: document.getElementById('providerCurrency').value.trim(),
-        sort_order: document.getElementById('providerSort').value,
-        enabled: document.getElementById('providerEnabled').checked,
-        allow_custom_model: document.getElementById('providerAllowCustom').checked,
-        requires_base_url: document.getElementById('providerRequiresBaseUrl').checked
-    };
-
-    button.disabled = true;
-    try {
-        const result = await api('/admin/ai/catalog/providers', 'POST', payload);
-        closeDialog('providerDialog');
-        window.location.href = `/admin/ai/catalog/providers/${result.id}`;
-    } catch (error) {
-        button.disabled = false;
-        showDialogError('providerDialogError', error.message);
-    }
-}
-
-async function removeProvider(pk) {
-    const provider = catalog.find(item => String(item.provider_pk) === String(pk));
-    if (!provider) {
-        return;
-    }
-    if (!confirm(`确定删除供应商「${provider.name}」？被用户引用时无法删除。`)) {
-        return;
-    }
-    try {
-        await api(`/admin/ai/catalog/providers/${pk}`, 'DELETE');
-        showMessage('供应商已删除', 'success');
-        setTimeout(() => window.location.reload(), 400);
-    } catch (error) {
-        showMessage(error.message, 'error');
-    }
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    renderProviders();
-    document.getElementById('providerForm').addEventListener('submit', submitProvider);
-    document.querySelectorAll('dialog').forEach(dialog => {
-        dialog.addEventListener('click', event => {
-            if (event.target === dialog) {
-                dialog.close();
-            }
-        });
-    });
-});
-</script>
+<script type="application/json" id="ai-catalog-data">{{ catalog|tojson }}</script>
+<script defer src="{{ static_file('js/admin-ai-catalog-common.js') }}"></script>
+<script defer src="{{ static_file('js/admin-ai-catalog.js') }}"></script>
 {% endblock %}

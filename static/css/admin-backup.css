@@ -237,3 +237,11 @@
     }
 
 }
+
+/* 由模板内联 style 抽取 */
+.backup-status-box {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: var(--code-bg, #f9fafb);
+}

@@ -5,7 +5,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 600px; margin: 2rem auto;">
+<div class="container container user-form-narrow">
     <div class="form-container">
         <h2>{% if user %}编辑用户{% else %}新建用户{% endif %}</h2>
 
@@ -22,13 +22,13 @@
             <div class="form-group">
                 <label for="password">密码 *</label>
                 <input type="password" name="password" id="password" required minlength="10">
-                <small style="color: var(--text-secondary, #666);">密码至少10位，包含大小写字母和数字</small>
+                <small class="u-muted-fallback" >密码至少10位，包含大小写字母和数字</small>
             </div>
             {% else %}
             <div class="form-group">
                 <label for="new_password">重置密码</label>
                 <input type="password" name="new_password" id="new_password" minlength="10" autocomplete="new-password">
-                <small style="color: var(--text-secondary, #666);">留空表示不修改；设置后建议通知用户重新登录。</small>
+                <small class="u-muted-fallback" >留空表示不修改；设置后建议通知用户重新登录。</small>
             </div>
             {% endif %}
 
@@ -36,7 +36,7 @@
                 <label for="display_name">显示名称</label>
                 <input type="text" name="display_name" id="display_name"
                        value="{{ user.display_name if user else '' }}" maxlength="100">
-                <small style="color: var(--text-secondary, #666);">用于在前端显示的名称（可选）</small>
+                <small class="u-muted-fallback" >用于在前端显示的名称（可选）</small>
             </div>
 
             <div class="form-group">
@@ -46,7 +46,7 @@
                     <option value="editor" {% if user and user.role == 'editor' %}selected{% endif %}>编辑</option>
                     <option value="admin" {% if user and user.role == 'admin' %}selected{% endif %}>管理员</option>
                 </select>
-                <small style="color: var(--text-secondary, #666);">
+                <small class="u-muted-fallback" >
                     <strong>作者</strong>：只能管理自己的文章<br>
                     <strong>编辑</strong>：可以管理所有文章和评论，但不能删除文章<br>
                     <strong>管理员</strong>：完全权限

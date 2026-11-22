@@ -82,7 +82,7 @@
                 {% elif not pagination.get('total_pages') %}
                 {# 游标分页但没有更多结果时显示提示 #}
                 <div class="load-more-container">
-                    <p style="text-align: center; color: #666;">没有更多文章了</p>
+                    <p class="home-empty">没有更多文章了</p>
                 </div>
                 {% elif pagination.page < pagination.total_pages %}
                 {# 传统OFFSET分页的加载更多按钮 #}

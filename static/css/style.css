@@ -3789,3 +3789,435 @@ body.reader-mode .reader-exit {
     }
 
 }
+
+/* ==========================================================================
+   工具类（由模板内联 style 抽取）
+   --------------------------------------------------------------------------
+   只收录"同一份样式在多个模板里重复出现"的场景，以及移动端 shell 页面里
+   原本写成一大串内联样式的结构。命名统一 u- / 语义化，避免和组件类冲突。
+   ========================================================================== */
+
+.u-hidden.u-hidden {
+    /* 双类提高优先级：模板里很多是 JS 用 style.display 控制显隐的弹层，
+       单类会被 .modal{display:flex} 之类的组件样式覆盖（来源顺序在后）。
+       内联 style 仍然能压过它，所以 JS 逻辑不用改。 */
+    display: none;
+}
+
+.u-inline.u-inline {
+    display: inline;
+}
+
+.u-flex-1.u-flex-1 {
+    flex: 1;
+}
+
+.u-w-auto.u-w-auto {
+    width: auto;
+}
+
+.u-max-1100.u-max-1100 {
+    max-width: 1100px;
+}
+
+.u-p-16.u-p-16 {
+    padding: 16px;
+}
+
+.u-mb-20.u-mb-20 {
+    margin-bottom: 20px;
+}
+
+.u-mb-24.u-mb-24 {
+    margin-bottom: 24px;
+}
+
+.u-mt-8.u-mt-8 {
+    margin-top: 0.5rem;
+}
+
+.u-text-center.u-text-center {
+    text-align: center;
+}
+
+.u-text-right.u-text-right {
+    text-align: right;
+}
+
+.u-text-primary.u-text-primary {
+    color: var(--primary-color);
+}
+
+.u-bg-primary.u-bg-primary {
+    background: var(--primary-color);
+}
+
+.u-muted.u-muted {
+    color: var(--text-secondary);
+}
+
+.u-muted-fallback.u-muted-fallback {
+    color: var(--text-secondary, #666);
+}
+
+.u-muted-mb-12.u-muted-mb-12 {
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.u-hint-sm.u-hint-sm {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.u-heading-16.u-heading-16 {
+    font-size: 16px;
+    margin-bottom: 12px;
+}
+
+.u-select-sm.u-select-sm {
+    padding: 4px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.u-box-sm.u-box-sm {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+.u-inline-flex-center.u-inline-flex-center {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.u-flex-gap-4.u-flex-gap-4 {
+    display: flex;
+    gap: 4px;
+}
+
+.u-flex-gap-8-mt-16.u-flex-gap-8-mt-16 {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 16px;
+}
+
+.u-flex-inline-meta.u-flex-inline-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* --- 移动端 shell 页面（原 base.html 内联样式） ---
+   mobile-weibo.css 是 media="(max-width: 768px)" 加载的，桌面宽度下整张表
+   不生效，所以「隐藏非当前页」必须由这张全局表兜住，不能只写在媒体查询里。 */
+.mobile-page {
+    display: none;
+}
+
+.mobile-page.is-active {
+    display: block;
+}
+
+
+.discover-page {
+    padding: 16px;
+}
+
+.discover-title {
+    margin-bottom: 12px;
+    font-size: 20px;
+}
+
+.discover-search-group {
+    margin-bottom: 20px;
+}
+
+.discover-search-form {
+    position: relative;
+}
+
+.discover-search-form input[type="text"] {
+    width: 100%;
+    padding: 14px 40px 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    font-size: 16px;
+}
+
+.discover-search-submit {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    display: flex;
+}
+
+.discover-section {
+    margin-bottom: 24px;
+}
+
+.discover-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.discover-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+}
+
+.discover-chip {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    background: var(--code-bg, #f6f8fa);
+    border-radius: 16px;
+    text-decoration: none;
+    font-size: 14px;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+.discover-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.discover-cat-card {
+    display: block;
+    padding: 20px;
+    background: var(--gradient-card);
+    border-radius: 12px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.discover-cat-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.discover-cat-count {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.discover-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.discover-tag {
+    display: inline-block;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.discover-more {
+    margin-top: 8px;
+}
+
+.discover-more-link {
+    font-size: 13px;
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.discover-hint {
+    text-align: center;
+    padding: 20px 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.mobile-page-title {
+    margin-bottom: 16px;
+    font-size: 20px;
+}
+
+.mobile-empty-state {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 40px 0;
+}
+
+.mobile-empty-link {
+    color: var(--primary-color);
+}
+
+.profile-page {
+    padding: 16px;
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.profile-header-title {
+    margin: 0;
+    font-size: 20px;
+}
+
+.profile-theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background: var(--bg-color);
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.profile-card {
+    background: var(--gradient-card);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.profile-card-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.profile-name {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.profile-role {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.profile-links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.profile-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-color);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.profile-link-danger {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: #fef2f2;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.profile-link-label {
+    flex: 1;
+}
+
+.profile-logged-out {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.profile-logged-out-text {
+    margin-bottom: 24px;
+    color: var(--text-secondary);
+}
+
+.profile-login-btn {
+    display: inline-block;
+    padding: 14px 40px;
+    background: linear-gradient(135deg, #1abc9c 0%, #16a089 100%);
+    color: white;
+    border-radius: 25px;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.site-logo-inline {
+    height: 1.05em;
+    width: 1.05em;
+    border-radius: 6px;
+    vertical-align: -0.15em;
+    margin-right: 8px;
+}
+
+.mobile-editor-save-draft-plain {
+    background: transparent;
+    border: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* 由 JS 控制显隐的移动端编辑器区块：初始 hidden，JS 用内联 display 打开 */
+.mobile-editor-tag-suggest[hidden],
+.mobile-editor-selections[hidden] {
+    display: none;
+}
+
+/* ==========================================================================
+   无障碍：跳转主内容链接（键盘 Tab 第一个可聚焦元素）
+   ========================================================================== */
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 12px;
+    z-index: 10001;
+    padding: 10px 16px;
+    background: var(--primary-color, #1abc9c);
+    color: #fff;
+    border-radius: 0 0 8px 8px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+    top: 0;
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}

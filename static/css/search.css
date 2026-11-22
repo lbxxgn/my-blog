@@ -161,3 +161,12 @@
     }
 
 }
+
+/* 由 search.html 内联 style 抽取 */
+.note-badge.note-badge-card {
+    background: #8b5cf6;
+}
+
+.note-badge.note-badge-annotation {
+    background: #f59e0b;
+}

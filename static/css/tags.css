@@ -34,3 +34,14 @@
     font-size: 0.9em;
     margin-left: 0.25rem;
 }
+
+/* 由 tags.html 内联 style 抽取 */
+.tags-title {
+    margin-bottom: 2rem;
+}
+
+.tags-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #666;
+}

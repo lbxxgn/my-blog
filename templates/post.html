@@ -42,7 +42,7 @@
                 <div class="meta-right">
                     <time datetime="{{ post.created_at }}">{{ post.created_at|localtime }}</time>
                     {% if session.get('user_id') and (session.get('user_id') == post.author_id or session.get('role') in ['admin', 'editor']) %}
-                    <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-sm" style="margin-left:8px;">编辑</a>
+                    <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-sm btn btn-sm post-edit-link">编辑</a>
                     {% endif %}
                 </div>
             </div>
@@ -79,12 +79,12 @@
     </div>
 
     {% if source_kb_doc or linked_kb_doc %}
-    <div class="precipitate-section" style="font-size:0.9rem;">
+    <div class="precipitate-section precipitate-section post-kb-links">
         {% if source_kb_doc %}
         <span>来源知识库：<a href="{{ url_for('knowledge.view_doc', doc_id=source_kb_doc.id) }}">{{ source_kb_doc.title }}</a></span>
         {% endif %}
         {% if linked_kb_doc %}
-        <span style="margin-left:1rem;">已沉淀到知识库：<a href="{{ url_for('knowledge.view_doc', doc_id=linked_kb_doc.id) }}">{{ linked_kb_doc.title }}</a></span>
+        <span class="post-kb-linked">已沉淀到知识库：<a href="{{ url_for('knowledge.view_doc', doc_id=linked_kb_doc.id) }}">{{ linked_kb_doc.title }}</a></span>
         {% endif %}
     </div>
     {% endif %}
@@ -93,9 +93,9 @@
     <div class="precipitate-section post-ai-actions">
         <button type="button" class="btn btn-sm precipitate-btn" id="precipitate-btn" aria-label="沉淀到知识库" title="沉淀到知识库"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M8.5 8.5L12 12l3.5-3.5"/><path d="M4 15v2.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V15"/></svg><span class="action-btn-label">沉淀到知识库</span></button>
         <button type="button" class="btn btn-sm mentor-btn" id="mentor-btn" aria-label="导师点评" title="导师点评"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-1.9 4.6-4.1 1.4 1.9-4.6z"/></svg><span class="action-btn-label">导师点评</span></button>
-        <div class="precipitate-modal" id="mentor-modal" style="display:none">
+        <div class="precipitate-modal u-hidden" id="mentor-modal" role="dialog" aria-modal="true" aria-labelledby="mentor-modal-title">
             <div class="precipitate-modal-content mentor-modal-content">
-                <h4>🧭 AI 导师点评</h4>
+                <h4 id="mentor-modal-title">🧭 AI 导师点评</h4>
                 <div class="mentor-result" id="mentor-result"></div>
                 <div class="precipitate-actions">
                     <button type="button" class="btn btn-sm btn-primary" id="mentor-publish" disabled>发表为评论</button>
@@ -105,9 +105,9 @@
                 <p class="precipitate-hint">点评由 AI 生成，仅供参考；"发表为评论"会以「AI 导师」名义发布到本文评论区。</p>
             </div>
         </div>
-        <div class="precipitate-modal" id="precipitate-modal" style="display:none">
+        <div class="precipitate-modal u-hidden" id="precipitate-modal" role="dialog" aria-modal="true" aria-labelledby="precipitate-modal-title">
             <div class="precipitate-modal-content">
-                <h4>选择目标目录</h4>
+                <h4 id="precipitate-modal-title">选择目标目录</h4>
                 <select id="precipitate-category">
                     <option value="">请选择...</option>
                     {% for cat in kb_tree_flattened|default([]) %}
@@ -211,6 +211,13 @@
     </div>
 </div>
 
+<div id="post-client-config" hidden
+     data-post-id="{{ post.id }}"
+     data-post-title="{{ post.title }}"
+     data-precipitate-url="{{ url_for('blog.precipitate_to_knowledge', post_id=post.id) }}"
+     data-mentor-url="{{ url_for('ai.mentor_comment') }}"
+     data-comment-url="{{ url_for('blog.add_comment', post_id=post.id) }}"></div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -219,4 +226,6 @@
 <script src="{{ static_file('js/lightbox.js') }}"></script>
 <!-- Code Copy -->
 <script src="{{ static_file('js/code-copy.js') }}"></script>
+<!-- 沉淀到知识库 / 导师点评 / 评论 AJAX（原内联脚本） -->
+<script defer src="{{ static_file('js/post-actions.js') }}"></script>
 {% endblock %}

@@ -9,6 +9,7 @@
     let loadFailed = false;
     let currentPage = 1;
     let observer = null;
+    let inflight = null;
 
     // 常量
     const MOBILE_BREAKPOINT = 768;
@@ -17,6 +18,16 @@
     function debug(...args) {
         if (DEBUG) console.log('[InfiniteScroll]', ...args);
     }
+
+    // 页面切走 / 重新刷新时取消未完成的翻页请求，避免响应回来时改到旧的列表
+    function cancelInflight() {
+        if (inflight) {
+            inflight.abort();
+            inflight = null;
+        }
+    }
+
+    window.addEventListener('pagehide', cancelInflight);
 
     document.addEventListener('DOMContentLoaded', function() {
         const container = document.getElementById('posts-container');
@@ -140,6 +151,10 @@
             // 检查是否应该使用游标分页
             const loadMoreBtn = document.getElementById('load-more');
             let url, data;
+            // 翻页请求统一走 AppHttp：20s 超时 + 合并取消信号，页面切走时不再等响应
+            cancelInflight();
+            inflight = new AbortController();
+            const requestOptions = { signal: inflight.signal, silent: true };
 
             if (loadMoreBtn && loadMoreBtn.dataset.cursor) {
                 // 游标分页
@@ -147,8 +162,7 @@
                 url = buildFeedUrl(null, loadMoreBtn.dataset.cursor);
                 debug('Fetching:', url);
 
-                const response = await fetch(url);
-                data = await response.json();
+                data = await AppHttp.json(url, requestOptions);
 
                 if (data.posts && data.posts.length > 0) {
                     appendPosts(data.posts);
@@ -175,8 +189,7 @@
                 url = buildFeedUrl(currentPage);
                 debug('Fetching:', url);
 
-                const response = await fetch(url);
-                data = await response.json();
+                data = await AppHttp.json(url, requestOptions);
 
                 if (data.posts && data.posts.length > 0) {
                     appendPosts(data.posts);
@@ -188,6 +201,10 @@
                 }
             }
         } catch (error) {
+            if (error && error.cancelled) {
+                debug('Load cancelled');
+                return;
+            }
             console.error('[InfiniteScroll] Failed to load more posts:', error);
             currentPage--; // 回退页码
             loadFailed = true;
@@ -417,17 +434,15 @@
                 observer = null;
             }
 
-            const response = await fetch(buildFeedUrl(1), {
+            cancelInflight();
+            inflight = new AbortController();
+            const data = await AppHttp.json(buildFeedUrl(1), {
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
-                }
+                },
+                signal: inflight.signal,
+                silent: true
             });
-
-            if (!response.ok) {
-                throw new Error(`刷新失败: ${response.status}`);
-            }
-
-            const data = await response.json();
             const posts = Array.isArray(data.posts) ? data.posts : [];
 
             container.innerHTML = '';
@@ -474,7 +489,9 @@
         },
         loadMore: loadMorePosts,
         refresh: refreshPosts,
+        cancel: cancelInflight,
         destroy: function() {
+            cancelInflight();
             if (observer) {
                 observer.disconnect();
                 observer = null;

@@ -6,7 +6,7 @@
         <h2>回收站</h2>
         <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">返回管理后台</a>
     </div>
-    <p style="color: var(--text-secondary); margin-bottom: 12px;">删除的文章会先进入这里，可恢复或永久删除。</p>
+    <p class="u-muted-mb-12" >删除的文章会先进入这里，可恢复或永久删除。</p>
     {% if posts %}
     <table class="categories-table">
         <thead>
@@ -20,12 +20,12 @@
                 <td>{{ post.author_display_name or post.author_username or '-' }}</td>
                 <td>{{ (post.deleted_at|localtime)[:16] if post.deleted_at else '-' }}</td>
                 <td class="actions">
-                    <form method="POST" action="{{ url_for('admin.restore_from_trash', post_id=post.id) }}" style="display:inline">
+                    <form class="u-inline" method="POST" action="{{ url_for('admin.restore_from_trash', post_id=post.id) }}" >
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button class="btn btn-sm" type="submit">恢复</button>
                     </form>
-                    <form method="POST" action="{{ url_for('admin.purge_from_trash', post_id=post.id) }}" class="delete-form"
-                          data-confirm="永久删除后无法恢复，确定继续？" data-confirm-destructive="true" data-confirm-text="永久删除" style="display:inline">
+                    <form method="POST" action="{{ url_for('admin.purge_from_trash', post_id=post.id) }}" class="delete-form u-inline"
+                          data-confirm="永久删除后无法恢复，确定继续？" data-confirm-destructive="true" data-confirm-text="永久删除" >
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <button class="btn btn-sm btn-danger" type="submit">永久删除</button>
                     </form>

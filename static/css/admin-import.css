@@ -106,6 +106,13 @@
     background: var(--primary-bg, #d1fae5);
 }
 
+/* JS 选中文件后加的类（替代原来的内联 style 赋值） */
+.file-label.is-selected {
+    border-color: var(--primary-color, #10b981);
+    background: var(--primary-bg, #d1fae5);
+    color: var(--primary-color, #10b981);
+}
+
 .import-action .btn {
     width: 100%;
 }

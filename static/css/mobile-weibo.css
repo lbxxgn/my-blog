@@ -934,10 +934,6 @@ body.dark-theme .mobile-editor-bottom-shell {
 }
 
 @media (max-width: 768px) {
-    .mobile-page {
-        display: block;
-    }
-
     .mobile-my-posts {
         padding: 16px;
     }

@@ -211,3 +211,16 @@
 .dark-theme .ai-info-section {
     background: #374151;
 }
+
+/* 由模板内联 style 抽取 */
+.admin-ai-wrap {
+    max-width: 900px;
+}
+
+.ai-danger-text {
+    color: var(--danger-color, #dc3545);
+}
+
+.ai-model-custom {
+    margin-top: 0.75rem;
+}

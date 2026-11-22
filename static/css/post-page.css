@@ -872,3 +872,16 @@ a.post-adjacent-card:hover {
     }
 
 }
+
+/* 由 post.html 内联 style 抽取 */
+.post-edit-link {
+    margin-left: 8px;
+}
+
+.post-kb-links {
+    font-size: 0.9rem;
+}
+
+.post-kb-linked {
+    margin-left: 1rem;
+}

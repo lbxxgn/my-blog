@@ -52,8 +52,8 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="file" name="import_file" accept=".json,.zip" id="jsonFileInput" required>
                         <label for="jsonFileInput" class="file-label">选择 JSON / 完整导出 ZIP</label>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;color:var(--text-secondary);">
-                            <input type="checkbox" name="dry_run" value="1" style="width:auto;"> 仅预检，不写入数据库
+                        <label class="u-flex-inline-meta" >
+                            <input class="u-w-auto" type="checkbox" name="dry_run" value="1" > 仅预检，不写入数据库
                         </label>
                         <button type="submit" class="btn btn-primary">导入 JSON</button>
                     </form>
@@ -78,8 +78,8 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <input type="file" name="import_file" accept=".zip" id="markdownFileInput" required>
                         <label for="markdownFileInput" class="file-label">选择 ZIP 文件</label>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;color:var(--text-secondary);">
-                            <input type="checkbox" name="dry_run" value="1" style="width:auto;"> 仅预检，不写入数据库
+                        <label class="u-flex-inline-meta" >
+                            <input class="u-w-auto" type="checkbox" name="dry_run" value="1" > 仅预检，不写入数据库
                         </label>
                         <button type="submit" class="btn btn-primary">导入 Markdown</button>
                     </form>
@@ -119,21 +119,8 @@
     </div>
 </div>
 
+{% endblock %}
 
-<script>
-// Update file label when file is selected
-document.querySelectorAll('input[type="file"]').forEach(input => {
-    input.addEventListener('change', function(e) {
-        const label = this.nextElementSibling;
-        const fileName = e.target.files[0]?.name;
-
-        if (fileName) {
-            label.textContent = `已选择: ${fileName}`;
-            label.style.borderColor = 'var(--primary-color, #10b981)';
-            label.style.background = 'var(--primary-bg, #d1fae5)';
-            label.style.color = 'var(--primary-color, #10b981)';
-        }
-    });
-});
-</script>
+{% block scripts %}
+<script defer src="{{ static_file('js/admin-import-page.js') }}"></script>
 {% endblock %}

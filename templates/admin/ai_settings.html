@@ -7,7 +7,7 @@
 {% block title %}AI设置 - {{ site_name }}{% endblock %}
 
 {% block content %}
-<div class="container admin-dashboard" style="max-width: 900px;">
+<div class="container admin-dashboard container admin-dashboard admin-ai-wrap">
     <div class="dashboard-header">
         <h2>AI功能设置</h2>
         <div class="header-actions">
@@ -30,7 +30,7 @@
                 <p class="setting-description">
                     启用后，在编辑文章时可以使用AI助手功能，包括：
                     标签生成、摘要生成、推荐相关文章、内容续写等。需要配置API密钥才能使用。
-                    <br><strong style="color: var(--danger-color, #dc3545);">关闭后，编辑器中将隐藏所有AI功能按钮。</strong>
+                    <br><strong class="ai-danger-text">关闭后，编辑器中将隐藏所有AI功能按钮。</strong>
                 </p>
             </div>
         </div>
@@ -70,14 +70,14 @@
                 <select id="aiModel" class="form-control">
                     <option value="">请先选择提供商</option>
                 </select>
-                <input type="text" id="aiModelCustom" class="form-control" style="margin-top: 0.75rem;"
+                <input type="text" id="aiModelCustom" class="form-control form-control ai-model-custom"
                        placeholder="可选：填写控制台中的实际模型 ID，优先级高于下拉框">
                 <p class="setting-description">
                     如果服务商控制台里的模型名和下拉默认值不一致，可以直接在这里填真实模型 ID。
                 </p>
             </div>
 
-            <div class="ai-setting-item" id="baseUrlItem" style="display: none;">
+            <div class="ai-setting-item u-hidden" id="baseUrlItem" >
                 <label for="aiBaseUrl">Base URL</label>
                 <input type="text" id="aiBaseUrl" class="form-control"
                        placeholder="例如：https://api.example.com/v1"
@@ -97,14 +97,14 @@
             </div>
 
             <div class="ai-actions">
-                <button type="button" class="btn" onclick="testConfig()">测试连接</button>
-                <button type="button" class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                <button type="button" class="btn" data-action="test-config">测试连接</button>
+                <button type="button" class="btn btn-primary" data-action="save-config">保存配置</button>
             </div>
-            <p class="setting-description" style="margin-top: 0.5rem;">
+            <p class="setting-description u-mt-8" >
                 💡 提示：可以直接点击"测试连接"测试表单中的配置，测试成功后再点击"保存配置"。
             </p>
 
-            <div id="testResult" class="ai-test-result" style="display: none;"></div>
+            <div id="testResult" class="ai-test-result u-hidden" ></div>
         </div>
 
         <!-- Embedding 服务（语义搜索基础设施，与对话类 AI 配置独立） -->
@@ -158,16 +158,16 @@
             </div>
 
             <div class="ai-actions">
-                <button type="button" class="btn" onclick="testEmbeddingConnection()">测试连接</button>
+                <button type="button" class="btn" data-action="test-embedding">测试连接</button>
                 {% if session.get('role') == 'admin' %}
-                <button type="button" class="btn" onclick="rebuildEmbeddings()">重建向量索引</button>
+                <button type="button" class="btn" data-action="rebuild-embeddings">重建向量索引</button>
                 {% endif %}
             </div>
-            <p class="setting-description" style="margin-top: 0.5rem;">
+            <p class="setting-description u-mt-8" >
                 💡 Embedding 配置随上方"保存配置"按钮一起保存；"重建向量索引"会为全部历史内容补建向量（仅管理员）。
             </p>
 
-            <div id="embeddingTestResult" class="ai-test-result" style="display: none;"></div>
+            <div id="embeddingTestResult" class="ai-test-result u-hidden" ></div>
         </div>
 
         <!-- 使用统计 -->
@@ -198,275 +198,8 @@
 </div>
 
 
-<script>
-// Provider models mapping
-const providerModels = {{ supported_providers|tojson }};
-
-// Update model options based on selected provider
-function updateModelOptions() {
-    const provider = document.getElementById('aiProvider').value;
-    const modelSelect = document.getElementById('aiModel');
-    const customModelInput = document.getElementById('aiModelCustom');
-    const baseUrlItem = document.getElementById('baseUrlItem');
-    const currentConfig = {{ ai_config_public|tojson }} || {};
-
-    modelSelect.innerHTML = '';
-
-    const providerInfo = providerModels.find(p => p.id === provider);
-    if (!providerInfo) {
-        return;
-    }
-
-    const sameProvider = currentConfig.ai_provider === provider;
-    const currentModel = sameProvider ? (currentConfig.ai_model || '') : '';
-    const details = providerInfo.model_details || [];
-    const visibleModels = details.filter(model =>
-        model.enabled || (currentModel && model.model_id === currentModel)
-    );
-
-    let selectedModel = currentModel;
-    if (!visibleModels.some(model => model.model_id === selectedModel)) {
-        selectedModel = providerInfo.default_model || '';
-    }
-    if (!selectedModel || !visibleModels.some(model => model.model_id === selectedModel)) {
-        const firstEnabled = visibleModels.find(model => model.enabled);
-        selectedModel = firstEnabled ? firstEnabled.model_id : '';
-    }
-
-    visibleModels.forEach(model => {
-        const option = document.createElement('option');
-        option.value = model.model_id;
-        const label = model.display_name && model.display_name !== model.model_id
-            ? `${model.display_name} (${model.model_id})`
-            : model.model_id;
-        option.textContent = label + (model.enabled ? '' : '（已停用）');
-        option.disabled = !model.enabled && model.model_id !== currentModel;
-        if (model.model_id === selectedModel) {
-            option.selected = true;
-        }
-        modelSelect.appendChild(option);
-    });
-
-    const hasEnabledCurrentModel = visibleModels.some(
-        model => model.enabled && model.model_id === currentModel
-    );
-    customModelInput.value = sameProvider && currentModel && !hasEnabledCurrentModel
-        ? currentModel
-        : '';
-
-    if (providerInfo.allow_custom_model) {
-        customModelInput.style.display = 'block';
-    } else {
-        customModelInput.style.display = 'none';
-        customModelInput.value = '';
-    }
-
-    // 没有预设模型时（例如内置 custom），必须手填模型 ID
-    if (visibleModels.length === 0) {
-        modelSelect.style.display = 'none';
-        customModelInput.placeholder = '必填：填写模型 ID，例如 gpt-4o-mini';
-    } else {
-        modelSelect.style.display = 'block';
-        customModelInput.placeholder = '可选：填写控制台中的实际模型 ID，优先级高于下拉框';
-    }
-
-    // 仅需要用户自填 Base URL 的供应商展示该输入框
-    baseUrlItem.style.display = providerInfo.requires_base_url ? 'block' : 'none';
-}
-
-// Initialize model options on page load
-document.addEventListener('DOMContentLoaded', function() {
-    updateModelOptions();
-    document.getElementById('aiProvider').addEventListener('change', updateModelOptions);
-});
-
-// Test AI configuration
-async function testConfig() {
-    const resultDiv = document.getElementById('testResult');
-    resultDiv.style.display = 'block';
-    resultDiv.className = 'ai-test-result';
-    resultDiv.textContent = '正在测试连接...';
-
-    // Get current form values
-    const config = {
-        ai_provider: document.getElementById('aiProvider').value,
-        ai_model: document.getElementById('aiModelCustom').value.trim() || document.getElementById('aiModel').value,
-        ai_api_key: document.getElementById('apiKey').value,
-        ai_base_url: document.getElementById('aiBaseUrl').value.trim()
-    };
-
-    // Get CSRF token from meta tag
-    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
-
-    try {
-        const response = await fetch('/admin/ai/test', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify(config)
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            resultDiv.classList.add('success');
-            resultDiv.textContent = '✅ ' + data.message;
-        } else {
-            resultDiv.classList.add('error');
-            resultDiv.textContent = '❌ ' + data.message;
-        }
-    } catch (error) {
-        resultDiv.classList.add('error');
-        resultDiv.textContent = '❌ 测试失败: ' + error.message;
-    }
-}
-
-// Save AI configuration
-async function saveConfig() {
-    const resultDiv = document.getElementById('testResult');
-    resultDiv.style.display = 'block';
-    resultDiv.className = 'ai-test-result';
-    resultDiv.textContent = '正在保存配置...';
-
-    const config = {
-        ai_tag_generation_enabled: document.getElementById('aiEnabled').checked,
-        ai_provider: document.getElementById('aiProvider').value,
-        ai_model: document.getElementById('aiModelCustom').value.trim() || document.getElementById('aiModel').value,
-        ai_api_key: document.getElementById('apiKey').value,
-        ai_base_url: document.getElementById('aiBaseUrl').value.trim(),
-        ai_embedding_enabled: document.getElementById('aiEmbeddingEnabled').checked,
-        ai_embedding_base_url: document.getElementById('aiEmbeddingBaseUrl').value.trim(),
-        ai_embedding_api_key: document.getElementById('aiEmbeddingApiKey').value,
-        ai_embedding_model: document.getElementById('aiEmbeddingModel').value.trim()
-    };
-
-    console.log('Saving AI config:', {
-        ...config,
-        ai_api_key: config.ai_api_key ? '***' + config.ai_api_key.slice(-4) : '(empty)'
-    });
-
-    // Get CSRF token from meta tag
-    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
-
-    try {
-        const response = await fetch('/admin/ai/configure', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify(config)
-        });
-
-        console.log('Response status:', response.status);
-
-        // Check if response is OK
-        if (!response.ok) {
-            const responseText = await response.text();
-            console.error('Server returned error:', response.status, responseText);
-            resultDiv.classList.add('error');
-            resultDiv.textContent = `❌ 服务器错误 (${response.status}): ${responseText.substring(0, 200)}`;
-            return;
-        }
-
-        const data = await response.json();
-        console.log('Response data:', data);
-
-        if (data.success) {
-            resultDiv.classList.add('success');
-            resultDiv.textContent = '✅ 配置已保存！';
-            setTimeout(() => {
-                resultDiv.style.display = 'none';
-            }, 3000);
-        } else {
-            resultDiv.classList.add('error');
-            resultDiv.textContent = '❌ 保存失败: ' + data.error;
-        }
-    } catch (error) {
-        console.error('Save config error:', error);
-        resultDiv.classList.add('error');
-        resultDiv.textContent = '❌ 保存失败: ' + error.message;
-    }
-}
-
-// Test Embedding service connection
-async function testEmbeddingConnection() {
-    const resultDiv = document.getElementById('embeddingTestResult');
-    resultDiv.style.display = 'block';
-    resultDiv.className = 'ai-test-result';
-    resultDiv.textContent = '正在测试 Embedding 连接...';
-
-    const config = {
-        ai_embedding_base_url: document.getElementById('aiEmbeddingBaseUrl').value.trim(),
-        ai_embedding_api_key: document.getElementById('aiEmbeddingApiKey').value,
-        ai_embedding_model: document.getElementById('aiEmbeddingModel').value.trim()
-    };
-
-    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
-
-    try {
-        const response = await fetch('/admin/ai/embedding/test', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify(config)
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            resultDiv.classList.add('success');
-            resultDiv.textContent = '✅ ' + data.message;
-        } else {
-            resultDiv.classList.add('error');
-            resultDiv.textContent = '❌ ' + data.message;
-        }
-    } catch (error) {
-        resultDiv.classList.add('error');
-        resultDiv.textContent = '❌ 测试失败: ' + error.message;
-    }
-}
-
-// Rebuild embedding index (admin only)
-async function rebuildEmbeddings() {
-    const resultDiv = document.getElementById('embeddingTestResult');
-    resultDiv.style.display = 'block';
-    resultDiv.className = 'ai-test-result';
-    resultDiv.textContent = '正在入队回填任务...';
-
-    const csrfToken = document.querySelector('meta[name="csrf_token"]').content;
-
-    try {
-        const response = await fetch('/admin/ai/embeddings/rebuild', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: '{}'
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            resultDiv.classList.add('success');
-            resultDiv.textContent = '✅ ' + data.message;
-        } else {
-            resultDiv.classList.add('error');
-            resultDiv.textContent = '❌ ' + (data.error || data.message || '重建失败');
-        }
-    } catch (error) {
-        resultDiv.classList.add('error');
-        resultDiv.textContent = '❌ 重建失败: ' + error.message;
-    }
-}
+<script type="application/json" id="ai-settings-data">
+{"providerModels": {{ supported_providers|tojson }}, "currentConfig": {{ ai_config_public|tojson }}}
 </script>
+<script defer src="{{ static_file('js/admin-ai-settings.js') }}"></script>
 {% endblock %}

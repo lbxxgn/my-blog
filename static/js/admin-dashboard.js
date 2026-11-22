@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Send to backend
         const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
-        fetch('/admin/batch-update-category', {
+        AppHttp.request('/admin/batch-update-category', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -134,7 +134,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 post_ids: postIds,
                 category_id: categoryId === '' ? null : parseInt(categoryId),
                 csrf_token: csrfToken
-            })
+            }),
+            acceptErrors: true,
+            silent: true
         })
         .then(parseActionResponse)
         .then(result => {
@@ -200,11 +202,10 @@ async function toggleSelectAll() {
     selectAllCheckbox.disabled = true;
     try {
         // 全选范围是“当前筛选结果”，不只当前页
-        const response = await fetch('/admin/post-ids' + window.location.search, {
+        const data = await AppHttp.json('/admin/post-ids' + window.location.search, {
             headers: { 'Accept': 'application/json' }
         });
-        const data = await response.json();
-        if (!response.ok || !data.success) {
+        if (!data.success) {
             throw new Error(data.error || '加载筛选结果失败');
         }
         selectedPosts = new Set(data.ids.map(id => Number(id)));
@@ -337,7 +338,7 @@ function confirmBatchDelete() {
 
     // Send to backend
     const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
-    fetch('/admin/batch-delete', {
+    AppHttp.request('/admin/batch-delete', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -345,7 +346,9 @@ function confirmBatchDelete() {
         },
         body: JSON.stringify({
             post_ids: postIds
-        })
+        }),
+        acceptErrors: true,
+        silent: true
     })
     .then(parseActionResponse)
     .then(result => {
@@ -395,7 +398,7 @@ function performBatchPublish(publish) {
     const postIds = Array.from(selectedPosts);
 
     const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
-    fetch('/admin/batch-publish', {
+    AppHttp.request('/admin/batch-publish', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -404,7 +407,9 @@ function performBatchPublish(publish) {
         body: JSON.stringify({
             post_ids: postIds,
             publish: publish
-        })
+        }),
+        acceptErrors: true,
+        silent: true
     })
     .then(parseActionResponse)
     .then(result => {
@@ -438,7 +443,7 @@ async function publishSinglePost(postId, button) {
     }
 
     const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
-    fetch('/admin/batch-publish', {
+    AppHttp.request('/admin/batch-publish', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -447,7 +452,9 @@ async function publishSinglePost(postId, button) {
         body: JSON.stringify({
             post_ids: [postId],
             publish: true
-        })
+        }),
+        acceptErrors: true,
+        silent: true
     })
     .then(parseActionResponse)
     .then(result => {
@@ -539,7 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
-            fetch('/admin/batch-add-tags', {
+            AppHttp.request('/admin/batch-add-tags', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -548,7 +555,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                     post_ids: postIds,
                     tags: tags
-                })
+                }),
+                acceptErrors: true,
+                silent: true
             })
             .then(parseActionResponse)
             .then(result => {
@@ -589,7 +598,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const csrfToken = document.querySelector('meta[name="csrf_token"]').getAttribute('content');
-            fetch('/admin/batch-update-access', {
+            AppHttp.request('/admin/batch-update-access', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -599,7 +608,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     post_ids: postIds,
                     access_level: accessLevel,
                     access_password: accessPassword
-                })
+                }),
+                acceptErrors: true,
+                silent: true
             })
             .then(parseActionResponse)
             .then(result => {
@@ -618,4 +629,52 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+});
+
+// ---------------------------------------------------------------------------
+// 模板里的 onclick / onchange 统一改成 data-action，这里集中分发。
+// （原来 26 处内联事件处理器，是收紧 CSP script-src 的主要障碍）
+// ---------------------------------------------------------------------------
+
+const dashboardClickActions = {
+    'batch-publish': function () { showBatchPublishModal(); },
+    'batch-unpublish': function () { showBatchUnpublishModal(); },
+    'batch-category': function () { showBatchCategoryModal(); },
+    'batch-tags': function () { showBatchTagsModal(); },
+    'batch-access': function () { showBatchAccessModal(); },
+    'batch-delete': function () { showBatchDeleteModal(); },
+    'clear-selection': function () { clearSelection(); },
+    'publish-single': function (btn) { publishSinglePost(Number(btn.dataset.postId), btn); },
+    'close-batch-category': function () { closeBatchCategoryModal(); },
+    'close-batch-delete': function () { closeBatchDeleteModal(); },
+    'confirm-batch-delete': function () { confirmBatchDelete(); },
+    'close-batch-tags': function () { closeBatchTagsModal(); },
+    'close-batch-access': function () { closeBatchAccessModal(); }
+};
+
+const dashboardChangeActions = {
+    'toggle-select-all': function () { toggleSelectAll(); },
+    'toggle-post-selection': function (el) { togglePostSelection(el); },
+    'toggle-password-field': function () { togglePasswordField(); }
+};
+
+document.addEventListener('click', function (event) {
+    const btn = event.target.closest('[data-action]');
+    if (!btn) return;
+    const handler = dashboardClickActions[btn.dataset.action];
+    if (handler) handler(btn);
+});
+
+document.addEventListener('change', function (event) {
+    const el = event.target;
+
+    if (el.matches('[data-auto-submit]') && el.form) {
+        el.form.submit();
+        return;
+    }
+
+    const action = el.dataset.changeAction;
+    if (!action) return;
+    const handler = dashboardChangeActions[action];
+    if (handler) handler(el);
 });
