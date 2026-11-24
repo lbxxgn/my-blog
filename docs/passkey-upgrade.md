@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS user_passkeys (
 );
 ```
 
-初始化逻辑见 [backend/models/models.py](../backend/models/models.py)
+初始化逻辑见 [backend/models/db.py](../backend/models/db.py)
 
 ### 新增接口
 

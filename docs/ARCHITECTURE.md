@@ -106,8 +106,7 @@ my-blog/
 │   │   ├── site_settings.py    # 站点级键值配置（站点图标版本等）
 │   │   ├── utils.py            # HTML 清理与文本截断
 │   │   ├── draft.py            # 草稿模型
-│   │   ├── models.py           # re-export 兼容壳（勿新增代码）
-│   │   └── __init__.py         # 模型导出
+│   │   └── __init__.py         # 聚合各领域模块的 __all__，对外唯一入口
 │   │
 │   ├── routes/                  # 路由模块（蓝图）
 │   │   ├── __init__.py         # 蓝图导出

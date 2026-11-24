@@ -10,7 +10,7 @@
 
 from flask import Blueprint
 
-from backend.models import get_user_ai_config, save_ai_tag_history
+from backend.models import get_db_context, get_user_ai_config, save_ai_tag_history
 from backend.routes.ai import _run_structured_prompt
 from backend.logger import log_error
 from backend.routes.admin._shared import (  # noqa: F401  （re-export 供子模块与外部使用）
@@ -23,7 +23,6 @@ from backend.routes.admin._shared import (  # noqa: F401  （re-export 供子模
     build_upload_response,
     validate_password_strength,
 )
-from backend.models import get_db_context
 
 
 # 创建管理后台蓝图
