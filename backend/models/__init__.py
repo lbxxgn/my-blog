@@ -1,165 +1,56 @@
-"""
-Models Package
+"""Models Package
 
-This package provides all database models and functions for the Simple Blog application.
+数据库模型与函数的统一门面。领域实现位于本包内的独立模块：
+
+- db.py            连接 / 上下文 / 建表初始化 / FTS 索引
+- users.py         用户、Passkey、AI 配置与历史、API Key
+- posts.py         文章 CRUD / 搜索 / 访问控制
+- categories.py    博客分类
+- knowledge.py     知识库分类树与文档
+- tags.py          标签
+- comments.py      评论与图片优化记录
+- cards.py         卡片与标注
+- revisions.py     文章修订历史
+- site_settings.py 站点键值配置
+- ai_catalog.py    AI 提供商与模型目录
+- utils.py         HTML 清理与文本截断
+
+公开 API 由各领域模块的 ``__all__`` 声明，包层只做聚合，不再维护第二份手写
+清单（历史清单曾与实现漂移：漏掉 8 个实际可用的函数）。
+
+两个例外不在这里聚合：
+- ``draft.py`` 反过来依赖本包（``from backend.models import get_db_context``），
+  聚合会形成循环导入；
+- ``embeddings.py`` 会拉起 numpy，不应让每次 ``import backend.models`` 都付出代价。
+两者请按模块路径导入，例如 ``from backend.models.draft import save_draft``。
 """
 
-# Import all functions from models.py
-from .models import *
-from .ai_catalog import (
-    CatalogError,
-    ensure_ai_catalog_tables,
-    get_catalog,
-    get_provider,
-    get_model,
-    resolve_provider,
-    resolve_model,
-    resolve_model_selection,
-    create_provider,
-    update_provider,
-    delete_provider,
-    create_model,
-    update_model,
-    delete_model,
+from . import (
+    ai_catalog,
+    cards,
+    categories,
+    comments,
+    db,
+    knowledge,
+    posts,
+    revisions,
+    site_settings,
+    tags,
+    users,
+    utils,
 )
 
-__all__ = [
-    # Database functions
-    'get_db_connection',
-    'get_db_context',
-    'init_db',
-    'rebuild_fts_index',
+# 聚合顺序即文档顺序；同一名称不应出现在两个模块的 __all__ 中
+_MODULES = (
+    db, utils, tags, categories, users, cards, posts, comments,
+    knowledge, revisions, site_settings, ai_catalog,
+)
 
-    # Post functions
-    'create_post',
-    'update_post',
-    'delete_post',
-    'get_all_posts',
-    'get_all_post_ids',
-    'get_all_posts_cursor',
-    'get_post_by_id',
-    'get_posts_by_author',
-    'get_post_excerpt',
-    'check_post_access',
-    'verify_post_password',
-    'search_posts',
-    'get_adjacent_posts',
+for _module in _MODULES:
+    for _name in _module.__all__:
+        globals()[_name] = getattr(_module, _name)
 
-    # Category functions
-    'create_category',
-    'get_all_categories',
-    'get_category_by_id',
-    'get_category_by_name',
-    'update_category',
-    'delete_category',
-    'get_posts_by_category',
+# 由各模块 __all__ 派生，保证永不漂移
+__all__ = sorted({_name for _module in _MODULES for _name in _module.__all__})
 
-    # Knowledge Base functions
-    'get_kb_categories',
-    'build_category_tree',
-    'get_category_tree',
-    'get_category_path',
-    'create_kb_category',
-    'update_kb_category',
-    'move_kb_category',
-    'delete_kb_category',
-    'get_subcategories',
-    'get_descendant_category_ids',
-    'get_doc_count_by_category',
-    'create_knowledge_doc',
-    'get_knowledge_doc',
-    'get_knowledge_docs_by_category',
-    'get_recent_knowledge_docs',
-    'update_knowledge_doc',
-    'reorder_knowledge_doc',
-    'delete_knowledge_doc',
-    'html_to_markdown',
-    'precipitate_post_to_knowledge',
-    'archive_card_to_knowledge',
-
-    # Tag functions
-    'create_tag',
-    'get_all_tags',
-    'get_tag_by_id',
-    'get_popular_tags',
-    'get_tag_by_name',
-    'update_tag',
-    'delete_tag',
-    'set_post_tags',
-    'get_post_tags',
-    'get_posts_by_tag',
-
-    # Comment functions
-    'create_comment',
-    'get_comments_by_post',
-    'get_all_comments',
-    'update_comment_visibility',
-    'delete_comment',
-    'ensure_optimized_images_table',
-    'create_optimized_image_record',
-
-    # User functions
-    'get_user_by_username',
-    'get_user_by_id',
-    'get_user_passkeys',
-    'get_passkey_by_credential_id',
-    'update_user_password',
-    'get_all_users',
-    'create_user',
-    'create_user_passkey',
-    'update_user_passkey_usage',
-    'delete_user_passkey',
-    'update_user',
-    'delete_user',
-    'get_user_ai_config',
-    'update_user_ai_config',
-    'save_ai_tag_history',
-    'get_ai_tag_history',
-    'get_ai_usage_stats',
-    'generate_api_key',
-    'validate_api_key',
-    'init_cards_table',
-    'init_api_keys_table',
-    'init_card_annotations_table',
-
-    # AI catalog functions
-    'ensure_ai_catalog_tables',
-    'get_catalog',
-    'get_provider',
-    'get_model',
-    'resolve_provider',
-    'resolve_model',
-    'resolve_model_selection',
-    'create_provider',
-    'update_provider',
-    'delete_provider',
-    'create_model',
-    'update_model',
-    'delete_model',
-    'CatalogError',
-
-    # Card functions
-    'create_card',
-    'get_card_by_id',
-    'get_cards_by_user',
-    'update_card_status',
-    'update_card',
-    'delete_card',
-    'merge_cards_to_post',
-    'ai_merge_cards_to_post',
-
-    # Annotation functions
-    'create_annotation',
-    'get_annotations_by_url',
-
-    # Site settings functions
-    'ensure_site_settings_table',
-    'get_site_setting',
-    'set_site_setting',
-    'delete_site_setting',
-    'get_site_icon_version',
-
-    # Utility functions
-    'strip_html_tags',
-    'truncate_text',
-]
+del _module

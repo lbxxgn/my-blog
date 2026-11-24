@@ -11,7 +11,8 @@ from backend.config import SITE_NAME, SITE_DESCRIPTION, SITE_AUTHOR
 import time
 
 
-from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401
+from . import admin_bp, logger
+from ._shared import allowed_file
 
 
 @admin_bp.route('/knowledge')

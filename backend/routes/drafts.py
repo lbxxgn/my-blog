@@ -1,6 +1,6 @@
 """草稿同步API路由"""
 from flask import Blueprint, request, jsonify, session
-from functools import wraps
+from backend.auth_decorators import login_required
 from backend.logger import api_internal_error
 from backend.models.draft import (
     save_draft,
@@ -12,14 +12,6 @@ from backend.models.draft import (
 )
 
 drafts_bp = Blueprint('drafts', __name__)
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return jsonify({'success': False, 'error': '请先登录'}), 401
-        return f(*args, **kwargs)
-    return decorated_function
 
 @drafts_bp.route('/api/drafts', methods=['POST'])
 @login_required

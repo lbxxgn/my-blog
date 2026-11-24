@@ -11,6 +11,7 @@ from flask import Blueprint
 import logging
 
 from backend.ai_services import TagGenerator
+from backend.utils.text import auto_title, heuristic_summary
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +20,11 @@ ai_bp = Blueprint('ai', __name__, url_prefix='/admin/ai')
 
 
 def _heuristic_title(content: str) -> str:
-    text = re.sub(r'<[^>]+>', ' ', content or '')
-    text = re.sub(r'\s+', ' ', text).strip()
-    if not text:
-        return '未命名记录'
-    sentence = re.split(r'[。！？.!?\n]', text)[0].strip()
-    return sentence[:24] if sentence else text[:24]
+    return auto_title(content)
 
 
 def _heuristic_summary(content: str, max_length: int = 120) -> str:
-    text = re.sub(r'<[^>]+>', ' ', content or '')
-    text = re.sub(r'\s+', ' ', text).strip()
-    if len(text) <= max_length:
-        return text
-    return text[:max_length].rstrip() + '...'
+    return heuristic_summary(content, max_length)
 
 
 def _heuristic_type(title: str, content: str) -> str:

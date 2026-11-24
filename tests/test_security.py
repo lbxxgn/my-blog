@@ -116,7 +116,7 @@ class TestXSSProtection:
         }, follow_redirects=True)
 
         # 查看文章详情页，确认 XSS 标签被过滤
-        from backend.models.models import get_all_posts
+        from backend.models import get_all_posts
         result = get_all_posts(include_drafts=True, page=1, per_page=1)
         post_id = result['posts'][0]['id']
 

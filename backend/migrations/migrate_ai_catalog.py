@@ -7,10 +7,48 @@ import sqlite3
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import backend.config as config
 from backend.ai_services.provider_defaults import DEFAULT_CATALOG
+from backend.migrations._utils import db_path, run_cli, transaction
+
+CREATE_PROVIDERS_TABLE = '''
+    CREATE TABLE IF NOT EXISTS ai_providers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        description TEXT,
+        driver TEXT NOT NULL,
+        base_url TEXT,
+        currency TEXT NOT NULL DEFAULT 'CNY',
+        allow_custom_model BOOLEAN DEFAULT 0,
+        requires_base_url BOOLEAN DEFAULT 0,
+        enabled BOOLEAN DEFAULT 1,
+        is_builtin BOOLEAN DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+'''
+
+CREATE_MODELS_TABLE = '''
+    CREATE TABLE IF NOT EXISTS ai_models (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider_id INTEGER NOT NULL,
+        model_id TEXT NOT NULL,
+        display_name TEXT,
+        description TEXT,
+        input_price REAL,
+        output_price REAL,
+        enabled BOOLEAN DEFAULT 1,
+        is_default BOOLEAN DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(provider_id, model_id),
+        FOREIGN KEY(provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
+    )
+'''
 
 
 def _seed_default_catalog(conn):
@@ -58,50 +96,16 @@ def _seed_default_catalog(conn):
 
 
 def migrate():
-    db_path = Path(config.DATABASE_URL.replace('sqlite:///', ''))
+    path = db_path()
+    if not path.exists():
+        raise RuntimeError(f'数据库文件不存在: {path}')
 
-    if not db_path.exists():
-        raise RuntimeError(f'数据库文件不存在: {db_path}')
+    with transaction(path) as conn:
+        # 用 Row 便于按列名读取 provider id
+        conn.row_factory = sqlite3.Row
 
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
-    try:
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS ai_providers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                slug TEXT NOT NULL UNIQUE,
-                name TEXT NOT NULL,
-                description TEXT,
-                driver TEXT NOT NULL,
-                base_url TEXT,
-                currency TEXT NOT NULL DEFAULT 'CNY',
-                allow_custom_model BOOLEAN DEFAULT 0,
-                requires_base_url BOOLEAN DEFAULT 0,
-                enabled BOOLEAN DEFAULT 1,
-                is_builtin BOOLEAN DEFAULT 0,
-                sort_order INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS ai_models (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                provider_id INTEGER NOT NULL,
-                model_id TEXT NOT NULL,
-                display_name TEXT,
-                description TEXT,
-                input_price REAL,
-                output_price REAL,
-                enabled BOOLEAN DEFAULT 1,
-                is_default BOOLEAN DEFAULT 0,
-                sort_order INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(provider_id, model_id),
-                FOREIGN KEY(provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE
-            )
-        ''')
+        conn.execute(CREATE_PROVIDERS_TABLE)
+        conn.execute(CREATE_MODELS_TABLE)
         conn.execute(
             'CREATE INDEX IF NOT EXISTS idx_ai_models_provider '
             'ON ai_models(provider_id, sort_order, id)'
@@ -111,15 +115,9 @@ def migrate():
         if count == 0:
             _seed_default_catalog(conn)
 
-        conn.commit()
-        print('   ✅ 创建表: ai_providers / ai_models，并写入内置目录')
-        return True
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+    print('   ✅ 创建表: ai_providers / ai_models，并写入内置目录')
+    return True
 
 
 if __name__ == '__main__':
-    migrate()
+    sys.exit(run_cli(migrate, 'AI 提供商与模型目录 - 数据库迁移'))
