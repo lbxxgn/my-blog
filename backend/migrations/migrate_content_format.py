@@ -9,13 +9,13 @@
 其余一律改为 'markdown'。已是 'markdown' 的行不动。幂等。
 """
 import re
-import sqlite3
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-import backend.config as config
+from backend.migrations._utils import db_path, run_cli, transaction
+from backend.utils.sqlite_schema import table_columns
 
 # 块级/富文本特征标签：Quill 等富文本编辑器产出的 HTML 必然命中其一；
 # Markdown 正文里偶尔出现的行内标签（<em>/<a>/<strong>/<img> 等）不触发，避免误伤。
@@ -35,23 +35,17 @@ def _detect_format(content):
 
 
 def migrate():
-    db_path = Path(config.DATABASE_URL.replace('sqlite:///', ''))
+    path = db_path()
+    if not path.exists():
+        raise RuntimeError(f'数据库文件不存在: {path}')
 
-    if not db_path.exists():
-        print(f"❌ 数据库文件不存在: {db_path}")
-        return False
-
-    conn = sqlite3.connect(str(db_path))
-    cursor = conn.cursor()
-
-    try:
+    with transaction(path) as conn:
         # 兼容旧库：posts 表可能还没有 content_format 列
-        columns = {row[1] for row in cursor.execute('PRAGMA table_info(posts)')}
-        if 'content_format' not in columns:
+        if 'content_format' not in table_columns(conn, 'posts'):
             print("   ⏭️  posts 表无 content_format 列，跳过")
             return True
 
-        rows = cursor.execute('''
+        rows = conn.execute('''
             SELECT id, content FROM posts
             WHERE content_format IS NULL OR content_format = 'html'
         ''').fetchall()
@@ -60,7 +54,7 @@ def migrate():
         kept_html = 0
         for post_id, content in rows:
             if _detect_format(content) == 'markdown':
-                cursor.execute(
+                conn.execute(
                     "UPDATE posts SET content_format = 'markdown' WHERE id = ?",
                     (post_id,),
                 )
@@ -68,17 +62,10 @@ def migrate():
             else:
                 kept_html += 1
 
-        conn.commit()
-        print(f"   ✅ 纠偏为 markdown: {to_markdown} 篇，保持 html: {kept_html} 篇")
-        print("✅ 内容格式标注纠偏完成")
-        return True
-    except Exception as e:
-        conn.rollback()
-        print(f"❌ 迁移失败: {e}")
-        return False
-    finally:
-        conn.close()
+    print(f"   ✅ 纠偏为 markdown: {to_markdown} 篇，保持 html: {kept_html} 篇")
+    print("✅ 内容格式标注纠偏完成")
+    return True
 
 
 if __name__ == '__main__':
-    migrate()
+    sys.exit(run_cli(migrate, '内容格式标注纠偏 - 数据库迁移'))

@@ -51,13 +51,13 @@
     "type": "index",
     "name": "idx_background_tasks_dedupe",
     "table": "background_tasks",
-    "sql": "CREATE UNIQUE INDEX idx_background_tasks_dedupe\n            ON background_tasks(kind, dedupe_key)\n            WHERE dedupe_key IS NOT NULL AND status IN ('pending', 'running')\n        "
+    "sql": "CREATE UNIQUE INDEX idx_background_tasks_dedupe\n    ON background_tasks(kind, dedupe_key)\n    WHERE dedupe_key IS NOT NULL AND status IN ('pending', 'running')\n    "
   },
   {
     "type": "index",
     "name": "idx_background_tasks_pending",
     "table": "background_tasks",
-    "sql": "CREATE INDEX idx_background_tasks_pending\n            ON background_tasks(status, run_after, id)\n        "
+    "sql": "CREATE INDEX idx_background_tasks_pending\n    ON background_tasks(status, run_after, id)\n    "
   },
   {
     "type": "index",
@@ -123,13 +123,13 @@
     "type": "index",
     "name": "idx_drafts_device",
     "table": "drafts",
-    "sql": "CREATE INDEX idx_drafts_device\n            ON drafts(user_id, device_info, updated_at)\n        "
+    "sql": "CREATE INDEX idx_drafts_device ON drafts(user_id, device_info, updated_at)"
   },
   {
     "type": "index",
     "name": "idx_drafts_post",
     "table": "drafts",
-    "sql": "CREATE INDEX idx_drafts_post\n            ON drafts(post_id)\n        "
+    "sql": "CREATE INDEX idx_drafts_post ON drafts(post_id)"
   },
   {
     "type": "index",
@@ -141,13 +141,13 @@
     "type": "index",
     "name": "idx_drafts_user_post",
     "table": "drafts",
-    "sql": "CREATE INDEX idx_drafts_user_post\n            ON drafts(user_id, post_id)\n        "
+    "sql": "CREATE INDEX idx_drafts_user_post ON drafts(user_id, post_id)"
   },
   {
     "type": "index",
     "name": "idx_drafts_user_updated",
     "table": "drafts",
-    "sql": "CREATE INDEX idx_drafts_user_updated\n            ON drafts(user_id, updated_at DESC)\n        "
+    "sql": "CREATE INDEX idx_drafts_user_updated ON drafts(user_id, updated_at DESC)"
   },
   {
     "type": "index",
@@ -165,19 +165,19 @@
     "type": "index",
     "name": "idx_optimized_hash",
     "table": "optimized_images",
-    "sql": "CREATE INDEX idx_optimized_hash\n            ON optimized_images(original_hash)\n        "
+    "sql": "CREATE INDEX idx_optimized_hash ON optimized_images(original_hash)"
   },
   {
     "type": "index",
     "name": "idx_optimized_original",
     "table": "optimized_images",
-    "sql": "CREATE INDEX idx_optimized_original\n            ON optimized_images(original_path)\n        "
+    "sql": "CREATE INDEX idx_optimized_original ON optimized_images(original_path)"
   },
   {
     "type": "index",
     "name": "idx_optimized_status",
     "table": "optimized_images",
-    "sql": "CREATE INDEX idx_optimized_status\n            ON optimized_images(status)\n        "
+    "sql": "CREATE INDEX idx_optimized_status ON optimized_images(status)"
   },
   {
     "type": "index",
@@ -208,12 +208,6 @@
     "name": "idx_post_tags_tag_post",
     "table": "post_tags",
     "sql": "CREATE INDEX idx_post_tags_tag_post ON post_tags(tag_id, post_id)"
-  },
-  {
-    "type": "index",
-    "name": "idx_post_type",
-    "table": "posts",
-    "sql": "CREATE INDEX idx_post_type ON posts(post_type)"
   },
   {
     "type": "index",
@@ -261,13 +255,13 @@
     "type": "index",
     "name": "idx_posts_type",
     "table": "posts",
-    "sql": "CREATE INDEX idx_posts_type\n            ON posts(type)\n        "
+    "sql": "CREATE INDEX idx_posts_type ON posts(type)"
   },
   {
     "type": "index",
     "name": "idx_posts_type_created",
     "table": "posts",
-    "sql": "CREATE INDEX idx_posts_type_created\n            ON posts(type, created_at DESC)\n        "
+    "sql": "CREATE INDEX idx_posts_type_created ON posts(type, created_at DESC)"
   },
   {
     "type": "index",
@@ -297,13 +291,13 @@
     "type": "table",
     "name": "ai_models",
     "table": "ai_models",
-    "sql": "CREATE TABLE ai_models (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                provider_id INTEGER NOT NULL,\n                model_id TEXT NOT NULL,\n                display_name TEXT,\n                description TEXT,\n                input_price REAL,\n                output_price REAL,\n                enabled BOOLEAN DEFAULT 1,\n                is_default BOOLEAN DEFAULT 0,\n                sort_order INTEGER DEFAULT 0,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                UNIQUE(provider_id, model_id),\n                FOREIGN KEY(provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE\n            )"
+    "sql": "CREATE TABLE ai_models (\n        id INTEGER PRIMARY KEY AUTOINCREMENT,\n        provider_id INTEGER NOT NULL,\n        model_id TEXT NOT NULL,\n        display_name TEXT,\n        description TEXT,\n        input_price REAL,\n        output_price REAL,\n        enabled BOOLEAN DEFAULT 1,\n        is_default BOOLEAN DEFAULT 0,\n        sort_order INTEGER DEFAULT 0,\n        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n        UNIQUE(provider_id, model_id),\n        FOREIGN KEY(provider_id) REFERENCES ai_providers(id) ON DELETE CASCADE\n    )"
   },
   {
     "type": "table",
     "name": "ai_providers",
     "table": "ai_providers",
-    "sql": "CREATE TABLE ai_providers (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                slug TEXT NOT NULL UNIQUE,\n                name TEXT NOT NULL,\n                description TEXT,\n                driver TEXT NOT NULL,\n                base_url TEXT,\n                currency TEXT NOT NULL DEFAULT 'CNY',\n                allow_custom_model BOOLEAN DEFAULT 0,\n                requires_base_url BOOLEAN DEFAULT 0,\n                enabled BOOLEAN DEFAULT 1,\n                is_builtin BOOLEAN DEFAULT 0,\n                sort_order INTEGER DEFAULT 0,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )"
+    "sql": "CREATE TABLE ai_providers (\n        id INTEGER PRIMARY KEY AUTOINCREMENT,\n        slug TEXT NOT NULL UNIQUE,\n        name TEXT NOT NULL,\n        description TEXT,\n        driver TEXT NOT NULL,\n        base_url TEXT,\n        currency TEXT NOT NULL DEFAULT 'CNY',\n        allow_custom_model BOOLEAN DEFAULT 0,\n        requires_base_url BOOLEAN DEFAULT 0,\n        enabled BOOLEAN DEFAULT 1,\n        is_builtin BOOLEAN DEFAULT 0,\n        sort_order INTEGER DEFAULT 0,\n        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n    )"
   },
   {
     "type": "table",
@@ -321,7 +315,7 @@
     "type": "table",
     "name": "background_tasks",
     "table": "background_tasks",
-    "sql": "CREATE TABLE background_tasks (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                kind TEXT NOT NULL,\n                dedupe_key TEXT,\n                payload TEXT NOT NULL,\n                status TEXT NOT NULL DEFAULT 'pending',\n                attempts INTEGER NOT NULL DEFAULT 0,\n                max_attempts INTEGER NOT NULL DEFAULT 3,\n                run_after TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                locked_at TIMESTAMP,\n                locked_by TEXT,\n                last_error TEXT,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n            )"
+    "sql": "CREATE TABLE background_tasks (\n        id INTEGER PRIMARY KEY AUTOINCREMENT,\n        kind TEXT NOT NULL,\n        dedupe_key TEXT,\n        payload TEXT NOT NULL,\n        status TEXT NOT NULL DEFAULT 'pending',\n        attempts INTEGER NOT NULL DEFAULT 0,\n        max_attempts INTEGER NOT NULL DEFAULT 3,\n        run_after TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n        locked_at TIMESTAMP,\n        locked_by TEXT,\n        last_error TEXT,\n        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n    )"
   },
   {
     "type": "table",
@@ -351,13 +345,13 @@
     "type": "table",
     "name": "drafts",
     "table": "drafts",
-    "sql": "CREATE TABLE drafts (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                user_id INTEGER NOT NULL,\n                post_id INTEGER,\n                title TEXT NOT NULL,\n                content TEXT NOT NULL,\n                category_id INTEGER,\n                tags TEXT,\n                is_published BOOLEAN DEFAULT 0,\n                device_info TEXT,\n                user_agent TEXT,\n                last_sync TIMESTAMP,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, device_token TEXT DEFAULT '',\n                FOREIGN KEY (user_id) REFERENCES users(id),\n                FOREIGN KEY (post_id) REFERENCES posts(id),\n                FOREIGN KEY (category_id) REFERENCES categories(id)\n            )"
+    "sql": "CREATE TABLE drafts (\n        id INTEGER PRIMARY KEY AUTOINCREMENT,\n        user_id INTEGER NOT NULL,\n        post_id INTEGER,\n        title TEXT NOT NULL,\n        content TEXT NOT NULL,\n        category_id INTEGER,\n        tags TEXT,\n        is_published BOOLEAN DEFAULT 0,\n        device_info TEXT,\n        user_agent TEXT,\n        last_sync TIMESTAMP,\n        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, device_token TEXT DEFAULT '',\n        FOREIGN KEY (user_id) REFERENCES users(id),\n        FOREIGN KEY (post_id) REFERENCES posts(id),\n        FOREIGN KEY (category_id) REFERENCES categories(id)\n    )"
   },
   {
     "type": "table",
     "name": "embeddings",
     "table": "embeddings",
-    "sql": "CREATE TABLE embeddings (\n                id INTEGER PRIMARY KEY,\n                source_type TEXT NOT NULL,\n                source_id INTEGER NOT NULL,\n                model TEXT,\n                vector BLOB,\n                content_hash TEXT,\n                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                UNIQUE(source_type, source_id)\n            )"
+    "sql": "CREATE TABLE embeddings (\n        id INTEGER PRIMARY KEY,\n        source_type TEXT NOT NULL,\n        source_id INTEGER NOT NULL,\n        model TEXT,\n        vector BLOB,\n        content_hash TEXT,\n        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n        UNIQUE(source_type, source_id)\n    )"
   },
   {
     "type": "table",
@@ -369,7 +363,7 @@
     "type": "table",
     "name": "optimized_images",
     "table": "optimized_images",
-    "sql": "CREATE TABLE optimized_images (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                original_path TEXT NOT NULL,\n                original_hash TEXT,\n                thumbnail_path TEXT,\n                medium_path TEXT,\n                large_path TEXT,\n                original_size INTEGER,\n                optimized_size INTEGER,\n                status TEXT DEFAULT 'pending',\n                error_message TEXT,\n                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n                completed_at TIMESTAMP\n            )"
+    "sql": "CREATE TABLE optimized_images (\n        id INTEGER PRIMARY KEY AUTOINCREMENT,\n        original_path TEXT NOT NULL,\n        original_hash TEXT,\n        thumbnail_path TEXT,\n        medium_path TEXT,\n        large_path TEXT,\n        original_size INTEGER,\n        optimized_size INTEGER,\n        status TEXT DEFAULT 'pending',\n        error_message TEXT,\n        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n        completed_at TIMESTAMP\n    )"
   },
   {
     "type": "table",

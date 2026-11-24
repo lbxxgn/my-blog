@@ -9,6 +9,7 @@ import logging
 import os
 from contextlib import contextmanager
 import backend.config as config
+from backend.utils.sqlite_schema import add_columns_if_missing
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -122,18 +123,14 @@ def init_db(db_path=None):
     ''')
 
     # Add tree/space columns to categories (flat -> tree, blog/knowledge spaces)
-    for _col, _def in [
+    add_columns_if_missing(cursor, 'categories', [
         ('parent_id', 'INTEGER'),
         ('slug', 'TEXT'),
         ('sort_order', 'INTEGER DEFAULT 0'),
         ('space', "TEXT DEFAULT 'blog'"),
         ('icon', 'TEXT'),
         ('description', 'TEXT'),
-    ]:
-        try:
-            cursor.execute(f'ALTER TABLE categories ADD COLUMN {_col} {_def}')
-        except Exception:
-            pass  # Column already exists
+    ])
 
     # Create posts table
     cursor.execute('''
@@ -156,61 +153,22 @@ def init_db(db_path=None):
     ''')
 
     # Add new columns to posts table if they don't exist
-    try:
-        cursor.execute('ALTER TABLE posts ADD COLUMN post_type TEXT DEFAULT \'blog\'')
-    except Exception:
-        pass  # Column already exists
-
-    try:
-        cursor.execute('ALTER TABLE posts ADD COLUMN type TEXT DEFAULT \'post\'')
-    except Exception:
-        pass  # Column already exists
-
-    for _col, _def in [
+    add_columns_if_missing(cursor, 'posts', [
+        ('post_type', "TEXT DEFAULT 'blog'"),
+        ('type', "TEXT DEFAULT 'post'"),
         ('publish_at', 'TIMESTAMP'),
         ('deleted_at', 'TIMESTAMP'),
-    ]:
-        try:
-            cursor.execute(f'ALTER TABLE posts ADD COLUMN {_col} {_def}')
-        except Exception:
-            pass  # Column already exists
-
-    try:
-        cursor.execute('ALTER TABLE posts ADD COLUMN source_card_ids TEXT')
-    except Exception:
-        pass  # Column already exists
-
-    # Add note-related columns
-    try:
-        cursor.execute('ALTER TABLE posts ADD COLUMN excerpt TEXT')
-    except Exception:
-        pass  # Column already exists
-
-    try:
-        cursor.execute('ALTER TABLE posts ADD COLUMN metadata TEXT')
-    except Exception:
-        pass  # Column already exists
-
-    try:
-        cursor.execute('ALTER TABLE posts ADD COLUMN parent_note_id INTEGER')
-    except Exception:
-        pass  # Column already exists
-
-    try:
-        cursor.execute('ALTER TABLE posts ADD COLUMN link_count INTEGER DEFAULT 0')
-    except Exception:
-        pass  # Column already exists
-
-    # Add knowledge base columns to posts
-    for _col, _def in [
+        ('source_card_ids', 'TEXT'),
+        # note-related columns
+        ('excerpt', 'TEXT'),
+        ('metadata', 'TEXT'),
+        ('parent_note_id', 'INTEGER'),
+        ('link_count', 'INTEGER DEFAULT 0'),
+        # knowledge base columns
         ('content_format', "TEXT DEFAULT 'html'"),
         ('sort_order', 'INTEGER DEFAULT 0'),
         ('source_post_id', 'INTEGER'),
-    ]:
-        try:
-            cursor.execute(f'ALTER TABLE posts ADD COLUMN {_col} {_def}')
-        except Exception:
-            pass  # Column already exists
+    ])
 
     # Create users table with full schema
     cursor.execute('''
@@ -436,7 +394,6 @@ def init_db(db_path=None):
 
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_post_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_post_id)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_post_type ON posts(post_type)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_parent_note ON posts(parent_note_id)')
 
     # 文章修订历史

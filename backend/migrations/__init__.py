@@ -51,6 +51,7 @@ MIGRATIONS = [
     ('013_p1_features', '定时发布、软删除、修订历史与多草稿设备', 'backend.migrations.migrate_p1_features', 'migrate'),
     ('014_draft_unique_index', '修正 drafts 唯一索引以支持多设备草稿', 'backend.migrations.migrate_draft_unique_index', 'migrate'),
     ('015_background_tasks', '持久化后台任务队列', 'backend.migrations.migrate_background_tasks', 'migrate'),
+    ('016_drop_duplicate_index', '移除冗余索引 idx_post_type', 'backend.migrations.migrate_drop_duplicate_index', 'migrate'),
 ]
 
 
