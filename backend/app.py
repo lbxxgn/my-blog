@@ -33,6 +33,7 @@ import os
 import re
 import sqlite3
 import sys
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -43,7 +44,7 @@ if str(PROJECT_ROOT) not in sys.path:
 # =============================================================================
 # 项目配置导入
 # =============================================================================
-from backend.config import (SECRET_KEY, ALLOWED_EXTENSIONS, AUTO_MIGRATE,
+from backend.config import (SECRET_KEY, AUTO_MIGRATE,
                             MAX_CONTENT_LENGTH, BASE_DIR, DEBUG, SITE_NAME, SITE_DESCRIPTION,
                             SITE_AUTHOR, WTF_CSRF_ENABLED, WTF_CSRF_TIME_LIMIT, WTF_CSRF_SSL_STRICT,
                             PERMANENT_SESSION_LIFETIME, REMEMBER_DEVICE_DAYS,
@@ -137,6 +138,8 @@ def create_app(config_overrides=None):
         TRUST_PROXY_HEADERS=TRUST_PROXY_HEADERS,
         AUTO_MIGRATE=AUTO_MIGRATE,
     )
+    # config_overrides 必须在读取 REGENERATE_ASSETS / TRUST_PROXY_HEADERS 之前生效，
+    # 因此在这里应用一次；后续默认配置均使用 setdefault，不会覆盖这里的值。
     if config_overrides:
         app.config.update(config_overrides)
 
@@ -350,33 +353,34 @@ def create_app(config_overrides=None):
     # =============================================================================
     # CSRF保护配置
     # =============================================================================
-    app.config['WTF_CSRF_ENABLED'] = WTF_CSRF_ENABLED
-    app.config['WTF_CSRF_TIME_LIMIT'] = WTF_CSRF_TIME_LIMIT
-    app.config['WTF_CSRF_SSL_STRICT'] = WTF_CSRF_SSL_STRICT
+    # Flask 的 app.config 预置了大量默认键（如 SESSION_COOKIE_SAMESITE=None），
+    # setdefault 会被这些默认值挡住，因此用显式判空：overrides 优先，其次才是默认值。
+    overrides = config_overrides or {}
 
-    # =============================================================================
-    # 速率限制配置
-    # =============================================================================
+    def _config_default(key, value):
+        """设置默认配置；create_app(config_overrides=...) 显式传入的键优先。"""
+        if key not in overrides:
+            app.config[key] = value
+
+    _config_default('WTF_CSRF_ENABLED', WTF_CSRF_ENABLED)
+    _config_default('WTF_CSRF_TIME_LIMIT', WTF_CSRF_TIME_LIMIT)
+    _config_default('WTF_CSRF_SSL_STRICT', WTF_CSRF_SSL_STRICT)
 
     # =============================================================================
     # 缓存配置
     # =============================================================================
-    # 配置缓存
-    app.config['CACHE_TYPE'] = 'SimpleCache'  # 开发环境使用SimpleCache
-    app.config['CACHE_DEFAULT_TIMEOUT'] = 300  # 默认缓存5分钟
-    app.config['CACHE_THRESHOLD'] = 1000  # 最大缓存条目数
+    _config_default('CACHE_TYPE', 'SimpleCache')  # 开发环境使用SimpleCache
+    _config_default('CACHE_DEFAULT_TIMEOUT', 300)  # 默认缓存5分钟
+    _config_default('CACHE_THRESHOLD', 1000)  # 最大缓存条目数
 
     # =============================================================================
     # 会话安全配置
     # =============================================================================
     from backend.config import SESSION_COOKIE_SECURE, SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE
-    app.config['SESSION_COOKIE_SECURE'] = SESSION_COOKIE_SECURE
-    app.config['SESSION_COOKIE_HTTPONLY'] = SESSION_COOKIE_HTTPONLY
-    app.config['SESSION_COOKIE_SAMESITE'] = SESSION_COOKIE_SAMESITE
-    app.config['PERMANENT_SESSION_LIFETIME'] = PERMANENT_SESSION_LIFETIME
-
-    if config_overrides:
-        app.config.update(config_overrides)
+    _config_default('SESSION_COOKIE_SECURE', SESSION_COOKIE_SECURE)
+    _config_default('SESSION_COOKIE_HTTPONLY', SESSION_COOKIE_HTTPONLY)
+    _config_default('SESSION_COOKIE_SAMESITE', SESSION_COOKIE_SAMESITE)
+    _config_default('PERMANENT_SESSION_LIFETIME', PERMANENT_SESSION_LIFETIME)
 
     app_csrf.init_app(app)
     app_limiter.init_app(app)
@@ -468,47 +472,14 @@ def create_app(config_overrides=None):
         )
 
     # =============================================================================
-    # 辅助函数
-    # =============================================================================
-    def validate_password_strength(password):
-        """
-        验证密码强度
-    
-        要求:
-            - 至少10位长度
-            - 包含至少一个大写字母
-            - 包含至少一个小写字母
-            - 包含至少一个数字
-            - 不能是常见弱密码
-        """
-        if len(password) < 10:
-            return False, '密码长度至少为10位'
-
-        if not re.search(r'[A-Z]', password):
-            return False, '密码必须包含至少一个大写字母'
-
-        if not re.search(r'[a-z]', password):
-            return False, '密码必须包含至少一个小写字母'
-
-        if not re.search(r'\d', password):
-            return False, '密码必须包含至少一个数字'
-
-        weak_passwords = ['password123', 'Admin123', '1234567890', 'Password123']
-        if password.lower() in [wp.lower() for wp in weak_passwords]:
-            return False, '密码过于常见，请使用更复杂的密码'
-
-        return True, None
-
-    # =============================================================================
     # 日志系统初始化
     # =============================================================================
     if app.config.get('SETUP_LOGGING', True):
         get_setup_logging()(app)
 
     # =============================================================================
-    # 时区处理
+    # 时区处理与模板过滤器
     # =============================================================================
-    from datetime import datetime
     from backend.utils.timezone import utc_to_local
 
     app.jinja_env.globals.update(utc_to_local=utc_to_local)
@@ -538,37 +509,6 @@ def create_app(config_overrides=None):
             return Markup(escaped_text)
         pattern = re.compile(re.escape(escaped_query), re.IGNORECASE)
         return Markup(pattern.sub(lambda m: '<mark>' + m.group(0) + '</mark>', escaped_text))
-
-
-    def extract_first_image(content):
-        """从内容中提取第一张图片"""
-        if not content:
-            return None
-        match = re.search(r'<img[^>]+src="([^"]+)"', str(content))
-        return match.group(1) if match else None
-
-    def timeago_filter(date):
-        """时间格式化为相对时间"""
-        if not date:
-            return ''
-        if isinstance(date, str):
-            try:
-                if len(date) >= 10:
-                    return date[:10]
-            except:
-                return str(date)[:10] if date else ''
-        if hasattr(date, 'strftime'):
-            return date.strftime('%Y-%m-%d')
-        return str(date)[:10] if date else ''
-
-    # 注册过滤器
-    app.jinja_env.filters['extract_first_image'] = extract_first_image
-    app.jinja_env.filters['timeago'] = timeago_filter
-
-    def allowed_file(filename):
-        """检查文件扩展名是否允许"""
-        return '.' in filename and \
-               filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
     # =============================================================================
     # 注册蓝图
@@ -759,14 +699,15 @@ def create_app(config_overrides=None):
     def request_entity_too_large(error):
         """Handle file too large errors"""
         get_log_error()(error, context='413 Payload Too Large')
-    
+        limit_mb = MAX_CONTENT_LENGTH // 1024 // 1024
+
         if request.path.startswith('/admin/upload') or request.path.startswith('/api/'):
             return jsonify({
                 'success': False,
-                'error': '文件太大，最大允许上传 16MB'
+                'error': f'文件太大，最大允许上传 {limit_mb}MB'
             }), 413
-    
-        return render_template('error.html', status_code=413, error='上传的文件太大，最大允许 16MB'), 413
+
+        return render_template('error.html', status_code=413, error=f'上传的文件太大，最大允许 {limit_mb}MB'), 413
 
     # =============================================================================
     # 健康检查

@@ -15,7 +15,9 @@ import re
 from datetime import datetime
 
 
-from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401
+# _async_ai_title 在本模块未被直接调用，但 task_queue 通过
+# `posts_module._async_ai_title` 解析该任务入口，需保留在本模块命名空间。
+from . import admin_bp, logger, _auto_title, _async_ai_title  # noqa: F401
 
 
 def _normalize_content_format(value):

@@ -11,7 +11,8 @@ from backend.auth_decorators import login_required, get_current_user
 from backend.logger import log_operation, log_error, log_sql, api_internal_error
 
 
-from . import admin_bp, mobile_bp, logger, _auto_title, _async_ai_title, get_request_data, normalize_post_ids, filter_operable_post_ids, allowed_file, build_upload_response, validate_password_strength  # noqa: F401
+from . import admin_bp
+from ._shared import get_request_data, normalize_post_ids, filter_operable_post_ids
 
 
 @admin_bp.route('/batch-update-category', methods=['POST'])

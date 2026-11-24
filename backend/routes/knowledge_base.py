@@ -32,7 +32,8 @@ knowledge_base_bp = Blueprint('knowledge_base', __name__)
 # Validation constants
 VALID_ANNOTATION_COLORS = ['yellow', 'blue', 'green', 'pink', 'orange', 'purple']
 VALID_ANNOTATION_TYPES = ['highlight', 'note', 'bookmark']
-MAX_CONTENT_LENGTH = 1024 * 1024  # 1MB max content size
+# 插件提交单条内容的字节上限（与全局 MAX_CONTENT_LENGTH=100MB 不是一回事）
+MAX_PLUGIN_CONTENT_BYTES = 1024 * 1024  # 1MB
 
 
 def validate_annotation_data(annotation):
@@ -54,8 +55,8 @@ def validate_annotation_data(annotation):
 
 def validate_content_length(content):
     """验证内容长度"""
-    if len(content) > MAX_CONTENT_LENGTH:
-        return False, f'Content too large (max {MAX_CONTENT_LENGTH} bytes)'
+    if len(content) > MAX_PLUGIN_CONTENT_BYTES:
+        return False, f'Content too large (max {MAX_PLUGIN_CONTENT_BYTES} bytes)'
     return True, None
 
 
