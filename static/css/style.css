@@ -4179,10 +4179,10 @@ body.reader-mode .reader-exit {
 }
 
 .site-logo-inline {
-    height: 1.05em;
-    width: 1.05em;
-    border-radius: 6px;
-    vertical-align: -0.15em;
+    height: 1.5em;
+    width: 1.5em;
+    border-radius: 8px;
+    vertical-align: -0.25em;
     margin-right: 8px;
 }
 
