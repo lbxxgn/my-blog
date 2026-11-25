@@ -1,18 +1,54 @@
 """知识库入口重定向与站点设置（admin 蓝图子模块）。"""
 
-from flask import render_template, request, redirect, url_for, flash
+import json
+import time
+
+from flask import Response, abort, flash, redirect, render_template, request, url_for
 
 from backend.models import (
-    get_site_icon_version, set_site_setting, get_site_identity,
+    delete_site_setting,
+    get_site_icon_version,
+    get_site_setting,
+    set_site_setting,
+    get_site_identity,
 )
 from backend.auth_decorators import login_required, admin_required
-from backend.utils.site_icon import generate_site_icons, reset_site_icons, has_custom_icons
+from backend.utils.site_icon import (
+    generate_site_icons,
+    has_custom_icons,
+    has_custom_source,
+    load_source_bytes,
+    reset_site_icons,
+    source_mimetype,
+)
 from backend.config import SITE_NAME, SITE_DESCRIPTION, SITE_AUTHOR
-import time
 
 
 from . import admin_bp, logger
 from ._shared import allowed_file
+
+
+def _parse_crop_rect(raw):
+    """校验前端提交的选区（归一化到 0~1 的 x/y/w/h），无效时返回 None。"""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    try:
+        rect = {key: float(data.get(key)) for key in ('x', 'y', 'w', 'h')}
+    except (TypeError, ValueError):
+        return None
+    if not all(0 <= value <= 1 for value in rect.values()):
+        return None
+    if rect['w'] <= 0 or rect['h'] <= 0:
+        return None
+    if rect['x'] + rect['w'] > 1.0001 or rect['y'] + rect['h'] > 1.0001:
+        return None
+    return {key: round(value, 6) for key, value in rect.items()}
 
 
 @admin_bp.route('/knowledge')
@@ -34,9 +70,24 @@ def site_settings():
     return render_template(
         'admin/site_settings.html',
         has_custom_icon=has_custom_icons(),
+        has_source=has_custom_source(),
+        icon_crop=get_site_setting('icon_crop', ''),
         icon_version=get_site_icon_version(),
         identity=identity,
     )
+
+
+@admin_bp.route('/site/icon/source')
+@login_required
+@admin_required
+def site_icon_source():
+    """返回保留的原始图片，供裁剪界面重新选择区域（仅管理员）。"""
+    data = load_source_bytes()
+    if not data:
+        abort(404)
+    response = Response(data, mimetype=source_mimetype())
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 @admin_bp.route('/site/general', methods=['POST'])
@@ -63,19 +114,31 @@ def update_site_identity():
 @login_required
 @admin_required
 def upload_site_icon():
-    """上传并生成站点图标"""
+    """上传/重新裁剪并生成站点图标。
+
+    - 选择新图片时上传原图，前端同时提交裁剪后的正方形图。
+    - 未选择新图片时，只提交裁剪结果，使用已保留的原图重新生成图标。
+    """
     file = request.files.get('icon')
-    if not file or file.filename == '':
+    cropped = request.files.get('cropped')
+    crop_rect_raw = request.form.get('crop')
+
+    has_file = bool(file and file.filename)
+    has_cropped = bool(cropped and cropped.filename)
+
+    if not has_file and not has_cropped and not has_custom_source():
         flash('请选择图片文件', 'error')
         return redirect(url_for('admin.site_settings'))
 
-    if not allowed_file(file.filename):
+    if has_file and not allowed_file(file.filename):
         flash('不支持的图片格式，请上传 PNG/JPG/WEBP 等图片', 'error')
         return redirect(url_for('admin.site_settings'))
 
-    file_content = file.read()
+    file_content = file.read() if has_file else None
+    cropped_content = cropped.read() if has_cropped else None
+
     try:
-        generate_site_icons(file_content)
+        generate_site_icons(file_content, cropped_content)
     except ValueError as e:
         flash(str(e), 'error')
         return redirect(url_for('admin.site_settings'))
@@ -83,6 +146,12 @@ def upload_site_icon():
         logger.error(f'Site icon upload failed: {e}')
         flash('图标处理失败，请稍后重试', 'error')
         return redirect(url_for('admin.site_settings'))
+
+    crop_rect = _parse_crop_rect(crop_rect_raw)
+    if crop_rect:
+        set_site_setting('icon_crop', json.dumps(crop_rect))
+    else:
+        delete_site_setting('icon_crop')
 
     set_site_setting('icon_version', str(int(time.time())))
     flash('站点图标已更新', 'success')
@@ -94,6 +163,7 @@ def upload_site_icon():
 def reset_site_icon():
     """恢复默认站点图标"""
     reset_site_icons()
+    delete_site_setting('icon_crop')
     set_site_setting('icon_version', str(int(time.time())))
     flash('已恢复默认图标', 'success')
     return redirect(url_for('admin.site_settings'))

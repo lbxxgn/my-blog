@@ -83,7 +83,7 @@
 - 自动压缩 + 多尺寸：`thumbnail(150) / medium(600) / large(1200) / feed`，统一转 **WebP**
 - 文章图片**灯箱**查看、代码块**一键复制**
 - ⭐ 图片清理工具（CLI）：`python backend/image_cleanup_tool.py` 检查/清理失效图片
-- 站点自定义图标（favicon / iOS 主屏 / PWA）：`/admin/site`
+- 站点自定义图标（favicon / iOS 主屏 / PWA）：`/admin/site`，可拖动选框选择原图中的任意一块正方形区域，支持之后基于保留的原图重新调整
 
 ## 七、用户、认证与安全
 
