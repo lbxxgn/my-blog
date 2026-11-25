@@ -63,8 +63,8 @@ tests/
     └── test_pwa_and_health.py     # 健康检查、manifest、Service Worker、404
 ```
 
-当前共有 **527** 个单元/集成测试，外加 **26** 个浏览器 E2E 用例（默认跳过，需 `E2E=1` 开启）：
-`pytest --collect-only -q` 共收集 **553** 个用例。
+当前共有 **536** 个单元/集成测试，外加 **26** 个浏览器 E2E 用例（默认跳过，需 `E2E=1` 开启）：
+`pytest --collect-only -q` 共收集 **562** 个用例。
 
 ## 运行测试
 

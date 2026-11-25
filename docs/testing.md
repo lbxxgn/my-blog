@@ -59,7 +59,7 @@
 | `e2e/test_personal_features.py` | 回顾页、统一搜索、快速笔记与卡片 API |
 | `e2e/test_pwa_and_health.py` | 健康检查、manifest、Service Worker、404（共 26 个用例，默认跳过） |
 
-**当前测试总数**: 527 个单元/集成测试，外加 26 个浏览器 E2E 用例；`pytest --collect-only -q` 共收集 **553** 个用例。
+**当前测试总数**: 536 个单元/集成测试，外加 26 个浏览器 E2E 用例；`pytest --collect-only -q` 共收集 **562** 个用例。
 
 ### 已覆盖的功能模块
 

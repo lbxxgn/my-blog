@@ -64,7 +64,7 @@ python backend/app.py
 - **传统前端**：Vanilla JS + Quill 编辑器
 - **新版知识库编辑器**：React 19.3 + Vite 8.1 + BlockNote 0.55 + Mantine 9
 - **AI**：阿里百炼 / DeepSeek / 自定义 OpenAI 兼容（API Key 在后台「AI 设置」配置）
-- **测试**：pytest + pytest-cov（527 个单元/集成 + 26 个浏览器 E2E）
+- **测试**：pytest + pytest-cov（536 个单元/集成 + 26 个浏览器 E2E）
 
 ## 项目结构
 
