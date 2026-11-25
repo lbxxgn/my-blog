@@ -34,7 +34,6 @@ __all__ = [
     'get_ai_usage_stats',
     'generate_api_key',
     'validate_api_key',
-    'init_api_keys_table',
 ]
 
 
@@ -582,29 +581,7 @@ def get_ai_usage_stats(user_id=None):
 
 
 # ==================== 浏览器插件 API 功能 ====================
-
-def init_api_keys_table():
-    """初始化API密钥表"""
-    with get_db_context() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS api_keys (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                api_key TEXT NOT NULL UNIQUE,
-                is_active INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_api_keys_user
-            ON api_keys(user_id)
-        ''')
-
-        conn.commit()
+# 表结构统一由 init_db() 创建（见 models/db.py）
 
 
 def generate_api_key(user_id):

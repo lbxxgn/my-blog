@@ -5,11 +5,20 @@
 import sqlite3
 import shutil
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
-BASE_DIR = Path(__file__).parent.parent
-DB_PATH = BASE_DIR / 'db' / 'simple_blog.db'
+BASE_DIR = Path(__file__).resolve().parent.parent
+# 兼容 `python backend/db_check.py` 直接运行（此时仓库根目录不在 sys.path 上）
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from backend.config import get_db_path
+
+# 与运行时配置保持一致，支持 DATABASE_URL 覆盖
+DB_PATH = Path(get_db_path())
+
 
 def check_database():
     """检查数据库完整性"""
@@ -17,12 +26,13 @@ def check_database():
     print("数据库诊断工具")
     print("=" * 60)
     print(f"数据库路径: {DB_PATH}")
-    print(f"文件大小: {DB_PATH.stat().st_size / 1024:.2f} KB")
-    print()
 
     if not DB_PATH.exists():
         print("❌ 数据库文件不存在")
         return False
+
+    print(f"文件大小: {DB_PATH.stat().st_size / 1024:.2f} KB")
+    print()
 
     try:
         conn = sqlite3.connect(str(DB_PATH))

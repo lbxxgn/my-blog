@@ -1,5 +1,5 @@
 """草稿数据模型"""
-from backend.models import get_db_context
+from .db import get_db_context
 from typing import Optional, List, Dict
 import logging
 import json

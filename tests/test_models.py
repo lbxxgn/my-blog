@@ -8,7 +8,6 @@ from backend.models import (
     create_tag, get_all_tags, get_tag_by_id, get_popular_tags,
     create_comment, get_comments_by_post, get_all_comments,
     # Browser extension API functions
-    init_api_keys_table, init_card_annotations_table,
     generate_api_key, validate_api_key, create_card, get_cards_by_user,
     create_annotation, get_annotations_by_url
 )
@@ -361,18 +360,6 @@ class TestCardModels:
 
 class TestBrowserExtensionAPI:
     """浏览器插件API测试"""
-
-    def test_init_api_keys_table(self, temp_db):
-        """测试初始化API密钥表"""
-        init_api_keys_table()
-        # Should not raise an error
-        assert True
-
-    def test_init_card_annotations_table(self, temp_db):
-        """测试初始化标注表"""
-        init_card_annotations_table()
-        # Should not raise an error
-        assert True
 
     def test_generate_api_key(self, temp_db):
         """测试生成API密钥"""

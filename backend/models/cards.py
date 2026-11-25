@@ -17,8 +17,6 @@ __all__ = [
     'delete_card',
     'merge_cards_to_post',
     'ai_merge_cards_to_post',
-    'init_cards_table',
-    'init_card_annotations_table',
     'create_annotation',
     'get_annotations_by_url',
 ]
@@ -359,42 +357,7 @@ def ai_merge_cards_to_post(card_ids, user_id, user_config, merge_style='comprehe
 
 
 # ==================== 浏览器插件 API 功能 ====================
-
-def init_cards_table():
-    """初始化知识库卡片表（已在init_db中创建，此函数为兼容性保留）"""
-    # Cards table is already created in init_db()
-    # This function exists for backward compatibility with test fixtures
-
-
-def init_card_annotations_table():
-    """初始化卡片标注表"""
-    with get_db_context() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS card_annotations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                card_id INTEGER,
-                source_url TEXT NOT NULL,
-                annotation_text TEXT,
-                xpath TEXT,
-                color TEXT DEFAULT 'yellow',
-                note TEXT,
-                annotation_type TEXT DEFAULT 'highlight',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id),
-                FOREIGN KEY (card_id) REFERENCES cards(id)
-            )
-        ''')
-
-        cursor.execute('''
-            CREATE INDEX IF NOT EXISTS idx_annotations_user_url
-            ON card_annotations(user_id, source_url)
-        ''')
-
-        conn.commit()
+# 表结构统一由 init_db() 创建（见 models/db.py）
 
 
 def create_annotation(user_id, source_url, annotation_text, xpath, color, note, annotation_type='highlight', card_id=None):
