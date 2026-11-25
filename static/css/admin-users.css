@@ -1,0 +1,44 @@
+/*
+ * 后台用户管理
+ *
+ * 原先内联在 templates/admin/users.html 的 <style> 中，抽成独立文件以便缓存，并为收紧 CSP
+ * （去掉 style-src 'unsafe-inline'）做准备。只在该页面引入。
+ * 重复选择器已用 scripts/css_clean.py 合并，可用 `make css-check` 复查。
+ */
+.role-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.role-admin {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.role-editor {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.role-author {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.dark-theme .role-admin {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.dark-theme .role-editor {
+    background: #1e3a8a;
+    color: #bfdbfe;
+}
+
+.dark-theme .role-author {
+    background: #064e3b;
+    color: #d1fae5;
+}

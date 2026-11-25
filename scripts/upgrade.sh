@@ -175,18 +175,18 @@ run_migrations() {
     fi
 }
 
-# 构建知识库编辑器前端（构建产物不再入库）
+# 构建知识库编辑器前端（构建产物不再入库，统一走 scripts/build-frontend.sh）
 build_frontend() {
-    if [ ! -d "$PROJECT_ROOT/frontend" ]; then
-        log_warning "frontend/ 不存在，跳过前端构建"
+    if [ ! -x "$PROJECT_ROOT/scripts/build-frontend.sh" ]; then
+        log_warning "scripts/build-frontend.sh 不存在，跳过前端构建"
         return 0
     fi
     if ! command -v npm >/dev/null 2>&1; then
-        log_warning "npm 不可用，跳过前端构建；请安装 Node.js 后执行: cd frontend && npm ci && npm run build"
+        log_warning "npm 不可用，跳过前端构建；请安装 Node.js 22+ 后执行: cd frontend && npm ci && npm run build"
         return 0
     fi
     log "构建前端..."
-    if (cd "$PROJECT_ROOT/frontend" && npm ci --silent && npm run build >> "$LOG_FILE" 2>&1); then
+    if "$PROJECT_ROOT/scripts/build-frontend.sh" >> "$LOG_FILE" 2>&1; then
         log "前端构建完成 ✓"
     else
         log_error "前端构建失败，请检查日志: $LOG_FILE"

@@ -42,7 +42,7 @@
                 <div class="meta-right">
                     <time datetime="{{ post.created_at }}">{{ post.created_at|localtime }}</time>
                     {% if session.get('user_id') and (session.get('user_id') == post.author_id or session.get('role') in ['admin', 'editor']) %}
-                    <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-sm" style="margin-left:8px;">编辑</a>
+                    <a href="{{ url_for('admin.edit_post', post_id=post.id) }}" class="btn btn-sm btn btn-sm post-edit-link">编辑</a>
                     {% endif %}
                 </div>
             </div>
@@ -79,12 +79,12 @@
     </div>
 
     {% if source_kb_doc or linked_kb_doc %}
-    <div class="precipitate-section" style="font-size:0.9rem;">
+    <div class="precipitate-section precipitate-section post-kb-links">
         {% if source_kb_doc %}
         <span>来源知识库：<a href="{{ url_for('knowledge.view_doc', doc_id=source_kb_doc.id) }}">{{ source_kb_doc.title }}</a></span>
         {% endif %}
         {% if linked_kb_doc %}
-        <span style="margin-left:1rem;">已沉淀到知识库：<a href="{{ url_for('knowledge.view_doc', doc_id=linked_kb_doc.id) }}">{{ linked_kb_doc.title }}</a></span>
+        <span class="post-kb-linked">已沉淀到知识库：<a href="{{ url_for('knowledge.view_doc', doc_id=linked_kb_doc.id) }}">{{ linked_kb_doc.title }}</a></span>
         {% endif %}
     </div>
     {% endif %}
@@ -93,9 +93,9 @@
     <div class="precipitate-section post-ai-actions">
         <button type="button" class="btn btn-sm precipitate-btn" id="precipitate-btn" aria-label="沉淀到知识库" title="沉淀到知识库"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M8.5 8.5L12 12l3.5-3.5"/><path d="M4 15v2.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V15"/></svg><span class="action-btn-label">沉淀到知识库</span></button>
         <button type="button" class="btn btn-sm mentor-btn" id="mentor-btn" aria-label="导师点评" title="导师点评"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-1.9 4.6-4.1 1.4 1.9-4.6z"/></svg><span class="action-btn-label">导师点评</span></button>
-        <div class="precipitate-modal" id="mentor-modal" style="display:none">
+        <div class="precipitate-modal u-hidden" id="mentor-modal" role="dialog" aria-modal="true" aria-labelledby="mentor-modal-title">
             <div class="precipitate-modal-content mentor-modal-content">
-                <h4>🧭 AI 导师点评</h4>
+                <h4 id="mentor-modal-title">🧭 AI 导师点评</h4>
                 <div class="mentor-result" id="mentor-result"></div>
                 <div class="precipitate-actions">
                     <button type="button" class="btn btn-sm btn-primary" id="mentor-publish" disabled>发表为评论</button>
@@ -105,9 +105,9 @@
                 <p class="precipitate-hint">点评由 AI 生成，仅供参考；"发表为评论"会以「AI 导师」名义发布到本文评论区。</p>
             </div>
         </div>
-        <div class="precipitate-modal" id="precipitate-modal" style="display:none">
+        <div class="precipitate-modal u-hidden" id="precipitate-modal" role="dialog" aria-modal="true" aria-labelledby="precipitate-modal-title">
             <div class="precipitate-modal-content">
-                <h4>选择目标目录</h4>
+                <h4 id="precipitate-modal-title">选择目标目录</h4>
                 <select id="precipitate-category">
                     <option value="">请选择...</option>
                     {% for cat in kb_tree_flattened|default([]) %}
@@ -210,6 +210,14 @@
         <a href="{{ url_for('blog.index') }}" class="back-link">← 返回首页</a>
     </div>
 </div>
+
+<div id="post-client-config" hidden
+     data-post-id="{{ post.id }}"
+     data-post-title="{{ post.title }}"
+     data-precipitate-url="{{ url_for('blog.precipitate_to_knowledge', post_id=post.id) }}"
+     data-mentor-url="{{ url_for('ai.mentor_comment') }}"
+     data-comment-url="{{ url_for('blog.add_comment', post_id=post.id) }}"></div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -218,227 +226,6 @@
 <script src="{{ static_file('js/lightbox.js') }}"></script>
 <!-- Code Copy -->
 <script src="{{ static_file('js/code-copy.js') }}"></script>
-
-<script>
-(function(){
-  var btn = document.getElementById('precipitate-btn');
-  if (!btn) return;
-  var modal = document.getElementById('precipitate-modal');
-  var cancelBtn = document.getElementById('precipitate-cancel');
-  var confirmBtn = document.getElementById('precipitate-confirm');
-  var catSelect = document.getElementById('precipitate-category');
-  btn.addEventListener('click', function(){ modal.style.display = 'flex'; });
-  cancelBtn.addEventListener('click', function(){ modal.style.display = 'none'; });
-  modal.addEventListener('click', function(e){ if (e.target === modal) modal.style.display = 'none'; });
-  confirmBtn.addEventListener('click', function(){
-    var catId = catSelect.value;
-    if (!catId) { showAppToast('请选择目标目录', 'error'); return; }
-    confirmBtn.disabled = true;
-    confirmBtn.textContent = '沉淀中...';
-    fetch('{{ url_for("blog.precipitate_to_knowledge", post_id=post.id) }}', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
-      body: JSON.stringify({category_id: parseInt(catId)})
-    }).then(function(r){return r.json()}).then(function(data){
-      if (data.success) {
-        showAppToast('已沉淀为知识库文档');
-        window.open(data.redirect, '_blank');
-        modal.style.display = 'none';
-      } else {
-        showAppToast('失败: ' + (data.error || '未知错误'), 'error');
-      }
-    }).catch(function(){ showAppToast('网络错误，请稍后重试', 'error'); })
-      .finally(function(){ confirmBtn.disabled = false; confirmBtn.textContent = '确认沉淀'; });
-  });
-})();
-</script>
-<script>
-(function(){
-  var btn = document.getElementById('mentor-btn');
-  if (!btn) return;
-  var modal = document.getElementById('mentor-modal');
-  var resultEl = document.getElementById('mentor-result');
-  var publishBtn = document.getElementById('mentor-publish');
-  var copyBtn = document.getElementById('mentor-copy');
-  var closeBtn = document.getElementById('mentor-close');
-  var currentComment = '';
-  var loaded = false;
-
-  closeBtn.addEventListener('click', function(){ modal.style.display = 'none'; });
-  modal.addEventListener('click', function(e){ if (e.target === modal) modal.style.display = 'none'; });
-
-  btn.addEventListener('click', function(){
-    modal.style.display = 'flex';
-    if (loaded) return;
-    resultEl.textContent = '导师正在阅读你的文章...';
-    btn.disabled = true;
-    var postContent = document.querySelector('.post-content');
-    fetch('/admin/ai/mentor-comment', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
-      body: JSON.stringify({
-        title: {{ post.title|tojson }},
-        content: postContent ? postContent.innerText.slice(0, 6000) : '',
-        post_id: {{ post.id }}
-      })
-    }).then(function(r){ return r.json(); }).then(function(data){
-      if (data.success) {
-        currentComment = data.comment;
-        loaded = true;
-        resultEl.textContent = data.comment;
-        publishBtn.disabled = false;
-        copyBtn.disabled = false;
-      } else {
-        resultEl.textContent = '生成失败：' + (data.error || '未知错误');
-      }
-    }).catch(function(){
-      resultEl.textContent = '网络错误，请稍后重试。';
-    }).finally(function(){ btn.disabled = false; });
-  });
-
-  copyBtn.addEventListener('click', function(){
-    if (!currentComment) return;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(currentComment).then(function(){ showAppToast('已复制'); });
-    } else {
-      showAppToast('当前浏览器不支持一键复制', 'error');
-    }
-  });
-
-  publishBtn.addEventListener('click', function(){
-    if (!currentComment) return;
-    var content = currentComment.length > 990 ? currentComment.slice(0, 990) + '……' : currentComment;
-    publishBtn.disabled = true;
-    publishBtn.textContent = '发表中...';
-    fetch('{{ url_for("blog.add_comment", post_id=post.id) }}', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token() }}'},
-      body: new URLSearchParams({author_name: 'AI 导师', author_email: '', content: content})
-    }).then(function(r){
-      if (r.ok) {
-        showAppToast('点评已发表到评论区');
-        location.reload();
-      } else {
-        showAppToast('发表失败，请稍后重试', 'error');
-        publishBtn.disabled = false;
-        publishBtn.textContent = '发表为评论';
-      }
-    }).catch(function(){
-      showAppToast('网络错误，请稍后重试', 'error');
-      publishBtn.disabled = false;
-      publishBtn.textContent = '发表为评论';
-    });
-  });
-})();
-</script>
-<script>
-// 评论 AJAX 提交：成功后就地插入并展开评论区（不刷新页面），失败时保留已输入内容
-(function(){
-  var section = document.getElementById('comments');
-  var form = document.querySelector('.comment-form');
-  if (!form) return;
-
-  var trigger = section ? section.querySelector('.comments-trigger') : null;
-  var countEl = section ? section.querySelector('.comments-count') : null;
-  var body = document.getElementById('comments-body');
-
-  function setExpanded(expanded) {
-    if (!section) return;
-    section.classList.toggle('collapsed', !expanded);
-    if (trigger) trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-  }
-
-  if (trigger && body) {
-    var toggle = function () { setExpanded(section.classList.contains('collapsed')); };
-    trigger.addEventListener('click', toggle);
-    trigger.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
-    });
-  }
-
-  function nowLabel() {
-    var d = new Date();
-    function p(n) { return n < 10 ? '0' + n : '' + n; }
-    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
-  }
-
-  function ensureList() {
-    var list = body.querySelector('.comments-list');
-    if (!list) {
-      list = document.createElement('div');
-      list.className = 'comments-list';
-      body.insertBefore(list, body.firstChild);
-    }
-    return list;
-  }
-
-  function appendComment(name, content) {
-    var head = document.createElement('div');
-    head.className = 'comment-header';
-    var author = document.createElement('strong');
-    author.textContent = name;
-    var date = document.createElement('span');
-    date.className = 'comment-date';
-    date.textContent = nowLabel();
-    head.appendChild(author);
-    head.appendChild(date);
-
-    var text = document.createElement('div');
-    text.className = 'comment-content';
-    text.textContent = content;
-
-    var wrap = document.createElement('div');
-    wrap.className = 'comment';
-    wrap.appendChild(head);
-    wrap.appendChild(text);
-    ensureList().appendChild(wrap);
-
-    var count = Number((section && section.dataset.count) || 0) + 1;
-    if (section) section.dataset.count = String(count);
-    if (countEl) countEl.textContent = ' (' + count + ')';
-    return wrap;
-  }
-
-  form.addEventListener('submit', function(e){
-    e.preventDefault();
-    var submitBtn = form.querySelector('button[type="submit"]');
-    var originalText = submitBtn ? submitBtn.textContent : '';
-    var contentField = form.querySelector('textarea[name="content"]');
-    var nameField = form.querySelector('input[name="author_name"]');
-    var content = contentField ? contentField.value.trim() : '';
-
-    if (!content) {
-      if (typeof showAppToast === 'function') showAppToast('评论内容不能为空', 'error');
-      if (contentField) contentField.focus();
-      return;
-    }
-
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '发送中...'; }
-    fetch(form.action, {
-      method: 'POST',
-      headers: {'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json'},
-      body: new FormData(form)
-    }).then(function(r){
-      return r.json().catch(function(){ return {}; }).then(function(data){
-        return {ok: r.ok, data: data};
-      });
-    }).then(function(res){
-      if (res.ok && res.data.success) {
-        var name = (nameField && nameField.value.trim()) || form.dataset.authorName || '我';
-        var node = appendComment(name, content);
-        setExpanded(true);
-        if (contentField) contentField.value = '';
-        if (node.scrollIntoView) node.scrollIntoView({block: 'nearest'});
-        if (typeof showAppToast === 'function') showAppToast('评论已发布');
-        return;
-      }
-      if (typeof showAppToast === 'function') showAppToast(res.data.error || '评论提交失败，请稍后重试', 'error');
-    }).catch(function(){
-      if (typeof showAppToast === 'function') showAppToast('网络错误，评论未发送，内容已保留', 'error');
-    }).finally(function(){
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText; }
-    });
-  });
-})();
-</script>
+<!-- 沉淀到知识库 / 导师点评 / 评论 AJAX（原内联脚本） -->
+<script defer src="{{ static_file('js/post-actions.js') }}"></script>
 {% endblock %}

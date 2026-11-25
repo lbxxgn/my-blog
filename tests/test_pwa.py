@@ -69,10 +69,13 @@ class TestServiceWorker:
         assert 'fetch' in response.get_data(as_text=True)
 
     def test_base_html_registers_sw(self):
+        # 模板里已无内联脚本：base.html 只负责加载 base.js，注册逻辑在 base.js 内
         base = (PROJECT_ROOT / 'templates' / 'base.html').read_text()
-        assert 'serviceWorker' in base
-        assert '/sw.js' in base
-        assert 'register' in base
+        assert 'js/base.js' in base
+        script = (PROJECT_ROOT / 'static' / 'js' / 'base.js').read_text()
+        assert 'serviceWorker' in script
+        assert '/sw.js' in script
+        assert 'register' in script
 
 
 class TestAppleTouchIcon:

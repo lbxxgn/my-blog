@@ -118,6 +118,12 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'heif'}
 # 注意：这是全局限制，对单个请求生效
 MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB
 
+# 单张图片上传上限（编辑器/移动端/知识库共用）
+MAX_IMAGE_BYTES = int(os.environ.get('MAX_IMAGE_BYTES', 50 * 1024 * 1024))  # 50MB
+
+# 图片像素尺寸上限（防解压炸弹式 DoS）
+MAX_IMAGE_DIMENSION = int(os.environ.get('MAX_IMAGE_DIMENSION', 8192))
+
 # =============================================================================
 # CSRF保护配置
 # =============================================================================

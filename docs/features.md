@@ -1,7 +1,7 @@
 # 功能总览（Feature Catalog）
 
-**适用版本**: 2026-09
-**最后更新**: 2026-09-26
+**适用版本**: 2026-11
+**最后更新**: 2026-11-17
 
 本文档是系统的完整功能清单，按模块整理，标注**访问入口**与**使用前置条件**，方便你发现尚未用起来的能力。
 
@@ -66,9 +66,6 @@
 > 卡片的界面入口（记想法、随机漫步、编辑器历史卡片、卡片归档）已移除。
 > 数据库表与后端 API（`/knowledge_base/api/cards` 等）仍保留，供浏览器扩展及后续需要时使用。
 
-### 语音速记
-- 移动端首页「＋发布」面板提供麦克风按钮，用浏览器 Web Speech API 实时转文字（Chrome/Edge/Safari）
-
 ## 五、回顾与统计 `/review` ⭐
 
 | 模块 | 说明 |
@@ -78,7 +75,7 @@
 | 每周 AI 回顾 🔧 | 汇总近 7 天写作活动，生成周报文档 |
 
 - 首页侧边栏另有「那年今日」小组件
-- 每周回顾可**手动生成**，也可用服务器 crontab 自动：`flask weekly-review`（每周一）
+- 每周回顾可**手动生成**，也可用服务器 crontab 自动：`.venv/bin/flask --app backend.app weekly-review`（每周一）
 
 ## 六、媒体处理
 
@@ -86,7 +83,7 @@
 - 自动压缩 + 多尺寸：`thumbnail(150) / medium(600) / large(1200) / feed`，统一转 **WebP**
 - 文章图片**灯箱**查看、代码块**一键复制**
 - ⭐ 图片清理工具（CLI）：`python backend/image_cleanup_tool.py` 检查/清理失效图片
-- 站点自定义图标（favicon / iOS 主屏 / PWA）：`/admin/site`
+- 站点自定义图标（favicon / iOS 主屏 / PWA）：`/admin/site`，可拖动选框选择原图中的任意一块正方形区域，支持之后基于保留的原图重新调整
 
 ## 七、用户、认证与安全
 
@@ -121,7 +118,9 @@
 
 ## 十一、运维与部署
 
-- 数据库迁移运行器：`python -m backend.migrations`（`status` 查看状态）
+- 数据库迁移运行器：`python -m backend.migrations`（`status` 查看状态）；非 DEBUG 环境默认 `AUTO_MIGRATE=True`，启动自动应用
+- 健康检查：`/healthz`（存活）、`/readyz`（就绪，含数据库探测）
+- 后台任务：周报 / AI 标题 / Embedding 落库 `background_tasks`，多 worker 抢占执行、失败退避重试
 - 运维脚本：
   - `scripts/start.sh` 启动 · `scripts/install-service.sh` 装 systemd
   - `scripts/upgrade.sh` 升级 · `scripts/rollback.sh` 回滚 · `scripts/verify_upgrade.sh` 校验
@@ -162,7 +161,7 @@
 | 语义搜索 / 编辑器「相关」 | 配置 Embedding + 重建向量索引 | AI 设置「Embedding 服务」区块 |
 | Passkey / PWA | 站点运行在 **HTTPS** | 见 `DEPLOYMENT.md` HTTPS 章节 |
 | 浏览器 / Safari 扩展 | 生成 API Key 并在扩展中填写 | `python browser-extension/generate-api-key.py` |
-| 每周 AI 回顾自动执行 | crontab 定时 | `flask weekly-review` |
+| 每周 AI 回顾自动执行 | crontab 定时 | `.venv/bin/flask --app backend.app weekly-review` |
 
 > Embedding 配置与排查详见 [`personal-features.md`](personal-features.md)。
 

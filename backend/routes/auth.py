@@ -8,7 +8,6 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from werkzeug.security import check_password_hash, generate_password_hash
 from urllib.parse import urlparse, urljoin
 import ipaddress
-import re
 import base64
 import json
 
@@ -20,6 +19,7 @@ from backend.models import (
 from backend.auth_decorators import login_required
 from backend.logger import log_login
 from backend.config import PASSKEY_RP_NAME, PASSKEY_RP_ID, PASSKEY_ALLOWED_ORIGINS
+from backend.utils.password import validate_password_strength
 from webauthn import (
     generate_registration_options,
     generate_authentication_options,
@@ -48,37 +48,6 @@ def is_safe_url(target):
         test_url.scheme in ('http', 'https') and
         ref_url.netloc == test_url.netloc
     )
-
-
-def validate_password_strength(password):
-    """
-    验证密码强度
-
-    要求:
-        - 至少10位长度
-        - 包含至少一个大写字母
-        - 包含至少一个小写字母
-        - 包含至少一个数字
-
-    Args:
-        password (str): 待验证的密码
-
-    Returns:
-        tuple: (is_valid, error_message)
-    """
-    if len(password) < 10:
-        return False, '密码长度至少为10位'
-
-    if not re.search(r'[A-Z]', password):
-        return False, '密码必须包含至少一个大写字母'
-
-    if not re.search(r'[a-z]', password):
-        return False, '密码必须包含至少一个小写字母'
-
-    if not re.search(r'\d', password):
-        return False, '密码必须包含至少一个数字'
-
-    return True, None
 
 
 def _b64url_encode(value):

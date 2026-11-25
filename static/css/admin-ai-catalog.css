@@ -1,4 +1,10 @@
-<style>
+/*
+ * 后台 AI 模型目录
+ *
+ * 原先内联在 templates/admin/_ai_catalog_styles.html 的 <style> 中，抽成独立文件以便缓存，并为收紧 CSP
+ * （去掉 style-src 'unsafe-inline'）做准备。只在该页面引入。
+ * 重复选择器已用 scripts/css_clean.py 合并，可用 `make css-check` 复查。
+ */
 .ai-section {
     background: var(--card-bg, #fff);
     border: 1px solid var(--border-color, #e5e7eb);
@@ -75,7 +81,6 @@
     min-width: 680px;
 }
 
-.catalog-table th,
 .catalog-table td {
     padding: 0.75rem;
     text-align: left;
@@ -84,6 +89,10 @@
 }
 
 .catalog-table th {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    vertical-align: middle;
     font-weight: 600;
     color: var(--text-color, #1f2937);
     background: var(--code-bg, #f9fafb);
@@ -416,10 +425,7 @@ button:disabled {
 }
 
 .dark-theme .form-field input[readonly],
-.dark-theme .form-field select:disabled {
-    background: #374151;
-}
-
+.dark-theme .form-field select:disabled,
 .dark-theme .catalog-table th {
     background: #374151;
 }
@@ -437,5 +443,5 @@ button:disabled {
     .catalog-dialog {
         width: calc(100% - 1rem);
     }
+
 }
-</style>

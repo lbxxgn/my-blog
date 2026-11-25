@@ -47,9 +47,9 @@
         var fd = new FormData();
         fd.append('name', name.trim());
         fd.append('csrf_token', csrf);
-        fetch('/knowledge/category/' + btn.dataset.catId + '/rename', {
-            method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}
-        }).then(function(r){ return r.json(); }).then(function(data) {
+        AppHttp.json('/knowledge/category/' + btn.dataset.catId + '/rename', {
+            method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}, silent: true
+        }).then(function(data) {
             if (!data.success) throw new Error(data.error || '重命名失败');
             location.reload();
         }).catch(function(err) { alert(err.message || '重命名失败'); });
@@ -186,11 +186,12 @@
         fd.append('id', draggedId);
         fd.append('parent_id', info.parentId || '');
         fd.append('sort_order', String(info.sortOrder));
-        fetch('/knowledge/reorder', {
+        AppHttp.json('/knowledge/reorder', {
             method: 'POST',
             body: fd,
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        }).then(function(r) { return r.json(); })
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            silent: true
+        })
           .then(function(data) {
               if (data && data.success) location.reload();
               else (window.showAppToast || alert)((data && data.error) || '排序失败', 'error');

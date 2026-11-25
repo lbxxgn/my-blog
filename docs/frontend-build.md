@@ -1,17 +1,21 @@
 # 前端构建指南
 
-新版知识库编辑器位于 `frontend/`，基于 React 19.2 + Vite 8.1 + BlockNote 0.51 + Mantine 9 构建。
+新版知识库编辑器位于 `frontend/`，基于 React 19.3 + Vite 8.1 + BlockNote 0.55 + Mantine 9 构建。
 
 ## 环境要求
 
-- Node.js 18+（推荐 LTS）
+- Node.js 22+（推荐 LTS，见仓库 `.nvmrc`）
 - npm 或兼容包管理器
 
 ## 构建步骤
 
 ```bash
+# 推荐：统一脚本（依赖变化时才 npm ci，并校验 manifest）
+./scripts/build-frontend.sh
+
+# 或手动
 cd frontend
-npm install
+npm ci
 npm run build
 cd ..
 ```
@@ -29,7 +33,9 @@ cd frontend
 npm run dev
 ```
 
-开发服务器默认在 `http://localhost:5173` 运行，已配置 `/api`、`/knowledge`、`/admin` 到 `127.0.0.1:5001` 的代理。`static/frontend/` 构建产物不入库，生产/升级流程必须执行 `npm ci && npm run build`。
+开发服务器默认在 `http://localhost:5173` 运行，已配置 `/api`、`/knowledge`、`/admin`、`/static/uploads` 到 `127.0.0.1:5001` 的代理，并自带 `frontend/index.html` 开发挂载页。
+
+`static/frontend/` 构建产物不入库，生产/升级流程必须执行 `npm ci && npm run build`。`scripts/install-service.sh` 在检测到缺失 manifest 时会提示构建命令。
 
 ## 常见问题
 
@@ -49,6 +55,7 @@ python3 scripts/generate_manifest.py
 
 ### 构建失败
 
-1. 删除 `frontend/node_modules` 和 `package-lock.json` 后重新 `npm install`
-2. 确认 Node.js 版本 >= 18
+1. 确认 Node.js 版本 >= 22（`node -v`）
+2. 删除 `frontend/node_modules` 后重新 `npm ci`（保留 `package-lock.json`）
 3. 检查 `frontend/vite.config.ts` 中的 `base` 和 `outDir` 配置
+4. 重新运行 `./scripts/build-frontend.sh`，确认 `static/frontend/.vite/manifest.json` 已生成

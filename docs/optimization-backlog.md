@@ -151,8 +151,8 @@ P2 仍待评估：
 | 媒体 | 媒体库浏览/搜索/删除/引用计数；图片 alt 批量编辑；上传前大小/类型预检 |
 | 导出 | KB 空间单独导出；导出包含目录层级与 `post_type/space/parent_id` |
 | 安全加固 | 移除 CSP `unsafe-eval`；HSTS 配置修正；登录/操作日志轮转；恢复操作二次验证 |
-| 运维 | 备份调度支持 systemd timer；`start.sh`/`upgrade.sh` 修正 pytz 检查、venv 与 systemd 启动方式 |
-| 文档 | 删除已下线功能的文档承诺；补齐卡片/扩展 API 文档；统一“内容/文章/知识库”命名 |
+| 运维 | 备份调度支持 systemd timer；统一由 `install-service.sh` 生成服务文件并校验前端构建产物 |
+| 文档 | 确认无残留的已下线功能承诺；补齐卡片/扩展 API 文档；统一“内容/文章/知识库”命名 |
 
 ---
 
@@ -168,6 +168,6 @@ P2 仍待评估：
 
 - 本轮 P0 回归：`.venv/bin/python -m pytest tests/test_p0_hardening.py -q`
 - 全量测试：`.venv/bin/python -m pytest tests/ -q`
-- 前端构建：`cd frontend && npm run build`
+- 前端构建：`./scripts/build-frontend.sh`
 - 静态检查：`.venv/bin/python -m ruff check --select E9,F821,F811 backend/ tests/ scripts/`
 - 建议后续每修一项 P1，按“问题 → 关键改动 → 回归测试”补充到本文档和测试套件。

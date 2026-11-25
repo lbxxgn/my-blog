@@ -40,8 +40,10 @@ export function KbBlockNoteEditor({
       );
       if (cancelled) return;
       editor.replaceBlocks(editor.document, blocks);
-      // Expose the editor instance for testing / debugging.
-      (window as any).__KB_EDITOR_INSTANCE__ = editor;
+      // 仅开发环境 / E2E 暴露编辑器实例（生产包不再挂全局调试钩子）
+      if (import.meta.env.DEV || (window as any).__KB_E2E__) {
+        (window as any).__KB_EDITOR_INSTANCE__ = editor;
+      }
       setIsReady(true);
     })();
     return () => {

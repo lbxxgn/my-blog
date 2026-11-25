@@ -104,7 +104,7 @@ Group=$SERVICE_USER
 WorkingDirectory=$DEPLOY_PATH
 
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-Environment="FLASK_APP=app.py"
+Environment="FLASK_APP=backend.app"
 Environment="FLASK_ENV=production"
 Environment="PYTHONPATH=$DEPLOY_PATH"
 Environment="PORT=$SERVICE_PORT"
@@ -113,7 +113,8 @@ Environment="PORT=$SERVICE_PORT"
 EnvironmentFile=-$DEPLOY_PATH/.env
 
 # 启动命令（生产环境使用 gunicorn，默认仅绑定回环，交由 Nginx 反代对外）
-ExecStart=$GUNICORN_CMD --workers 2 --bind $SERVICE_BIND:$SERVICE_PORT backend.app:app
+# SQLite 单写场景固定单 worker；需要并发请迁移 PostgreSQL 后再调大
+ExecStart=$GUNICORN_CMD --workers 1 --bind $SERVICE_BIND:$SERVICE_PORT --timeout 300 --graceful-timeout 60 backend.app:app
 
 # 重启策略
 Restart=always
@@ -137,6 +138,14 @@ LimitNOFILE=65536
 [Install]
 WantedBy=multi-user.target
 EOF
+
+if [ ! -f "$DEPLOY_PATH/static/frontend/.vite/manifest.json" ]; then
+    echo ""
+    echo -e "${YELLOW}⚠️  未找到 static/frontend/.vite/manifest.json${NC}"
+    echo -e "   知识库编辑器需要先构建前端（构建产物不入库），请在项目目录执行："
+    echo -e "   ${BLUE}cd $DEPLOY_PATH && ./scripts/build-frontend.sh${NC}"
+    echo -e "   注意：请以服务运行用户执行，避免 node_modules 属主错误。"
+fi
 
 # 安装服务文件
 echo -e "${YELLOW}安装 systemd 服务...${NC}"

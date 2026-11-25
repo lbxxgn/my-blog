@@ -108,7 +108,7 @@
 4. **分享与 AI 动作同级**："沉淀到知识库 / 导师点评"是低频管理动作，却和分享按钮并列在正文下方（`post.html:495` vs `525`）。建议收进"更多"菜单或标题区右侧。
 5. **复制链接失败无反馈**：`share.js` 的 `catch` 只 `console.error` → 用户点了没反应。统一走 `showAppToast`。
 6. **阅读模式不可发现**：`R` 单键切换（`enhancements.js:167`），没有出现在 `Ctrl+/` 的快捷键清单里，按钮字形还是 `&#x1D4D7;`（𝒗）。建议按钮用图标 + 首次进入给一次性提示。
-7. **目录与锚点**：`.post-toc` 是 `≥1200px` 才出现的 fixed 浮层（`enhancements.css:1313`），但全站没有 `scroll-margin-top`，跳转后标题会被 sticky header 遮住。
+7. **目录与锚点**：`.post-toc` 是 `≥1200px` 才出现的 fixed 浮层（`static/css/style.css` 的 `.post-toc` 区块），但全站没有 `scroll-margin-top`，跳转后标题会被 sticky header 遮住。
 
 ### 4.3 首页信息流与无限滚动
 

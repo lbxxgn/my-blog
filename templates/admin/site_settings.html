@@ -2,6 +2,10 @@
 
 {% block title %}站点设置 - {{ site_name }}{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ static_file('css/admin-site.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container admin-site-settings">
     <div class="dashboard-header">
@@ -9,7 +13,7 @@
         <a href="{{ url_for('admin.admin_dashboard') }}" class="btn">返回管理后台</a>
     </div>
 
-    <div class="category-form" style="margin-bottom:18px;">
+    <div class="category-form category-form site-section">
         <h3>站点信息</h3>
         <form method="POST" action="{{ url_for('admin.update_site_identity') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
@@ -31,26 +35,25 @@
 
     <div class="category-form">
         <h3>站点图标</h3>
-        <p style="color: var(--text-secondary); max-width: 640px;">
-            上传一张正方形图片，系统会自动生成浏览器标签图标（favicon）、iOS 主屏图标与
-            PWA 图标。建议尺寸不小于 180&times;180，支持 PNG / JPG / WEBP。
+        <p class="site-hint">
+            上传图片后，拖动选框选择图片中的一块区域作为站点图标（选框为正方形，
+            系统会按选区生成浏览器标签图标、iOS 主屏图标与 PWA 图标）。
+            拖动选框可移动、拖四角可缩放，在选区外拖动可重新框选。
+            建议选区实际尺寸不小于 180&times;180，支持 PNG / JPG / WEBP。
         </p>
 
-        <div style="display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin: 18px 0;">
-            <div style="text-align: center;">
-                <img src="{{ url_for('site_icon_48') }}?v={{ icon_version }}" alt="站点图标"
-                     style="width: 48px; height: 48px; border-radius: 8px; border: 1px solid var(--border-color);">
-                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">48px</div>
+        <div class="icon-preview-row">
+            <div class="u-text-center" >
+                <img src="{{ url_for('site_icon_48') }}?v={{ icon_version }}" alt="站点图标" class="icon-preview icon-preview-48">
+                <div class="u-hint-sm" >48px</div>
             </div>
-            <div style="text-align: center;">
-                <img src="{{ url_for('apple_touch_icon') }}?v={{ icon_version }}" alt="主屏图标"
-                     style="width: 60px; height: 60px; border-radius: 12px; border: 1px solid var(--border-color);">
-                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">iOS 180px</div>
+            <div class="u-text-center" >
+                <img src="{{ url_for('apple_touch_icon') }}?v={{ icon_version }}" alt="主屏图标" class="icon-preview icon-preview-60">
+                <div class="u-hint-sm" >iOS 180px</div>
             </div>
-            <div style="text-align: center;">
-                <img src="{{ url_for('site_icon_192') }}?v={{ icon_version }}" alt="PWA 图标"
-                     style="width: 96px; height: 96px; border-radius: 14px; border: 1px solid var(--border-color);">
-                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">PWA 192px</div>
+            <div class="u-text-center" >
+                <img src="{{ url_for('site_icon_192') }}?v={{ icon_version }}" alt="PWA 图标" class="icon-preview icon-preview-96">
+                <div class="u-hint-sm" >PWA 192px</div>
             </div>
         </div>
 
@@ -59,26 +62,57 @@
             <strong>{{ '自定义图标' if has_custom_icon else '默认图标' }}</strong>
         </p>
 
-        <form method="POST" action="{{ url_for('admin.upload_site_icon') }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ url_for('admin.upload_site_icon') }}" enctype="multipart/form-data"
+              id="siteIconForm"
+              data-has-source="{{ '1' if has_source else '0' }}"
+              data-source-url="{{ url_for('admin.site_icon_source') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <input type="hidden" name="crop" id="siteIconCrop" value="{{ icon_crop }}"/>
+            <input type="file" name="cropped" id="siteIconCropped" accept="image/png" hidden/>
+
             <div class="form-group">
                 <label for="icon">选择图片</label>
-                <input type="file" id="icon" name="icon" accept="image/*" required>
+                <input type="file" id="icon" name="icon" accept="image/*">
+                <p class="u-hint-sm" id="siteIconFileHint">
+                    {% if has_source %}不选择新图片时，可直接调整下方选区后点击「应用裁剪」。{% else %}支持拖动选框选择图片中任意一块正方形区域。{% endif %}
+                </p>
             </div>
-            <button type="submit" class="btn btn-primary">上传并应用</button>
+
+            <div class="icon-crop-editor" id="iconCropEditor" hidden>
+                <div class="icon-crop-stage" id="iconCropStage">
+                    <div class="icon-crop-frame" id="iconCropFrame">
+                        <img class="icon-crop-image" id="iconCropImage" alt="待裁剪的图片" draggable="false">
+                        <div class="icon-crop-box" id="iconCropBox" tabindex="0" role="group"
+                             aria-label="图标选区，可拖动移动位置">
+                            <span class="icon-crop-handle is-nw" data-handle="nw"></span>
+                            <span class="icon-crop-handle is-ne" data-handle="ne"></span>
+                            <span class="icon-crop-handle is-sw" data-handle="sw"></span>
+                            <span class="icon-crop-handle is-se" data-handle="se"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="icon-crop-toolbar">
+                    <span class="u-hint-sm" id="iconCropSizeLabel">拖动选框选择区域</span>
+                    <button type="button" class="btn btn-sm" id="iconCropCenter">居中正方形</button>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="siteIconSubmit">
+                {{ '应用裁剪' if has_source else '上传并应用' }}
+            </button>
         </form>
 
         {% if has_custom_icon %}
         <form method="POST" action="{{ url_for('admin.reset_site_icon') }}"
-              class="delete-form"
-              data-confirm="确定恢复默认图标？"
-              data-confirm-destructive="true"
-              data-confirm-text="恢复默认"
-              style="margin-top: 14px;">
+              class="delete-form delete-form reset-icon-form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <button type="submit" class="btn btn-danger">恢复默认图标</button>
         </form>
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script defer src="{{ static_file('js/admin-site-icon.js') }}"></script>
 {% endblock %}

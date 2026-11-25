@@ -116,7 +116,7 @@ class TestXSSProtection:
         }, follow_redirects=True)
 
         # 查看文章详情页，确认 XSS 标签被过滤
-        from backend.models.models import get_all_posts
+        from backend.models import get_all_posts
         result = get_all_posts(include_drafts=True, page=1, per_page=1)
         post_id = result['posts'][0]['id']
 
@@ -273,7 +273,7 @@ class TestContentSecurityPolicy:
         """测试内容安全策略限制外部资源加载"""
         csp = client.get('/').headers['Content-Security-Policy']
 
-        assert 'img-src \'self\' data: https:' in csp
+        assert 'img-src \'self\' blob: data: https:' in csp
         assert 'font-src \'self\'' in csp
         assert 'connect-src \'self\'' in csp
 

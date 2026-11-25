@@ -7,13 +7,19 @@
 ### 🚀 启动和安装
 
 #### start.sh
-快速启动开发服务器
+快速启动开发服务器（检查依赖 → 应用迁移 → 提示缺失的前端构建）
 ```bash
 ./scripts/start.sh
 ```
 
+#### build-frontend.sh
+构建知识库编辑器前端（`static/frontend/` 不入库；依赖变化时才执行 `npm ci`，并校验 manifest 是否生成）
+```bash
+./scripts/build-frontend.sh
+```
+
 #### install-service.sh
-安装systemd服务（需要sudo权限）
+安装 systemd 服务（需要 sudo 权限；需要先构建前端，否则会提示构建命令）
 ```bash
 sudo ./scripts/install-service.sh
 ```
@@ -23,12 +29,21 @@ sudo ./scripts/install-service.sh
 #### upgrade.sh
 系统升级脚本，自动执行：
 - 数据库备份
-- 代码更新
 - 依赖安装
 - 数据库迁移
+- 前端构建（`scripts/build-frontend.sh`）
 - 服务重启
+
+注意：脚本**不执行 `git pull`**，需先手动拉取代码。
 ```bash
+git pull origin main
 ./scripts/upgrade.sh
+```
+
+#### backup.sh
+SQLite 一致性备份（Online Backup + 完整性校验），避免直接 `cp` 在 WAL 模式下拿到不一致快照
+```bash
+./scripts/backup.sh
 ```
 
 #### rollback.sh
@@ -38,7 +53,7 @@ sudo ./scripts/install-service.sh
 ```
 
 #### verify_upgrade.sh
-验证升级是否成功
+验证升级是否成功（含迁移、后台任务表、`static/frontend/.vite/manifest.json` 等检查）
 ```bash
 ./scripts/verify_upgrade.sh
 ```
@@ -46,9 +61,15 @@ sudo ./scripts/install-service.sh
 ### 🔧 工具脚本
 
 #### generate_manifest.py
-生成静态资源版本manifest
+生成传统静态资源版本 manifest
 ```bash
 python3 scripts/generate_manifest.py
+```
+
+#### generate_schema_snapshot.py
+重新生成 `tests/schema_snapshot.json`（新增/修改迁移后必须执行，否则 CI 失败）
+```bash
+.venv/bin/python scripts/generate_schema_snapshot.py
 ```
 
 #### setup-https-sslip.sh

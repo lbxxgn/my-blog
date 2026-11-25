@@ -9,6 +9,11 @@
 <link rel="stylesheet" href="{{ static_file('css/knowledge.css') }}">
 {% endblock %}
 
+{% block scripts %}
+<script defer src="{{ static_file('js/kb-category-modal.js') }}"></script>
+<script defer src="{{ static_file('js/kb-category-page.js') }}"></script>
+{% endblock %}
+
 {% block content %}
 <main class="container kb-layout">
     <div class="kb-sidebar">
@@ -26,11 +31,10 @@
             </div>
             <div class="kb-sidebar-cat-btns">
                 <button class="kb-mini-btn kb-add-sub" data-parent-id="{{ category.id }}" data-parent-name="{{ category.name }}" title="新建子目录">＋ 子目录</button>
-                <form method="POST" action="{{ url_for('knowledge.delete_category', category_id=category.id) }}"
-                      data-confirm="确定删除此目录？文档会按所选方式处理。" data-confirm-destructive="true" data-confirm-text="删除"
-                      style="display:inline-flex;gap:4px;align-items:center;">
+                <form class="u-inline-flex-center" method="POST" action="{{ url_for('knowledge.delete_category', category_id=category.id) }}"
+                      data-confirm="确定删除此目录？文档会按所选方式处理。" data-confirm-destructive="true" data-confirm-text="删除" >
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <select name="target_category_id" style="padding:3px 5px;border:1px solid var(--border-color);border-radius:4px;font-size:0.78rem;">
+                    <select name="target_category_id" class="kb-chip-select">
                         <option value="">迁移目录…</option>
                         <option value="__orphan__">移入未分类</option>
                         {% for item in tree_flattened or [] %}
@@ -80,20 +84,20 @@
         <section class="kb-doc-section">
             <h3>文档</h3>
             {% if docs %}
-            <div class="kb-batch-bar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;padding:8px;background:var(--card-bg,#f9fafb);border:1px solid var(--border-color,#e5e7eb);border-radius:8px;">
+            <div class="kb-batch-bar kb-batch-bar kb-batch-bar-tools">
                 <label><input type="checkbox" id="kbSelectAllDocs"> 全选</label>
-                <select id="kbMoveTarget" style="padding:4px 6px;border:1px solid var(--border-color);border-radius:4px;">
+                <select class="u-select-sm" id="kbMoveTarget" >
                     <option value="">移动到目录…</option>
                     {% for item in tree_flattened or [] %}
                     <option value="{{ item.id }}">{{ item.indent }}{{ item.name }}</option>
                     {% endfor %}
                 </select>
-                <button type="button" class="btn btn-sm" id="kbBatchMove">移动所选</button>
+                <button type="button" class="btn btn-sm" id="kbBatchMove" data-url="{{ url_for('knowledge.batch_move_docs') }}">移动所选</button>
             </div>
             <div class="kb-doc-list">
                 {% for doc in docs %}
                 <div class="kb-doc-card-wrap">
-                    <input type="checkbox" class="kb-doc-select" value="{{ doc.id }}" style="margin:6px 8px 0 0;float:left;">
+                    <input type="checkbox" class="kb-doc-select kb-doc-select kb-doc-check">
                     <a href="{{ url_for('knowledge.view_doc', doc_id=doc.id) }}" class="kb-doc-card">
                         <h4>{{ doc.title }}</h4>
                         <div class="kb-doc-meta">
@@ -118,10 +122,10 @@
 </main>
 
 {% if can_manage %}
-<div class="kb-modal" id="kb-cat-modal" style="display:none">
+<div class="kb-modal u-hidden" id="kb-cat-modal" role="dialog" aria-modal="true" aria-labelledby="kb-cat-modal-title">
     <div class="kb-modal-content">
         <h4 id="kb-cat-modal-title">新建目录</h4>
-        <form id="kb-cat-form">
+        <form id="kb-cat-form" data-action-url="{{ url_for('knowledge.new_category') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="parent_id" id="kb-cat-parent" value="">
             <div class="form-group">
@@ -143,68 +147,5 @@
         </form>
     </div>
 </div>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var modal = document.getElementById('kb-cat-modal');
-    var form = document.getElementById('kb-cat-form');
-    var parentInput = document.getElementById('kb-cat-parent');
-    var titleEl = document.getElementById('kb-cat-modal-title');
-    function openModal(parentId, parentName) {
-        parentInput.value = parentId || '';
-        titleEl.textContent = parentId ? '在「' + (parentName || '') + '」下新建目录' : '新建顶层目录';
-        modal.style.display = 'flex';
-        setTimeout(function(){ document.getElementById('kb-cat-name').focus(); }, 50);
-    }
-    function closeModal() { modal.style.display = 'none'; form.reset(); parentInput.value=''; }
-    document.querySelectorAll('.kb-add-root,.kb-add-sub').forEach(function(btn){
-        btn.addEventListener('click', function(){
-            var pid = btn.getAttribute('data-parent-id') || '';
-            var name = btn.getAttribute('data-parent-name') || '';
-            if (!name && pid) {
-                var item = btn.closest('.kb-tree-item');
-                if (item) name = item.querySelector('a').textContent.trim();
-            }
-            openModal(pid, name);
-        });
-    });
-    document.getElementById('kb-cat-cancel').addEventListener('click', closeModal);
-    modal.addEventListener('click', function(e){ if (e.target === modal) closeModal(); });
-    form.addEventListener('submit', function(e){
-        e.preventDefault();
-        var fd = new FormData(form);
-        fetch('{{ url_for("knowledge.new_category") }}', {method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'}})
-        .then(function(r){return r.json()}).then(function(data){
-            if (data.success) { closeModal(); location.reload(); }
-            else { alert(data.error || '创建失败'); }
-        }).catch(function(e){ alert('网络错误: ' + e); });
-    });
-});
-</script>
 {% endif %}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var all = document.getElementById('kbSelectAllDocs');
-    if (all) all.addEventListener('change', function () {
-        document.querySelectorAll('.kb-doc-select').forEach(function (cb) { cb.checked = all.checked; });
-    });
-    var moveBtn = document.getElementById('kbBatchMove');
-    if (moveBtn) moveBtn.addEventListener('click', function () {
-        var target = document.getElementById('kbMoveTarget').value;
-        var ids = Array.from(document.querySelectorAll('.kb-doc-select:checked')).map(function (cb) { return cb.value; });
-        if (!target) return alert('请选择目标目录');
-        if (!ids.length) return alert('请选择要移动的文档');
-        var fd = new FormData();
-        fd.append('category_id', target);
-        fd.append('doc_ids', ids.join(','));
-        fd.append('csrf_token', document.querySelector('meta[name="csrf_token"]').content);
-        fetch('{{ url_for("knowledge.batch_move_docs") }}', {method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}})
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (!data.success) throw new Error(data.error || '移动失败');
-                location.reload();
-            })
-            .catch(function (e) { alert(e.message || '移动失败'); });
-    });
-});
-</script>
 {% endblock %}

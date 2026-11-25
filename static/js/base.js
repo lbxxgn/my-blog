@@ -406,3 +406,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 5000);
     });
 });
+
+// PWA：注册最小 Service Worker（仅满足安装条件，无离线缓存）
+// 原为 base.html 内联脚本，失败静默处理（浏览器不支持 / 非安全上下文都会走到 catch）
+(function () {
+    var isLocal = ['localhost', '127.0.0.1'].indexOf(location.hostname) !== -1;
+    if (location.protocol !== 'https:' && !isLocal) return;
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('/sw.js').catch(function () {
+        // 注册失败不打扰用户
+    });
+})();
+
+// 标签/分类数据：从 base.html 的 JSON 块读出，挂到 window 供 mobile-editor.js 使用
+// 原为一段可执行内联脚本，改成 data 块后这里做桥接
+(function () {
+    var el = document.getElementById('site-lookup-data');
+    if (!el) {
+        window.availableTags = window.availableTags || [];
+        window.availableCategories = window.availableCategories || [];
+        return;
+    }
+    try {
+        var data = JSON.parse(el.textContent) || {};
+        window.availableTags = data.tags || [];
+        window.availableCategories = data.categories || [];
+    } catch (error) {
+        window.availableTags = [];
+        window.availableCategories = [];
+        console.error('Failed to parse site lookup data:', error);
+    }
+})();
+
+// 移动端全局返回按钮（原 base.html 里的 onclick，改为 data-action + 事件委托）
+document.addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-action="back"], [data-action="back-home"]');
+    if (!btn) return;
+    var homeUrl = btn.dataset.homeUrl || '/';
+    if (btn.dataset.action === 'back-home') {
+        window.location.href = homeUrl;
+    } else if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = homeUrl;
+    }
+});

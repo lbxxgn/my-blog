@@ -84,6 +84,12 @@ check_files() {
         "backend/tasks/image_optimization_task.py"
         "backend/utils/asset_version.py"
         "backend/utils/template_helpers.py"
+        "backend/routes/legacy.py"
+        "backend/services/task_queue.py"
+        "backend/tasks/embedding_task.py"
+        "backend/migrations/migrate_baseline.py"
+        "backend/migrations/migrate_background_tasks.py"
+        "scripts/build-frontend.sh"
         "static/manifest.json"
         "scripts/generate_manifest.py"
         "scripts/upgrade.sh"
@@ -186,6 +192,13 @@ check_static_assets() {
         fi
     else
         print_error "manifest.json不存在"
+    fi
+
+    # 检查知识库编辑器构建产物（static/frontend 不入库，必须构建）
+    if [ -f "static/frontend/.vite/manifest.json" ]; then
+        print_success "前端构建产物已就绪 (static/frontend/.vite/manifest.json)"
+    else
+        print_error "前端构建产物缺失，请执行: ./scripts/build-frontend.sh"
     fi
 
     # 检查uploads/optimized目录

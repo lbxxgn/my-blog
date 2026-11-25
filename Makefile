@@ -3,13 +3,21 @@ PYTEST ?= $(PYTHON) -m pytest
 IMAGE_TESTS = tests/test_image_cleanup_tool.py tests/test_image_edge_cases.py tests/test_image_processing.py
 CHECK_FILES = backend/app.py backend/config.py backend/routes/api.py backend/routes/blog/__init__.py backend/routes/admin/__init__.py backend/routes/ai/__init__.py
 
-.PHONY: run test test-e2e test-images check lint coverage clean-artifacts diag-api
+.PHONY: run test test-unit test-integration test-e2e test-images check lint css-check coverage clean-artifacts diag-api
 
 run:
 	$(PYTHON) backend/app.py
 
 test:
 	$(PYTEST) tests/ -v
+
+# 只跑单元测试（排除 integration / e2e）
+test-unit:
+	$(PYTEST) tests/ -q -m "not integration and not e2e"
+
+# 只跑集成测试（线程、异步、持久化队列等）
+test-integration:
+	$(PYTEST) tests/ -q -m "integration and not e2e"
 
 # 浏览器端到端测试（需要本机 Chrome/Chromium；可用 E2E_CHROME_BIN 指定）
 test-e2e:
@@ -23,7 +31,11 @@ lint:
 	$(PYTHON) -m compileall -q backend tests scripts
 	$(PYTHON) -m ruff check backend tests scripts
 
-check: lint
+# 样式表检查：任何 CSS 文件都不应再出现重复选择器（见 scripts/css_clean.py）
+css-check:
+	$(PYTHON) scripts/css_clean.py --check static/css/*.css
+
+check: lint css-check
 	$(PYTEST) tests/ -q
 
 coverage:

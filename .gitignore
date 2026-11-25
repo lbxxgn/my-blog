@@ -109,3 +109,4 @@ static/frontend/
 
 # Frontend dev/build generated
 frontend/dist/
+frontend/.npm-cache/

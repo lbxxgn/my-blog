@@ -18,14 +18,12 @@
 
     {# 主样式表必须参与首帧渲染：曾用 media="print" + onload 的懒加载技巧，
        但脚本在 DOMContentLoaded 就会插入靠 CSS 隐藏的节点（如「代码已复制」提示、目录、
-       快捷键提示），CSS 未生效前它们会以纯文本形式闪一下，刷新页面时尤其明显。 #}
+       快捷键提示），CSS 未生效前它们会以纯文本形式闪一下，刷新页面时尤其明显。
+       全部页面样式（含此前的 enhancements.css）已合并进这一个文件。 #}
     <link rel="stylesheet" href="{{ static_file('css/style.css') }}">
 
     <!-- Syntax highlighting (Pygments) -->
     <link rel="stylesheet" href="{{ static_file('css/pygments.css') }}">
-
-    <!-- Frontend enhancements -->
-    <link rel="stylesheet" href="{{ static_file('css/enhancements.css') }}">
 
     <!-- 移动端完整样式 - 只在移动端加载 -->
     <link rel="stylesheet" href="{{ static_file('css/mobile-weibo.css') }}" media="(max-width: 768px)">
@@ -33,9 +31,8 @@
     <!-- PC端信息流样式 - 只在PC端加载 -->
     <link rel="stylesheet" href="{{ static_file('css/pc-feed.css') }}" media="(min-width: 769px)">
 
-    <!-- 全局命令面板样式 -->
-    <link rel="stylesheet" href="{{ static_file('css/command-palette.css') }}" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="{{ static_file('css/command-palette.css') }}"></noscript>
+    <!-- 全局命令面板样式（2.7KB，直接加载，避免 onload 内联事件处理器） -->
+    <link rel="stylesheet" href="{{ static_file('css/command-palette.css') }}">
     {% if request.path.startswith('/admin') %}
     <link rel="stylesheet" href="{{ static_file('css/admin-layout.css') }}">
     {% endif %}
@@ -48,21 +45,20 @@
 {% endif %}
 {% set mobile_shell_enabled = current_page_type == 'home' %}
 <body data-page="{{ current_page_type }}">
-    <script>
-        // 首帧前应用主题，避免暗色闪烁（FOUC）；与 base.js 的切换逻辑保持同一数据源
-        (function(){try{var t=localStorage.getItem('theme');if(t!=='dark'&&t!=='light'){t=(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';}if(t==='dark'){document.body.classList.add('dark-theme');}}catch(e){}})();
-    </script>
+<a class="skip-link" href="#main-content">跳到主要内容</a>
+    <!-- 首帧前应用主题，避免暗色闪烁（FOUC）；必须同步加载，不能加 defer -->
+    <script src="{{ static_file('js/theme-init.js') }}"></script>
     <!-- 移动端全局返回按钮（非首页显示） -->
     {% if not mobile_shell_enabled %}
     {% if current_page_type.startswith('admin') %}
-    <button class="mobile-back-btn global" onclick="window.location.href='{{ url_for('blog.index') }}'" aria-label="返回首页">←</button>
+    <button type="button" class="mobile-back-btn global" aria-label="返回首页" data-action="back-home" data-home-url="{{ url_for('blog.index') }}">←</button>
     {% else %}
-    <button class="mobile-back-btn global" onclick="if(window.history.length>1){window.history.back();}else{window.location.href='{{ url_for('blog.index') }}';}" aria-label="返回">←</button>
+    <button type="button" class="mobile-back-btn global" aria-label="返回" data-action="back" data-home-url="{{ url_for('blog.index') }}">←</button>
     {% endif %}
     {% endif %}
     <header>
         <nav>
-            <h1><a href="{{ url_for('blog.index') }}"><img src="{{ url_for('site_icon_48') }}?v={{ site_icon_version }}" alt="" class="site-logo" style="height: 1.5em; width: 1.5em; border-radius: 8px; vertical-align: -0.25em; margin-right: 8px;">{{ site_name }}</a></h1>
+            <h1><a href="{{ url_for('blog.index') }}"><img src="{{ url_for('site_icon_48') }}?v={{ site_icon_version }}" alt="" class="site-logo site-logo-inline">{{ site_name }}</a></h1>
 
             <!-- 汉堡菜单按钮（仅移动端显示） -->
             <button class="hamburger" id="hamburger" aria-label="菜单">
@@ -118,121 +114,8 @@
         </nav>
     </header>
 
-<style>
-/* Dropdown Menu Styles */
-.dropdown {
-    position: relative;
-}
 
-.dropdown-toggle {
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    user-select: none;  /* Prevent text selection */
-}
-
-.dropdown-arrow {
-    font-size: 10px;
-    transition: transform 0.3s ease;
-    display: inline-block;
-}
-
-.dropdown-menu {
-    display: block;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background: var(--card-bg, white);
-    min-width: 180px;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-    border-radius: 8px;
-    padding: 8px 0;
-    z-index: 1000;
-    opacity: 0;
-    transform: translateY(-8px);
-    pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.dropdown-menu li {
-    list-style: none;
-}
-
-.dropdown-menu li a {
-    display: block;
-    padding: 10px 20px;
-    color: var(--text-color, #333);
-    text-decoration: none;
-    transition: background 0.2s ease;
-}
-
-.dropdown-menu li a:hover {
-    background: var(--code-bg, #f5f5f5);
-}
-
-/* Active state for open dropdowns */
-.dropdown-menu.show {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-.nav-links > li.dropdown:last-child > .dropdown-menu {
-    left: auto;
-    right: 0;
-}
-
-/* User Icon Style */
-.user-icon {
-    font-size: 18px;
-}
-
-/* Nav Theme Toggle */
-.nav-theme-toggle {
-    display: flex;
-    align-items: center;
-    list-style: none;
-}
-
-.theme-toggle-nav {
-    background: none;
-    border: 1px solid var(--border-color, #e0e0e0);
-    border-radius: 6px;
-    cursor: pointer;
-    padding: 6px 10px;
-    font-size: 1.1rem;
-    color: var(--text-color, #333);
-    transition: all 0.2s ease;
-}
-
-.theme-toggle-nav:hover {
-    background-color: var(--code-bg, #f3f4f6);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .dropdown-menu {
-        position: static;
-        box-shadow: none;
-        border-left: 3px solid #007bff;
-        padding-left: 10px;
-        opacity: 1;
-        transform: none;
-        pointer-events: auto;
-    }
-
-    .dropdown-arrow {
-        display: inline-block;
-    }
-
-    .nav-theme-toggle {
-        display: none;
-    }
-}
-</style>
-
-    <main>
+    <main id="main-content">
         {% if current_page_type == 'admin' %}
         <div class="admin-shell">
             <aside class="admin-sidebar">
@@ -278,39 +161,38 @@
 
         {% if mobile_shell_enabled %}
         <!-- 移动端首页 -->
-        <div class="mobile-page" data-page="home" style="display: block;">
+        <div class="mobile-page is-active" data-page="home">
         {% endif %}
             {% block content %}{% endblock %}
         {% if mobile_shell_enabled %}
         </div>
 
         <!-- 移动端发现页面 -->
-        <div class="mobile-page" data-page="discover" style="display: none;">
-            <div class="container" style="padding: 16px;">
-                <h2 style="margin-bottom: 12px; font-size: 20px;">探索</h2>
+        <div class="mobile-page" data-page="discover">
+            <div class="container u-p-16">
+                <h2 class="discover-title">探索</h2>
 
                 <!-- 搜索框 -->
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <form action="{{ url_for('blog.search') }}" method="get" style="position: relative;">
-                        <input type="text" name="q" placeholder="搜索文章标题或内容..."
-                               style="width: 100%; padding: 14px 40px 14px 16px; border-radius: 12px; border: 1px solid var(--border-color); font-size: 16px;">
-                        <button type="submit" aria-label="搜索" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--primary-color); display: flex;">
+                <div class="form-group u-mb-20">
+                    <form action="{{ url_for('blog.search') }}" method="get" class="discover-search-form">
+                        <input type="text" name="q" placeholder="搜索文章标题或内容..." class="discover-search-input">
+                        <button type="submit" aria-label="搜索" class="discover-search-submit">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.2 4.2"/></svg>
                         </button>
                     </form>
                 </div>
 
                 <!-- 快速筛选 -->
-                <div style="margin-bottom: 20px;">
-                    <h3 style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">快速筛选</h3>
-                    <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;">
-                        <a href="/" style="flex: 0 0 auto; padding: 8px 16px; background: var(--code-bg, #f6f8fa); border-radius: 16px; text-decoration: none; font-size: 14px; color: var(--text-color); white-space: nowrap;">
+                <div class="u-mb-20">
+                    <h3 class="discover-subtitle">快速筛选</h3>
+                    <div class="discover-chips">
+                        <a href="/" class="discover-chip">
                             最新
                         </a>
-                        <a href="/archive?days=7" style="flex: 0 0 auto; padding: 8px 16px; background: var(--code-bg, #f6f8fa); border-radius: 16px; text-decoration: none; font-size: 14px; color: var(--text-color); white-space: nowrap;">
+                        <a href="/archive?days=7" class="discover-chip">
                             本周
                         </a>
-                        <a href="/archive?days=30" style="flex: 0 0 auto; padding: 8px 16px; background: var(--code-bg, #f6f8fa); border-radius: 16px; text-decoration: none; font-size: 14px; color: var(--text-color); white-space: nowrap;">
+                        <a href="/archive?days=30" class="discover-chip">
                             本月
                         </a>
                     </div>
@@ -318,15 +200,15 @@
 
                 <!-- 分类浏览 -->
                 {% if categories %}
-                <div style="margin-bottom: 24px;">
-                    <h3 style="font-size: 16px; margin-bottom: 12px;">分类浏览</h3>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                <div class="discover-section">
+                    <h3 class="u-heading-16">分类浏览</h3>
+                    <div class="discover-cat-grid">
                         {% for cat in categories %}
                         <a href="{{ url_for('blog.view_category', category_id=cat.id) }}"
-                           style="display: block; padding: 20px; background: var(--gradient-card); border-radius: 12px; text-align: center; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                           class="discover-cat-card">
                             <div class="discover-cat-icon" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3.8 7.4A1.6 1.6 0 0 1 5.4 5.8h4.1l1.7 2h7.4a1.6 1.6 0 0 1 1.6 1.6v7.2a1.6 1.6 0 0 1-1.6 1.6H5.4a1.6 1.6 0 0 1-1.6-1.6z"/></svg></div>
-                            <div style="font-weight: 600; font-size: 14px;">{{ cat.name }}</div>
-                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                            <div class="discover-cat-name">{{ cat.name }}</div>
+                            <div class="discover-cat-count">
                                 {{ cat.post_count if cat.post_count else '-' }} 篇
                             </div>
                         </a>
@@ -337,18 +219,18 @@
 
                 <!-- 热门标签 -->
                 {% if popular_tags %}
-                <div style="margin-bottom: 24px;">
-                    <h3 style="font-size: 16px; margin-bottom: 12px;">热门标签</h3>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <div class="discover-section">
+                    <h3 class="u-heading-16">热门标签</h3>
+                    <div class="discover-tag-list">
                         {% for tag in popular_tags %}
                         <a href="{{ url_for('blog.view_tag', tag_id=tag.id) }}"
-                           style="display: inline-block; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 20px; text-decoration: none; font-size: 14px;">
+                           class="discover-tag">
                             #{{ tag.name }}
                         </a>
                         {% endfor %}
                     </div>
-                    <div style="margin-top: 8px;">
-                        <a href="/tags" style="font-size: 13px; color: var(--primary-color); text-decoration: none;">
+                    <div class="discover-more">
+                        <a href="/tags" class="discover-more-link">
                             查看全部标签 →
                         </a>
                     </div>
@@ -356,16 +238,16 @@
                 {% endif %}
 
                 <!-- 搜索提示 -->
-                <div style="text-align: center; padding: 20px 0; color: var(--text-secondary); font-size: 13px;">
+                <div class="discover-hint">
                     提示：可以使用上方搜索框查找文章
                 </div>
             </div>
         </div>
 
         <!-- 移动端我的文章页面 -->
-        <div class="mobile-page" data-page="my-posts" style="display: none;">
+        <div class="mobile-page" data-page="my-posts">
             <div class="mobile-my-posts">
-                <h2 style="margin-bottom: 16px; font-size: 20px;">我的文章</h2>
+                <h2 class="mobile-page-title">我的文章</h2>
 
                 <div class="mobile-posts-tabs">
                     <button class="mobile-posts-tab active" data-tab="published">已发布</button>
@@ -374,11 +256,11 @@
 
                 <div id="my-posts-list">
                     <!-- 文章列表将通过 JS 加载 -->
-                    <p style="text-align: center; color: var(--text-secondary); padding: 40px 0;">
+                    <p class="mobile-empty-state">
                         {% if session.get('user_id') %}
-                        <a href="{{ url_for('admin.admin_dashboard') }}" style="color: var(--primary-color);">去管理后台查看 →</a>
+                        <a href="{{ url_for('admin.admin_dashboard') }}" class="mobile-empty-link">去管理后台查看 →</a>
                         {% else %}
-                        <a href="{{ url_for('auth.login') }}" style="color: var(--primary-color);">登录后查看 →</a>
+                        <a href="{{ url_for('auth.login') }}" class="mobile-empty-link">登录后查看 →</a>
                         {% endif %}
                     </p>
                 </div>
@@ -386,58 +268,58 @@
         </div>
 
         <!-- 移动端个人中心页面 -->
-        <div class="mobile-page" data-page="profile" style="display: none;">
-            <div class="container" style="padding: 16px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-                    <h2 style="margin: 0; font-size: 20px;">个人中心</h2>
-                    <button type="button" id="mobileThemeToggle" aria-label="切换主题" style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; background: var(--bg-color); border-radius: 50%; border: 1px solid var(--border-color); color: var(--text-color); font-size: 20px; line-height: 1; cursor: pointer; flex-shrink: 0;">
+        <div class="mobile-page" data-page="profile">
+            <div class="container u-p-16">
+                <div class="profile-header">
+                    <h2 class="profile-header-title">个人中心</h2>
+                    <button type="button" id="mobileThemeToggle" aria-label="切换主题" class="profile-theme-toggle">
                         <span id="mobileThemeIcon"><svg class="theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.2 8.2 0 1 0 10.2 10.2z"/></svg><svg class="theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></svg></span>
                     </button>
                 </div>
 
                 {% if session.get('user_id') %}
-                <div style="background: var(--gradient-card); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-                    <div style="display: flex; align-items: center; gap: 16px;">
+                <div class="profile-card">
+                    <div class="profile-card-row">
                         <div class="profile-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.4 3.5-5.4 7-5.4s6.4 2 7 5.4"/></svg></div>
                         <div>
-                            <div style="font-size: 18px; font-weight: 600;">{{ session.get('username', '用户') }}</div>
-                            <div style="color: var(--text-secondary); font-size: 14px;">{{ session.get('role', 'user') }}</div>
+                            <div class="profile-name">{{ session.get('username', '用户') }}</div>
+                            <div class="profile-role">{{ session.get('role', 'user') }}</div>
                         </div>
                     </div>
                 </div>
 
-                <div style="display: flex; flex-direction: column; gap: 12px;">
-                    <a href="{{ url_for('admin.admin_dashboard') }}" class="profile-link-admin" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                <div class="profile-links">
+                    <a href="{{ url_for('admin.admin_dashboard') }}" class="profile-link-admin profile-link">
                         
-                        <span style="flex: 1;">文章管理</span>
+                        <span class="profile-link-label">文章管理</span>
                         <span>→</span>
                     </a>
-                    <a href="{{ url_for('knowledge.index') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                    <a href="{{ url_for('knowledge.index') }}" class="profile-link">
                         
-                        <span style="flex: 1;">知识库</span>
+                        <span class="profile-link-label">知识库</span>
                         <span>→</span>
                     </a>
-                    <a href="{{ url_for('review.review_page') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                    <a href="{{ url_for('review.review_page') }}" class="profile-link">
                         
-                        <span style="flex: 1;">回顾</span>
+                        <span class="profile-link-label">回顾</span>
                         <span>→</span>
                     </a>
-                    <a href="{{ url_for('auth.change_password') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: var(--bg-color); border-radius: 12px; text-decoration: none; color: var(--text-color); border: 1px solid var(--border-color);">
+                    <a href="{{ url_for('auth.change_password') }}" class="profile-link">
                         
-                        <span style="flex: 1;">修改密码</span>
+                        <span class="profile-link-label">修改密码</span>
                         <span>→</span>
                     </a>
-                    <a href="{{ url_for('auth.logout') }}" style="display: flex; align-items: center; gap: 12px; padding: 16px; background: #fef2f2; border-radius: 12px; text-decoration: none; color: #dc2626; border: 1px solid #fecaca;">
+                    <a href="{{ url_for('auth.logout') }}" class="profile-link-danger">
                         
-                        <span style="flex: 1;">退出登录</span>
+                        <span class="profile-link-label">退出登录</span>
                         <span>→</span>
                     </a>
                 </div>
                 {% else %}
-                <div style="text-align: center; padding: 60px 20px;">
+                <div class="profile-logged-out">
                     
-                    <p style="margin-bottom: 24px; color: var(--text-secondary);">登录后可使用更多功能</p>
-                    <a href="{{ url_for('auth.login') }}" style="display: inline-block; padding: 14px 40px; background: linear-gradient(135deg, #1abc9c 0%, #16a089 100%); color: white; border-radius: 25px; text-decoration: none; font-size: 16px; font-weight: 600;">
+                    <p class="profile-logged-out-text">登录后可使用更多功能</p>
+                    <a href="{{ url_for('auth.login') }}" class="profile-login-btn">
                         立即登录
                     </a>
                 </div>
@@ -500,6 +382,7 @@
         <p>&copy; {{ current_year }} {{ site_name }}. All rights reserved.</p>
     </footer>
 
+    <script defer src="{{ static_file('js/http.js') }}"></script>
     <script defer src="{{ static_file('js/utils.js') }}"></script>
     <script defer src="{{ static_file('js/main.js') }}"></script>
     <!-- 移动端底部导航切换逻辑 -->
@@ -518,19 +401,6 @@
 
     <script defer src="{{ static_file('js/base.js') }}"></script>
 
-    <!-- PWA：注册最小 Service Worker（仅满足安装条件，无离线缓存） -->
-    <script>
-    (function () {
-        var isLocal = ['localhost', '127.0.0.1'].indexOf(location.hostname) !== -1;
-        if (location.protocol === 'https:' || isLocal) {
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').catch(function () {
-                    // 注册失败静默处理（如浏览器不支持或不满足安全上下文）
-                });
-            }
-        }
-    })();
-    </script>
 
     {% block scripts %}{% endblock %}
 
@@ -548,7 +418,7 @@
             <span class="mobile-editor-title">发布内容</span>
             <span class="mobile-editor-subtitle">{{ session.get('display_name') or session.get('username') or site_author }}</span>
         </div>
-        <button type="button" class="mobile-editor-save-draft" id="mobileEditorSaveDraft" style="background:transparent;border:0;color:var(--text-secondary);font-size:0.9rem;">存草稿</button>
+        <button type="button" class="mobile-editor-save-draft mobile-editor-save-draft-plain" id="mobileEditorSaveDraft">存草稿</button>
         <button type="button" class="mobile-editor-publish" id="mobileEditorPublish" disabled>发布</button>
     </div>
     <div class="mobile-editor-content">
@@ -556,7 +426,7 @@
         <textarea id="mobileEditorTextarea" class="mobile-editor-textarea" placeholder="分享新鲜事..."></textarea>
         <div id="mobileEditorImages" class="mobile-editor-images"></div>
     </div>
-    <div id="mobileEditorTagSuggest" class="mobile-editor-tag-suggest" style="display: none;"></div>
+    <div id="mobileEditorTagSuggest" class="mobile-editor-tag-suggest" hidden></div>
     <div class="mobile-editor-bottom-shell">
         <div class="mobile-editor-meta">
             <div class="mobile-editor-meta-top">
@@ -564,7 +434,7 @@
                 <div class="mobile-editor-meta-spacer"></div>
                 <button type="button" class="mobile-editor-access-pill" id="mobileEditorAccessPill">公开</button>
             </div>
-            <div id="mobileEditorSelections" class="mobile-editor-selections" style="display: none;"></div>
+            <div id="mobileEditorSelections" class="mobile-editor-selections" hidden></div>
         </div>
         <div class="mobile-editor-toolbar-shell">
             <div class="mobile-editor-toolbar">
@@ -596,7 +466,7 @@
                         </svg>
                     </span>
                 </button>
-                <input type="file" id="mobileEditorImageInput" accept="image/*" multiple style="display: none;">
+                <input type="file" id="mobileEditorImageInput" accept="image/*" multiple hidden>
             </div>
         </div>
     </div>
@@ -625,10 +495,9 @@
     <div class="selector-content" id="categorySelectorContent"></div>
 </div>
 
-<script>
-// 将可用标签和分类数据传递给 JavaScript
-window.availableTags = {{ (all_tags or [])|tojson }};
-window.availableCategories = {{ (all_categories or [])|tojson }};
+<!-- 标签/分类数据：非可执行 JSON，由 base.js 读取后挂到 window 上（原内联脚本） -->
+<script type="application/json" id="site-lookup-data">
+{"tags": {{ (all_tags or [])|tojson }}, "categories": {{ (all_categories or [])|tojson }}}
 </script>
 
 
