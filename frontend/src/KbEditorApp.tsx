@@ -7,6 +7,7 @@ import { TocPanel } from './components/TocPanel';
 import { MetaPanel } from './components/MetaPanel';
 import { RelatedPanel } from './components/RelatedPanel';
 import { useAutoSave } from './hooks/useAutoSave';
+import { fetchAiStatus, saveDoc } from './lib/api';
 import { EditorInitData } from './types';
 
 interface KbEditorAppProps {
@@ -64,11 +65,10 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
   }, [markDirty]);
 
   useEffect(() => {
-    fetch('/admin/ai/status', { headers: { Accept: 'application/json' } })
-      .then((res) => res.json())
-      .then((data) => {
-        setAiEnabled(Boolean(data.ai_enabled));
-        setAiConfigured(Boolean(data.ai_configured));
+    fetchAiStatus()
+      .then((status) => {
+        setAiEnabled(status.ai_enabled);
+        setAiConfigured(status.ai_configured);
       })
       .catch(() => {
         setAiEnabled(false);
@@ -112,22 +112,7 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
     try {
       const markdown = await editor.blocksToMarkdownLossy(editor.document);
       contentFieldRef.current.value = markdown;
-      const res = await fetch(saveUrl, {
-        method: 'POST',
-        body: new FormData(formRef.current),
-        headers: {
-          'X-CSRFToken': init.csrfToken,
-          'X-Requested-With': 'XMLHttpRequest',
-          Accept: 'application/json',
-        },
-      });
-      const data = await res.json().catch(() => ({} as Record<string, unknown>));
-      if (!res.ok || !data.success) {
-        throw new Error(
-          (data.error as string) ||
-            (res.status === 401 ? '登录已过期，请重新登录' : `保存失败 (${res.status})`)
-        );
-      }
+      const data = await saveDoc(saveUrl, init.csrfToken, new FormData(formRef.current));
       setSaveStatus('saved');
       setStatusMessage(`已保存 ${new Date().toLocaleTimeString()}`);
       setDirty(false);
@@ -135,14 +120,14 @@ export function KbEditorApp({ init }: KbEditorAppProps) {
       // 新建文档首次保存：切换为编辑模式，后续保存走 edit 路由
       if (isNewDoc && data.doc_id) {
         setIsNewDoc(false);
-        setDocId(data.doc_id as number);
-        if (data.edit_url) setSaveUrl(data.edit_url as string);
-        if (data.autosave_url) setAutoSaveUrl(data.autosave_url as string);
-        if (data.edit_url) window.history.replaceState(null, '', data.edit_url as string);
+        setDocId(data.doc_id);
+        if (data.edit_url) setSaveUrl(data.edit_url);
+        if (data.autosave_url) setAutoSaveUrl(data.autosave_url);
+        if (data.edit_url) window.history.replaceState(null, '', data.edit_url);
       }
       if (!stay) {
         navigatingRef.current = true;
-        window.location.href = (data.redirect as string) || window.location.href;
+        window.location.href = data.redirect || window.location.href;
         return;
       }
     } catch (e) {

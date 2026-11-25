@@ -26,6 +26,21 @@ async function postJson(url: string, body: object, csrfToken: string) {
   return data;
 }
 
+export interface AiStatus {
+  ai_enabled: boolean;
+  ai_configured: boolean;
+}
+
+/** 读取后台 AI 功能开关与模型配置状态。 */
+export async function fetchAiStatus(url = '/admin/ai/status'): Promise<AiStatus> {
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  const data = await res.json().catch(() => ({}));
+  return {
+    ai_enabled: Boolean(data.ai_enabled),
+    ai_configured: Boolean(data.ai_configured),
+  };
+}
+
 /** 生成一个可读的设备标签（浏览器 + 系统），用于草稿冲突检测与展示。 */
 export function getDeviceLabel(): string {
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -114,6 +129,74 @@ export async function uploadImage(
     throw new Error(data.error || '图片上传失败');
   }
   return data.url;
+}
+
+export interface SaveDocResult {
+  success: boolean;
+  doc_id?: number;
+  edit_url?: string;
+  autosave_url?: string;
+  redirect?: string;
+  error?: string;
+}
+
+/** 提交知识库文档表单（含标题、目录、正文等），失败时抛出可直接展示的错误。 */
+export async function saveDoc(
+  url: string,
+  csrfToken: string,
+  formData: FormData
+): Promise<SaveDocResult> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': csrfToken,
+      'X-Requested-With': 'XMLHttpRequest',
+      Accept: 'application/json',
+    },
+    body: formData,
+  });
+  const data = (await res.json().catch(() => ({}))) as SaveDocResult;
+  if (!res.ok || !data.success) {
+    throw new Error(
+      data.error ||
+        (res.status === 401 ? '登录已过期，请重新登录' : `保存失败 (${res.status})`)
+    );
+  }
+  return data;
+}
+
+export interface RelatedItem {
+  source_type: string;
+  source_id: number;
+  title: string;
+  excerpt: string;
+  url: string | null;
+  score: number;
+}
+
+export interface RelatedResponse {
+  ok: boolean;
+  status: number;
+  data: { items?: RelatedItem[]; error?: string };
+}
+
+/** 请求相关内容推荐；保留 HTTP 状态码，便于区分“未配置 embedding”等情况。 */
+export async function requestRelated(
+  url: string,
+  csrfToken: string,
+  payload: { text: string; exclude_type?: string; exclude_id?: number; limit?: number }
+): Promise<RelatedResponse> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken,
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = (await res.json().catch(() => ({}))) as RelatedResponse['data'];
+  return { ok: res.ok, status: res.status, data };
 }
 
 export async function organizeContent(

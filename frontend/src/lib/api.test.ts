@@ -1,5 +1,11 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import { getDeviceLabel, getDeviceToken } from './api';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import {
+  fetchAiStatus,
+  getDeviceLabel,
+  getDeviceToken,
+  requestRelated,
+  saveDoc,
+} from './api';
 
 function setUserAgent(ua: string) {
   Object.defineProperty(window.navigator, 'userAgent', {
@@ -62,5 +68,78 @@ describe('getDeviceToken', () => {
     const first = getDeviceToken();
     sessionStorage.clear();
     expect(getDeviceToken()).not.toBe(first);
+  });
+});
+
+function mockFetch(response: { ok: boolean; status: number; body: unknown }) {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: response.ok,
+    status: response.status,
+    json: () => Promise.resolve(response.body),
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
+describe('fetchAiStatus', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('把后端返回转成布尔值', async () => {
+    const fetchMock = mockFetch({
+      ok: true,
+      status: 200,
+      body: { ai_enabled: 1, ai_configured: null },
+    });
+    await expect(fetchAiStatus('/admin/ai/status')).resolves.toEqual({
+      ai_enabled: true,
+      ai_configured: false,
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/admin/ai/status', {
+      headers: { Accept: 'application/json' },
+    });
+  });
+});
+
+describe('saveDoc', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('成功时返回保存结果', async () => {
+    mockFetch({ ok: true, status: 200, body: { success: true, doc_id: 7 } });
+    const formData = new FormData();
+    await expect(saveDoc('/kb/new', 'csrf', formData)).resolves.toEqual({
+      success: true,
+      doc_id: 7,
+    });
+  });
+
+  it('401 时给出登录过期提示', async () => {
+    mockFetch({ ok: false, status: 401, body: {} });
+    await expect(saveDoc('/kb/new', 'csrf', new FormData())).rejects.toThrow(
+      '登录已过期，请重新登录'
+    );
+  });
+
+  it('优先使用后端错误信息', async () => {
+    mockFetch({ ok: false, status: 400, body: { error: '标题不能为空' } });
+    await expect(saveDoc('/kb/new', 'csrf', new FormData())).rejects.toThrow('标题不能为空');
+  });
+});
+
+describe('requestRelated', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('保留状态码与错误码，便于识别未配置 embedding', async () => {
+    mockFetch({
+      ok: false,
+      status: 400,
+      body: { error: 'embedding_not_configured' },
+    });
+    await expect(
+      requestRelated('/kb/related', 'csrf', { text: 'abc', exclude_type: 'doc', limit: 8 })
+    ).resolves.toEqual({
+      ok: false,
+      status: 400,
+      data: { error: 'embedding_not_configured' },
+    });
   });
 });

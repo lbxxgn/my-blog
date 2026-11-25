@@ -1,20 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { BlockNoteEditor } from '@blocknote/core';
+import { requestRelated, RelatedItem } from '../lib/api';
 
 interface RelatedPanelProps {
   editor: BlockNoteEditor | null;
   csrfToken: string;
   relatedUrl: string;
   excludeId?: number;
-}
-
-interface RelatedItem {
-  source_type: string;
-  source_id: number;
-  title: string;
-  excerpt: string;
-  url: string | null;
-  score: number;
 }
 
 type PanelState =
@@ -55,32 +47,23 @@ export function RelatedPanel({ editor, csrfToken, relatedUrl, excludeId }: Relat
   useEffect(() => {
     if (!editor) return;
 
-    const requestRelated = async (text: string) => {
+    const loadRelated = async (text: string) => {
       const seq = ++seqRef.current;
       setState({ kind: 'loading' });
       try {
-        const res = await fetch(relatedUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken,
-            Accept: 'application/json',
-          },
-          body: JSON.stringify({
-            text,
-            exclude_type: 'doc',
-            exclude_id: excludeId,
-            limit: 8,
-          }),
+        const { ok, status, data } = await requestRelated(relatedUrl, csrfToken, {
+          text,
+          exclude_type: 'doc',
+          exclude_id: excludeId,
+          limit: 8,
         });
-        const data = await res.json().catch(() => ({}));
         if (seq !== seqRef.current) return;
-        if (res.status === 400 && data.error === 'embedding_not_configured') {
+        if (status === 400 && data.error === 'embedding_not_configured') {
           setState({ kind: 'not_configured' });
           return;
         }
-        if (!res.ok) {
-          setState({ kind: 'error', message: data.error || `请求失败 (${res.status})` });
+        if (!ok) {
+          setState({ kind: 'error', message: data.error || `请求失败 (${status})` });
           return;
         }
         setState({ kind: 'done', items: data.items || [] });
@@ -98,7 +81,7 @@ export function RelatedPanel({ editor, csrfToken, relatedUrl, excludeId }: Relat
           setState({ kind: 'too_short' });
           return;
         }
-        requestRelated(text);
+        loadRelated(text);
       }, DEBOUNCE_MS);
     };
 
