@@ -118,7 +118,7 @@ def register_security_headers(app):
             # Quill 已自托管，不再需要外部 CDN
             "script-src 'self' 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
+            "img-src 'self' blob: data: https:; "
             "font-src 'self'; "
             "connect-src 'self'; "
             "object-src 'none'; "

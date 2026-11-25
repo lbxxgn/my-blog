@@ -273,7 +273,7 @@ class TestContentSecurityPolicy:
         """测试内容安全策略限制外部资源加载"""
         csp = client.get('/').headers['Content-Security-Policy']
 
-        assert 'img-src \'self\' data: https:' in csp
+        assert 'img-src \'self\' blob: data: https:' in csp
         assert 'font-src \'self\'' in csp
         assert 'connect-src \'self\'' in csp
 

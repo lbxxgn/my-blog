@@ -43,3 +43,99 @@
 .reset-icon-form {
     margin-top: 14px;
 }
+
+/* 图标裁剪：拖动选框选择原图中的一块正方形区域 */
+.icon-crop-editor {
+    margin: 16px 0 18px;
+    max-width: 520px;
+}
+
+.icon-crop-stage {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 10px;
+    background: #111;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: crosshair;
+}
+
+.icon-crop-frame {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    line-height: 0;
+}
+
+.icon-crop-image {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+.icon-crop-box {
+    position: absolute;
+    box-sizing: border-box;
+    /* 白色描边 + 超大阴影压暗选区外的部分 */
+    box-shadow: 0 0 0 2px #fff, 0 0 0 9999px rgba(0, 0, 0, 0.55);
+    border-radius: 2px;
+    cursor: move;
+    touch-action: none;
+}
+
+.icon-crop-box:focus-visible {
+    outline: 2px solid var(--primary-color, #2563eb);
+    outline-offset: 2px;
+}
+
+.icon-crop-handle {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.35);
+    border-radius: 4px;
+    touch-action: none;
+}
+
+.icon-crop-handle.is-nw {
+    left: -9px;
+    top: -9px;
+    cursor: nwse-resize;
+}
+
+.icon-crop-handle.is-ne {
+    right: -9px;
+    top: -9px;
+    cursor: nesw-resize;
+}
+
+.icon-crop-handle.is-sw {
+    left: -9px;
+    bottom: -9px;
+    cursor: nesw-resize;
+}
+
+.icon-crop-handle.is-se {
+    right: -9px;
+    bottom: -9px;
+    cursor: nwse-resize;
+}
+
+.icon-crop-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
