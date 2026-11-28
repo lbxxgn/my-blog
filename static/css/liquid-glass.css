@@ -156,6 +156,10 @@ body.liquid-glass.dark-theme::before {
     -webkit-backdrop-filter: none;
 }
 
+.liquid-glass .post-content .ql-code-block-container {
+    position: relative;
+}
+
 @keyframes liquid-drift-one {
     0% {
         transform: translate3d(-4%, -3%, 0) rotate(0deg) scale(1);
@@ -719,6 +723,28 @@ body.liquid-glass.dark-theme::before {
     }
 
 }
+@media (min-width: 769px) and (max-width: 992px) {
+    .liquid-glass > header .nav-links {
+        right: 0;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+
+    .liquid-glass > header .nav-links.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .liquid-glass > header .hamburger {
+        width: 44px;
+        height: 44px;
+        padding: 10px;
+    }
+}
+
 @media (max-width: 768px) {
     .liquid-glass main {
         padding-top: 0.5rem;
