@@ -19,7 +19,7 @@
     {# 主样式表必须参与首帧渲染：曾用 media="print" + onload 的懒加载技巧，
        但脚本在 DOMContentLoaded 就会插入靠 CSS 隐藏的节点（如「代码已复制」提示、目录、
        快捷键提示），CSS 未生效前它们会以纯文本形式闪一下，刷新页面时尤其明显。
-       全部页面样式（含此前的 enhancements.css）已合并进这一个文件。 #}
+       基础样式与交互增强样式（含此前的 enhancements.css）已合并进这一个文件。 #}
     <link rel="stylesheet" href="{{ static_file('css/style.css') }}">
 
     <!-- Syntax highlighting (Pygments) -->
@@ -37,6 +37,7 @@
     <link rel="stylesheet" href="{{ static_file('css/admin-layout.css') }}">
     {% endif %}
     {% block head %}{% endblock %}
+    <link rel="stylesheet" href="{{ static_file('css/liquid-glass.css') }}">
 </head>
 {% set current_page_type %}{% block page_type %}site{% endblock %}{% endset %}
 {% set current_page_type = current_page_type|trim or 'site' %}
@@ -44,8 +45,13 @@
 {% set current_page_type = 'admin' %}
 {% endif %}
 {% set mobile_shell_enabled = current_page_type == 'home' %}
-<body data-page="{{ current_page_type }}">
+<body class="liquid-glass" data-page="{{ current_page_type }}">
 <a class="skip-link" href="#main-content">跳到主要内容</a>
+<div class="liquid-ambient" aria-hidden="true">
+    <span class="liquid-orb liquid-orb--one"></span>
+    <span class="liquid-orb liquid-orb--two"></span>
+    <span class="liquid-orb liquid-orb--three"></span>
+</div>
     <!-- 首帧前应用主题，避免暗色闪烁（FOUC）；必须同步加载，不能加 defer -->
     <script src="{{ static_file('js/theme-init.js') }}"></script>
     <!-- 移动端全局返回按钮（非首页显示） -->
@@ -398,6 +404,7 @@
     <script defer src="{{ static_file('js/command-palette.js') }}"></script>
     <!-- Frontend enhancements: scroll animations, reading progress -->
     <script defer src="{{ static_file('js/enhancements.js') }}"></script>
+    <script defer src="{{ static_file('js/liquid-glass.js') }}"></script>
 
     <script defer src="{{ static_file('js/base.js') }}"></script>
 
