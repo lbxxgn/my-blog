@@ -790,7 +790,7 @@ body.liquid-glass.dark-theme::before {
     .liquid-glass .mobile-admin-nav {
         left: 12px;
         right: 12px;
-        bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+        bottom: max(4px, calc(env(safe-area-inset-bottom, 0px) - 30px));
         height: 70px;
         padding: 6px;
         border: 1px solid rgba(255, 255, 255, 0.82);
